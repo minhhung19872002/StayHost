@@ -235,6 +235,9 @@ function guestsModal() {
 /* ------------------------------------------------------------------- login */
 
 function loginModal() {
+  if (state.authMode === 'forgot') return forgotModal();
+  if (state.authMode === 'reset') return resetModal();
+
   const isRegister = state.authMode === 'register';
 
   return shell({
@@ -277,6 +280,13 @@ function loginModal() {
         </button>
       </form>
 
+      ${!isRegister ? `
+        <p style="text-align:right;margin:-6px 0 0">
+          <button class="link-btn" style="font-weight:600;font-size:13px" data-act="switch-auth" data-mode="forgot">
+            Quên mật khẩu?
+          </button>
+        </p>` : ''}
+
       <p style="text-align:center;font-size:13.5px;color:var(--ink-muted);margin:18px 0 0">
         ${isRegister ? 'Đã có tài khoản?' : 'Chưa có tài khoản?'}
         <button class="link-btn" data-act="switch-auth" data-mode="${isRegister ? 'login' : 'register'}">
@@ -297,40 +307,135 @@ function loginModal() {
   });
 }
 
+function forgotModal() {
+  return shell({
+    title: 'Quên mật khẩu',
+    size: 'narrow',
+    body: `
+      <p style="margin:0 0 18px;font-size:14px;color:var(--ink-muted);line-height:1.6">
+        Nhập email của bạn, chúng tôi sẽ gửi liên kết đặt lại mật khẩu.
+      </p>
+      <form data-act="submit-forgot">
+        <label class="form-field">
+          <span class="cap">Email</span>
+          <input type="email" name="email" autocomplete="email" placeholder="ban@email.com" required>
+        </label>
+        ${state.authError ? `<div class="form-error">${esc(state.authError)}</div>` : ''}
+        ${state.resetLink ? `
+          <div class="book-alert">
+            <b>Liên kết đặt lại của bạn</b>
+            <span>Bản demo không gửi email thật — bấm nút dưới để tiếp tục.</span>
+          </div>
+          <button type="button" class="btn btn-dark btn-block" style="margin-top:12px" data-act="use-reset-link">
+            Mở trang đặt lại mật khẩu
+          </button>` : `
+          <button type="submit" class="btn btn-primary btn-block" ${state.authBusy ? 'disabled' : ''}>
+            ${state.authBusy ? 'Đang gửi…' : 'Gửi liên kết'}
+          </button>`}
+      </form>
+      <p style="text-align:center;margin:18px 0 0">
+        <button class="link-btn" data-act="switch-auth" data-mode="login">Quay lại đăng nhập</button>
+      </p>
+    `
+  });
+}
+
+function resetModal() {
+  return shell({
+    title: 'Đặt mật khẩu mới',
+    size: 'narrow',
+    body: `
+      <form data-act="submit-reset">
+        <label class="form-field">
+          <span class="cap">Mật khẩu mới</span>
+          <input type="password" name="newPassword" autocomplete="new-password" placeholder="Tối thiểu 8 ký tự" required>
+        </label>
+        <label class="form-field">
+          <span class="cap">Nhập lại mật khẩu</span>
+          <input type="password" name="confirmPassword" autocomplete="new-password" required>
+        </label>
+        ${state.authError ? `<div class="form-error">${esc(state.authError)}</div>` : ''}
+        <button type="submit" class="btn btn-primary btn-block" ${state.authBusy ? 'disabled' : ''}>
+          ${state.authBusy ? 'Đang lưu…' : 'Đặt mật khẩu mới'}
+        </button>
+      </form>
+    `
+  });
+}
+
 /* ----------------------------------------------------------------- profile */
+
+const PROFILE_TABS = [['profile', 'Hồ sơ'], ['security', 'Bảo mật'], ['devices', 'Thiết bị']];
 
 function profileModal() {
   const u = state.user;
   if (!u) return '';
+  const tab = state.profileTab ?? 'profile';
 
   return shell({
     title: 'Tài khoản',
-    size: 'narrow',
     body: `
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
         <span class="avatar" style="width:56px;height:56px;font-size:18px">${esc(u.initials)}</span>
         <div style="min-width:0">
           <div style="font-size:17px;font-weight:800">${esc(u.fullName)}</div>
           <div style="font-size:13px;color:var(--ink-muted)">${esc(u.email)} · ${esc(u.joinedLabel)}</div>
+          <div style="margin-top:6px">
+            ${u.emailConfirmed
+              ? '<span class="badge confirmed">Email đã xác minh</span>'
+              : `<span class="badge pending">Chưa xác minh email</span>
+                 <button class="link-btn" style="margin-left:8px;font-size:12.5px" data-act="send-verification">Gửi liên kết</button>`}
+          </div>
         </div>
       </div>
 
-      <form data-act="submit-profile">
-        <label class="form-field">
-          <span class="cap">Họ và tên</span>
-          <input type="text" name="fullName" value="${esc(u.fullName)}" required>
-        </label>
-        <label class="form-field">
-          <span class="cap">Số điện thoại</span>
-          <input type="tel" name="phone" value="${esc(u.phone ?? '')}">
-        </label>
-        <label class="form-field">
-          <span class="cap">Giới thiệu</span>
-          <textarea name="bio" rows="4"
-            style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px">${esc(u.bio ?? '')}</textarea>
-        </label>
-        <button type="submit" class="btn btn-primary btn-block">Lưu thay đổi</button>
-      </form>
+      <nav class="seg-tabs" style="margin-bottom:18px">
+        ${PROFILE_TABS.map(([key, label]) => `
+          <button class="seg-tab ${tab === key ? 'is-active' : ''}" data-act="profile-tab" data-key="${key}">${esc(label)}</button>
+        `).join('')}
+      </nav>
+
+      ${tab === 'profile' ? `
+        <form data-act="submit-profile">
+          <label class="form-field"><span class="cap">Họ và tên</span>
+            <input type="text" name="fullName" value="${esc(u.fullName)}" required></label>
+          <label class="form-field"><span class="cap">Số điện thoại</span>
+            <input type="tel" name="phone" value="${esc(u.phone ?? '')}"></label>
+          <label class="form-field"><span class="cap">Giới thiệu</span>
+            <textarea name="bio" rows="4"
+              style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px">${esc(u.bio ?? '')}</textarea></label>
+          <button type="submit" class="btn btn-primary btn-block">Lưu thay đổi</button>
+        </form>` : ''}
+
+      ${tab === 'security' ? `
+        <form data-act="submit-change-password">
+          <label class="form-field"><span class="cap">Mật khẩu hiện tại</span>
+            <input type="password" name="currentPassword" autocomplete="current-password" required></label>
+          <label class="form-field"><span class="cap">Mật khẩu mới</span>
+            <input type="password" name="newPassword" autocomplete="new-password" placeholder="Tối thiểu 8 ký tự" required></label>
+          <label class="form-field"><span class="cap">Nhập lại mật khẩu mới</span>
+            <input type="password" name="confirmPassword" autocomplete="new-password" required></label>
+          ${state.authError ? `<div class="form-error">${esc(state.authError)}</div>` : ''}
+          <p style="font-size:12.5px;color:var(--ink-muted);line-height:1.5;margin:0 0 12px">
+            Đổi mật khẩu sẽ đăng xuất mọi thiết bị khác.
+          </p>
+          <button type="submit" class="btn btn-primary btn-block">Đổi mật khẩu</button>
+        </form>` : ''}
+
+      ${tab === 'devices' ? `
+        <div style="display:grid;gap:10px">
+          ${(state.sessions ?? []).map(s => `
+            <div class="cal-row">
+              <div style="flex:1;min-width:0">
+                <b style="font-size:14px">${esc(s.device)}</b>
+                ${s.isCurrent ? '<span class="badge confirmed" style="margin-left:8px">Thiết bị này</span>' : ''}
+                <div style="font-size:12.5px;color:var(--ink-muted)">
+                  Đăng nhập ${esc(longDate(s.createdAt.slice(0, 10)))}
+                </div>
+              </div>
+              ${s.isCurrent ? '' : `<button class="text-btn" data-act="revoke-session" data-id="${esc(s.id)}">Đăng xuất</button>`}
+            </div>`).join('') || '<p style="font-size:14px;color:var(--ink-muted)">Đang tải phiên đăng nhập…</p>'}
+        </div>` : ''}
     `
   });
 }
@@ -432,11 +537,43 @@ function languageModal() {
 
 /* ------------------------------------------------------------------ photos */
 
+const PHOTO_CAPTIONS = ['Ảnh chính', 'Phòng khách', 'Phòng ngủ', 'Không gian ngoài trời', 'Phòng tắm'];
+
 function photosModal() {
   const c = state.detail?.card;
   if (!c) return '';
 
-  const captions = ['Ảnh chính', 'Phòng khách', 'Phòng ngủ', 'Không gian ngoài trời', 'Phòng tắm'];
+  // A focused index turns the grid into a single-photo viewer with arrows.
+  const index = state.photoIndex;
+  if (index !== null && index !== undefined) {
+    const total = c.images.length;
+    return shell({
+      title: `${index + 1} / ${total}`,
+      size: 'wide',
+      body: `
+        <div class="lightbox-stage">
+          <button class="lightbox-nav prev" data-act="photo-step" data-dir="-1"
+                  aria-label="Ảnh trước" ${index === 0 ? 'disabled' : ''}>‹</button>
+          <img src="${esc(c.images[index])}" alt="${esc(c.title)} — ảnh ${index + 1}">
+          <button class="lightbox-nav next" data-act="photo-step" data-dir="1"
+                  aria-label="Ảnh tiếp theo" ${index === total - 1 ? 'disabled' : ''}>›</button>
+        </div>
+        <p class="lightbox-caption">${esc(PHOTO_CAPTIONS[index] ?? `Ảnh ${index + 1}`)}</p>
+        <div class="lightbox-strip">
+          ${c.images.map((src, i) => `
+            <button class="strip-thumb ${i === index ? 'is-on' : ''}" data-act="photo-open" data-index="${i}"
+                    aria-label="Xem ảnh ${i + 1}">
+              <img src="${esc(src)}" alt="" loading="lazy">
+            </button>`).join('')}
+        </div>
+      `,
+      foot: `
+        <button class="text-btn" data-act="photo-grid">← Xem dạng lưới</button>
+        <span style="font-size:13px;color:var(--ink-muted)">${esc(index + 1)} trong ${esc(total)} ảnh</span>
+      `
+    });
+  }
+
   return shell({
     title: `${c.title} — ${c.images.length} ảnh`,
     size: 'wide',
@@ -444,8 +581,10 @@ function photosModal() {
       <div class="lightbox-grid">
         ${c.images.map((src, i) => `
           <figure>
-            <img src="${esc(src)}" alt="${esc(c.title)} — ảnh ${i + 1}" loading="lazy" decoding="async">
-            <figcaption>${esc(captions[i] ?? `Ảnh ${i + 1}`)}</figcaption>
+            <button class="lightbox-open" data-act="photo-open" data-index="${i}" aria-label="Phóng to ảnh ${i + 1}">
+              <img src="${esc(src)}" alt="${esc(c.title)} — ảnh ${i + 1}" loading="lazy" decoding="async">
+            </button>
+            <figcaption>${esc(PHOTO_CAPTIONS[i] ?? `Ảnh ${i + 1}`)}</figcaption>
           </figure>
         `).join('')}
       </div>

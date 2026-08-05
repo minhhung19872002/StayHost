@@ -36,6 +36,25 @@ public class User
     public List<AuthSession> Sessions { get; set; } = [];
 }
 
+public enum TokenPurpose
+{
+    PasswordReset = 0,
+    EmailVerification = 1
+}
+
+/// <summary>Single-use, short-lived token for password resets and email verification.</summary>
+public class UserToken
+{
+    public int Id { get; set; }
+    public string Token { get; set; } = "";
+    public int UserId { get; set; }
+    public User? User { get; set; }
+    public TokenPurpose Purpose { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime ExpiresAt { get; set; } = DateTime.UtcNow.AddHours(2);
+    public DateTime? UsedAt { get; set; }
+}
+
 /// <summary>Opaque bearer token stored in an HttpOnly cookie.</summary>
 public class AuthSession
 {

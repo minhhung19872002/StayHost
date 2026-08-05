@@ -109,13 +109,7 @@ function renderResults() {
     </div>
     <p class="results-context">${title} · ${esc(dateRangeLabel(state.checkIn, state.checkOut))}</p>
     ${grid}
-    ${hasMore ? `
-      <div class="load-more">
-        <p>Đang hiển thị ${esc(results.items.length)} trong ${esc(results.total)} chỗ nghỉ</p>
-        <button class="btn btn-dark" data-act="load-more" ${state.loadingMore ? 'disabled' : ''}>
-          ${state.loadingMore ? 'Đang tải…' : 'Xem thêm chỗ nghỉ'}
-        </button>
-      </div>` : ''}
+    ${renderPagination(results)}
   `;
 
   // Airbnb keeps the map pinned beside the results on desktop; the pill collapses it.
@@ -132,6 +126,37 @@ function renderResults() {
   return `
     <div class="shell" style="padding-block:22px 90px">${body}</div>
     ${renderMapToggle()}
+  `;
+}
+
+/** Numbered pagination, the way airbnb.com paginates /s/ results. */
+function renderPagination(results) {
+  const pages = Math.ceil(results.total / results.pageSize);
+  if (pages <= 1) return '';
+
+  const current = results.page;
+  const window = new Set([1, pages, current, current - 1, current + 1]);
+  const numbers = [...window].filter(n => n >= 1 && n <= pages).sort((a, b) => a - b);
+
+  const items = [];
+  let previous = 0;
+  for (const n of numbers) {
+    if (n - previous > 1) items.push('<span class="page-gap">…</span>');
+    items.push(`
+      <button class="page-btn ${n === current ? 'is-on' : ''}" data-act="go-page" data-page="${n}"
+              aria-current="${n === current}">${n}</button>`);
+    previous = n;
+  }
+
+  return `
+    <nav class="pagination" aria-label="Phân trang">
+      <button class="page-btn nav" data-act="go-page" data-page="${current - 1}" ${current === 1 ? 'disabled' : ''}
+              aria-label="Trang trước">${icon('chevronLeft', 14)}</button>
+      ${items.join('')}
+      <button class="page-btn nav" data-act="go-page" data-page="${current + 1}" ${current === pages ? 'disabled' : ''}
+              aria-label="Trang sau">${icon('chevronRight', 14)}</button>
+      <span class="page-info">Trang ${current} / ${pages} · ${results.total} chỗ nghỉ</span>
+    </nav>
   `;
 }
 

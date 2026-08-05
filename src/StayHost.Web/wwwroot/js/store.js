@@ -168,14 +168,14 @@ export async function loadHome() {
 
 let searchToken = 0;
 
-export async function runSearch({ append = false } = {}) {
+export async function runSearch({ append = false, page = 1 } = {}) {
   const token = ++searchToken;
   if (append) state.loadingMore = true; else state.loading = true;
   notify();
 
   try {
-    const page = append ? state.results.page + 1 : 1;
-    const data = await api.search(searchParams(page));
+    const target = append ? state.results.page + 1 : page;
+    const data = await api.search(searchParams(target));
     if (token !== searchToken) return;
 
     state.results = append

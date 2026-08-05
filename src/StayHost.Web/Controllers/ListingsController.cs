@@ -17,6 +17,11 @@ public class ListingsController(CatalogService catalog) : ControllerBase
     public async Task<ActionResult<HomeDto>> Home(CancellationToken ct) =>
         Ok(await catalog.GetHomeAsync(HttpContext.SessionId(), ct));
 
+    [HttpGet("suggest")]
+    public async Task<ActionResult<IReadOnlyList<CatalogService.SuggestionDto>>> Suggest(
+        [FromQuery] string? q, CancellationToken ct) =>
+        Ok(await catalog.SuggestAsync(q, ct));
+
     [HttpGet("listings")]
     public async Task<ActionResult<SearchResultDto>> Search(
         [FromQuery] string? q,

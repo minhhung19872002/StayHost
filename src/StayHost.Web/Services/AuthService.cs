@@ -161,6 +161,133 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
         await db.SaveChangesAsync(ct);
     }
 
+    /* ------------------------------------------------- password management */
+
+    public async Task<AuthResult> ChangePasswordAsync(User user, string current, string next, CancellationToken ct)
+    {
+        if (!PasswordHasher.Verify(current, user.PasswordHash, user.PasswordSalt))
+            return new(false, "Mật khẩu hiện tại không đúng.");
+        if (next.Length < 8)
+            return new(false, "Mật khẩu mới cần tối thiểu 8 ký tự.");
+
+        var (hash, salt) = PasswordHasher.Hash(next);
+        user.PasswordHash = hash;
+        user.PasswordSalt = salt;
+
+        // Changing the password logs every other device out.
+        var currentToken = Ctx.Request.Cookies[CookieName];
+        var others = await db.AuthSessions
+            .Where(s => s.UserId == user.Id && s.RevokedAt == null && s.Token != currentToken)
+            .ToListAsync(ct);
+        foreach (var s in others) s.RevokedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+        return new(true, null, user);
+    }
+
+    /// <summary>
+    /// Issues a reset token. Returns null when the email is unknown — the caller still
+    /// reports success so the endpoint cannot be used to enumerate accounts.
+    /// </summary>
+    public async Task<string?> BeginPasswordResetAsync(string email, CancellationToken ct)
+    {
+        email = email.Trim().ToLowerInvariant();
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
+        if (user is null) return null;
+
+        var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48))
+            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+        db.UserTokens.Add(new UserToken
+        {
+            Token = token,
+            UserId = user.Id,
+            Purpose = TokenPurpose.PasswordReset,
+            ExpiresAt = DateTime.UtcNow.AddHours(2)
+        });
+        await db.SaveChangesAsync(ct);
+        return token;
+    }
+
+    public async Task<AuthResult> CompletePasswordResetAsync(string token, string newPassword, CancellationToken ct)
+    {
+        if (newPassword.Length < 8) return new(false, "Mật khẩu mới cần tối thiểu 8 ký tự.");
+
+        var entry = await db.UserTokens
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.Token == token && t.Purpose == TokenPurpose.PasswordReset, ct);
+
+        if (entry is null || entry.UsedAt is not null || entry.ExpiresAt < DateTime.UtcNow)
+            return new(false, "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.");
+
+        var (hash, salt) = PasswordHasher.Hash(newPassword);
+        entry.User!.PasswordHash = hash;
+        entry.User.PasswordSalt = salt;
+        entry.UsedAt = DateTime.UtcNow;
+
+        // A reset invalidates every existing session.
+        var sessions = await db.AuthSessions
+            .Where(s => s.UserId == entry.UserId && s.RevokedAt == null).ToListAsync(ct);
+        foreach (var s in sessions) s.RevokedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+        await IssueSessionAsync(entry.User, ct);
+        return new(true, null, entry.User);
+    }
+
+    /* --------------------------------------------------------- verification */
+
+    public async Task<string> BeginEmailVerificationAsync(User user, CancellationToken ct)
+    {
+        var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+        db.UserTokens.Add(new UserToken
+        {
+            Token = token,
+            UserId = user.Id,
+            Purpose = TokenPurpose.EmailVerification,
+            ExpiresAt = DateTime.UtcNow.AddDays(3)
+        });
+        await db.SaveChangesAsync(ct);
+        return token;
+    }
+
+    public async Task<AuthResult> ConfirmEmailAsync(string token, CancellationToken ct)
+    {
+        var entry = await db.UserTokens
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.Token == token && t.Purpose == TokenPurpose.EmailVerification, ct);
+
+        if (entry is null || entry.UsedAt is not null || entry.ExpiresAt < DateTime.UtcNow)
+            return new(false, "Liên kết xác minh không hợp lệ hoặc đã hết hạn.");
+
+        entry.User!.EmailConfirmed = true;
+        entry.UsedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return new(true, null, entry.User);
+    }
+
+    /* ------------------------------------------------------------- devices */
+
+    public Task<List<AuthSession>> ActiveSessionsAsync(int userId, CancellationToken ct) =>
+        db.AuthSessions
+            .Where(s => s.UserId == userId && s.RevokedAt == null && s.ExpiresAt > DateTime.UtcNow)
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync(ct);
+
+    public string? CurrentToken() => Ctx.Request.Cookies[CookieName];
+
+    public async Task<bool> RevokeSessionAsync(int userId, int sessionId, CancellationToken ct)
+    {
+        var session = await db.AuthSessions.FirstOrDefaultAsync(s => s.Id == sessionId && s.UserId == userId, ct);
+        if (session is null) return false;
+
+        session.RevokedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
     /* ---------------------------------------------------------- host setup */
 
     /// <summary>Creates the host profile the first time a user publishes a listing.</summary>

@@ -180,6 +180,47 @@ public class CatalogService(StayHostDbContext db)
         return new HomeDto(sections, inspiration.Where(g => g.Links.Count > 0).ToList());
     }
 
+    public record SuggestionDto(string Label, string Sub, string Kind, string Value, int Count);
+
+    /// <summary>Destination autocomplete: cities first, then matching listings.</summary>
+    public async Task<IReadOnlyList<SuggestionDto>> SuggestAsync(string? term, CancellationToken ct)
+    {
+        var published = db.Listings.Where(l => l.IsPublished);
+
+        var cities = await published
+            .GroupBy(l => l.City)
+            .Select(g => new { City = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var query = (term ?? "").Trim();
+
+        // No input yet: show the biggest destinations, like Airbnb's "recent/nearby" panel.
+        if (query.Length == 0)
+        {
+            return cities
+                .OrderByDescending(c => c.Count)
+                .Take(6)
+                .Select(c => new SuggestionDto(c.City, $"{c.Count} chỗ nghỉ", "city", c.City, c.Count))
+                .ToList();
+        }
+
+        var matches = cities
+            .Where(c => c.City.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(c => c.Count)
+            .Take(5)
+            .Select(c => new SuggestionDto(c.City, $"{c.Count} chỗ nghỉ", "city", c.City, c.Count))
+            .ToList();
+
+        var listings = await published
+            .Where(l => EF.Functions.ILike(l.Title, $"%{query}%"))
+            .OrderByDescending(l => l.Rating)
+            .Take(4)
+            .Select(l => new SuggestionDto(l.Title, l.City, "listing", l.Slug, 0))
+            .ToListAsync(ct);
+
+        return matches.Concat(listings).ToList();
+    }
+
     public record SearchQuery(
         string? Q,
         string? Category,

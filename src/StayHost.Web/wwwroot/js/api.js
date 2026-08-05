@@ -42,6 +42,8 @@ export const api = {
 
   home: () => request('/api/home'),
 
+  suggest: q => request(`/api/suggest${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+
   search: params => request(`/api/listings${qs(params)}`),
 
   listing: idOrSlug => request(`/api/listings/${encodeURIComponent(idOrSlug)}`),
@@ -72,6 +74,13 @@ export const api = {
   logout: () => request('/api/account/logout', { method: 'POST' }),
   updateProfile: body => request('/api/account/profile', { method: 'PUT', body: JSON.stringify(body) }),
   becomeHost: () => request('/api/account/become-host', { method: 'POST' }),
+  changePassword: body => request('/api/account/change-password', { method: 'POST', body: JSON.stringify(body) }),
+  forgotPassword: email => request('/api/account/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  resetPassword: body => request('/api/account/reset-password', { method: 'POST', body: JSON.stringify(body) }),
+  sendVerification: () => request('/api/account/send-verification', { method: 'POST' }),
+  verifyEmail: token => request('/api/account/verify-email', { method: 'POST', body: JSON.stringify({ token }) }),
+  sessions: () => request('/api/account/sessions'),
+  revokeSession: id => request(`/api/account/sessions/${id}`, { method: 'DELETE' }),
 
   /* -------------------------------------------------------------- hosting */
   hostDashboard: () => request('/api/host/dashboard'),

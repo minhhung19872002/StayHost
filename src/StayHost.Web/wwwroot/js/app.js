@@ -8,7 +8,7 @@ import { api } from './api.js';
 import { renderHeader } from './components/header.js';
 import { renderFooter } from './components/footer.js';
 import { renderOverlay } from './components/modals.js';
-import { mountResultsMap, mountDetailMap, destroyMaps } from './components/map.js';
+import { mountResultsMap, mountDetailMap, destroyMaps, highlightMarker } from './components/map.js';
 
 import { renderBrowse } from './views/browse.js';
 import { renderDetail } from './views/detail.js';
@@ -215,6 +215,16 @@ window.addEventListener('popstate', () => {
 
 window.addEventListener('sh:open-listing', e => navigate(`/rooms/${e.detail}`));
 
+// Hovering a result card lifts the matching price pin on the map.
+document.addEventListener('mouseover', e => {
+  const card = e.target.closest?.('[data-listing]');
+  if (card) highlightMarker(card.dataset.listing, true);
+});
+document.addEventListener('mouseout', e => {
+  const card = e.target.closest?.('[data-listing]');
+  if (card) highlightMarker(card.dataset.listing, false);
+});
+
 /* ---------------------------------------------------------- carousel (DOM) */
 
 function stepCarousel(id, dir) {
@@ -243,6 +253,13 @@ const debouncedSearch = debounce(() => {
   syncUrlFromSearch();
   store.runSearch();
 }, 320);
+
+const debouncedSuggest = debounce(async () => {
+  try {
+    state.suggestions = await api.suggest(state.q);
+    notify();
+  } catch { /* suggestions are a nicety, never block typing */ }
+}, 180);
 
 function refreshResults() {
   if (state.route.name !== 'browse') { notify(); return; }
@@ -391,6 +408,7 @@ document.addEventListener('click', async e => {
 
   // Any click outside the account menu closes it.
   if (state.menu && !e.target.closest('.menu-anchor')) { state.menu = null; notify(); }
+  if (state.suggestOpen && !e.target.closest('.seg-where')) { state.suggestOpen = false; notify(); }
 
   if (!target) return;
   const act = target.dataset.act;
@@ -431,6 +449,20 @@ document.addEventListener('click', async e => {
       refreshResults();
       notify();
       break;
+
+    case 'pick-suggestion': {
+      e.preventDefault();
+      state.suggestOpen = false;
+      const { kind, value } = target.dataset;
+      if (kind === 'listing') {
+        navigate(`/rooms/${value}`);
+      } else {
+        state.q = value;
+        if (state.route.name !== 'browse') { navigate(`/?q=${encodeURIComponent(value)}`); }
+        else { refreshResults(); notify(); }
+      }
+      break;
+    }
 
     case 'set-tab':
       state.tab = target.dataset.key;
@@ -575,6 +607,11 @@ document.addEventListener('click', async e => {
       store.runSearch({ append: true });
       break;
 
+    case 'go-page':
+      store.runSearch({ page: Number(target.dataset.page) });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      break;
+
     case 'set-language':
       store.applyLanguage(target.dataset.key);
       break;
@@ -602,6 +639,23 @@ document.addEventListener('click', async e => {
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       break;
     }
+
+    case 'photo-open':
+      state.photoIndex = Number(target.dataset.index);
+      notify();
+      break;
+
+    case 'photo-step': {
+      const total = state.detail?.card.images.length ?? 0;
+      state.photoIndex = Math.min(total - 1, Math.max(0, (state.photoIndex ?? 0) + Number(target.dataset.dir)));
+      notify();
+      break;
+    }
+
+    case 'photo-grid':
+      state.photoIndex = null;
+      notify();
+      break;
 
     case 'share':
       await share();
@@ -679,7 +733,46 @@ document.addEventListener('click', async e => {
     case 'switch-auth':
       state.authMode = target.dataset.mode;
       state.authError = null;
+      state.resetLink = null;
       notify();
+      break;
+
+    case 'use-reset-link':
+      state.authMode = 'reset';
+      state.authError = null;
+      notify();
+      break;
+
+    case 'profile-tab':
+      state.profileTab = target.dataset.key;
+      if (state.profileTab === 'devices') {
+        try { state.sessions = await api.sessions(); } catch (err) { toast(err.message); }
+      }
+      state.authError = null;
+      notify();
+      break;
+
+    case 'revoke-session':
+      try {
+        await api.revokeSession(Number(target.dataset.id));
+        state.sessions = await api.sessions();
+        toast('Đã đăng xuất thiết bị đó.');
+        notify();
+      } catch (err) { toast(err.message); }
+      break;
+
+    case 'send-verification':
+      try {
+        const res = await api.sendVerification();
+        if (res.verifyLink) {
+          const token = new URLSearchParams(res.verifyLink.split('?')[1]).get('token');
+          await api.verifyEmail(token);
+          await store.loadMe();
+          toast('Email đã được xác minh.');
+        } else {
+          toast(res.message);
+        }
+      } catch (err) { toast(err.message); }
       break;
 
     case 'fill-demo': {
@@ -969,6 +1062,8 @@ document.addEventListener('input', e => {
   switch (target.dataset.act) {
     case 'input-q':
       state.q = target.value;
+      state.suggestOpen = true;
+      debouncedSuggest();
       debouncedSearch();
       break;
 
@@ -1076,6 +1171,57 @@ document.addEventListener('submit', e => {
       .then(ok => { if (ok) store.loadMe(); });
   }
 
+  if (act === 'submit-forgot') {
+    state.authBusy = true;
+    state.authError = null;
+    notify();
+    api.forgotPassword(target.email.value.trim())
+      .then(res => {
+        state.resetLink = res.resetLink;
+        state.resetToken = res.resetLink ? new URLSearchParams(res.resetLink.split('?')[1]).get('token') : null;
+        if (!res.resetLink) state.authError = 'Không tìm thấy tài khoản với email này.';
+      })
+      .catch(err => { state.authError = err.message; })
+      .finally(() => { state.authBusy = false; notify(); });
+  }
+
+  if (act === 'submit-reset') {
+    if (target.newPassword.value !== target.confirmPassword.value) {
+      state.authError = 'Hai mật khẩu không khớp.';
+      notify();
+      return;
+    }
+    state.authBusy = true;
+    state.authError = null;
+    notify();
+    api.resetPassword({ token: state.resetToken, newPassword: target.newPassword.value })
+      .then(user => {
+        state.user = user;
+        state.overlay = null;
+        state.resetLink = null;
+        state.resetToken = null;
+        toast('Đã đổi mật khẩu và đăng nhập lại.');
+      })
+      .catch(err => { state.authError = err.message; })
+      .finally(() => { state.authBusy = false; notify(); });
+  }
+
+  if (act === 'submit-change-password') {
+    if (target.newPassword.value !== target.confirmPassword.value) {
+      state.authError = 'Hai mật khẩu mới không khớp.';
+      notify();
+      return;
+    }
+    state.authError = null;
+    api.changePassword({
+      currentPassword: target.currentPassword.value,
+      newPassword: target.newPassword.value
+    })
+      .then(() => { state.overlay = null; toast('Đã đổi mật khẩu.'); })
+      .catch(err => { state.authError = err.message; })
+      .finally(notify);
+  }
+
   if (act === 'submit-profile') {
     store.saveProfile({
       fullName: target.fullName.value.trim(),
@@ -1123,8 +1269,16 @@ document.addEventListener('submit', e => {
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && state.overlay) { state.overlay = null; notify(); }
+  if (e.key === 'Escape' && state.overlay) { state.overlay = null; state.photoIndex = null; notify(); }
   if (e.key === 'Escape' && state.menu) { state.menu = null; notify(); }
+  if (e.key === 'Escape' && state.suggestOpen) { state.suggestOpen = false; notify(); }
+
+  // Arrow keys drive the photo viewer while it is open.
+  if (state.overlay === 'photos' && state.photoIndex != null) {
+    const total = state.detail?.card.images.length ?? 0;
+    if (e.key === 'ArrowRight') { state.photoIndex = Math.min(total - 1, state.photoIndex + 1); notify(); }
+    if (e.key === 'ArrowLeft') { state.photoIndex = Math.max(0, state.photoIndex - 1); notify(); }
+  }
 });
 
 /* -------------------------------------------------------------- bootstrap */

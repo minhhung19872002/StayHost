@@ -15,6 +15,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<User> Users => Set<User>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
+    public DbSet<UserToken> UserTokens => Set<UserToken>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<MessageThread> MessageThreads => Set<MessageThread>();
     public DbSet<Message> Messages => Set<Message>();
@@ -52,6 +53,15 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.HasOne(x => x.User).WithMany(u => u.Sessions)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.Ignore(x => x.IsActive);
+        });
+
+        b.Entity<UserToken>(e =>
+        {
+            e.ToTable("user_tokens");
+            e.HasIndex(x => x.Token).IsUnique();
+            e.Property(x => x.Token).HasMaxLength(88).IsRequired();
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<Payment>(e =>

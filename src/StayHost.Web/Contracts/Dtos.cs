@@ -8,6 +8,16 @@ public record LoginRequest(string Email, string Password);
 
 public record UpdateProfileRequest(string? FullName, string? Phone, string? Bio);
 
+public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
+public record ForgotPasswordRequest(string Email);
+
+public record ResetPasswordRequest(string Token, string NewPassword);
+
+public record VerifyEmailRequest(string Token);
+
+public record SessionDto(int Id, string Device, DateTime CreatedAt, DateTime ExpiresAt, bool IsCurrent);
+
 public record CurrentUserDto(
     int Id,
     string Email,
@@ -20,6 +30,7 @@ public record CurrentUserDto(
     int? HostId,
     int ListingCount,
     int UnreadMessages,
+    bool EmailConfirmed,
     string JoinedLabel);
 
 /* ------------------------------------------------------------------ hosting */

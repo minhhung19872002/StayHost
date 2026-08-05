@@ -7,6 +7,7 @@ import { state } from '../store.js';
 let resultsMap = null;
 let markerLayer = null;
 let detailMap = null;
+const markersById = new Map();
 
 const TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
@@ -33,6 +34,8 @@ export function mountResultsMap() {
   }
 
   markerLayer.clearLayers();
+  markersById.clear();
+
   const items = state.results.items.filter(i => i.latitude && i.longitude);
   if (!items.length) return;
 
@@ -41,20 +44,50 @@ export function mountResultsMap() {
     const marker = L.marker([item.latitude, item.longitude], {
       icon: L.divIcon({
         className: '',
-        html: `<span class="price-marker">${money(item.pricePerNight)}</span>`,
+        html: `<span class="price-marker" data-marker="${item.id}">${money(item.pricePerNight)}</span>`,
         iconSize: null
       })
     });
     marker.on('click', () => {
       window.dispatchEvent(new CustomEvent('sh:open-listing', { detail: item.slug }));
     });
+    marker.on('mouseover', () => highlightCard(item.id, true));
+    marker.on('mouseout', () => highlightCard(item.id, false));
     marker.bindTooltip(item.title, { direction: 'top', offset: [0, -8] });
     marker.addTo(markerLayer);
+    markersById.set(item.id, marker);
     bounds.push([item.latitude, item.longitude]);
   }
 
   resultsMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
   setTimeout(() => resultsMap && resultsMap.invalidateSize(), 60);
+}
+
+/** Hovering a card lifts its marker, and vice versa. */
+export function highlightMarker(listingId, on) {
+  const marker = markersById.get(Number(listingId));
+  const el = marker?.getElement()?.querySelector('.price-marker');
+  if (el) el.classList.toggle('is-active', on);
+}
+
+function highlightCard(listingId, on) {
+  document.querySelector(`[data-listing="${listingId}"]`)?.classList.toggle('is-hovered', on);
+}
+
+/** Re-runs the search limited to whatever the map is currently showing. */
+export function currentMapBounds() {
+  if (!resultsMap) return null;
+  const b = resultsMap.getBounds();
+  return {
+    south: b.getSouth(), west: b.getWest(),
+    north: b.getNorth(), east: b.getEast()
+  };
+}
+
+export function onMapMoved(handler) {
+  if (!resultsMap) return;
+  resultsMap.off('moveend');
+  resultsMap.on('moveend', handler);
 }
 
 export function mountDetailMap() {

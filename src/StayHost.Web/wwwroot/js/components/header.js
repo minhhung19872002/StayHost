@@ -77,7 +77,9 @@ function renderSearchBar() {
       <form class="searchbar" data-act="submit-search" role="search">
         <label class="seg seg-where">
           <span class="seg-cap">Địa điểm</span>
-          <input id="q" type="text" value="${esc(state.q)}" placeholder="Tìm điểm đến" autocomplete="off" data-act="input-q">
+          <input id="q" type="text" value="${esc(state.q)}" placeholder="Tìm điểm đến" autocomplete="off"
+                 data-act="input-q" aria-autocomplete="list" aria-expanded="${!!state.suggestOpen}">
+          ${renderSuggestions()}
         </label>
 
         <span class="seg-div"></span>
@@ -112,7 +114,9 @@ function renderCompactSearch() {
       <form class="searchbar is-compact" data-act="submit-search" role="search">
         <span class="seg-lead" aria-hidden="true">${icon('house', 20)}</span>
         <label class="seg seg-where">
-          <input id="q" type="text" value="${esc(state.q)}" placeholder="${esc(where)}" autocomplete="off" data-act="input-q">
+          <input id="q" type="text" value="${esc(state.q)}" placeholder="${esc(where)}" autocomplete="off"
+                 data-act="input-q" aria-autocomplete="list" aria-expanded="${!!state.suggestOpen}">
+          ${renderSuggestions()}
         </label>
         <span class="seg-div"></span>
         <button type="button" class="seg" data-act="open" data-overlay="dates">
@@ -124,6 +128,27 @@ function renderCompactSearch() {
         </button>
         <button type="submit" class="search-go" aria-label="Tìm kiếm">${icon('search', 15)}</button>
       </form>
+    </div>
+  `;
+}
+
+/** Destination dropdown; cities jump to a search, listings open the room page. */
+function renderSuggestions() {
+  if (!state.suggestOpen || !state.suggestions?.length) return '';
+
+  return `
+    <div class="suggest" role="listbox">
+      <div class="suggest-head">${state.q.trim() ? 'Kết quả gợi ý' : 'Điểm đến phổ biến'}</div>
+      ${state.suggestions.map(s => `
+        <button type="button" class="suggest-row" role="option"
+                data-act="pick-suggestion" data-kind="${esc(s.kind)}" data-value="${esc(s.value)}">
+          <span class="suggest-ic">${icon(s.kind === 'city' ? 'map' : 'house', 18)}</span>
+          <span style="min-width:0">
+            <b>${esc(s.label)}</b>
+            <span>${esc(s.sub)}</span>
+          </span>
+        </button>
+      `).join('')}
     </div>
   `;
 }
