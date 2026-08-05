@@ -40,6 +40,7 @@ public record HostListingDto(
     int MinNights,
     bool InstantBook,
     bool IsPublished,
+    string CancellationTier,
     double Rating,
     int ReviewCount,
     string Description,
@@ -65,6 +66,7 @@ public record SaveListingRequest(
     int MinNights,
     bool InstantBook,
     bool IsPublished,
+    string CancellationTier,
     string Description,
     string? Highlight,
     double? Latitude,
@@ -114,6 +116,7 @@ public record MonthlyEarningDto(string Month, decimal Amount, int Nights);
 public record ThreadSummaryDto(
     int Id,
     int ListingId,
+    string ListingSlug,
     string ListingTitle,
     string ListingImage,
     string CounterpartName,
@@ -273,9 +276,23 @@ public record QuoteDto(
     decimal Subtotal,
     decimal CleaningFee,
     decimal ServiceFee,
+    decimal Tax,
     decimal Total,
+    decimal WeekendSurcharge,
+    decimal LengthDiscount,
+    int LengthDiscountPercent,
     bool GuestsExceeded,
-    int MaxGuests);
+    int MaxGuests,
+    int MinNights,
+    bool BelowMinNights,
+    string CancellationTier,
+    string CancellationSummary);
+
+public record RefundPreviewDto(
+    decimal Refund,
+    decimal Penalty,
+    decimal Total,
+    string Explanation);
 
 public record CreateBookingRequest(
     int ListingId,
@@ -283,7 +300,10 @@ public record CreateBookingRequest(
     DateOnly CheckOut,
     int Guests,
     string? GuestName,
-    string? GuestEmail);
+    string? GuestEmail,
+    string? GuestNote,
+    string? PaymentMethod,
+    string? CardLast4);
 
 public record BookingDto(
     int Id,
@@ -300,9 +320,19 @@ public record BookingDto(
     decimal Subtotal,
     decimal CleaningFee,
     decimal ServiceFee,
+    decimal Tax,
     decimal Total,
+    decimal RefundedAmount,
+    string CancellationTier,
+    string CancellationSummary,
     string Status,
     string PaymentStatus,
+    string? PaymentReference,
+    string? PaymentMethod,
+    string? CardLast4,
     bool HasReview,
     bool CanReview,
+    bool CanCancel,
+    string? GuestNote,
+    string HostName,
     DateTime CreatedAt);

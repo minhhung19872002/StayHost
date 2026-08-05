@@ -73,7 +73,7 @@ function conversation(active) {
         <b>${esc(s.counterpartName)}</b>
         <span>${esc(s.viewerIsHost ? 'Khách' : 'Chủ nhà')} · ${esc(s.listingTitle)}</span>
       </div>
-      <button class="btn btn-outline btn-sm" data-act="open-listing-by-id" data-id="${esc(s.listingId)}">Xem chỗ nghỉ</button>
+      <button class="btn btn-outline btn-sm" data-act="open-listing" data-slug="${esc(s.listingSlug)}">Xem chỗ nghỉ</button>
     </header>
 
     <div class="inbox-messages" id="inbox-messages">

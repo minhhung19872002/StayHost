@@ -116,6 +116,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.PricePerNight).HasPrecision(12, 2);
             e.Property(x => x.CleaningFee).HasPrecision(12, 2);
             e.Property(x => x.ServiceFeeRate).HasPrecision(5, 4);
+            e.Property(x => x.WeekendSurchargeRate).HasPrecision(5, 4);
             e.HasOne(x => x.Host).WithMany(h => h.Listings)
                 .HasForeignKey(x => x.HostId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -172,7 +173,9 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Subtotal).HasPrecision(12, 2);
             e.Property(x => x.CleaningFee).HasPrecision(12, 2);
             e.Property(x => x.ServiceFee).HasPrecision(12, 2);
+            e.Property(x => x.Tax).HasPrecision(12, 2);
             e.Property(x => x.Total).HasPrecision(12, 2);
+            e.Property(x => x.RefundedAmount).HasPrecision(12, 2);
             e.Property(x => x.GuestNote).HasMaxLength(1000);
             e.Property(x => x.CancellationReason).HasMaxLength(300);
             e.HasIndex(x => x.GuestUserId);

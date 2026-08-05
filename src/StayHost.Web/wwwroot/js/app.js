@@ -14,6 +14,7 @@ import { renderBrowse } from './views/browse.js';
 import { renderDetail } from './views/detail.js';
 import { renderWishlists } from './views/wishlists.js';
 import { renderTrips } from './views/trips.js';
+import { renderTrip } from './views/trip.js';
 import { renderHostPage } from './views/host.js';
 import { renderHosting } from './views/hosting.js';
 import { renderMessages } from './views/messages.js';
@@ -30,6 +31,7 @@ function renderView() {
     case 'detail': return renderDetail();
     case 'wishlists': return renderWishlists();
     case 'trips': return renderTrips();
+    case 'trip': return renderTrip();
     case 'host': return renderHostPage();
     case 'hosting': return renderHosting();
     case 'messages': return renderMessages();
@@ -95,7 +97,9 @@ function parseRoute(pathname = location.pathname) {
   const parts = pathname.replace(/^\/+|\/+$/g, '').split('/');
   if (parts[0] === 'rooms' && parts[1]) return { name: 'detail', param: decodeURIComponent(parts[1]) };
   if (parts[0] === 'wishlists') return { name: 'wishlists', param: null };
-  if (parts[0] === 'trips') return { name: 'trips', param: null };
+  if (parts[0] === 'trips') return parts[1]
+    ? { name: 'trip', param: parts[1] }
+    : { name: 'trips', param: null };
   if (parts[0] === 'host') return { name: 'host', param: null };
   if (parts[0] === 'hosting') return { name: 'hosting', param: null };
   if (parts[0] === 'messages') return { name: 'messages', param: parts[1] ?? null };
@@ -113,6 +117,8 @@ function syncUrlFromSearch(replace = true) {
   if (state.meta && state.minPrice > state.meta.minPrice) usp.set('minPrice', String(state.minPrice));
   if (state.superhostOnly) usp.set('superhost', '1');
   if (state.guestFavoriteOnly) usp.set('guestFavorite', '1');
+  if (state.instantBookOnly) usp.set('instantBook', '1');
+  if (state.freeCancellationOnly) usp.set('freeCancellation', '1');
   usp.set('checkIn', state.checkIn);
   usp.set('checkOut', state.checkOut);
   usp.set('guests', String(store.totalGuests()));
@@ -127,6 +133,8 @@ function readSearchFromUrl(search = location.search) {
   state.roomType = usp.get('roomType') ?? 'any';
   state.superhostOnly = usp.get('superhost') === '1';
   state.guestFavoriteOnly = usp.get('guestFavorite') === '1';
+  state.instantBookOnly = usp.get('instantBook') === '1';
+  state.freeCancellationOnly = usp.get('freeCancellation') === '1';
 
   if (state.meta) {
     state.minPrice = Number(usp.get('minPrice')) || state.meta.minPrice;
@@ -174,6 +182,9 @@ async function loadRoute() {
       break;
     case 'trips':
       await store.loadBookings();
+      break;
+    case 'trip':
+      await store.loadTrip(state.route.param);
       break;
     case 'host':
       notify();
@@ -460,17 +471,31 @@ document.addEventListener('click', async e => {
       notify();
       break;
 
+    case 'toggle-free-cancel':
+      state.freeCancellationOnly = !state.freeCancellationOnly;
+      refreshResults();
+      notify();
+      break;
+
     case 'toggle-total':
       state.showTotalPrice = !state.showTotalPrice;
       notify();
       break;
 
-    case 'open':
+    case 'open': {
       e.preventDefault();
-      state.overlay = target.dataset.overlay;
+      const overlay = target.dataset.overlay;
+      // Booking creates a financial record, so it needs a signed-in guest.
+      if (overlay === 'checkout') {
+        if (!requireAuth()) break;
+        state.checkoutStep = 0;
+        state.bookingError = null;
+      }
+      state.overlay = overlay;
       state.menu = null;
       notify();
       break;
+    }
 
     case 'close-overlay':
       state.overlay = null;
@@ -583,18 +608,61 @@ document.addEventListener('click', async e => {
       break;
 
     case 'confirm-booking': {
-      const name = document.getElementById('guest-name')?.value?.trim() || null;
-      const email = document.getElementById('guest-email')?.value?.trim() || null;
-      await store.book({ guestName: name, guestEmail: email });
+      captureCheckoutFields();
+      const card = document.getElementById('card-number')?.value?.replace(/\D/g, '') ?? '';
+      await store.book({
+        guestName: state.checkoutName || state.user?.fullName || null,
+        guestEmail: state.checkoutEmail || state.user?.email || null,
+        guestNote: state.checkoutNote || null,
+        paymentMethod: state.payMethod ?? 'card',
+        cardLast4: card.length >= 4 ? card.slice(-4) : null
+      });
       break;
     }
 
+    case 'preview-cancel':
     case 'cancel-booking':
       try {
-        await api.cancelBooking(Number(target.dataset.id));
-        toast('Đã huỷ đặt chỗ.');
-        await store.loadBookings();
+        const id = Number(target.dataset.id);
+        const preview = await api.refundPreview(id);
+        state.cancelPreview = { ...preview, bookingId: id };
+        state.overlay = 'cancel-trip';
+        notify();
       } catch (err) { toast(err.message); }
+      break;
+
+    case 'confirm-cancel':
+      try {
+        const id = Number(target.dataset.id);
+        const result = await api.cancelBooking(id);
+        state.overlay = null;
+        state.cancelPreview = null;
+        toast(`Đã huỷ. Hoàn lại ${new Intl.NumberFormat('vi-VN').format(result.refund)}₫.`);
+        await Promise.all([store.loadBookings(), state.route.name === 'trip' ? store.loadTrip(id) : Promise.resolve()]);
+      } catch (err) { toast(err.message); }
+      break;
+
+    case 'print-receipt':
+      window.print();
+      break;
+
+    /* ----------------------------------------------------------- checkout */
+
+    case 'checkout-next':
+      state.checkoutStep = Math.min(2, (state.checkoutStep ?? 0) + 1);
+      captureCheckoutFields();
+      notify();
+      break;
+
+    case 'checkout-back':
+      captureCheckoutFields();
+      state.checkoutStep = Math.max(0, (state.checkoutStep ?? 0) - 1);
+      notify();
+      break;
+
+    case 'set-pay-method':
+      state.payMethod = target.dataset.key;
+      notify();
       break;
 
     /* ------------------------------------------------------------ account */
@@ -669,6 +737,25 @@ document.addEventListener('click', async e => {
       break;
     }
 
+    case 'set-listing-tier':
+      captureListingForm();
+      state.editingListing = { ...(state.editingListing ?? {}), cancellationTier: target.dataset.key };
+      notify();
+      break;
+
+    case 'pick-images':
+      document.getElementById('image-input')?.click();
+      break;
+
+    case 'remove-listing-image': {
+      captureListingForm();
+      const index = Number(target.dataset.index);
+      const images = (state.editingListing?.images ?? []).filter((_, i) => i !== index);
+      state.editingListing = { ...(state.editingListing ?? {}), images };
+      notify();
+      break;
+    }
+
     case 'toggle-listing-amenity': {
       captureListingForm();
       const key = target.dataset.key;
@@ -716,13 +803,6 @@ document.addEventListener('click', async e => {
       await store.openThread(Number(target.dataset.id));
       scrollInboxToEnd();
       break;
-
-    case 'open-listing-by-id': {
-      const id = Number(target.dataset.id);
-      const slug = state.threads.find(t => t.listingId === id)?.listingId ?? id;
-      navigate(`/rooms/${slug}`);
-      break;
-    }
 
     case 'message-host': {
       if (!requireAuth()) break;
@@ -819,6 +899,43 @@ async function submitListing() {
   await store.saveListing({ id: data.id || null, body });
 }
 
+/** Checkout spans three renders, so the fields are mirrored into state each hop. */
+function captureCheckoutFields() {
+  const name = document.getElementById('guest-name');
+  const email = document.getElementById('guest-email');
+  const note = document.getElementById('guest-note');
+  if (name) state.checkoutName = name.value.trim();
+  if (email) state.checkoutEmail = email.value.trim();
+  if (note) state.checkoutNote = note.value.trim();
+}
+
+async function uploadImages(fileList) {
+  const files = Array.from(fileList ?? []);
+  if (!files.length) return;
+
+  captureListingForm();
+  state.uploading = true;
+  notify();
+
+  try {
+    const form = new FormData();
+    files.forEach(f => form.append('files', f));
+
+    const res = await fetch('/api/uploads/images', { method: 'POST', body: form, credentials: 'same-origin' });
+    const payload = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(payload?.message ?? 'Tải ảnh thất bại.');
+
+    const images = [...(state.editingListing?.images ?? []), ...payload.urls];
+    state.editingListing = { ...(state.editingListing ?? {}), images };
+    toast(`Đã tải lên ${payload.urls.length} ảnh.`);
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    state.uploading = false;
+    notify();
+  }
+}
+
 function captureReviewText() {
   const field = document.querySelector('[data-act="submit-review"] textarea[name="text"]');
   if (field) state.reviewDraft = { ...(state.reviewDraft ?? {}), text: field.value };
@@ -906,7 +1023,13 @@ function updateHostCalc() {
   if (labels[1]) labels[1].textContent = money(rate);
 }
 
-document.addEventListener('change', e => {
+document.addEventListener('change', async e => {
+  if (e.target.id === 'image-input') {
+    await uploadImages(e.target.files);
+    e.target.value = '';
+    return;
+  }
+
   const target = e.target.closest('[data-act]');
   if (!target) return;
 

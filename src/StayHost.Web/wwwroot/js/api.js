@@ -56,6 +56,10 @@ export const api = {
 
   book: body => request('/api/bookings', { method: 'POST', body: JSON.stringify(body) }),
 
+  booking: id => request(`/api/bookings/${id}`),
+
+  refundPreview: id => request(`/api/bookings/${id}/refund-preview`),
+
   cancelBooking: id => request(`/api/bookings/${id}/cancel`, { method: 'POST' }),
 
   review: (bookingId, body) =>

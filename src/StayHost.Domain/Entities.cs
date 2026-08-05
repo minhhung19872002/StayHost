@@ -23,7 +23,19 @@ public enum BookingStatus
 {
     Pending = 0,
     Confirmed = 1,
-    Cancelled = 2
+    Cancelled = 2,
+    Completed = 3
+}
+
+/// <summary>How much a guest gets back, and how close to check-in they can still cancel.</summary>
+public enum CancellationTier
+{
+    /// <summary>Full refund up to 24h before check-in.</summary>
+    Flexible = 0,
+    /// <summary>Full refund up to 5 days before check-in, then 50% of the room rate.</summary>
+    Moderate = 1,
+    /// <summary>50% of the room rate up to 7 days before; nothing after.</summary>
+    Strict = 2
 }
 
 /// <summary>Public-facing host identity. The login account itself is <see cref="User"/>.</summary>
@@ -83,6 +95,8 @@ public class Listing
     public decimal CleaningFee { get; set; } = 350_000m;
     /// <summary>Fraction of the nightly subtotal charged as the StayHost service fee.</summary>
     public decimal ServiceFeeRate { get; set; } = 0.09m;
+    /// <summary>Uplift applied to Friday and Saturday nights.</summary>
+    public decimal WeekendSurchargeRate { get; set; } = 0.15m;
 
     public double Rating { get; set; }
     public int ReviewCount { get; set; }
@@ -94,7 +108,7 @@ public class Listing
 
     public string Description { get; set; } = "";
     public string? SpaceHighlight { get; set; }
-    public string CancellationPolicy { get; set; } = "Huỷ miễn phí trước 48 giờ. Sau đó hoàn 50% tiền phòng.";
+    public CancellationTier CancellationTier { get; set; } = CancellationTier.Moderate;
     public string HouseRules { get; set; } = "Nhận phòng sau 14:00|Trả phòng trước 12:00|Không hút thuốc trong nhà|Không tổ chức tiệc";
     public string SafetyInfo { get; set; } = "Có thiết bị báo khói|Có bình chữa cháy|Có bộ sơ cứu";
 
@@ -194,7 +208,10 @@ public class Booking
     public decimal Subtotal { get; set; }
     public decimal CleaningFee { get; set; }
     public decimal ServiceFee { get; set; }
+    public decimal Tax { get; set; }
     public decimal Total { get; set; }
+    public decimal RefundedAmount { get; set; }
+    public CancellationTier CancellationTier { get; set; } = CancellationTier.Moderate;
 
     public string? GuestName { get; set; }
     public string? GuestEmail { get; set; }

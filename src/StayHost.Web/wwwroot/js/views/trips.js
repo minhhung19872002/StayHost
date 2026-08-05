@@ -51,12 +51,12 @@ function renderTrip(b) {
         </div>
       </div>
       <div style="display:grid;gap:8px">
-        <button class="btn btn-outline btn-sm" data-act="open-listing" data-slug="${esc(b.listingSlug || b.listingId)}">Xem chỗ nghỉ</button>
+        <button class="btn btn-dark btn-sm" data-act="go" data-href="/trips/${esc(b.id)}">Chi tiết &amp; hoá đơn</button>
         ${b.canReview
           ? `<button class="btn btn-primary btn-sm" data-act="open-review" data-id="${esc(b.id)}">Viết đánh giá</button>`
           : ''}
-        ${b.status !== 'Cancelled' && b.checkOut > new Date().toISOString().slice(0, 10)
-          ? `<button class="btn btn-outline btn-sm" data-act="cancel-booking" data-id="${esc(b.id)}">Huỷ đặt chỗ</button>`
+        ${b.canCancel
+          ? `<button class="btn btn-outline btn-sm" data-act="preview-cancel" data-id="${esc(b.id)}">Huỷ đặt chỗ</button>`
           : ''}
       </div>
     </article>

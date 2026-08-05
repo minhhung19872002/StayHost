@@ -35,6 +35,7 @@ export const state = {
   /// The results page shows the map beside the list by default, like airbnb.com.
   hideMap: false,
   instantBookOnly: false,
+  freeCancellationOnly: false,
   showTotalPrice: false,
   overlay: null,
   menu: null,
@@ -93,7 +94,8 @@ export function isDiscovery() {
     && state.amenities.length === 0
     && state.roomType === 'any'
     && !state.bedrooms && !state.beds && !state.bathrooms
-    && !state.superhostOnly && !state.guestFavoriteOnly && !state.instantBookOnly
+    && !state.superhostOnly && !state.guestFavoriteOnly
+    && !state.instantBookOnly && !state.freeCancellationOnly
     && (!state.meta || (state.minPrice <= state.meta.minPrice && state.maxPrice >= state.meta.maxPrice));
 }
 
@@ -145,6 +147,7 @@ export function searchParams(page = 1) {
     superhost: state.superhostOnly || undefined,
     guestFavorite: state.guestFavoriteOnly || undefined,
     instantBook: state.instantBookOnly || undefined,
+    freeCancellation: state.freeCancellationOnly || undefined,
     page,
     pageSize: 24
   };
@@ -204,6 +207,7 @@ export function activeFilterCount() {
   if (state.superhostOnly) n++;
   if (state.guestFavoriteOnly) n++;
   if (state.instantBookOnly) n++;
+  if (state.freeCancellationOnly) n++;
   return n;
 }
 
@@ -219,6 +223,7 @@ export function resetFilters() {
     superhostOnly: false,
     guestFavoriteOnly: false,
     instantBookOnly: false,
+    freeCancellationOnly: false,
     minPrice: meta ? meta.minPrice : 0,
     maxPrice: meta ? meta.maxPrice : 0
   });
@@ -486,10 +491,21 @@ export async function book(extra = {}) {
       checkOut: state.checkOut,
       guests: totalGuests(),
       guestName: extra.guestName ?? null,
-      guestEmail: extra.guestEmail ?? null
+      guestEmail: extra.guestEmail ?? null,
+      guestNote: extra.guestNote ?? null,
+      paymentMethod: extra.paymentMethod ?? 'card',
+      cardLast4: extra.cardLast4 ?? null
     });
     state.overlay = null;
+    state.checkoutStep = 0;
+    state.checkoutNote = '';
     toast('Đặt chỗ thành công — mã ' + state.bookingResult.reference);
+    await loadBookings();
+    // Land the guest on the confirmation so they see the receipt straight away.
+    history.pushState({}, '', `/trips/${state.bookingResult.id}`);
+    state.route = { name: 'trip', param: String(state.bookingResult.id) };
+    state.trip = state.bookingResult;
+    window.scrollTo({ top: 0, behavior: 'instant' });
   } catch (err) {
     state.bookingError = err.message;
   } finally {
@@ -498,6 +514,20 @@ export async function book(extra = {}) {
 }
 
 /* ------------------------------------------------------------------- trips */
+
+export async function loadTrip(id) {
+  state.tripLoading = true;
+  state.trip = null;
+  notify();
+  try {
+    state.trip = await api.booking(id);
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    state.tripLoading = false;
+    notify();
+  }
+}
 
 export async function loadBookings() {
   try {

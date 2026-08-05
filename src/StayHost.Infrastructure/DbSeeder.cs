@@ -384,6 +384,8 @@ public static class DbSeeder
                 // Roughly a third of the catalogue carries a promotion, so the search
                 // results show struck-through pricing the way airbnb.com does.
                 DiscountPercent = i % 3 == 1 ? 10 + (i % 4) * 5 : 0,
+                // Spread the three policies across the catalogue so the filter has teeth.
+                CancellationTier = (CancellationTier)(i % 3),
                 Latitude = s.Lat,
                 Longitude = s.Lng,
                 Description = s.Desc,

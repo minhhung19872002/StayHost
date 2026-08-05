@@ -23,7 +23,8 @@ export function renderOverlay() {
     profile: profileModal,
     review: reviewModal,
     'listing-editor': listingEditorModal,
-    'host-block': hostBlockModal
+    'host-block': hostBlockModal,
+    'cancel-trip': cancelTripModal
   }[kind];
 
   if (!body) return '';
@@ -523,15 +524,33 @@ function reviewsModal() {
 
 /* ---------------------------------------------------------------- checkout */
 
+const CHECKOUT_STEPS = ['Chuyến đi', 'Thanh toán', 'Xác nhận'];
+
+const PAY_METHODS = [
+  ['card', 'Thẻ tín dụng / ghi nợ', 'Visa, Mastercard, JCB'],
+  ['momo', 'Ví MoMo', 'Thanh toán qua ứng dụng MoMo'],
+  ['bank', 'Chuyển khoản ngân hàng', 'Chuyển khoản nhanh 24/7']
+];
+
 function checkoutModal() {
   const d = state.detail;
   const q = state.quote;
   if (!d || !q) return '';
 
+  const step = state.checkoutStep ?? 0;
+  const blocked = q.guestsExceeded || q.belowMinNights;
+
   return shell({
-    title: 'Xác nhận và thanh toán',
+    title: 'Đặt chỗ',
     body: `
-      <div style="display:flex;gap:14px;align-items:center;padding-bottom:20px;border-bottom:1px solid var(--divider)">
+      <div class="stepper-bar">
+        ${CHECKOUT_STEPS.map((label, i) => `
+          <div class="step-dot ${i === step ? 'is-active' : ''} ${i < step ? 'is-done' : ''}">
+            <span class="n">${i < step ? '✓' : i + 1}</span>${esc(label)}
+          </div>`).join('')}
+      </div>
+
+      <div style="display:flex;gap:14px;align-items:center;padding:18px 0;border-bottom:1px solid var(--divider)">
         <img src="${esc(d.card.images[0])}" alt="" style="width:96px;height:72px;object-fit:cover;border-radius:12px">
         <div style="min-width:0">
           <div style="font-size:15px;font-weight:700">${esc(d.card.title)}</div>
@@ -539,46 +558,174 @@ function checkoutModal() {
         </div>
       </div>
 
-      <section class="modal-section">
-        <h3>Chuyến đi của bạn</h3>
-        <div style="display:grid;gap:12px;margin-top:14px;font-size:14.5px">
-          <div class="book-line"><span><b>Ngày</b><br>${esc(longDate(state.checkIn))} – ${esc(longDate(state.checkOut))}</span>
-            <button class="text-btn" data-act="close-overlay">Chỉnh sửa</button></div>
-          <div class="book-line"><span><b>Khách</b><br>${esc(q.guests)} khách</span>
-            <button class="text-btn" data-act="open" data-overlay="guests">Chỉnh sửa</button></div>
-        </div>
-      </section>
+      ${step === 0 ? checkoutStepTrip(q, d) : ''}
+      ${step === 1 ? checkoutStepPayment(q) : ''}
+      ${step === 2 ? checkoutStepReview(q, d) : ''}
 
-      <section class="modal-section">
-        <h3>Thông tin liên hệ</h3>
-        <div style="margin-top:14px">
-          <label class="form-field"><span class="cap">Họ tên</span><input type="text" id="guest-name" placeholder="Nguyễn Văn A"></label>
-          <label class="form-field"><span class="cap">Email</span><input type="email" id="guest-email" placeholder="ban@email.com"></label>
-        </div>
-      </section>
-
-      <section class="modal-section">
-        <h3>Chi tiết giá</h3>
-        <div class="book-lines" style="margin-top:14px">
-          <div class="book-line"><u>${money(q.pricePerNight)} × ${esc(q.nights)} đêm</u><span>${money(q.subtotal)}</span></div>
-          <div class="book-line"><u>Phí dọn dẹp</u><span>${money(q.cleaningFee)}</span></div>
-          <div class="book-line"><u>Phí dịch vụ StayHost</u><span>${money(q.serviceFee)}</span></div>
-          <div class="book-rule"></div>
-          <div class="book-total"><span>Tổng (${esc(state.currency.code)})</span><span>${money(q.total)}</span></div>
-        </div>
-      </section>
-
-      <section class="modal-section">
-        <h3>Chính sách huỷ</h3>
-        <p style="font-size:14px;line-height:1.6;color:var(--ink-body);margin:10px 0 0">${esc(d.cancellationPolicy)}</p>
-      </section>
+      ${blocked ? `
+        <div class="book-alert is-error">
+          <b>Chưa đặt được</b>
+          <span>${q.guestsExceeded
+            ? `Chỗ nghỉ này nhận tối đa ${esc(q.maxGuests)} khách.`
+            : `Chỗ nghỉ này yêu cầu tối thiểu ${esc(q.minNights)} đêm.`}</span>
+        </div>` : ''}
 
       ${state.bookingError ? `<div class="book-alert is-error"><b>Không đặt được</b><span>${esc(state.bookingError)}</span></div>` : ''}
     `,
     foot: `
-      <span style="font-size:15px;font-weight:800">${money(q.total)}</span>
-      <button class="btn btn-primary btn-sm" data-act="confirm-booking" ${q.guestsExceeded ? 'disabled' : ''}>
-        Xác nhận đặt chỗ
+      <div style="min-width:0">
+        <div style="font-size:16px;font-weight:800">${money(q.total)}</div>
+        <div style="font-size:12px;color:var(--ink-muted)">${esc(q.nights)} đêm · đã gồm thuế</div>
+      </div>
+      <div style="display:flex;gap:10px">
+        ${step > 0 ? '<button class="btn btn-outline btn-sm" data-act="checkout-back">Quay lại</button>' : ''}
+        ${step < 2
+          ? `<button class="btn btn-primary btn-sm" data-act="checkout-next" ${blocked ? 'disabled' : ''}>Tiếp tục</button>`
+          : `<button class="btn btn-primary btn-sm" data-act="confirm-booking" ${blocked ? 'disabled' : ''}>Xác nhận và thanh toán</button>`}
+      </div>
+    `
+  });
+}
+
+function checkoutStepTrip(q, d) {
+  return `
+    <section class="modal-section">
+      <h3>Chuyến đi của bạn</h3>
+      <div style="display:grid;gap:12px;margin-top:14px;font-size:14.5px">
+        <div class="book-line"><span><b>Ngày</b><br>${esc(longDate(state.checkIn))} – ${esc(longDate(state.checkOut))}</span>
+          <button class="text-btn" data-act="open" data-overlay="dates">Chỉnh sửa</button></div>
+        <div class="book-line"><span><b>Khách</b><br>${esc(q.guests)} khách</span>
+          <button class="text-btn" data-act="open" data-overlay="guests">Chỉnh sửa</button></div>
+      </div>
+    </section>
+
+    <section class="modal-section">
+      <h3>Thông tin liên hệ</h3>
+      <div style="margin-top:14px">
+        <label class="form-field"><span class="cap">Họ tên</span>
+          <input type="text" id="guest-name" value="${esc(state.user?.fullName ?? '')}" placeholder="Nguyễn Văn A"></label>
+        <label class="form-field"><span class="cap">Email</span>
+          <input type="email" id="guest-email" value="${esc(state.user?.email ?? '')}" placeholder="ban@email.com"></label>
+        <label class="form-field"><span class="cap">Lời nhắn cho chủ nhà <span style="font-weight:400">(không bắt buộc)</span></span>
+          <textarea id="guest-note" rows="3"
+            style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px"
+            placeholder="Chúng mình đến khoảng 20:00…">${esc(state.checkoutNote ?? '')}</textarea></label>
+      </div>
+    </section>
+
+    <section class="modal-section">
+      <h3>Chính sách huỷ</h3>
+      <p style="font-size:14px;line-height:1.6;color:var(--ink-body);margin:10px 0 0">
+        <b>${esc(q.cancellationTier)}</b> — ${esc(q.cancellationSummary)}
+      </p>
+    </section>
+  `;
+}
+
+function checkoutStepPayment(q) {
+  const method = state.payMethod ?? 'card';
+
+  return `
+    <section class="modal-section">
+      <h3>Chọn cách thanh toán</h3>
+      <div style="display:grid;gap:10px;margin-top:14px">
+        ${PAY_METHODS.map(([key, label, hint]) => `
+          <button type="button" class="opt ${method === key ? 'is-on' : ''}" data-act="set-pay-method" data-key="${key}">
+            <b>${esc(label)}</b><span>${esc(hint)}</span>
+          </button>`).join('')}
+      </div>
+
+      ${method === 'card' ? `
+        <div class="field-grid" style="margin-top:18px">
+          <label class="form-field" style="grid-column:1/-1"><span class="cap">Số thẻ</span>
+            <input id="card-number" inputmode="numeric" placeholder="4242 4242 4242 4242" value="4242 4242 4242 4242"></label>
+          <label class="form-field"><span class="cap">Hết hạn</span>
+            <input id="card-exp" placeholder="12/28" value="12/28"></label>
+          <label class="form-field"><span class="cap">CVV</span>
+            <input id="card-cvv" inputmode="numeric" placeholder="123" value="123"></label>
+        </div>
+        <p style="font-size:12.5px;color:var(--ink-muted);line-height:1.5">
+          Bản demo dùng thẻ thử nghiệm, không có giao dịch thật nào được thực hiện.
+        </p>` : ''}
+
+      ${method === 'momo' ? `
+        <p style="margin-top:18px;font-size:14px;color:var(--ink-body);line-height:1.6">
+          Sau khi xác nhận, bạn sẽ được chuyển sang ứng dụng MoMo để hoàn tất thanh toán ${money(q.total)}.
+        </p>` : ''}
+
+      ${method === 'bank' ? `
+        <div style="margin-top:18px;padding:16px;background:var(--surface-soft);border-radius:12px;font-size:14px;line-height:1.7">
+          <div>Ngân hàng: <b>Vietcombank</b></div>
+          <div>Số tài khoản: <b>0071 0009 8765</b></div>
+          <div>Chủ tài khoản: <b>CONG TY STAYHOST</b></div>
+          <div>Nội dung: <b>${esc(state.user?.initials ?? 'SH')} ${esc(q.listingId)}</b></div>
+        </div>` : ''}
+    </section>
+  `;
+}
+
+function checkoutStepReview(q, d) {
+  const method = PAY_METHODS.find(m => m[0] === (state.payMethod ?? 'card'));
+
+  return `
+    <section class="modal-section">
+      <h3>Kiểm tra lần cuối</h3>
+      <div style="display:grid;gap:12px;margin-top:14px;font-size:14.5px">
+        <div class="book-line"><span>Ngày</span><span>${esc(longDate(state.checkIn))} – ${esc(longDate(state.checkOut))}</span></div>
+        <div class="book-line"><span>Khách</span><span>${esc(q.guests)} khách</span></div>
+        <div class="book-line"><span>Thanh toán bằng</span><span>${esc(method?.[1] ?? 'Thẻ')}</span></div>
+      </div>
+    </section>
+
+    <section class="modal-section">
+      <h3>Chi tiết giá</h3>
+      <div class="book-lines" style="margin-top:14px">
+        <div class="book-line"><u>${money(q.pricePerNight)} × ${esc(q.nights)} đêm</u><span>${money(q.subtotal + q.lengthDiscount)}</span></div>
+        ${q.weekendSurcharge > 0
+          ? `<div class="book-line"><u>Phụ thu cuối tuần</u><span>đã gồm</span></div>` : ''}
+        ${q.lengthDiscount > 0
+          ? `<div class="book-line" style="color:var(--brand-dark)"><u>Giảm giá ở dài ngày (${esc(q.lengthDiscountPercent)}%)</u><span>−${money(q.lengthDiscount)}</span></div>` : ''}
+        <div class="book-line"><u>Phí dọn dẹp</u><span>${money(q.cleaningFee)}</span></div>
+        <div class="book-line"><u>Phí dịch vụ StayHost</u><span>${money(q.serviceFee)}</span></div>
+        <div class="book-line"><u>Thuế VAT 8%</u><span>${money(q.tax)}</span></div>
+        <div class="book-rule"></div>
+        <div class="book-total"><span>Tổng (${esc(state.currency.code)})</span><span>${money(q.total)}</span></div>
+      </div>
+    </section>
+
+    <section class="modal-section">
+      <h3>Chính sách huỷ</h3>
+      <p style="font-size:14px;line-height:1.6;color:var(--ink-body);margin:10px 0 0">
+        <b>${esc(q.cancellationTier)}</b> — ${esc(q.cancellationSummary)}
+      </p>
+    </section>
+  `;
+}
+
+/* ------------------------------------------------------------ cancel trip */
+
+function cancelTripModal() {
+  const preview = state.cancelPreview;
+  if (!preview) return '';
+
+  return shell({
+    title: 'Huỷ chuyến đi',
+    size: 'narrow',
+    body: `
+      <p style="margin:0 0 18px;font-size:14.5px;line-height:1.6;color:var(--ink-body)">
+        ${esc(preview.explanation)}
+      </p>
+      <div class="book-lines">
+        <div class="book-line"><span>Đã thanh toán</span><span>${money(preview.total)}</span></div>
+        <div class="book-line" style="color:var(--brand-dark)"><span>Sẽ hoàn lại</span><span>${money(preview.refund)}</span></div>
+        <div class="book-rule"></div>
+        <div class="book-total"><span>Không hoàn</span><span>${money(preview.penalty)}</span></div>
+      </div>
+    `,
+    foot: `
+      <button class="text-btn" data-act="close-overlay">Giữ chuyến đi</button>
+      <button class="btn btn-primary btn-sm" data-act="confirm-cancel" data-id="${esc(preview.bookingId)}">
+        Xác nhận huỷ
       </button>
     `
   });
@@ -715,6 +862,21 @@ function listingEditorModal() {
         </section>
 
         <section class="modal-section">
+          <h3>Chính sách huỷ</h3>
+          <span class="hint">Chính sách càng linh hoạt thì càng nhiều khách đặt.</span>
+          <div class="opt-grid">
+            ${[['Flexible', 'Linh hoạt', 'Hoàn 100% tiền phòng nếu huỷ trước 24 giờ.'],
+               ['Moderate', 'Trung bình', 'Hoàn 100% nếu huỷ trước 5 ngày, sau đó 50%.'],
+               ['Strict', 'Nghiêm ngặt', 'Hoàn 50% nếu huỷ trước 7 ngày, sau đó không hoàn.']]
+              .map(([key, label, hint]) => `
+                <button type="button" class="opt ${(l.cancellationTier ?? 'Moderate') === key ? 'is-on' : ''}"
+                        data-act="set-listing-tier" data-key="${key}">
+                  <b>${esc(label)}</b><span>${esc(hint)}</span>
+                </button>`).join('')}
+          </div>
+        </section>
+
+        <section class="modal-section">
           <h3>Mô tả</h3>
           <label class="form-field">
             <span class="cap">Giới thiệu chỗ nghỉ * <span style="font-weight:400">(tối thiểu 40 ký tự)</span></span>
@@ -730,10 +892,30 @@ function listingEditorModal() {
 
         <section class="modal-section">
           <h3>Ảnh</h3>
-          <span class="hint">Dán liên kết ảnh, mỗi dòng một ảnh. Ảnh đầu tiên là ảnh bìa.</span>
-          <textarea name="images" rows="5"
-            style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:13px;font-family:ui-monospace,monospace"
-            placeholder="https://images.pexels.com/photos/1029599/pexels-photo-1029599.jpeg?auto=compress&cs=tinysrgb&w=1200">${esc((l.images ?? []).join('\n'))}</textarea>
+          <span class="hint">Tải ảnh từ máy hoặc dán liên kết. Ảnh đầu tiên là ảnh bìa.</span>
+
+          <div class="dropzone" data-act="pick-images">
+            <input type="file" id="image-input" accept="image/jpeg,image/png,image/webp,image/avif" multiple hidden>
+            <b>${state.uploading ? 'Đang tải ảnh lên…' : 'Chọn ảnh từ máy'}</b>
+            <span>JPG, PNG, WebP hoặc AVIF · tối đa 8MB mỗi ảnh</span>
+          </div>
+
+          ${(l.images ?? []).length ? `
+            <div class="thumb-grid">
+              ${l.images.map((url, i) => `
+                <figure class="thumb">
+                  <img src="${esc(url)}" alt="Ảnh ${i + 1}" loading="lazy">
+                  ${i === 0 ? '<figcaption>Ảnh bìa</figcaption>' : ''}
+                  <button type="button" class="thumb-remove" data-act="remove-listing-image" data-index="${i}"
+                          aria-label="Xoá ảnh ${i + 1}">✕</button>
+                </figure>`).join('')}
+            </div>` : ''}
+
+          <details style="margin-top:14px">
+            <summary style="font-size:13px;font-weight:600;cursor:pointer">Hoặc dán liên kết ảnh</summary>
+            <textarea name="images" rows="4" style="width:100%;margin-top:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:13px;font-family:ui-monospace,monospace"
+              placeholder="https://…">${esc((l.images ?? []).join('\n'))}</textarea>
+          </details>
         </section>
 
         <section class="modal-section">
@@ -782,12 +964,29 @@ function hostBlockModal() {
         <button type="submit" class="btn btn-dark btn-block">Khoá lịch</button>
       </form>
 
+      ${cal.bookings?.length ? `
+        <div style="margin-top:24px">
+          <b style="font-size:13px">Lịch khách đã đặt</b>
+          <div style="display:grid;gap:8px;margin-top:10px">
+            ${cal.bookings.map(b => `
+              <div class="cal-row">
+                <span class="badge confirmed">Đã đặt</span>
+                <div style="flex:1;min-width:0;font-size:13.5px">
+                  ${esc(b.checkIn)} → ${esc(b.checkOut)}
+                  <span style="color:var(--ink-muted)"> · ${esc(b.guests)} khách · ${esc(b.reference)}</span>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>` : `
+        <p style="margin-top:24px;font-size:13px;color:var(--ink-muted)">Chưa có lượt đặt nào sắp tới.</p>`}
+
       ${cal.blocks?.length ? `
         <div style="margin-top:22px">
-          <b style="font-size:13px">Đang khoá</b>
+          <b style="font-size:13px">Bạn đang khoá</b>
           <div style="display:grid;gap:8px;margin-top:10px">
             ${cal.blocks.map(b => `
-              <div style="display:flex;align-items:center;gap:10px;border:1px solid var(--divider);border-radius:10px;padding:10px 12px">
+              <div class="cal-row">
+                <span class="badge cancelled">Khoá</span>
                 <div style="flex:1;min-width:0;font-size:13.5px">
                   ${esc(b.from)} → ${esc(b.to)}
                   ${b.note ? `<span style="color:var(--ink-muted)"> · ${esc(b.note)}</span>` : ''}

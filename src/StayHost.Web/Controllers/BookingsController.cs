@@ -24,6 +24,7 @@ public class BookingsController(StayHostDbContext db, AuthService auth) : Contro
         var bookings = await db.Bookings
             .Where(b => user != null ? b.GuestUserId == user.Id : b.SessionId == sid && b.GuestUserId == null)
             .Include(b => b.Listing!).ThenInclude(l => l.Images)
+            .Include(b => b.Listing!).ThenInclude(l => l.Host)
             .Include(b => b.Payment)
             .OrderByDescending(b => b.CreatedAt)
             .ToListAsync(ct);
@@ -34,7 +35,9 @@ public class BookingsController(StayHostDbContext db, AuthService auth) : Contro
     [HttpPost]
     public async Task<ActionResult<BookingDto>> Create([FromBody] CreateBookingRequest req, CancellationToken ct)
     {
-        var listing = await db.Listings.Include(l => l.Images)
+        var listing = await db.Listings
+            .Include(l => l.Images)
+            .Include(l => l.Host)
             .FirstOrDefaultAsync(l => l.Id == req.ListingId, ct);
         if (listing is null) return NotFound(new { message = "Chỗ nghỉ không tồn tại." });
         if (!listing.IsPublished) return BadRequest(new { message = "Chỗ nghỉ này hiện không nhận đặt." });
@@ -64,46 +67,50 @@ public class BookingsController(StayHostDbContext db, AuthService auth) : Contro
         if (blocked)
             return Conflict(new { message = "Chủ nhà đã khoá lịch trong khoảng ngày này." });
 
+        // Bookings carry money and liability, so they need a real account behind them.
         var user = await auth.CurrentUserAsync(ct);
+        if (user is null)
+            return Unauthorized(new { message = "Bạn cần đăng nhập để đặt chỗ." });
 
-        var subtotal = listing.PricePerNight * nights;
-        var service = Math.Round(subtotal * listing.ServiceFeeRate, 0, MidpointRounding.AwayFromZero);
-        var total = subtotal + listing.CleaningFee + service;
+        var price = Pricing.Quote(listing, req.CheckIn, req.CheckOut);
 
         var booking = new Booking
         {
             Reference = "SH" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant(),
             SessionId = HttpContext.SessionId(),
-            GuestUserId = user?.Id,
+            GuestUserId = user.Id,
             ListingId = listing.Id,
             Listing = listing,
             CheckIn = req.CheckIn,
             CheckOut = req.CheckOut,
             Guests = req.Guests,
-            Nights = nights,
-            Subtotal = subtotal,
-            CleaningFee = listing.CleaningFee,
-            ServiceFee = service,
-            Total = total,
-            GuestName = req.GuestName ?? user?.FullName,
-            GuestEmail = req.GuestEmail ?? user?.Email,
+            Nights = price.Nights,
+            Subtotal = price.Subtotal,
+            CleaningFee = price.CleaningFee,
+            ServiceFee = price.ServiceFee,
+            Tax = price.Tax,
+            Total = price.Total,
+            CancellationTier = listing.CancellationTier,
+            GuestName = req.GuestName ?? user.FullName,
+            GuestEmail = req.GuestEmail ?? user.Email,
+            GuestNote = req.GuestNote,
             // Instant-book listings confirm immediately; the rest wait for the host.
             Status = listing.InstantBook ? BookingStatus.Confirmed : BookingStatus.Pending
         };
 
-        // The platform keeps the service fee; everything else is owed to the host.
-        var platformFee = Math.Round(service * PlatformCut, 0, MidpointRounding.AwayFromZero);
+        // The platform keeps the service fee; tax is remitted, the rest goes to the host.
+        var platformFee = Math.Round(price.ServiceFee * PlatformCut, 0, MidpointRounding.AwayFromZero);
         booking.Payment = new Payment
         {
             Reference = "PAY" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant(),
-            Amount = total,
+            Amount = price.Total,
             Currency = "VND",
-            Method = "card",
-            CardLast4 = "4242",
+            Method = string.IsNullOrWhiteSpace(req.PaymentMethod) ? "card" : req.PaymentMethod,
+            CardLast4 = req.CardLast4 ?? "4242",
             Status = listing.InstantBook ? PaymentStatus.Captured : PaymentStatus.Authorized,
             CapturedAt = listing.InstantBook ? DateTime.UtcNow : null,
             PlatformFee = platformFee,
-            HostPayout = total - platformFee,
+            HostPayout = price.Total - platformFee - price.Tax,
             PayoutDueOn = req.CheckIn.AddDays(1)
         };
 
@@ -113,18 +120,43 @@ public class BookingsController(StayHostDbContext db, AuthService auth) : Contro
         return Created($"/api/bookings/{booking.Id}", ToDto(booking));
     }
 
-    [HttpPost("{id:int}/cancel")]
-    public async Task<IActionResult> Cancel(int id, CancellationToken ct)
+    /// <summary>What the guest would get back if they cancelled right now.</summary>
+    [HttpGet("{id:int}/refund-preview")]
+    public async Task<ActionResult<RefundPreviewDto>> RefundPreview(int id, CancellationToken ct)
     {
         var booking = await FindOwnedAsync(id, ct);
         if (booking is null) return NotFound();
 
+        var outcome = Pricing.Refund(booking, DateOnly.FromDateTime(DateTime.UtcNow));
+        return Ok(new RefundPreviewDto(outcome.Amount, outcome.Penalty, booking.Total, outcome.Explanation));
+    }
+
+    [HttpPost("{id:int}/cancel")]
+    public async Task<ActionResult<RefundPreviewDto>> Cancel(int id, CancellationToken ct)
+    {
+        var booking = await FindOwnedAsync(id, ct);
+        if (booking is null) return NotFound();
+        if (booking.Status == BookingStatus.Cancelled)
+            return BadRequest(new { message = "Chuyến đi này đã được huỷ." });
+
+        var outcome = Pricing.Refund(booking, DateOnly.FromDateTime(DateTime.UtcNow));
+
         booking.Status = BookingStatus.Cancelled;
         booking.CancellationReason = "Khách huỷ";
-        if (booking.Payment is not null) booking.Payment.Status = PaymentStatus.Refunded;
+        booking.RefundedAmount = outcome.Amount;
+
+        if (booking.Payment is not null)
+        {
+            booking.Payment.Status = outcome.Amount >= booking.Total
+                ? PaymentStatus.Refunded
+                : PaymentStatus.Captured;
+            // The host keeps whatever the policy does not refund, minus the platform cut.
+            booking.Payment.HostPayout = Math.Max(0m, outcome.Penalty - booking.Payment.PlatformFee);
+            booking.Payment.PayoutStatus = PayoutStatus.OnHold;
+        }
 
         await db.SaveChangesAsync(ct);
-        return NoContent();
+        return Ok(new RefundPreviewDto(outcome.Amount, outcome.Penalty, booking.Total, outcome.Explanation));
     }
 
     /// <summary>A guest may review a stay once, after checkout.</summary>
@@ -180,34 +212,65 @@ public class BookingsController(StayHostDbContext db, AuthService auth) : Contro
         return NoContent();
     }
 
-    private async Task<Booking?> FindOwnedAsync(int id, CancellationToken ct)
+    /// <summary>Single booking, used by the trip detail page and the printable receipt.</summary>
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<BookingDto>> Detail(int id, CancellationToken ct)
+    {
+        var booking = await FindOwnedAsync(id, ct, includeListing: true);
+        return booking is null ? NotFound() : Ok(ToDto(booking));
+    }
+
+    private async Task<Booking?> FindOwnedAsync(int id, CancellationToken ct, bool includeListing = false)
     {
         var user = await auth.CurrentUserAsync(ct);
         var sid = HttpContext.SessionId();
 
-        return await db.Bookings.Include(b => b.Payment).FirstOrDefaultAsync(b =>
+        var query = db.Bookings.Include(b => b.Payment).AsQueryable();
+        if (includeListing)
+        {
+            query = query
+                .Include(b => b.Listing!).ThenInclude(l => l.Images)
+                .Include(b => b.Listing!).ThenInclude(l => l.Host);
+        }
+
+        return await query.FirstOrDefaultAsync(b =>
             b.Id == id && (user != null ? b.GuestUserId == user.Id : b.SessionId == sid), ct);
     }
 
-    private static BookingDto ToDto(Booking b) => new(
-        b.Id,
-        b.Reference,
-        b.ListingId,
-        b.Listing?.Title ?? "",
-        b.Listing?.City ?? "",
-        b.Listing?.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).FirstOrDefault() ?? "",
-        b.Listing?.Slug ?? "",
-        b.CheckIn,
-        b.CheckOut,
-        b.Nights,
-        b.Guests,
-        b.Subtotal,
-        b.CleaningFee,
-        b.ServiceFee,
-        b.Total,
-        b.Status.ToString(),
-        b.Payment?.Status.ToString() ?? "Pending",
-        b.HasReview,
-        b.CheckOut <= DateOnly.FromDateTime(DateTime.UtcNow) && !b.HasReview && b.Status != BookingStatus.Cancelled,
-        b.CreatedAt);
+    private static BookingDto ToDto(Booking b)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        return new BookingDto(
+            b.Id,
+            b.Reference,
+            b.ListingId,
+            b.Listing?.Title ?? "",
+            b.Listing?.City ?? "",
+            b.Listing?.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).FirstOrDefault() ?? "",
+            b.Listing?.Slug ?? "",
+            b.CheckIn,
+            b.CheckOut,
+            b.Nights,
+            b.Guests,
+            b.Subtotal,
+            b.CleaningFee,
+            b.ServiceFee,
+            b.Tax,
+            b.Total,
+            b.RefundedAmount,
+            Pricing.TierLabel(b.CancellationTier),
+            Pricing.TierSummary(b.CancellationTier),
+            b.Status.ToString(),
+            b.Payment?.Status.ToString() ?? "Pending",
+            b.Payment?.Reference,
+            b.Payment?.Method,
+            b.Payment?.CardLast4,
+            b.HasReview,
+            b.CheckOut <= today && !b.HasReview && b.Status != BookingStatus.Cancelled,
+            b.Status != BookingStatus.Cancelled && b.CheckIn > today,
+            b.GuestNote,
+            b.Listing?.Host?.Name ?? "",
+            b.CreatedAt);
+    }
 }

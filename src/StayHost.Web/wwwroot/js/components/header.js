@@ -198,7 +198,8 @@ function renderCategoryBar() {
         <span class="quick-div"></span>
 
         <div class="quick-scroll" id="cat-scroll">
-          <button class="quick-chip ${state.instantBookOnly ? 'is-on' : ''}" data-act="toggle-instant">Huỷ miễn phí</button>
+          <button class="quick-chip ${state.instantBookOnly ? 'is-on' : ''}" data-act="toggle-instant">Đặt ngay</button>
+          <button class="quick-chip ${state.freeCancellationOnly ? 'is-on' : ''}" data-act="toggle-free-cancel">Huỷ miễn phí</button>
           <button class="quick-chip ${state.guestFavoriteOnly ? 'is-on' : ''}" data-act="toggle-guest-fav">Khách yêu thích</button>
           <button class="quick-chip ${state.superhostOnly ? 'is-on' : ''}" data-act="toggle-superhost">Siêu chủ nhà</button>
           ${chips.map(a => `

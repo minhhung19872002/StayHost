@@ -306,6 +306,9 @@ public class HostController(StayHostDbContext db, AuthService auth) : Controller
         listing.MinNights = r.MinNights;
         listing.InstantBook = r.InstantBook;
         listing.IsPublished = r.IsPublished;
+        listing.CancellationTier = Enum.TryParse<CancellationTier>(r.CancellationTier, true, out var tier)
+            ? tier
+            : CancellationTier.Moderate;
         listing.Description = r.Description.Trim();
         listing.SpaceHighlight = string.IsNullOrWhiteSpace(r.Highlight) ? null : r.Highlight.Trim();
         listing.UpdatedAt = DateTime.UtcNow;
@@ -381,6 +384,7 @@ public class HostController(StayHostDbContext db, AuthService auth) : Controller
         },
         l.Bedrooms, l.Beds, l.Bathrooms, l.MaxGuests,
         l.PricePerNight, l.CleaningFee, l.MinNights, l.InstantBook, l.IsPublished,
+        l.CancellationTier.ToString(),
         Math.Round(l.Rating, 2), l.ReviewCount,
         l.Description, l.SpaceHighlight, l.Latitude, l.Longitude,
         l.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).ToList(),

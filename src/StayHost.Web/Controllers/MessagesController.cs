@@ -131,6 +131,7 @@ public class MessagesController(StayHostDbContext db, AuthService auth) : Contro
         return new ThreadSummaryDto(
             t.Id,
             t.ListingId,
+            t.Listing?.Slug ?? "",
             t.Listing?.Title ?? "",
             t.Listing?.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).FirstOrDefault() ?? "",
             other?.FullName ?? "Người dùng",

@@ -195,6 +195,7 @@ public class CatalogService(StayHostDbContext db)
         bool SuperhostOnly,
         bool GuestFavoriteOnly,
         bool InstantBookOnly,
+        bool FreeCancellationOnly,
         int Page,
         int PageSize);
 
@@ -230,6 +231,7 @@ public class CatalogService(StayHostDbContext db)
         if (q.SuperhostOnly) query = query.Where(l => l.IsSuperhost);
         if (q.GuestFavoriteOnly) query = query.Where(l => l.IsGuestFavorite);
         if (q.InstantBookOnly) query = query.Where(l => l.InstantBook);
+        if (q.FreeCancellationOnly) query = query.Where(l => l.CancellationTier != CancellationTier.Strict);
 
         if (!string.IsNullOrWhiteSpace(q.RoomType) && q.RoomType != "any")
         {
@@ -391,7 +393,7 @@ public class CatalogService(StayHostDbContext db)
         return new ListingDetailDto(
             ToCard(listing, favIds),
             listing.Description,
-            listing.CancellationPolicy,
+            Pricing.TierSummary(listing.CancellationTier),
             Split(listing.HouseRules),
             Split(listing.SafetyInfo),
             groups,
@@ -410,12 +412,15 @@ public class CatalogService(StayHostDbContext db)
         var l = await db.Listings.FirstOrDefaultAsync(x => x.Id == listingId, ct);
         if (l is null) return null;
 
-        var nights = Math.Max(1, checkOut.DayNumber - checkIn.DayNumber);
-        var subtotal = l.PricePerNight * nights;
-        var service = Math.Round(subtotal * l.ServiceFeeRate, 0, MidpointRounding.AwayFromZero);
-        var total = subtotal + l.CleaningFee + service;
+        var b = Pricing.Quote(l, checkIn, checkOut);
 
-        return new QuoteDto(l.Id, nights, guests, l.PricePerNight, subtotal, l.CleaningFee, service, total,
-            guests > l.MaxGuests, l.MaxGuests);
+        return new QuoteDto(
+            l.Id, b.Nights, guests, b.NightlyRate,
+            b.Subtotal, b.CleaningFee, b.ServiceFee, b.Tax, b.Total,
+            b.WeekendSurcharge, b.LengthDiscount, b.LengthDiscountPercent,
+            guests > l.MaxGuests, l.MaxGuests,
+            l.MinNights, b.Nights < l.MinNights,
+            Pricing.TierLabel(l.CancellationTier),
+            Pricing.TierSummary(l.CancellationTier));
     }
 }
