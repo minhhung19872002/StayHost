@@ -24,6 +24,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ListingReport> ListingReports => Set<ListingReport>();
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
+    public DbSet<PriceRule> PriceRules => Set<PriceRule>();
+    public DbSet<GuestReview> GuestReviews => Set<GuestReview>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -101,6 +103,29 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.ThreadId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.SenderUser).WithMany()
                 .HasForeignKey(x => x.SenderUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<PriceRule>(e =>
+        {
+            e.ToTable("price_rules");
+            e.Property(x => x.Name).HasMaxLength(80).IsRequired();
+            e.Property(x => x.NightlyRate).HasPrecision(12, 2);
+            e.HasIndex(x => new { x.ListingId, x.From });
+            e.HasOne(x => x.Listing).WithMany(l => l.PriceRules)
+                .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<GuestReview>(e =>
+        {
+            e.ToTable("guest_reviews");
+            e.HasIndex(x => x.BookingId).IsUnique();
+            e.Property(x => x.Text).HasMaxLength(2000);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.HostUser).WithMany()
+                .HasForeignKey(x => x.HostUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.GuestUser).WithMany()
+                .HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<Notification>(e =>

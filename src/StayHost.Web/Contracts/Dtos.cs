@@ -87,6 +87,12 @@ public record SaveListingRequest(
 
 public record CalendarBlockDto(int Id, DateOnly From, DateOnly To, string? Note);
 
+public record PriceRuleDto(int Id, string Name, DateOnly From, DateOnly To, decimal NightlyRate);
+
+public record CreatePriceRuleRequest(int ListingId, string? Name, DateOnly From, DateOnly To, decimal NightlyRate);
+
+public record ReviewGuestRequest(double Rating, string Text, bool WouldHostAgain);
+
 public record CreateBlockRequest(int ListingId, DateOnly From, DateOnly To, string? Note);
 
 public record HostBookingDto(

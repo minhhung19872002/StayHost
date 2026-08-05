@@ -995,6 +995,26 @@ document.addEventListener('click', async e => {
       } catch (err) { toast(err.message); }
       break;
 
+    case 'host-month':
+      state.hostMonthOffset = Math.max(0, (state.hostMonthOffset ?? 0) + Number(target.dataset.dir));
+      notify();
+      break;
+
+    case 'remove-price-rule':
+      try {
+        await api.removePriceRule(Number(target.dataset.id));
+        await store.loadHostCalendar(state.hostCalendar.listingId);
+        toast('Đã bỏ quy tắc giá.');
+      } catch (err) { toast(err.message); }
+      break;
+
+    case 'open-guest-review': {
+      state.guestReviewBooking = state.hosting?.bookings.find(b => b.id === Number(target.dataset.id)) ?? null;
+      state.overlay = 'guest-review';
+      notify();
+      break;
+    }
+
     case 'respond-booking':
       await store.respondBooking(Number(target.dataset.id), target.dataset.mode);
       break;
@@ -1031,6 +1051,19 @@ document.addEventListener('click', async e => {
       notify();
       break;
     }
+
+    case 'set-guest-star':
+      state.guestReviewDraft = { ...(state.guestReviewDraft ?? { wouldHostAgain: true }), rating: Number(target.dataset.value) };
+      notify();
+      break;
+
+    case 'toggle-host-again':
+      state.guestReviewDraft = {
+        ...(state.guestReviewDraft ?? { rating: 5 }),
+        wouldHostAgain: !(state.guestReviewDraft?.wouldHostAgain ?? true)
+      };
+      notify();
+      break;
 
     case 'set-star': {
       const { field, value } = target.dataset;
@@ -1366,6 +1399,35 @@ document.addEventListener('submit', e => {
       .then(() => store.loadHostCalendar(Number(target.dataset.listing)))
       .then(() => toast('Đã khoá lịch.'))
       .catch(err => toast(err.message));
+  }
+
+  if (act === 'submit-price-rule') {
+    api.addPriceRule({
+      listingId: Number(target.dataset.listing),
+      name: target.name.value.trim(),
+      from: target.from.value,
+      to: target.to.value,
+      nightlyRate: Number(target.rate.value)
+    })
+      .then(() => store.loadHostCalendar(Number(target.dataset.listing)))
+      .then(() => toast('Đã thêm quy tắc giá.'))
+      .catch(err => toast(err.message));
+  }
+
+  if (act === 'submit-guest-review') {
+    api.reviewGuest(Number(target.dataset.booking), {
+      rating: state.guestReviewDraft?.rating ?? 5,
+      text: target.text.value.trim(),
+      wouldHostAgain: state.guestReviewDraft?.wouldHostAgain ?? true
+    })
+      .then(() => {
+        state.overlay = null;
+        state.guestReviewBooking = null;
+        toast('Đã gửi đánh giá khách.');
+        return store.loadHosting();
+      })
+      .catch(err => toast(err.message))
+      .finally(notify);
   }
 
   if (act === 'submit-message') {

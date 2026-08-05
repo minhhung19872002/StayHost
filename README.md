@@ -98,6 +98,7 @@ khi đăng nhập, dữ liệu đó được chuyển sang tài khoản.
 |---|---|---|
 | Khách | `guest@stayhost.vn` | `stayhost123` |
 | Chủ nhà | `host1@stayhost.vn` … `host10@stayhost.vn` | `stayhost123` |
+| Quản trị | `admin@stayhost.vn` | `stayhost123` |
 
 ## Tính năng
 
@@ -132,9 +133,23 @@ nghỉ đầu tiên sẽ tự được nâng thành chủ nhà.
 **Tin nhắn (`/messages`)** — mỗi cặp (chỗ nghỉ, khách) là một hội thoại; đánh dấu đã
 đọc khi mở; badge tin chưa đọc trên header.
 
-**Thanh toán & đánh giá** — mỗi lượt đặt sinh một bản ghi `Payment` tách phí nền tảng
-và tiền chi trả cho chủ nhà, có trạng thái giữ tiền / đã thu / đã hoàn. Khách viết
-đánh giá sau khi trả phòng, điểm listing được tính lại ngay.
+**Giá & thanh toán** — `StayHost.Domain/Pricing.cs` là nơi duy nhất tính tiền: phụ thu
+cuối tuần, giảm giá ở dài ngày (7 đêm −10%, 28 đêm −20%), **thuế VAT 8%**, và giá theo
+mùa do chủ nhà đặt. Checkout 3 bước với 3 phương thức trả tiền. Mỗi lượt đặt sinh bản
+ghi `Payment` tách phí nền tảng / thuế / tiền chi trả chủ nhà.
+
+**Huỷ & hoàn tiền** — 3 bậc chính sách (Linh hoạt / Trung bình / Nghiêm ngặt). Khách
+xem trước số tiền được hoàn rồi mới xác nhận huỷ.
+
+**Chuyến đi** — trang chi tiết `/trips/{id}` kèm hoá đơn in được (Ctrl+P ra PDF sạch).
+
+**Đánh giá hai chiều** — khách đánh giá chỗ nghỉ sau khi trả phòng; chủ nhà đánh giá
+khách. Danh hiệu Siêu chủ nhà được tính tự động (≥4.8 sao, ≥5 kỳ nghỉ hoàn tất, không
+có lượt huỷ từ phía chủ nhà).
+
+**Vận hành** — thông báo trong app kèm hàng đợi email cho mọi sự kiện; báo cáo chỗ nghỉ
+lưu vào DB; trang quản trị `/admin` xem doanh thu nền tảng, kiểm duyệt chỗ nghỉ và xử
+lý báo cáo.
 
 **Khác** — wishlist, chuyến đi (xem/huỷ), trang giới thiệu cho thuê nhà kèm máy tính
 doanh thu và FAQ, đổi ngôn ngữ (8) và tiền tệ (8, quy đổi trực tiếp trên UI), footer

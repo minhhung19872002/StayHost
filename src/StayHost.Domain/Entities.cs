@@ -124,6 +124,7 @@ public class Listing
 
     public List<ListingImage> Images { get; set; } = [];
     public List<CalendarBlock> Blocks { get; set; } = [];
+    public List<PriceRule> PriceRules { get; set; } = [];
     public List<ListingAmenity> Amenities { get; set; } = [];
     public List<Review> Reviews { get; set; } = [];
 }

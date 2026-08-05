@@ -73,7 +73,11 @@ public class BookingsController(StayHostDbContext db, AuthService auth, Notifica
         if (user is null)
             return Unauthorized(new { message = "Bạn cần đăng nhập để đặt chỗ." });
 
-        var price = Pricing.Quote(listing, req.CheckIn, req.CheckOut);
+        var priceRules = await db.PriceRules
+            .Where(r => r.ListingId == listing.Id && r.From <= req.CheckOut && req.CheckIn <= r.To)
+            .ToListAsync(ct);
+
+        var price = Pricing.Quote(listing, req.CheckIn, req.CheckOut, priceRules);
 
         var booking = new Booking
         {

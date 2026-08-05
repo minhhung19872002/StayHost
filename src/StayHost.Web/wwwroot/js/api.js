@@ -98,6 +98,10 @@ export const api = {
   hostCalendar: id => request(`/api/host/listings/${id}/calendar`),
   addBlock: body => request('/api/host/blocks', { method: 'POST', body: JSON.stringify(body) }),
   removeBlock: id => request(`/api/host/blocks/${id}`, { method: 'DELETE' }),
+  addPriceRule: body => request('/api/host/price-rules', { method: 'POST', body: JSON.stringify(body) }),
+  removePriceRule: id => request(`/api/host/price-rules/${id}`, { method: 'DELETE' }),
+  reviewGuest: (bookingId, body) =>
+    request(`/api/host/bookings/${bookingId}/review-guest`, { method: 'POST', body: JSON.stringify(body) }),
   respondBooking: (id, action, reason) =>
     request(`/api/host/bookings/${id}/${action}`, { method: 'POST', body: JSON.stringify({ reason: reason ?? null }) }),
 

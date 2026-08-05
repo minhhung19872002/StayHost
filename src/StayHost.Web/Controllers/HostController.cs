@@ -184,7 +184,13 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
             .Select(b => new { b.Reference, b.CheckIn, b.CheckOut, b.Guests })
             .ToListAsync(ct);
 
-        return Ok(new { blocks, bookings = booked });
+        var rules = await db.PriceRules
+            .Where(r => r.ListingId == id && r.To >= today)
+            .OrderBy(r => r.From)
+            .Select(r => new PriceRuleDto(r.Id, r.Name, r.From, r.To, r.NightlyRate))
+            .ToListAsync(ct);
+
+        return Ok(new { blocks, bookings = booked, priceRules = rules, basePrice = listing.PricePerNight });
     }
 
     [HttpPost("blocks")]
@@ -223,6 +229,131 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
         db.CalendarBlocks.Remove(block);
         await db.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+    /* --------------------------------------------------------- price rules */
+
+    [HttpPost("price-rules")]
+    public async Task<ActionResult<PriceRuleDto>> AddPriceRule([FromBody] CreatePriceRuleRequest req, CancellationToken ct)
+    {
+        var (user, profile) = await ResolveAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var listing = await db.Listings.FirstOrDefaultAsync(l => l.Id == req.ListingId, ct);
+        if (listing is null) return NotFound();
+        if (profile is null || listing.HostId != profile.Id) return Forbid();
+
+        if (req.To < req.From) return BadRequest(new { message = "Ngày kết thúc phải sau ngày bắt đầu." });
+        if (req.NightlyRate < 50_000) return BadRequest(new { message = "Giá mỗi đêm tối thiểu 50.000₫." });
+
+        var overlaps = await db.PriceRules.AnyAsync(r =>
+            r.ListingId == req.ListingId && r.From <= req.To && req.From <= r.To, ct);
+        if (overlaps) return Conflict(new { message = "Khoảng ngày này đã có quy tắc giá khác." });
+
+        var rule = new PriceRule
+        {
+            ListingId = req.ListingId,
+            Name = (req.Name ?? "Mùa cao điểm").Trim(),
+            From = req.From,
+            To = req.To,
+            NightlyRate = req.NightlyRate
+        };
+        db.PriceRules.Add(rule);
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new PriceRuleDto(rule.Id, rule.Name, rule.From, rule.To, rule.NightlyRate));
+    }
+
+    [HttpDelete("price-rules/{id:int}")]
+    public async Task<IActionResult> RemovePriceRule(int id, CancellationToken ct)
+    {
+        var (user, profile) = await ResolveAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var rule = await db.PriceRules.Include(r => r.Listing).FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (rule is null) return NoContent();
+        if (profile is null || rule.Listing!.HostId != profile.Id) return Forbid();
+
+        db.PriceRules.Remove(rule);
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    /* ------------------------------------------------------- guest reviews */
+
+    [HttpPost("bookings/{id:int}/review-guest")]
+    public async Task<IActionResult> ReviewGuest(int id, [FromBody] ReviewGuestRequest req, CancellationToken ct)
+    {
+        var (user, profile) = await ResolveAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var booking = await db.Bookings.Include(b => b.Listing).FirstOrDefaultAsync(b => b.Id == id, ct);
+        if (booking is null) return NotFound();
+        if (profile is null || booking.Listing!.HostId != profile.Id) return Forbid();
+        if (booking.GuestUserId is not int guestId)
+            return BadRequest(new { message = "Lượt đặt này không gắn với tài khoản khách." });
+        if (booking.CheckOut > DateOnly.FromDateTime(DateTime.UtcNow))
+            return BadRequest(new { message = "Chỉ đánh giá được sau khi khách trả phòng." });
+        if (await db.GuestReviews.AnyAsync(r => r.BookingId == id, ct))
+            return Conflict(new { message = "Bạn đã đánh giá khách này rồi." });
+
+        var text = (req.Text ?? "").Trim();
+        if (text.Length < 10) return BadRequest(new { message = "Nội dung đánh giá cần tối thiểu 10 ký tự." });
+
+        db.GuestReviews.Add(new GuestReview
+        {
+            BookingId = id,
+            HostUserId = user.Id,
+            GuestUserId = guestId,
+            Rating = Math.Clamp(req.Rating, 1, 5),
+            Text = text,
+            WouldHostAgain = req.WouldHostAgain
+        });
+
+        var guest = await db.Users.FirstOrDefaultAsync(u => u.Id == guestId, ct);
+        await notifications.QueueWithEmailAsync(guest, NotificationKind.ReviewReceived,
+            "Chủ nhà đã đánh giá bạn",
+            $"{user.FullName} vừa để lại đánh giá cho chuyến đi {booking.Reference}.",
+            $"/trips/{booking.Id}", ct);
+
+        await db.SaveChangesAsync(ct);
+        await RecalculateSuperhostAsync(profile.Id, ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Superhost is earned, not set by hand: 4.8+ average, at least five completed
+    /// stays, and no host-side cancellations.
+    /// </summary>
+    private async Task RecalculateSuperhostAsync(int hostId, CancellationToken ct)
+    {
+        var host = await db.Hosts.FirstOrDefaultAsync(h => h.Id == hostId, ct);
+        if (host is null) return;
+
+        var listings = await db.Listings.Where(l => l.HostId == hostId)
+            .Select(l => new { l.Id, l.Rating, l.ReviewCount }).ToListAsync(ct);
+        var listingIds = listings.Select(l => l.Id).ToList();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var completed = await db.Bookings.CountAsync(b =>
+            listingIds.Contains(b.ListingId) && b.Status != BookingStatus.Cancelled && b.CheckOut < today, ct);
+
+        var hostCancellations = await db.Bookings.CountAsync(b =>
+            listingIds.Contains(b.ListingId) && b.Status == BookingStatus.Cancelled &&
+            b.CancellationReason != null && b.CancellationReason.Contains("Chủ nhà"), ct);
+
+        var rated = listings.Where(l => l.ReviewCount > 0).ToList();
+        var average = rated.Count == 0 ? 0 : rated.Average(l => l.Rating);
+
+        host.IsSuperhost = average >= 4.8 && completed >= 5 && hostCancellations == 0;
+
+        foreach (var id in listingIds)
+        {
+            var listing = await db.Listings.FirstAsync(l => l.Id == id, ct);
+            listing.IsSuperhost = host.IsSuperhost;
+        }
+
+        await db.SaveChangesAsync(ct);
     }
 
     /* ------------------------------------------------------------ bookings */

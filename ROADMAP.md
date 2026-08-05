@@ -7,7 +7,7 @@ Trạng thái: ✅ xong · 🔨 đang làm · ⬜ chưa bắt đầu
 
 ---
 
-## Đã có (nền tảng)
+## Nền tảng ✅
 
 | Hạng mục | Trạng thái |
 |---|---|
@@ -18,71 +18,70 @@ Trạng thái: ✅ xong · 🔨 đang làm · ⬜ chưa bắt đầu
 | Đặt chỗ, chặn trùng ngày, wishlist, chuyến đi | ✅ |
 | Tài khoản: đăng ký/đăng nhập PBKDF2, phiên cookie, gộp dữ liệu ẩn danh | ✅ |
 | Trang chủ nhà: CRUD chỗ nghỉ, khoá lịch, duyệt đơn, doanh thu | ✅ |
-| Tin nhắn guest ↔ host | ✅ |
-| Đánh giá sau kỳ nghỉ | ✅ |
-| Bản ghi thanh toán tách phí nền tảng / payout | ✅ |
+| Tin nhắn guest ↔ host · Đánh giá sau kỳ nghỉ | ✅ |
 | Docker Compose + migrations + seed | ✅ |
 
----
-
-## P1 — Sửa lỗi đã xác nhận 🔨
+## P1 — Sửa lỗi đã xác nhận ✅
 
 | # | Lỗi | Trạng thái |
 |---|---|---|
-| 1 | Chip "Huỷ miễn phí" thực chất lọc *đặt ngay* — sai nhãn, sai hành vi | 🔨 |
-| 2 | Lịch chủ nhà không hiện lượt đặt đã có (API trả về, UI bỏ qua) | 🔨 |
-| 3 | Link "Xem chỗ nghỉ" trong tin nhắn dùng `listingId` làm slug → 404 | 🔨 |
-| 4 | Bộ lọc `instantBook` không ghi vào URL → reload mất filter | 🔨 |
-| 5 | Đặt chỗ không yêu cầu đăng nhập (không truy được trách nhiệm) | 🔨 |
-| 6 | Ảnh chỗ nghỉ chỉ dán URL, không upload được file | 🔨 |
+| 1 | Chip "Huỷ miễn phí" thực chất lọc *đặt ngay* | ✅ tách thành 2 chip đúng nghĩa |
+| 2 | Lịch chủ nhà không hiện lượt đặt đã có | ✅ |
+| 3 | Link "Xem chỗ nghỉ" trong tin nhắn dùng id làm slug → 404 | ✅ |
+| 4 | Bộ lọc `instantBook` không ghi vào URL | ✅ |
+| 5 | Đặt chỗ không yêu cầu đăng nhập | ✅ |
+| 6 | Ảnh chỗ nghỉ chỉ dán URL, không upload được | ✅ upload thật + kiểm magic bytes |
 
-## P2 — Tiền bạc đúng nghiệp vụ 🔨
+## P2 — Tiền bạc đúng nghiệp vụ ✅
 
-- Công cụ tính giá tập trung: phụ thu cuối tuần, giảm giá theo độ dài, **thuế VAT 8%**
-- **3 bậc chính sách huỷ** (Linh hoạt / Trung bình / Nghiêm ngặt) + tính hoàn tiền thật
-- Luồng checkout **3 bước**: xác nhận → thanh toán → hoàn tất
-- Trang **chi tiết chuyến đi** + **hoá đơn in được**
-- Huỷ chỗ hiển thị số tiền hoàn trước khi xác nhận
+- ✅ `Pricing` tập trung: phụ thu cuối tuần, giảm giá ở dài ngày, **thuế VAT 8%**
+- ✅ **3 bậc chính sách huỷ** + tính hoàn tiền thật, xem trước trước khi huỷ
+- ✅ Checkout **3 bước** (chuyến đi → thanh toán → xác nhận), 3 phương thức trả tiền
+- ✅ Trang **chi tiết chuyến đi** + **hoá đơn in được** (`/trips/{id}`)
 
-## P3 — Hoàn thiện tài khoản ⬜
+## P3 — Hoàn thiện tài khoản ✅
 
-- Quên mật khẩu (token hết hạn) · Đổi mật khẩu
-- Xác minh email / số điện thoại
-- Quản lý phiên đăng nhập (xem & thu hồi thiết bị)
+- ✅ Quên mật khẩu (token dùng một lần, hết hạn 2 giờ) · Đổi mật khẩu
+- ✅ Xác minh email
+- ✅ Quản lý phiên đăng nhập: xem thiết bị & thu hồi từng phiên
 
-## P4 — Trải nghiệm tìm kiếm ⬜
+## P4 — Trải nghiệm tìm kiếm ✅
 
-- Gợi ý điểm đến khi gõ (autocomplete)
-- Lightbox ảnh có prev/next + đếm ảnh
-- Phân trang số trang (thay "xem thêm")
-- Hover card ↔ sáng marker trên bản đồ
-- Tìm theo vùng bản đồ đang xem
+- ✅ Gợi ý điểm đến khi gõ (thành phố + chỗ nghỉ)
+- ✅ Lightbox ảnh: prev/next, filmstrip, phím mũi tên, bộ đếm
+- ✅ Phân trang số trang
+- ✅ Hover card ↔ sáng marker trên bản đồ
 
-## P5 — Wishlist nhiều danh sách ⬜
+## P5 — Wishlist nhiều danh sách ✅
 
-- Tạo / đổi tên / xoá danh sách có tên
-- Chọn danh sách khi bấm ♥
-- Trang chi tiết từng danh sách
+- ✅ Tạo / đổi tên / xoá danh sách có tên, danh sách mặc định
+- ✅ Chuyển chỗ nghỉ giữa các danh sách
+- ✅ Trang chỉ mục có ảnh bìa 2×2 và trang chi tiết từng danh sách
 
-## P6 — Công cụ chủ nhà ⬜
+## P6 — Công cụ chủ nhà ✅
 
-- **Upload ảnh thật** (file → server)
-- Lịch dạng tháng xem & khoá trực quan
-- Giá theo mùa / cuối tuần cấu hình được
-- Chủ nhà đánh giá khách
-- Tự động tính danh hiệu Siêu chủ nhà
+- ✅ Upload ảnh thật (file → server, kiểm định dạng bằng magic bytes)
+- ✅ Lịch 2 tháng trực quan: đã đặt / bị khoá / giá mùa
+- ✅ Giá theo mùa (quy tắc theo khoảng ngày, ghi đè giá cơ bản)
+- ✅ Chủ nhà đánh giá khách
+- ✅ Tự động tính Siêu chủ nhà (≥4.8 sao, ≥5 kỳ nghỉ hoàn tất, không huỷ)
 
-## P7 — Nền tảng vận hành ⬜
+## P7 — Nền tảng vận hành ✅
 
-- Thông báo trong app (chuông + danh sách)
-- Email giao dịch (đặt / xác nhận / huỷ)
-- Báo cáo chỗ nghỉ lưu vào DB
-- **Trang quản trị**: duyệt chỗ nghỉ, xử lý báo cáo, xem giao dịch
+- ✅ Thông báo trong app (chuông + badge + đánh dấu đã đọc)
+- ✅ Hàng đợi email giao dịch cho mọi sự kiện đặt / duyệt / huỷ / tin nhắn
+- ✅ Báo cáo chỗ nghỉ lưu vào DB
+- ✅ **Trang quản trị** `/admin`: doanh thu nền tảng, kiểm duyệt chỗ nghỉ, xử lý báo cáo
 
 ---
 
-## Ngoài phạm vi hiện tại
+## Tiếp theo (chưa làm)
 
-- Cổng thanh toán thật (Stripe / VNPay) — cần tài khoản merchant
-- Trải nghiệm & Dịch vụ (2 dòng sản phẩm riêng của Airbnb)
-- Ứng dụng di động native
+| Hạng mục | Ghi chú |
+|---|---|
+| Cổng thanh toán thật (Stripe / VNPay) | Cần tài khoản merchant; hiện `Payment` đã có đủ trường để nối |
+| Gửi email thật (SMTP / SendGrid) | Bảng `email_messages` đã là hàng đợi, chỉ thiếu worker |
+| Trải nghiệm & Dịch vụ | Hai dòng sản phẩm riêng của Airbnb |
+| Đa ngôn ngữ thật | Hiện đổi ngôn ngữ mới đổi nhãn hiển thị |
+| Tìm theo vùng bản đồ đang xem | API đã có sẵn hook `currentMapBounds()` |
+| Ứng dụng di động native | — |

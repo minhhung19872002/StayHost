@@ -180,6 +180,9 @@ function bookingRow(b) {
           <button class="btn btn-primary btn-sm" data-act="respond-booking" data-id="${esc(b.id)}" data-mode="confirm">Xác nhận</button>
           <button class="btn btn-outline btn-sm" data-act="respond-booking" data-id="${esc(b.id)}" data-mode="decline">Từ chối</button>
         ` : ''}
+        ${b.status !== 'Cancelled' && new Date(b.checkOut) < new Date()
+          ? `<button class="btn btn-outline btn-sm" data-act="open-guest-review" data-id="${esc(b.id)}">Đánh giá khách</button>`
+          : ''}
         <button class="btn btn-outline btn-sm" data-act="go" data-href="/messages">Nhắn khách</button>
       </div>
     </article>

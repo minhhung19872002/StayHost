@@ -150,6 +150,40 @@ public class Message
     public DateTime? ReadAt { get; set; }
 }
 
+/// <summary>Seasonal override: a date window priced differently from the base rate.</summary>
+public class PriceRule
+{
+    public int Id { get; set; }
+    public int ListingId { get; set; }
+    public Listing? Listing { get; set; }
+
+    public string Name { get; set; } = "";
+    public DateOnly From { get; set; }
+    public DateOnly To { get; set; }
+    /// <summary>Flat nightly rate that replaces the base price inside the window.</summary>
+    public decimal NightlyRate { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>Review a host leaves about a guest after checkout.</summary>
+public class GuestReview
+{
+    public int Id { get; set; }
+    public int BookingId { get; set; }
+    public Booking? Booking { get; set; }
+
+    public int HostUserId { get; set; }
+    public User? HostUser { get; set; }
+
+    public int GuestUserId { get; set; }
+    public User? GuestUser { get; set; }
+
+    public double Rating { get; set; } = 5;
+    public string Text { get; set; } = "";
+    public bool WouldHostAgain { get; set; } = true;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
 /// <summary>Host-side calendar block that is not backed by a booking (maintenance, own stay).</summary>
 public class CalendarBlock
 {

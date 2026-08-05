@@ -24,7 +24,8 @@ export function renderOverlay() {
     review: reviewModal,
     'listing-editor': listingEditorModal,
     'host-block': hostBlockModal,
-    'cancel-trip': cancelTripModal
+    'cancel-trip': cancelTripModal,
+    'guest-review': guestReviewModal
   }[kind];
 
   if (!body) return '';
@@ -913,6 +914,54 @@ function contactHostModal() {
   });
 }
 
+/* ------------------------------------------------------- host reviews guest */
+
+function guestReviewModal() {
+  const b = state.guestReviewBooking;
+  if (!b) return '';
+  const draft = state.guestReviewDraft ?? { rating: 5, wouldHostAgain: true };
+
+  return shell({
+    title: 'Đánh giá khách',
+    size: 'narrow',
+    body: `
+      <div style="padding-bottom:16px;border-bottom:1px solid var(--divider)">
+        <div style="font-size:15px;font-weight:700">${esc(b.guestName)}</div>
+        <div style="font-size:13px;color:var(--ink-muted)">
+          ${esc(b.listingTitle)} · ${esc(longDate(b.checkIn))} – ${esc(longDate(b.checkOut))}
+        </div>
+      </div>
+
+      <form data-act="submit-guest-review" data-booking="${esc(b.id)}">
+        <div style="padding:18px 0;border-bottom:1px solid var(--divider)">
+          <b style="font-size:15px">Khách này thế nào?</b>
+          <div class="star-row" style="margin-top:10px">
+            ${[1, 2, 3, 4, 5].map(n => `
+              <button type="button" class="star ${n <= draft.rating ? 'is-on' : ''}"
+                      data-act="set-guest-star" data-value="${n}" aria-label="${n} sao">★</button>`).join('')}
+          </div>
+        </div>
+
+        <div class="count-row">
+          <div class="tx"><b>Bạn sẽ đón lại khách này?</b></div>
+          <button type="button" class="pill ${draft.wouldHostAgain ? 'is-on' : ''}" data-act="toggle-host-again">
+            ${draft.wouldHostAgain ? 'Có' : 'Không'}
+          </button>
+        </div>
+
+        <label class="form-field" style="margin-top:18px">
+          <span class="cap">Nhận xét</span>
+          <textarea name="text" rows="5" required minlength="10"
+            style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px"
+            placeholder="Khách giữ gìn nhà cửa, trao đổi rõ ràng…"></textarea>
+        </label>
+
+        <button type="submit" class="btn btn-primary btn-block">Gửi đánh giá</button>
+      </form>
+    `
+  });
+}
+
 /* ---------------------------------------------------------- listing editor */
 
 const BLANK_LISTING = {
@@ -1080,28 +1129,158 @@ function listingEditorModal() {
 
 /* ------------------------------------------------------------- host block */
 
+const HOST_MONTHS = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+                     'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+
+/** Two-month availability grid so the host sees bookings, blocks and seasons at a glance. */
+function renderHostMonth(cal) {
+  const offset = state.hostMonthOffset ?? 0;
+  const anchor = new Date();
+  anchor.setDate(1);
+  anchor.setMonth(anchor.getMonth() + offset);
+
+  const booked = new Set();
+  for (const b of cal.bookings ?? []) expandRange(b.checkIn, b.checkOut, false).forEach(d => booked.add(d));
+
+  const blocked = new Set();
+  for (const b of cal.blocks ?? []) expandRange(b.from, b.to, true).forEach(d => blocked.add(d));
+
+  const seasonal = new Map();
+  for (const r of cal.priceRules ?? []) {
+    expandRange(r.from, r.to, true).forEach(d => seasonal.set(d, r.nightlyRate));
+  }
+
+  const panels = [0, 1].map(i => {
+    const m = new Date(anchor.getFullYear(), anchor.getMonth() + i, 1);
+    return monthPanel(m, booked, blocked, seasonal, cal.basePrice ?? 0);
+  });
+
+  return `
+    <section class="modal-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+        <h3 style="margin:0">Lịch trống</h3>
+        <div style="display:flex;gap:8px">
+          <button class="round-btn" data-act="host-month" data-dir="-1" aria-label="Tháng trước">‹</button>
+          <button class="round-btn" data-act="host-month" data-dir="1" aria-label="Tháng sau">›</button>
+        </div>
+      </div>
+      <div class="host-cal">${panels.join('')}</div>
+      <div class="host-cal-legend">
+        <span><i class="sw booked"></i> Đã có khách</span>
+        <span><i class="sw blocked"></i> Bạn khoá</span>
+        <span><i class="sw seasonal"></i> Giá mùa</span>
+      </div>
+    </section>
+  `;
+}
+
+function expandRange(fromIso, toIso, inclusive) {
+  const out = [];
+  const from = new Date(fromIso);
+  const to = new Date(toIso);
+  for (let d = new Date(from); inclusive ? d <= to : d < to; d.setDate(d.getDate() + 1)) {
+    out.push(d.toISOString().slice(0, 10));
+  }
+  return out;
+}
+
+function monthPanel(monthStart, booked, blocked, seasonal, basePrice) {
+  const year = monthStart.getFullYear();
+  const month = monthStart.getMonth();
+  const days = new Date(year, month + 1, 0).getDate();
+  const lead = (new Date(year, month, 1).getDay() + 6) % 7;
+
+  const cells = Array.from({ length: lead }, () => '<span></span>');
+
+  for (let d = 1; d <= days; d++) {
+    const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const classes = ['host-day'];
+    if (booked.has(iso)) classes.push('is-booked');
+    else if (blocked.has(iso)) classes.push('is-blocked');
+    else if (seasonal.has(iso)) classes.push('is-seasonal');
+
+    const rate = seasonal.get(iso) ?? basePrice;
+    cells.push(`
+      <span class="${classes.join(' ')}" title="${iso} · ${money(rate)}">
+        <b>${d}</b>
+        <i>${shortMoney(rate)}</i>
+      </span>`);
+  }
+
+  return `
+    <div class="host-cal-month">
+      <div class="host-cal-head">${esc(HOST_MONTHS[month])} ${esc(year)}</div>
+      <div class="host-cal-grid">
+        ${['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => `<span class="host-dow">${d}</span>`).join('')}
+        ${cells.join('')}
+      </div>
+    </div>
+  `;
+}
+
+/** Compact money for the tiny calendar cells: 1.2tr, 850k. */
+function shortMoney(vnd) {
+  if (!vnd) return '';
+  if (vnd >= 1_000_000) return `${(vnd / 1_000_000).toFixed(1).replace('.0', '')}tr`;
+  return `${Math.round(vnd / 1000)}k`;
+}
+
+
 function hostBlockModal() {
   const cal = state.hostCalendar;
   if (!cal) return '';
 
   return shell({
-    title: 'Khoá lịch',
-    size: 'narrow',
+    title: 'Lịch & giá',
     body: `
-      <p style="margin:0 0 16px;font-size:13.5px;color:var(--ink-muted)">
-        Chặn khoảng ngày bạn không muốn nhận khách (bảo trì, gia đình dùng…).
-      </p>
-      <form data-act="submit-block" data-listing="${esc(cal.listingId)}">
-        <div class="field-grid">
-          <label class="form-field"><span class="cap">Từ ngày</span>
-            <input type="date" name="from" required></label>
-          <label class="form-field"><span class="cap">Đến ngày</span>
-            <input type="date" name="to" required></label>
-        </div>
-        <label class="form-field"><span class="cap">Ghi chú</span>
-          <input name="note" placeholder="Bảo trì hồ bơi"></label>
-        <button type="submit" class="btn btn-dark btn-block">Khoá lịch</button>
-      </form>
+      ${renderHostMonth(cal)}
+
+      <section class="modal-section">
+        <h3>Khoá lịch</h3>
+        <span class="hint">Chặn khoảng ngày bạn không muốn nhận khách (bảo trì, gia đình dùng…).</span>
+        <form data-act="submit-block" data-listing="${esc(cal.listingId)}" style="margin-top:14px">
+          <div class="field-grid">
+            <label class="form-field"><span class="cap">Từ ngày</span>
+              <input type="date" name="from" required></label>
+            <label class="form-field"><span class="cap">Đến ngày</span>
+              <input type="date" name="to" required></label>
+          </div>
+          <label class="form-field"><span class="cap">Ghi chú</span>
+            <input name="note" placeholder="Bảo trì hồ bơi"></label>
+          <button type="submit" class="btn btn-dark btn-block">Khoá lịch</button>
+        </form>
+      </section>
+
+      <section class="modal-section">
+        <h3>Giá theo mùa</h3>
+        <span class="hint">Giá cơ bản hiện tại: <b>${money(cal.basePrice ?? 0)}</b> / đêm.
+          Quy tắc mùa sẽ thay thế giá này trong khoảng ngày đã chọn.</span>
+        <form data-act="submit-price-rule" data-listing="${esc(cal.listingId)}" style="margin-top:14px">
+          <div class="field-grid">
+            <label class="form-field" style="grid-column:1/-1"><span class="cap">Tên đợt</span>
+              <input name="name" placeholder="Tết Nguyên đán" required></label>
+            <label class="form-field"><span class="cap">Từ ngày</span>
+              <input type="date" name="from" required></label>
+            <label class="form-field"><span class="cap">Đến ngày</span>
+              <input type="date" name="to" required></label>
+            <label class="form-field"><span class="cap">Giá mỗi đêm (₫)</span>
+              <input type="number" name="rate" min="50000" step="10000" value="${esc(Math.round((cal.basePrice ?? 800000) * 1.5))}" required></label>
+          </div>
+          <button type="submit" class="btn btn-outline btn-block">Thêm quy tắc giá</button>
+        </form>
+
+        ${cal.priceRules?.length ? `
+          <div style="display:grid;gap:8px;margin-top:14px">
+            ${cal.priceRules.map(r => `
+              <div class="cal-row">
+                <span class="badge pending">${esc(r.name)}</span>
+                <div style="flex:1;min-width:0;font-size:13.5px">
+                  ${esc(r.from)} → ${esc(r.to)} · <b>${money(r.nightlyRate)}</b>/đêm
+                </div>
+                <button class="text-btn" data-act="remove-price-rule" data-id="${esc(r.id)}">Bỏ</button>
+              </div>`).join('')}
+          </div>` : ''}
+      </section>
 
       ${cal.bookings?.length ? `
         <div style="margin-top:24px">

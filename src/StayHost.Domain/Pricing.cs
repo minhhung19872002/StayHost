@@ -35,7 +35,12 @@ public static class Pricing
         _ => 0
     };
 
-    public static Breakdown Quote(Listing listing, DateOnly checkIn, DateOnly checkOut)
+    /// <summary>
+    /// Prices a stay night by night. A seasonal rule replaces the base rate inside its
+    /// window; the weekend uplift then applies on top of whichever rate won.
+    /// </summary>
+    public static Breakdown Quote(
+        Listing listing, DateOnly checkIn, DateOnly checkOut, IReadOnlyCollection<PriceRule>? rules = null)
     {
         var nights = Math.Max(1, checkOut.DayNumber - checkIn.DayNumber);
 
@@ -44,7 +49,10 @@ public static class Pricing
         for (var i = 0; i < nights; i++)
         {
             var night = checkIn.AddDays(i);
-            var rate = listing.PricePerNight;
+
+            var seasonal = rules?.FirstOrDefault(r => r.From <= night && night <= r.To);
+            var rate = seasonal?.NightlyRate ?? listing.PricePerNight;
+
             if (IsWeekendNight(night))
             {
                 var extra = Round(rate * listing.WeekendSurchargeRate);

@@ -1142,6 +1142,30 @@ select.field { width: 100%; padding: 10px 12px; }
 
 .cal-row { display: flex; align-items: center; gap: 10px; border: 1px solid var(--divider); border-radius: 10px; padding: 10px 12px; }
 
+/* ------------------------------------------------------ host availability */
+.host-cal { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 20px; }
+.host-cal-head { font-size: 14px; font-weight: 700; text-align: center; margin-bottom: 10px; }
+.host-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.host-dow { font-size: 10.5px; font-weight: 700; color: var(--ink-faint); text-align: center; padding: 4px 0; }
+.host-day {
+  aspect-ratio: 1; border-radius: 7px; background: var(--surface-soft);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+}
+.host-day b { font-size: 12px; font-weight: 600; line-height: 1; }
+.host-day i { font-size: 8.5px; font-style: normal; color: var(--ink-muted); line-height: 1; }
+.host-day.is-booked { background: #e8f7ee; }
+.host-day.is-booked b, .host-day.is-booked i { color: #12734a; }
+.host-day.is-blocked { background: #f0f0f0; color: var(--ink-faint); text-decoration: line-through; }
+.host-day.is-seasonal { background: var(--brand-soft); }
+.host-day.is-seasonal b, .host-day.is-seasonal i { color: var(--brand-dark); }
+
+.host-cal-legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; font-size: 12.5px; color: var(--ink-muted); }
+.host-cal-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.host-cal-legend .sw { width: 13px; height: 13px; border-radius: 4px; display: inline-block; }
+.host-cal-legend .sw.booked { background: #e8f7ee; }
+.host-cal-legend .sw.blocked { background: #f0f0f0; }
+.host-cal-legend .sw.seasonal { background: var(--brand-soft); }
+
 @media (max-width: 899px) { .trip-layout { grid-template-columns: minmax(0, 1fr); } .receipt { position: static; } }
 
 @media print {

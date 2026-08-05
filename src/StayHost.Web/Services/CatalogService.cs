@@ -453,7 +453,11 @@ public class CatalogService(StayHostDbContext db)
         var l = await db.Listings.FirstOrDefaultAsync(x => x.Id == listingId, ct);
         if (l is null) return null;
 
-        var b = Pricing.Quote(l, checkIn, checkOut);
+        var rules = await db.PriceRules
+            .Where(r => r.ListingId == listingId && r.From <= checkOut && checkIn <= r.To)
+            .ToListAsync(ct);
+
+        var b = Pricing.Quote(l, checkIn, checkOut, rules);
 
         return new QuoteDto(
             l.Id, b.Nights, guests, b.NightlyRate,
