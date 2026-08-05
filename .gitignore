@@ -1,0 +1,24 @@
+## .NET
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+*.userprefs
+.vs/
+artifacts/
+
+## IDE
+.idea/
+.vscode/
+*.swp
+
+## OS
+Thumbs.db
+.DS_Store
+
+## Local secrets / overrides
+appsettings.*.local.json
+.env
+.env.local

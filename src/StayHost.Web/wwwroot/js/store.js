@@ -1,0 +1,337 @@
+// Single mutable state object plus the actions that touch it. Any action that
+// changes something visible calls `notify()`, which app.js turns into a re-render.
+
+import { api } from './api.js';
+import { todayIso, setCurrency, toast } from './util.js';
+
+const listeners = new Set();
+
+export const state = {
+  route: { name: 'browse', param: null },
+
+  meta: null,
+  metaError: null,
+
+  // search criteria
+  q: '',
+  checkIn: todayIso(9),
+  checkOut: todayIso(12),
+  guests: { adults: 2, children: 0, infants: 0, pets: 0 },
+  category: 'all',
+  minPrice: 0,
+  maxPrice: 0,
+  amenities: [],
+  sort: 'reco',
+  roomType: 'any',
+  bedrooms: 0,
+  beds: 0,
+  bathrooms: 0,
+  superhostOnly: false,
+  guestFavoriteOnly: false,
+
+  // ui
+  tab: 'homes',
+  showInlineFilters: false,
+  showMap: false,
+  showTotalPrice: false,
+  overlay: null,
+  menu: null,
+  loading: true,
+  loadingMore: false,
+
+  // data
+  home: null,
+  homeLoading: true,
+  results: { total: 0, items: [], page: 1, pageSize: 24 },
+  favorites: [],
+  favCount: 0,
+  bookings: [],
+  detail: null,
+  detailLoading: false,
+  quote: null,
+  bookingResult: null,
+  bookingError: null,
+
+  carousel: {},
+  currency: { code: 'VND', label: 'Việt Nam Đồng', symbol: '₫', rateFromVnd: 1 },
+  language: { code: 'vi', label: 'Tiếng Việt', region: 'Việt Nam' },
+  hoverListingId: null
+};
+
+export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+export function notify() { listeners.forEach(fn => fn(state)); }
+
+export function set(patch) { Object.assign(state, patch); notify(); }
+
+export const totalGuests = () => state.guests.adults + state.guests.children;
+
+/**
+ * True while the user has not narrowed anything down. Airbnb shows curated
+ * carousels in that state and switches to the flat result grid once you search.
+ */
+export function isDiscovery() {
+  return !state.q.trim()
+    && state.category === 'all'
+    && state.amenities.length === 0
+    && state.roomType === 'any'
+    && !state.bedrooms && !state.beds && !state.bathrooms
+    && !state.superhostOnly && !state.guestFavoriteOnly
+    && !state.showMap
+    && (!state.meta || (state.minPrice <= state.meta.minPrice && state.maxPrice >= state.meta.maxPrice));
+}
+
+export function guestLabel() {
+  const g = state.guests;
+  const parts = [`${g.adults + g.children} khách`];
+  if (g.infants) parts.push(`${g.infants} em bé`);
+  if (g.pets) parts.push(`${g.pets} thú cưng`);
+  return parts.join(', ');
+}
+
+/* --------------------------------------------------------------- bootstrap */
+
+export async function loadMeta() {
+  try {
+    const meta = await api.meta();
+    state.meta = meta;
+    if (!state.maxPrice) state.maxPrice = meta.maxPrice;
+    if (!state.minPrice) state.minPrice = meta.minPrice;
+
+    const saved = localStorage.getItem('sh_currency');
+    const found = meta.currencies.find(c => c.code === saved);
+    if (found) { state.currency = found; setCurrency(found); }
+
+    const savedLang = localStorage.getItem('sh_language');
+    const lang = meta.languages.find(l => l.code === savedLang);
+    if (lang) state.language = lang;
+  } catch (err) {
+    state.metaError = err.message;
+  }
+}
+
+/* ------------------------------------------------------------------ search */
+
+export function searchParams(page = 1) {
+  const meta = state.meta;
+  return {
+    q: state.q.trim() || undefined,
+    category: state.category !== 'all' ? state.category : undefined,
+    minPrice: meta && state.minPrice > meta.minPrice ? state.minPrice : undefined,
+    maxPrice: meta && state.maxPrice < meta.maxPrice ? state.maxPrice : undefined,
+    guests: totalGuests(),
+    amenities: state.amenities.length ? state.amenities : undefined,
+    sort: state.sort,
+    roomType: state.roomType !== 'any' ? state.roomType : undefined,
+    bedrooms: state.bedrooms || undefined,
+    beds: state.beds || undefined,
+    bathrooms: state.bathrooms || undefined,
+    superhost: state.superhostOnly || undefined,
+    guestFavorite: state.guestFavoriteOnly || undefined,
+    page,
+    pageSize: 24
+  };
+}
+
+export async function loadHome() {
+  state.homeLoading = true;
+  notify();
+  try {
+    state.home = await api.home();
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    state.homeLoading = false;
+    notify();
+  }
+}
+
+let searchToken = 0;
+
+export async function runSearch({ append = false } = {}) {
+  const token = ++searchToken;
+  if (append) state.loadingMore = true; else state.loading = true;
+  notify();
+
+  try {
+    const page = append ? state.results.page + 1 : 1;
+    const data = await api.search(searchParams(page));
+    if (token !== searchToken) return;
+
+    state.results = append
+      ? { ...data, items: [...state.results.items, ...data.items] }
+      : data;
+  } catch (err) {
+    if (token !== searchToken) return;
+    state.results = { total: 0, items: [], page: 1, pageSize: 24 };
+    toast(err.message);
+  } finally {
+    if (token === searchToken) {
+      state.loading = false;
+      state.loadingMore = false;
+      notify();
+    }
+  }
+}
+
+export function activeFilterCount() {
+  const meta = state.meta;
+  let n = state.amenities.length;
+  if (state.category !== 'all') n++;
+  if (meta && state.maxPrice < meta.maxPrice) n++;
+  if (meta && state.minPrice > meta.minPrice) n++;
+  if (state.roomType !== 'any') n++;
+  if (state.bedrooms) n++;
+  if (state.beds) n++;
+  if (state.bathrooms) n++;
+  if (state.superhostOnly) n++;
+  if (state.guestFavoriteOnly) n++;
+  return n;
+}
+
+export function resetFilters() {
+  const meta = state.meta;
+  Object.assign(state, {
+    category: 'all',
+    amenities: [],
+    roomType: 'any',
+    bedrooms: 0,
+    beds: 0,
+    bathrooms: 0,
+    superhostOnly: false,
+    guestFavoriteOnly: false,
+    minPrice: meta ? meta.minPrice : 0,
+    maxPrice: meta ? meta.maxPrice : 0
+  });
+}
+
+/* --------------------------------------------------------------- favorites */
+
+export async function loadFavorites() {
+  try {
+    const favorites = await api.favorites();
+    state.favorites = favorites;
+    state.favCount = favorites.length;
+    notify();
+  } catch { /* wishlist is non-critical on first paint */ }
+}
+
+export async function toggleFavorite(id) {
+  // Optimistic: the heart should flip the instant it is clicked.
+  const flip = card => card.id === id ? { ...card, isFavorite: !card.isFavorite } : card;
+  const flipAll = () => {
+    state.results.items = state.results.items.map(flip);
+    if (state.home) {
+      state.home = {
+        ...state.home,
+        sections: state.home.sections.map(s => ({ ...s, items: s.items.map(flip) }))
+      };
+    }
+  };
+  flipAll();
+  if (state.detail?.card.id === id) {
+    state.detail = { ...state.detail, card: { ...state.detail.card, isFavorite: !state.detail.card.isFavorite } };
+  }
+  notify();
+
+  try {
+    const res = await api.toggleFavorite(id);
+    state.favCount = res.count;
+    toast(res.isFavorite ? 'Đã lưu vào danh sách yêu thích' : 'Đã bỏ khỏi danh sách yêu thích');
+    if (state.route.name === 'wishlists') await loadFavorites();
+    else notify();
+  } catch (err) {
+    flipAll();
+    toast(err.message);
+    notify();
+  }
+}
+
+/* ------------------------------------------------------------------ detail */
+
+export async function loadDetail(idOrSlug) {
+  state.detailLoading = true;
+  state.detail = null;
+  state.bookingResult = null;
+  state.bookingError = null;
+  notify();
+
+  try {
+    state.detail = await api.listing(idOrSlug);
+    await refreshQuote();
+  } catch (err) {
+    state.detail = null;
+    toast(err.message);
+  } finally {
+    state.detailLoading = false;
+    notify();
+  }
+}
+
+export async function refreshQuote() {
+  if (!state.detail) return;
+  try {
+    state.quote = await api.quote({
+      listingId: state.detail.card.id,
+      checkIn: state.checkIn,
+      checkOut: state.checkOut,
+      guests: totalGuests()
+    });
+  } catch {
+    state.quote = null;
+  }
+  notify();
+}
+
+export async function book(extra = {}) {
+  if (!state.detail) return;
+  state.bookingError = null;
+  notify();
+
+  try {
+    state.bookingResult = await api.book({
+      listingId: state.detail.card.id,
+      checkIn: state.checkIn,
+      checkOut: state.checkOut,
+      guests: totalGuests(),
+      guestName: extra.guestName ?? null,
+      guestEmail: extra.guestEmail ?? null
+    });
+    state.overlay = null;
+    toast('Đặt chỗ thành công — mã ' + state.bookingResult.reference);
+  } catch (err) {
+    state.bookingError = err.message;
+  } finally {
+    notify();
+  }
+}
+
+/* ------------------------------------------------------------------- trips */
+
+export async function loadBookings() {
+  try {
+    state.bookings = await api.bookings();
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    notify();
+  }
+}
+
+/* -------------------------------------------------------------- preferences */
+
+export function applyCurrency(code) {
+  const c = state.meta?.currencies.find(x => x.code === code);
+  if (!c) return;
+  state.currency = c;
+  setCurrency(c);
+  localStorage.setItem('sh_currency', code);
+  notify();
+}
+
+export function applyLanguage(code) {
+  const l = state.meta?.languages.find(x => x.code === code);
+  if (!l) return;
+  state.language = l;
+  localStorage.setItem('sh_language', code);
+  notify();
+}

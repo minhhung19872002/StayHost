@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: stayhost-db
+    environment:
+      POSTGRES_DB: stayhost
+      POSTGRES_USER: stayhost
+      POSTGRES_PASSWORD: stayhost
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "5544:5432"
+    volumes:
+      - stayhost-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stayhost -d stayhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: src/StayHost.Web/Dockerfile
+    container_name: stayhost-web
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__Postgres: "Host=db;Port=5432;Database=stayhost;Username=stayhost;Password=stayhost"
+    ports:
+      - "8090:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  stayhost-pgdata:
