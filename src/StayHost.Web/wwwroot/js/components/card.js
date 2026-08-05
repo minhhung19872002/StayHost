@@ -34,12 +34,16 @@ export function renderCard(card, opts = {}) {
   return `
     <article class="card ${search ? 'card-search' : ''}" data-listing="${esc(card.id)}">
       <div class="card-media" data-act="open-listing" data-slug="${esc(card.slug)}">
-        ${images.map((src, i) => `
-          <img src="${esc(src)}" alt="${esc(card.title)} — ảnh ${i + 1}"
-               class="${i === idx ? 'is-current' : ''}"
-               loading="${i === 0 && !opts.lazy ? 'eager' : 'lazy'}"
-               decoding="async">
-        `).join('')}
+        ${images.map((src, i) => {
+          // Only the visible frame and its neighbours are in the DOM; the rest are
+          // placeholders so a grid of cards costs a handful of images, not hundreds.
+          const near = Math.abs(i - idx) <= 1;
+          if (!near) return `<img data-src="${esc(src)}" alt="" aria-hidden="true" class="is-deferred">`;
+          return `<img src="${esc(src)}" alt="${esc(card.title)} — ảnh ${i + 1}"
+                       class="${i === idx ? 'is-current' : ''}"
+                       loading="${i === 0 && !opts.lazy ? 'eager' : 'lazy'}"
+                       decoding="async">`;
+        }).join('')}
 
         ${badge ? `<span class="card-badge">${esc(badge)}</span>` : ''}
 

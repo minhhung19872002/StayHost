@@ -13,30 +13,44 @@ const TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
 export function destroyMaps() {
-  if (resultsMap) { resultsMap.remove(); resultsMap = null; markerLayer = null; }
+  if (resultsMap) { resultsMap.remove(); resultsMap = null; markerLayer = null; lastMarkerKey = ''; }
   if (detailMap) { detailMap.remove(); detailMap = null; }
+  markersById.clear();
 }
 
-export function mountResultsMap() {
+/**
+ * Rebuilds the pins only when the result set actually changed. Re-adding
+ * identical markers (and re-fitting the view) on every state change is what
+ * made the map feel like it was stuttering.
+ */
+let lastMarkerKey = '';
+
+export function mountResultsMap({ refit = true } = {}) {
   const el = document.getElementById('map');
   if (!el || !window.L) return;
 
   if (resultsMap && !document.body.contains(resultsMap.getContainer())) {
     resultsMap.remove();
     resultsMap = null;
+    lastMarkerKey = '';
   }
 
-  if (!resultsMap) {
+  const fresh = !resultsMap;
+  if (fresh) {
     resultsMap = L.map(el, { scrollWheelZoom: false, zoomControl: true })
       .setView([16.0, 107.5], 5);
     L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: 18 }).addTo(resultsMap);
     markerLayer = L.layerGroup().addTo(resultsMap);
   }
 
+  const items = state.results.items.filter(i => i.latitude && i.longitude);
+  const key = items.map(i => `${i.id}:${i.pricePerNight}`).join(',');
+  if (key === lastMarkerKey && !fresh) return;
+  lastMarkerKey = key;
+
   markerLayer.clearLayers();
   markersById.clear();
 
-  const items = state.results.items.filter(i => i.latitude && i.longitude);
   if (!items.length) return;
 
   const bounds = [];
@@ -59,7 +73,7 @@ export function mountResultsMap() {
     bounds.push([item.latitude, item.longitude]);
   }
 
-  resultsMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
+  if (refit || fresh) resultsMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
   setTimeout(() => resultsMap && resultsMap.invalidateSize(), 60);
 }
 

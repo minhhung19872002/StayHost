@@ -452,8 +452,11 @@ export async function openWishlist(id) {
   notify();
 }
 
+/**
+ * The heart flips in the DOM immediately and the state is patched to match, so a
+ * save never costs a full re-render of the results grid.
+ */
 export async function toggleFavorite(id) {
-  // Optimistic: the heart should flip the instant it is clicked.
   const flip = card => card.id === id ? { ...card, isFavorite: !card.isFavorite } : card;
   const flipAll = () => {
     state.results.items = state.results.items.map(flip);
@@ -463,24 +466,46 @@ export async function toggleFavorite(id) {
         sections: state.home.sections.map(s => ({ ...s, items: s.items.map(flip) }))
       };
     }
+    if (state.detail?.card.id === id) {
+      state.detail = { ...state.detail, card: { ...state.detail.card, isFavorite: !state.detail.card.isFavorite } };
+    }
+    paintHearts(id);
   };
+
   flipAll();
-  if (state.detail?.card.id === id) {
-    state.detail = { ...state.detail, card: { ...state.detail.card, isFavorite: !state.detail.card.isFavorite } };
-  }
-  notify();
 
   try {
     const res = await api.toggleFavorite(id);
     state.favCount = res.count;
+    paintFavCount();
     toast(res.isFavorite ? 'Đã lưu vào danh sách yêu thích' : 'Đã bỏ khỏi danh sách yêu thích');
-    if (state.route.name === 'wishlists') await loadFavorites();
-    else notify();
+    if (state.route.name === 'wishlists') {
+      await Promise.all([loadFavorites(), loadWishlists()]);
+    }
   } catch (err) {
     flipAll();
     toast(err.message);
-    notify();
   }
+}
+
+/** Mirrors the favourite flag onto every heart button for that listing. */
+function paintHearts(id) {
+  const on = state.detail?.card.id === id
+    ? state.detail.card.isFavorite
+    : state.results.items.find(c => c.id === id)?.isFavorite
+      ?? state.home?.sections.flatMap(s => s.items).find(c => c.id === id)?.isFavorite
+      ?? false;
+
+  for (const btn of document.querySelectorAll(`[data-act="toggle-fav"][data-id="${id}"]`)) {
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-pressed', String(on));
+    if (btn.classList.contains('text-btn')) btn.textContent = on ? '♥ Đã lưu' : '♥ Lưu chỗ nghỉ';
+  }
+}
+
+function paintFavCount() {
+  const badge = document.querySelector('.account-btn .fav-count');
+  if (badge && !state.user?.unreadMessages) badge.textContent = String(state.favCount);
 }
 
 /* ------------------------------------------------------------------ detail */

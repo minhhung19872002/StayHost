@@ -64,6 +64,44 @@ function restoreFocus(snap) {
 
 let rafPending = false;
 
+/**
+ * Last HTML written per region. A state change usually touches one region, so
+ * comparing the freshly built string against this lets us skip the DOM write —
+ * and with it the image re-decode, layout and paint — for everything else.
+ */
+const lastHtml = { header: null, main: null, footer: null, overlay: null };
+
+function writeRegion(key, el, html) {
+  if (lastHtml[key] === html) return false;
+  lastHtml[key] = html;
+  el.innerHTML = html;
+  return true;
+}
+
+/**
+ * Main is the only region that can contain the Leaflet map. Tearing that node
+ * down forces a full tile reload, so the live element is detached and dropped
+ * back into the freshly rendered placeholder instead.
+ */
+function writeMain(html) {
+  if (lastHtml.main === html) return false;
+  lastHtml.main = html;
+
+  const liveMap = mainEl.querySelector('#map');
+  liveMap?.remove();
+
+  mainEl.innerHTML = html;
+
+  const placeholder = mainEl.querySelector('#map');
+  if (liveMap && placeholder) placeholder.replaceWith(liveMap);
+  return true;
+}
+
+/** Drops the memo so the next render is guaranteed to repaint everything. */
+function invalidateRender() {
+  lastHtml.header = lastHtml.main = lastHtml.footer = lastHtml.overlay = null;
+}
+
 function render() {
   if (rafPending) return;
   rafPending = true;
@@ -74,19 +112,23 @@ function render() {
     const focus = snapshotFocus();
     const modalScroll = document.querySelector('.modal-body')?.scrollTop ?? 0;
 
-    headerEl.innerHTML = renderHeader();
-    mainEl.innerHTML = renderView();
-    footerEl.innerHTML = renderFooter();
-    overlayEl.innerHTML = renderOverlay();
+    writeRegion('header', headerEl, renderHeader());
+    const mainChanged = writeMain(renderView());
+    writeRegion('footer', footerEl, renderFooter());
+    const overlayChanged = writeRegion('overlay', overlayEl, renderOverlay());
 
     document.body.style.overflow = state.overlay ? 'hidden' : '';
 
-    const modalBody = document.querySelector('.modal-body');
-    if (modalBody && modalScroll) modalBody.scrollTop = modalScroll;
+    if (overlayChanged) {
+      const modalBody = document.querySelector('.modal-body');
+      if (modalBody && modalScroll) modalBody.scrollTop = modalScroll;
+    }
 
     restoreFocus(focus);
 
-    if (state.route.name === 'browse' && !store.isDiscovery() && !state.hideMap) mountResultsMap();
+    if (state.route.name === 'browse' && !store.isDiscovery() && !state.hideMap) {
+      mountResultsMap({ refit: mainChanged });
+    }
     if (state.route.name === 'detail' && state.detail) mountDetailMap();
   });
 }
@@ -163,6 +205,8 @@ async function navigate(href, { push = true } = {}) {
   state.overlay = null;
   state.menu = null;
   destroyMaps();
+  // A route change replaces everything anyway; drop the memo so nothing lingers.
+  invalidateRender();
 
   if (route.name !== 'detail') {
     state.detail = null;
@@ -235,6 +279,7 @@ document.addEventListener('mouseout', e => {
 
 /* ---------------------------------------------------------- carousel (DOM) */
 
+/** Swaps the visible frame in place — no re-render, no image churn. */
 function stepCarousel(id, dir) {
   const card = document.querySelector(`[data-listing="${id}"] .card-media`);
   if (!card) return;
@@ -243,6 +288,16 @@ function stepCarousel(id, dir) {
   const current = imgs.findIndex(i => i.classList.contains('is-current'));
   const next = Math.min(imgs.length - 1, Math.max(0, current + dir));
   if (next === current) return;
+
+  // Deferred neighbours only get a real src the moment they come into range.
+  for (const i of [next - 1, next, next + 1]) {
+    const img = imgs[i];
+    if (img?.dataset.src) {
+      img.src = img.dataset.src;
+      delete img.dataset.src;
+      img.classList.remove('is-deferred');
+    }
+  }
 
   imgs[current]?.classList.remove('is-current');
   imgs[next]?.classList.add('is-current');
