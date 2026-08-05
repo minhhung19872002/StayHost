@@ -354,6 +354,28 @@ export async function respondBooking(id, action, reason) {
   }
 }
 
+/* ------------------------------------------------------------ notifications */
+
+export async function loadNotifications() {
+  if (!state.user) return;
+  try {
+    state.notifications = await api.notifications();
+  } catch { /* the bell is optional chrome */ }
+  notify();
+}
+
+/* ----------------------------------------------------------------- admin */
+
+export async function loadAdmin() {
+  try {
+    state.admin = await api.adminOverview();
+  } catch (err) {
+    toast(err.message);
+    state.admin = null;
+  }
+  notify();
+}
+
 /* --------------------------------------------------------------- messaging */
 
 export async function loadThreads() {
@@ -410,6 +432,24 @@ export async function loadFavorites() {
     state.favCount = favorites.length;
     notify();
   } catch { /* wishlist is non-critical on first paint */ }
+}
+
+export async function loadWishlists() {
+  try {
+    state.wishlists = await api.wishlists();
+  } catch (err) {
+    toast(err.message);
+  }
+  notify();
+}
+
+export async function openWishlist(id) {
+  try {
+    state.activeWishlist = await api.wishlist(id);
+  } catch (err) {
+    toast(err.message);
+  }
+  notify();
 }
 
 export async function toggleFavorite(id) {

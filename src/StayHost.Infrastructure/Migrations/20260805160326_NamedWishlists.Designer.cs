@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using StayHost.Infrastructure;
@@ -11,9 +12,11 @@ using StayHost.Infrastructure;
 namespace StayHost.Infrastructure.Migrations
 {
     [DbContext(typeof(StayHostDbContext))]
-    partial class StayHostDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260805160326_NamedWishlists")]
+    partial class NamedWishlists
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -231,49 +234,6 @@ namespace StayHost.Infrastructure.Migrations
                     b.HasIndex("ListingId");
 
                     b.ToTable("calendar_blocks", (string)null);
-                });
-
-            modelBuilder.Entity("StayHost.Domain.EmailMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Error")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime?>("SentAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Subject")
-                        .IsRequired()
-                        .HasMaxLength(250)
-                        .HasColumnType("character varying(250)");
-
-                    b.Property<string>("ToEmail")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("ToName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("email_messages", (string)null);
                 });
 
             modelBuilder.Entity("StayHost.Domain.Favorite", b =>
@@ -547,58 +507,6 @@ namespace StayHost.Infrastructure.Migrations
                     b.ToTable("listing_images", (string)null);
                 });
 
-            modelBuilder.Entity("StayHost.Domain.ListingReport", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Detail")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<int>("ListingId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<int?>("ReporterUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Resolution")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime?>("ResolvedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SessionId")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ListingId");
-
-                    b.HasIndex("ReporterUserId");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("listing_reports", (string)null);
-                });
-
             modelBuilder.Entity("StayHost.Domain.Message", b =>
                 {
                     b.Property<int>("Id")
@@ -671,50 +579,6 @@ namespace StayHost.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("message_threads", (string)null);
-                });
-
-            modelBuilder.Entity("StayHost.Domain.Notification", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("EmailedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Kind")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Link")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<DateTime?>("ReadAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "ReadAt");
-
-                    b.ToTable("notifications", (string)null);
                 });
 
             modelBuilder.Entity("StayHost.Domain.Payment", b =>
@@ -1113,24 +977,6 @@ namespace StayHost.Infrastructure.Migrations
                     b.Navigation("Listing");
                 });
 
-            modelBuilder.Entity("StayHost.Domain.ListingReport", b =>
-                {
-                    b.HasOne("StayHost.Domain.Listing", "Listing")
-                        .WithMany()
-                        .HasForeignKey("ListingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StayHost.Domain.User", "ReporterUser")
-                        .WithMany()
-                        .HasForeignKey("ReporterUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Listing");
-
-                    b.Navigation("ReporterUser");
-                });
-
             modelBuilder.Entity("StayHost.Domain.Message", b =>
                 {
                     b.HasOne("StayHost.Domain.User", "SenderUser")
@@ -1182,17 +1028,6 @@ namespace StayHost.Infrastructure.Migrations
                     b.Navigation("HostUser");
 
                     b.Navigation("Listing");
-                });
-
-            modelBuilder.Entity("StayHost.Domain.Notification", b =>
-                {
-                    b.HasOne("StayHost.Domain.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("StayHost.Domain.Payment", b =>

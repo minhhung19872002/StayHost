@@ -176,6 +176,21 @@ public class Review
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>A named collection of saved listings, e.g. "Chuyến đi Đà Nẵng".</summary>
+public class Wishlist
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public string SessionId { get; set; } = "";
+    public int? UserId { get; set; }
+    public User? User { get; set; }
+    /// <summary>The list new saves land in when the guest does not pick one.</summary>
+    public bool IsDefault { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public List<Favorite> Items { get; set; } = [];
+}
+
 /// <summary>Wishlist entry keyed by an anonymous browser session id.</summary>
 public class Favorite
 {
@@ -186,6 +201,9 @@ public class Favorite
     public User? User { get; set; }
     public int ListingId { get; set; }
     public Listing? Listing { get; set; }
+    public int? WishlistId { get; set; }
+    public Wishlist? Wishlist { get; set; }
+    public string? Note { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 

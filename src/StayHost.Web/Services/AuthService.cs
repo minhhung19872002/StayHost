@@ -153,6 +153,17 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
             else fav.UserId = user.Id;
         }
 
+        var orphanLists = await db.Wishlists
+            .Where(w => w.SessionId == sid && w.UserId == null)
+            .ToListAsync(ct);
+        var hadLists = await db.Wishlists.AnyAsync(w => w.UserId == user.Id, ct);
+        foreach (var list in orphanLists)
+        {
+            list.UserId = user.Id;
+            // The account's existing default wins over the anonymous one.
+            if (hadLists) list.IsDefault = false;
+        }
+
         var orphanBookings = await db.Bookings
             .Where(b => b.SessionId == sid && b.GuestUserId == null)
             .ToListAsync(ct);

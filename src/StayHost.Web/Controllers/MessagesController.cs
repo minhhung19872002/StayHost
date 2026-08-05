@@ -10,7 +10,8 @@ namespace StayHost.Web.Controllers;
 /// <summary>Guest ↔ host conversations, one thread per (listing, guest) pair.</summary>
 [ApiController]
 [Route("api/messages")]
-public class MessagesController(StayHostDbContext db, AuthService auth) : ControllerBase
+public class MessagesController(StayHostDbContext db, AuthService auth, NotificationService notifications)
+    : ControllerBase
 {
     [HttpGet("threads")]
     public async Task<ActionResult<IReadOnlyList<ThreadSummaryDto>>> Threads(CancellationToken ct)
@@ -105,6 +106,15 @@ public class MessagesController(StayHostDbContext db, AuthService auth) : Contro
 
         thread.Messages.Add(new Message { ThreadId = thread.Id, SenderUserId = user.Id, Body = body });
         thread.LastMessageAt = DateTime.UtcNow;
+
+        var recipientId = thread.GuestUserId == user.Id ? thread.HostUserId : thread.GuestUserId;
+        var recipient = await db.Users.FirstOrDefaultAsync(u => u.Id == recipientId, ct);
+        notifications.Queue(recipientId, NotificationKind.MessageReceived,
+            $"Tin nhắn mới từ {user.FullName}",
+            body.Length > 140 ? body[..140] + "…" : body,
+            "/messages");
+        _ = recipient;
+
         await db.SaveChangesAsync(ct);
 
         var fresh = await LoadThreadAsync(thread.Id, ct);

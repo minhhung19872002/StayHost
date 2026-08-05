@@ -10,7 +10,8 @@ namespace StayHost.Web.Controllers;
 /// <summary>Everything a host needs to run their listings: inventory, calendar, orders, money.</summary>
 [ApiController]
 [Route("api/host")]
-public class HostController(StayHostDbContext db, AuthService auth) : ControllerBase
+public class HostController(StayHostDbContext db, AuthService auth, NotificationService notifications)
+    : ControllerBase
 {
     private async Task<(User? User, HostProfile? Profile)> ResolveAsync(CancellationToken ct)
     {
@@ -262,6 +263,20 @@ public class HostController(StayHostDbContext db, AuthService auth) : Controller
         }
 
         booking.RespondedAt = DateTime.UtcNow;
+
+        var guest = booking.GuestUserId is int guestId
+            ? await db.Users.FirstOrDefaultAsync(u => u.Id == guestId, ct)
+            : null;
+
+        var confirmed = booking.Status == BookingStatus.Confirmed;
+        await notifications.QueueWithEmailAsync(guest,
+            confirmed ? NotificationKind.BookingConfirmed : NotificationKind.BookingDeclined,
+            confirmed ? "Chủ nhà đã xác nhận chuyến đi" : "Chủ nhà đã từ chối yêu cầu",
+            confirmed
+                ? $"Mã {booking.Reference} · {booking.Listing!.Title}. Hẹn gặp bạn ngày {booking.CheckIn:dd/MM}."
+                : $"Mã {booking.Reference} đã bị từ chối. Toàn bộ số tiền sẽ được hoàn lại.",
+            $"/trips/{booking.Id}", ct);
+
         await db.SaveChangesAsync(ct);
         return NoContent();
     }

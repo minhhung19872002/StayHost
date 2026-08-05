@@ -45,9 +45,25 @@ public class FavoritesController(StayHostDbContext db, AuthService auth) : Contr
 
         if (existing is null)
         {
-            db.Favorites.Add(new Favorite { SessionId = sid, UserId = userId, ListingId = listingId });
+            // A bare heart-tap lands in the default list; the UI can move it later.
+            var list = await db.Wishlists
+                .Where(w => userId != null ? w.UserId == userId : w.SessionId == sid && w.UserId == null)
+                .OrderByDescending(w => w.IsDefault).ThenBy(w => w.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (list is null)
+            {
+                list = new Wishlist { Name = "Chỗ nghỉ đã lưu", SessionId = sid, UserId = userId, IsDefault = true };
+                db.Wishlists.Add(list);
+                await db.SaveChangesAsync(ct);
+            }
+
+            db.Favorites.Add(new Favorite
+            {
+                SessionId = sid, UserId = userId, ListingId = listingId, WishlistId = list.Id
+            });
             await db.SaveChangesAsync(ct);
-            return Ok(new { listingId, isFavorite = true, count = await CountAsync(userId, sid, ct) });
+            return Ok(new { listingId, isFavorite = true, count = await CountAsync(userId, sid, ct), wishlistId = list.Id });
         }
 
         db.Favorites.Remove(existing);

@@ -10,7 +10,8 @@ namespace StayHost.Web.Controllers;
 
 [ApiController]
 [Route("api/bookings")]
-public class BookingsController(StayHostDbContext db, AuthService auth) : ControllerBase
+public class BookingsController(StayHostDbContext db, AuthService auth, NotificationService notifications)
+    : ControllerBase
 {
     /// <summary>Share of the guest total the platform keeps (the StayHost service fee).</summary>
     private const decimal PlatformCut = 1.0m;
@@ -117,6 +118,20 @@ public class BookingsController(StayHostDbContext db, AuthService auth) : Contro
         db.Bookings.Add(booking);
         await db.SaveChangesAsync(ct);
 
+        var hostUser = await db.Users.FirstOrDefaultAsync(u => u.HostProfile!.Id == listing.HostId, ct);
+        await notifications.QueueWithEmailAsync(hostUser, NotificationKind.BookingCreated,
+            listing.InstantBook ? "Bạn có lượt đặt mới" : "Có yêu cầu đặt chỗ cần duyệt",
+            $"{booking.GuestName} đặt \"{listing.Title}\" từ {booking.CheckIn:dd/MM} đến {booking.CheckOut:dd/MM} " +
+            $"({booking.Nights} đêm, {booking.Guests} khách).",
+            "/hosting", ct);
+
+        await notifications.QueueWithEmailAsync(user, NotificationKind.BookingCreated,
+            listing.InstantBook ? "Đặt chỗ đã được xác nhận" : "Đã gửi yêu cầu đặt chỗ",
+            $"Mã đặt chỗ {booking.Reference} · {listing.Title} · {booking.Nights} đêm.",
+            $"/trips/{booking.Id}", ct);
+
+        await db.SaveChangesAsync(ct);
+
         return Created($"/api/bookings/{booking.Id}", ToDto(booking));
     }
 
@@ -154,6 +169,14 @@ public class BookingsController(StayHostDbContext db, AuthService auth) : Contro
             booking.Payment.HostPayout = Math.Max(0m, outcome.Penalty - booking.Payment.PlatformFee);
             booking.Payment.PayoutStatus = PayoutStatus.OnHold;
         }
+
+        var listing = await db.Listings.Include(l => l.Host!).ThenInclude(h => h.User)
+            .FirstOrDefaultAsync(l => l.Id == booking.ListingId, ct);
+
+        await notifications.QueueWithEmailAsync(listing?.Host?.User, NotificationKind.BookingCancelled,
+            "Khách đã huỷ đặt chỗ",
+            $"Mã {booking.Reference} · {booking.CheckIn:dd/MM}–{booking.CheckOut:dd/MM} đã được huỷ.",
+            "/hosting", ct);
 
         await db.SaveChangesAsync(ct);
         return Ok(new RefundPreviewDto(outcome.Amount, outcome.Penalty, booking.Total, outcome.Explanation));

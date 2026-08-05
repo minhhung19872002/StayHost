@@ -37,6 +37,16 @@ function renderTopBar() {
         <button class="ghost-btn host-link" data-act="go" data-href="${state.user?.isHost ? '/hosting' : '/host'}">
           ${state.user?.isHost ? 'Trang chủ nhà' : 'Cho thuê nhà'}
         </button>
+        ${state.user ? `
+          <div class="menu-anchor">
+            <button class="icon-btn bell" data-act="toggle-bell" aria-label="Thông báo"
+                    aria-expanded="${state.menu === 'bell'}">
+              ${icon('star', 18)}
+              ${state.notifications?.unread ? `<span class="bell-dot">${esc(state.notifications.unread)}</span>` : ''}
+            </button>
+            ${state.menu === 'bell' ? renderBellMenu() : ''}
+          </div>` : ''}
+
         <button class="icon-btn" data-act="open" data-overlay="language"
                 aria-label="Chọn ngôn ngữ và tiền tệ" title="Ngôn ngữ &amp; tiền tệ">${icon('globe', 18)}</button>
         <div class="menu-anchor">
@@ -132,6 +142,27 @@ function renderCompactSearch() {
   `;
 }
 
+function renderBellMenu() {
+  const feed = state.notifications;
+  const items = feed?.items ?? [];
+
+  return `
+    <div class="menu bell-menu" role="menu">
+      <div class="bell-head">
+        <b>Thông báo</b>
+        ${feed?.unread ? '<button class="link-btn" data-act="read-all-notifications">Đánh dấu đã đọc</button>' : ''}
+      </div>
+      ${items.length ? items.map(n => `
+        <button class="bell-row ${n.unread ? 'is-unread' : ''}" role="menuitem"
+                data-act="open-notification" data-id="${esc(n.id)}" data-link="${esc(n.link ?? '')}">
+          <b>${esc(n.title)}</b>
+          <span>${esc(n.body)}</span>
+        </button>`).join('')
+        : '<p class="bell-empty">Chưa có thông báo nào.</p>'}
+    </div>
+  `;
+}
+
 /** Destination dropdown; cities jump to a search, listings open the room page. */
 function renderSuggestions() {
   if (!state.suggestOpen || !state.suggestions?.length) return '';
@@ -191,6 +222,7 @@ function renderAccountMenu() {
       ${u.isHost
         ? `<button class="bold" data-act="go" data-href="/hosting" role="menuitem">Trang chủ nhà (${esc(u.listingCount)} chỗ nghỉ)</button>`
         : `<button class="bold" data-act="become-host" role="menuitem">Cho thuê nhà trên StayHost</button>`}
+      ${u.role === 'Admin' ? '<button class="bold" data-act="go" data-href="/admin" role="menuitem">Trang quản trị</button>' : ''}
       <button data-act="open" data-overlay="profile" role="menuitem">Tài khoản</button>
       <hr>
       <button data-act="open" data-overlay="language" role="menuitem">Ngôn ngữ &amp; tiền tệ</button>

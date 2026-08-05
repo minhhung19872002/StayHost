@@ -54,6 +54,14 @@ export const api = {
 
   toggleFavorite: id => request(`/api/favorites/${id}`, { method: 'POST' }),
 
+  wishlists: () => request('/api/wishlists'),
+  wishlist: id => request(`/api/wishlists/${id}`),
+  createWishlist: name => request('/api/wishlists', { method: 'POST', body: JSON.stringify({ name }) }),
+  renameWishlist: (id, name) => request(`/api/wishlists/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+  deleteWishlist: id => request(`/api/wishlists/${id}`, { method: 'DELETE' }),
+  moveToWishlist: (listId, listingId) =>
+    request(`/api/wishlists/${listId}/items/${listingId}`, { method: 'POST' }),
+
   bookings: () => request('/api/bookings'),
 
   book: body => request('/api/bookings', { method: 'POST', body: JSON.stringify(body) }),
@@ -94,6 +102,19 @@ export const api = {
     request(`/api/host/bookings/${id}/${action}`, { method: 'POST', body: JSON.stringify({ reason: reason ?? null }) }),
 
   /* ------------------------------------------------------------- messages */
+  /* --------------------------------------------------------- notifications */
+  notifications: () => request('/api/notifications'),
+  readAllNotifications: () => request('/api/notifications/read-all', { method: 'POST' }),
+  readNotification: id => request(`/api/notifications/${id}/read`, { method: 'POST' }),
+
+  /* ------------------------------------------------------- reports / admin */
+  report: body => request('/api/reports', { method: 'POST', body: JSON.stringify(body) }),
+  adminOverview: () => request('/api/admin/overview'),
+  adminPublish: (id, published) =>
+    request(`/api/admin/listings/${id}/publish?published=${published}`, { method: 'POST' }),
+  adminResolveReport: (id, status, resolution) =>
+    request(`/api/admin/reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ status, resolution }) }),
+
   threads: () => request('/api/messages/threads'),
   thread: id => request(`/api/messages/threads/${id}`),
   sendMessage: body => request('/api/messages', { method: 'POST', body: JSON.stringify(body) })

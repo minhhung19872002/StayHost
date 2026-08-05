@@ -18,6 +18,7 @@ import { renderTrip } from './views/trip.js';
 import { renderHostPage } from './views/host.js';
 import { renderHosting } from './views/hosting.js';
 import { renderMessages } from './views/messages.js';
+import { renderAdmin } from './views/admin.js';
 
 const headerEl = $('#header');
 const mainEl = $('#main');
@@ -35,6 +36,7 @@ function renderView() {
     case 'host': return renderHostPage();
     case 'hosting': return renderHosting();
     case 'messages': return renderMessages();
+    case 'admin': return renderAdmin();
     default: return renderBrowse();
   }
 }
@@ -103,6 +105,7 @@ function parseRoute(pathname = location.pathname) {
   if (parts[0] === 'host') return { name: 'host', param: null };
   if (parts[0] === 'hosting') return { name: 'hosting', param: null };
   if (parts[0] === 'messages') return { name: 'messages', param: parts[1] ?? null };
+  if (parts[0] === 'admin') return { name: 'admin', param: null };
   return { name: 'browse', param: null };
 }
 
@@ -178,7 +181,8 @@ async function loadRoute() {
       await store.loadDetail(state.route.param);
       break;
     case 'wishlists':
-      await store.loadFavorites();
+      state.activeWishlist = null;
+      await Promise.all([store.loadFavorites(), store.loadWishlists()]);
       break;
     case 'trips':
       await store.loadBookings();
@@ -195,6 +199,10 @@ async function loadRoute() {
     case 'messages':
       await store.loadThreads();
       if (state.route.param) await store.openThread(Number(state.route.param));
+      break;
+    case 'admin':
+      if (state.user?.role === 'Admin') await store.loadAdmin();
+      else notify();
       break;
     default:
       if (store.isDiscovery()) {
@@ -450,6 +458,51 @@ document.addEventListener('click', async e => {
       notify();
       break;
 
+    /* ---------------------------------------------------------- wishlists */
+
+    case 'open-wishlist':
+      await store.openWishlist(Number(target.dataset.id));
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      break;
+
+    case 'close-wishlist':
+      state.activeWishlist = null;
+      await store.loadWishlists();
+      break;
+
+    case 'new-wishlist': {
+      const name = prompt('Tên danh sách mới', 'Chuyến đi sắp tới');
+      if (!name?.trim()) break;
+      try {
+        await api.createWishlist(name.trim());
+        await store.loadWishlists();
+        toast('Đã tạo danh sách.');
+      } catch (err) { toast(err.message); }
+      break;
+    }
+
+    case 'rename-wishlist': {
+      const current = state.activeWishlist?.list.name ?? '';
+      const name = prompt('Tên danh sách', current);
+      if (!name?.trim() || name.trim() === current) break;
+      try {
+        await api.renameWishlist(Number(target.dataset.id), name.trim());
+        await store.openWishlist(Number(target.dataset.id));
+        toast('Đã đổi tên.');
+      } catch (err) { toast(err.message); }
+      break;
+    }
+
+    case 'delete-wishlist':
+      if (!confirm('Xoá danh sách này? Các chỗ nghỉ trong đó cũng bị bỏ lưu.')) break;
+      try {
+        await api.deleteWishlist(Number(target.dataset.id));
+        state.activeWishlist = null;
+        await Promise.all([store.loadWishlists(), store.loadFavorites()]);
+        toast('Đã xoá danh sách.');
+      } catch (err) { toast(err.message); }
+      break;
+
     case 'pick-suggestion': {
       e.preventDefault();
       state.suggestOpen = false;
@@ -541,6 +594,62 @@ document.addEventListener('click', async e => {
     case 'toggle-menu':
       state.menu = state.menu === 'account' ? null : 'account';
       notify();
+      break;
+
+    case 'toggle-bell':
+      state.menu = state.menu === 'bell' ? null : 'bell';
+      if (state.menu === 'bell') await store.loadNotifications();
+      notify();
+      break;
+
+    case 'read-all-notifications':
+      e.stopPropagation();
+      try {
+        await api.readAllNotifications();
+        await store.loadNotifications();
+      } catch (err) { toast(err.message); }
+      break;
+
+    case 'open-notification': {
+      const link = target.dataset.link;
+      try { await api.readNotification(Number(target.dataset.id)); } catch { /* non-blocking */ }
+      state.menu = null;
+      await store.loadNotifications();
+      if (link) navigate(link);
+      break;
+    }
+
+    /* -------------------------------------------------------------- admin */
+
+    case 'admin-publish':
+      try {
+        await api.adminPublish(Number(target.dataset.id), target.dataset.published === 'true');
+        await store.loadAdmin();
+        toast('Đã cập nhật trạng thái chỗ nghỉ.');
+      } catch (err) { toast(err.message); }
+      break;
+
+    case 'admin-resolve': {
+      const note = prompt('Ghi chú kết luận (không bắt buộc)') ?? '';
+      try {
+        await api.adminResolveReport(Number(target.dataset.id), target.dataset.status, note.trim() || null);
+        await store.loadAdmin();
+        toast('Đã cập nhật báo cáo.');
+      } catch (err) { toast(err.message); }
+      break;
+    }
+
+    case 'submit-report':
+      try {
+        const res = await api.report({
+          listingId: state.detail?.card.id,
+          reason: target.dataset.reason,
+          detail: null
+        });
+        state.overlay = null;
+        notify();
+        toast(res.message);
+      } catch (err) { toast(err.message); }
       break;
 
     case 'guests-inc': bumpGuests(1); break;
@@ -1302,7 +1411,7 @@ async function boot() {
   readSearchFromUrl();
   await store.loadMe();
   notify();
-  await Promise.all([store.loadFavorites(), loadRoute()]);
+  await Promise.all([store.loadFavorites(), store.loadNotifications(), loadRoute()]);
 }
 
 boot();

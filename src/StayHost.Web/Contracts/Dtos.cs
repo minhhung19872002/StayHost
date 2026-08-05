@@ -122,6 +122,49 @@ public record HostDashboardDto(
 
 public record MonthlyEarningDto(string Month, decimal Amount, int Nights);
 
+/* ------------------------------------------------------------ notifications */
+
+public record NotificationDto(
+    int Id, string Kind, string Title, string Body, string? Link, bool Unread, DateTime CreatedAt);
+
+public record NotificationFeedDto(int Unread, IReadOnlyList<NotificationDto> Items);
+
+/* ------------------------------------------------------------------ reports */
+
+public record CreateReportRequest(int ListingId, string Reason, string? Detail);
+
+public record ReportDto(
+    int Id, int ListingId, string ListingTitle, string Reason, string? Detail,
+    string Status, string? Resolution, string ReporterName, DateTime CreatedAt);
+
+public record ResolveReportRequest(string Status, string? Resolution);
+
+/* -------------------------------------------------------------------- admin */
+
+public record AdminOverviewDto(
+    int Users, int Hosts, int Listings, int PublishedListings, int Drafts,
+    int Bookings, int ActiveBookings, decimal GrossVolume, decimal PlatformRevenue,
+    int OpenReports, int QueuedEmails,
+    IReadOnlyList<AdminListingDto> RecentListings,
+    IReadOnlyList<ReportDto> Reports);
+
+public record AdminListingDto(
+    int Id, string Slug, string Title, string City, string HostName,
+    bool IsPublished, double Rating, int ReviewCount, decimal PricePerNight, DateTime CreatedAt);
+
+/* ---------------------------------------------------------------- wishlists */
+
+public record WishlistDto(
+    int Id,
+    string Name,
+    bool IsDefault,
+    int Count,
+    IReadOnlyList<string> CoverImages);
+
+public record WishlistDetailDto(WishlistDto List, IReadOnlyList<ListingCardDto> Items);
+
+public record SaveWishlistRequest(string Name);
+
 /* ----------------------------------------------------------------- messages */
 
 public record ThreadSummaryDto(

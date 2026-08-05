@@ -12,6 +12,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<ListingAmenity> ListingAmenities => Set<ListingAmenity>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Favorite> Favorites => Set<Favorite>();
+    public DbSet<Wishlist> Wishlists => Set<Wishlist>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<User> Users => Set<User>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
@@ -20,6 +21,9 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<MessageThread> MessageThreads => Set<MessageThread>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<CalendarBlock> CalendarBlocks => Set<CalendarBlock>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<ListingReport> ListingReports => Set<ListingReport>();
+    public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -99,6 +103,41 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.SenderUserId).OnDelete(DeleteBehavior.Restrict);
         });
 
+        b.Entity<Notification>(e =>
+        {
+            e.ToTable("notifications");
+            e.HasIndex(x => new { x.UserId, x.ReadAt });
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Body).HasMaxLength(1000).IsRequired();
+            e.Property(x => x.Link).HasMaxLength(300);
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ListingReport>(e =>
+        {
+            e.ToTable("listing_reports");
+            e.HasIndex(x => x.Status);
+            e.Property(x => x.Reason).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Detail).HasMaxLength(2000);
+            e.Property(x => x.Resolution).HasMaxLength(500);
+            e.Property(x => x.SessionId).HasMaxLength(64);
+            e.HasOne(x => x.Listing).WithMany()
+                .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.ReporterUser).WithMany()
+                .HasForeignKey(x => x.ReporterUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<EmailMessage>(e =>
+        {
+            e.ToTable("email_messages");
+            e.Property(x => x.ToEmail).HasMaxLength(200).IsRequired();
+            e.Property(x => x.ToName).HasMaxLength(150);
+            e.Property(x => x.Subject).HasMaxLength(250).IsRequired();
+            e.Property(x => x.Body).HasMaxLength(4000).IsRequired();
+            e.Property(x => x.Error).HasMaxLength(500);
+        });
+
         b.Entity<CalendarBlock>(e =>
         {
             e.ToTable("calendar_blocks");
@@ -162,9 +201,23 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.SetNull);
         });
 
+        b.Entity<Wishlist>(e =>
+        {
+            e.ToTable("wishlists");
+            e.Property(x => x.Name).HasMaxLength(80).IsRequired();
+            e.Property(x => x.SessionId).HasMaxLength(64).IsRequired();
+            e.HasIndex(x => x.UserId);
+            e.HasIndex(x => x.SessionId);
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         b.Entity<Favorite>(e =>
         {
             e.ToTable("favorites");
+            e.Property(x => x.Note).HasMaxLength(300);
+            e.HasOne(x => x.Wishlist).WithMany(w => w.Items)
+                .HasForeignKey(x => x.WishlistId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.SessionId, x.ListingId }).IsUnique();
             e.HasIndex(x => x.UserId);
             e.Property(x => x.SessionId).HasMaxLength(64).IsRequired();

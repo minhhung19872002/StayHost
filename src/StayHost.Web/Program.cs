@@ -16,6 +16,7 @@ builder.Services.AddDbContext<StayHostDbContext>(o => o
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<NotificationService>();
 builder.Services.AddControllers();
 builder.Services.AddResponseCompression(o => o.EnableForHttps = true);
 builder.Services.AddHealthChecks().AddDbContextCheck<StayHostDbContext>();

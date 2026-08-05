@@ -340,6 +340,8 @@ public static class DbSeeder
         db.Users.AddRange(hostUsers);
         db.Users.Add(NewUser("guest@stayhost.vn", "Khách Demo", UserRole.Guest,
             "Mình hay đi cuối tuần quanh miền Trung."));
+        db.Users.Add(NewUser("admin@stayhost.vn", "Quản trị viên", UserRole.Admin,
+            "Đội vận hành StayHost."));
 
         await db.SaveChangesAsync(ct);
 

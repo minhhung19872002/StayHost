@@ -1143,9 +1143,12 @@ function reportModal() {
     title: 'Báo cáo chỗ nghỉ này',
     size: 'narrow',
     body: `
+      <p style="margin:0 0 16px;font-size:13.5px;color:var(--ink-muted);line-height:1.6">
+        Đội an toàn StayHost sẽ xem xét báo cáo của bạn.
+      </p>
       <div style="display:grid;gap:8px">
         ${['Thông tin không chính xác', 'Không phải chỗ nghỉ thật', 'Lừa đảo', 'Nội dung xúc phạm', 'Lý do khác']
-          .map(r => `<button class="opt" data-act="demo-auth"><b>${esc(r)}</b></button>`).join('')}
+          .map(r => `<button class="opt" data-act="submit-report" data-reason="${esc(r)}"><b>${esc(r)}</b></button>`).join('')}
       </div>
     `
   });
