@@ -19,7 +19,11 @@ export function renderOverlay() {
     'contact-host': contactHostModal,
     report: reportModal,
     guests: guestsModal,
-    dates: datesModal
+    dates: datesModal,
+    profile: profileModal,
+    review: reviewModal,
+    'listing-editor': listingEditorModal,
+    'host-block': hostBlockModal
   }[kind];
 
   if (!body) return '';
@@ -230,37 +234,164 @@ function guestsModal() {
 /* ------------------------------------------------------------------- login */
 
 function loginModal() {
+  const isRegister = state.authMode === 'register';
+
   return shell({
-    title: 'Đăng nhập hoặc đăng ký',
+    title: isRegister ? 'Đăng ký' : 'Đăng nhập',
     size: 'narrow',
     body: `
-      <h3 style="margin:0 0 18px;font-size:20px;font-weight:800">Chào mừng đến StayHost</h3>
-      <form data-act="submit-login">
+      <h3 style="margin:0 0 4px;font-size:20px;font-weight:800">Chào mừng đến StayHost</h3>
+      <p style="margin:0 0 18px;font-size:13.5px;color:var(--ink-muted)">
+        ${isRegister ? 'Tạo tài khoản để đặt chỗ, lưu yêu thích và cho thuê nhà.' : 'Đăng nhập để tiếp tục.'}
+      </p>
+
+      <form data-act="submit-auth" novalidate>
+        ${isRegister ? `
+          <label class="form-field">
+            <span class="cap">Họ và tên</span>
+            <input type="text" name="fullName" autocomplete="name" placeholder="Nguyễn Văn A" required>
+          </label>` : ''}
+
         <label class="form-field">
-          <span class="cap">Quốc gia / Khu vực</span>
-          <select><option>Việt Nam (+84)</option><option>United States (+1)</option><option>Japan (+81)</option></select>
+          <span class="cap">Email</span>
+          <input type="email" name="email" autocomplete="email" placeholder="ban@email.com" required>
+        </label>
+
+        <label class="form-field">
+          <span class="cap">Mật khẩu</span>
+          <input type="password" name="password" autocomplete="${isRegister ? 'new-password' : 'current-password'}"
+                 placeholder="Tối thiểu 8 ký tự" required>
+        </label>
+
+        ${isRegister ? `
+          <label class="form-field">
+            <span class="cap">Số điện thoại <span style="font-weight:400">(không bắt buộc)</span></span>
+            <input type="tel" name="phone" autocomplete="tel" placeholder="0912 345 678">
+          </label>` : ''}
+
+        ${state.authError ? `<div class="form-error">${esc(state.authError)}</div>` : ''}
+
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top:6px" ${state.authBusy ? 'disabled' : ''}>
+          ${state.authBusy ? 'Đang xử lý…' : isRegister ? 'Tạo tài khoản' : 'Đăng nhập'}
+        </button>
+      </form>
+
+      <p style="text-align:center;font-size:13.5px;color:var(--ink-muted);margin:18px 0 0">
+        ${isRegister ? 'Đã có tài khoản?' : 'Chưa có tài khoản?'}
+        <button class="link-btn" data-act="switch-auth" data-mode="${isRegister ? 'login' : 'register'}">
+          ${isRegister ? 'Đăng nhập' : 'Đăng ký ngay'}
+        </button>
+      </p>
+
+      <div style="margin-top:22px;padding:14px;background:var(--surface-soft);border-radius:12px">
+        <b style="font-size:12.5px">Tài khoản dùng thử</b>
+        <div style="font-size:12.5px;color:var(--ink-muted);margin-top:6px;line-height:1.6">
+          Khách: <code>guest@stayhost.vn</code><br>
+          Chủ nhà: <code>host1@stayhost.vn</code><br>
+          Mật khẩu: <code>stayhost123</code>
+        </div>
+        <button class="btn btn-outline btn-sm btn-block" style="margin-top:10px" data-act="fill-demo">Điền tài khoản chủ nhà</button>
+      </div>
+    `
+  });
+}
+
+/* ----------------------------------------------------------------- profile */
+
+function profileModal() {
+  const u = state.user;
+  if (!u) return '';
+
+  return shell({
+    title: 'Tài khoản',
+    size: 'narrow',
+    body: `
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px">
+        <span class="avatar" style="width:56px;height:56px;font-size:18px">${esc(u.initials)}</span>
+        <div style="min-width:0">
+          <div style="font-size:17px;font-weight:800">${esc(u.fullName)}</div>
+          <div style="font-size:13px;color:var(--ink-muted)">${esc(u.email)} · ${esc(u.joinedLabel)}</div>
+        </div>
+      </div>
+
+      <form data-act="submit-profile">
+        <label class="form-field">
+          <span class="cap">Họ và tên</span>
+          <input type="text" name="fullName" value="${esc(u.fullName)}" required>
         </label>
         <label class="form-field">
           <span class="cap">Số điện thoại</span>
-          <input type="tel" placeholder="912 345 678" required>
+          <input type="tel" name="phone" value="${esc(u.phone ?? '')}">
         </label>
-        <p style="font-size:12.5px;color:var(--ink-muted);line-height:1.5">
-          Chúng tôi sẽ gọi hoặc nhắn tin để xác nhận số của bạn. Có thể áp dụng phí tin nhắn và dữ liệu.
-        </p>
-        <button type="submit" class="btn btn-primary btn-block" style="margin-top:14px">Tiếp tục</button>
+        <label class="form-field">
+          <span class="cap">Giới thiệu</span>
+          <textarea name="bio" rows="4"
+            style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px">${esc(u.bio ?? '')}</textarea>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block">Lưu thay đổi</button>
       </form>
-      <div style="display:flex;align-items:center;gap:12px;margin:20px 0">
-        <span style="flex:1;height:1px;background:var(--divider)"></span>
-        <span style="font-size:12px;color:var(--ink-muted)">hoặc</span>
-        <span style="flex:1;height:1px;background:var(--divider)"></span>
+    `
+  });
+}
+
+/* ------------------------------------------------------------ guest review */
+
+const REVIEW_FIELDS = [
+  ['cleanliness', 'Mức độ sạch sẽ'],
+  ['accuracy', 'Độ chính xác'],
+  ['checkIn', 'Nhận phòng'],
+  ['communication', 'Giao tiếp'],
+  ['location', 'Vị trí'],
+  ['value', 'Giá trị']
+];
+
+function reviewModal() {
+  const b = state.reviewBooking;
+  if (!b) return '';
+
+  return shell({
+    title: 'Đánh giá chuyến đi',
+    body: `
+      <div style="display:flex;gap:14px;align-items:center;padding-bottom:18px;border-bottom:1px solid var(--divider)">
+        <img src="${esc(b.listingImage)}" alt="" style="width:88px;height:66px;object-fit:cover;border-radius:12px">
+        <div style="min-width:0">
+          <div style="font-size:15px;font-weight:700">${esc(b.listingTitle)}</div>
+          <div style="font-size:13px;color:var(--ink-muted)">${esc(b.listingCity)} · ${esc(b.nights)} đêm</div>
+        </div>
       </div>
-      <div style="display:grid;gap:10px">
-        ${[['✉', 'Tiếp tục với email'], ['◉', 'Tiếp tục với Google'], ['', 'Tiếp tục với Apple'], ['ⓕ', 'Tiếp tục với Facebook']]
-          .map(([ic, label]) => `
-            <button class="btn btn-outline btn-block btn-sm" style="text-align:left;display:flex;gap:12px;align-items:center" data-act="demo-auth">
-              <span aria-hidden="true">${esc(ic)}</span> ${esc(label)}
-            </button>`).join('')}
-      </div>
+
+      <form data-act="submit-review" data-booking="${esc(b.id)}">
+        <div style="padding:20px 0;border-bottom:1px solid var(--divider)">
+          <b style="font-size:15px">Điểm tổng thể</b>
+          <div class="star-row" data-field="rating" style="margin-top:10px">
+            ${[1, 2, 3, 4, 5].map(n => `
+              <button type="button" class="star ${n <= (state.reviewDraft?.rating ?? 5) ? 'is-on' : ''}"
+                      data-act="set-star" data-field="rating" data-value="${n}" aria-label="${n} sao">★</button>
+            `).join('')}
+          </div>
+        </div>
+
+        ${REVIEW_FIELDS.map(([key, label]) => `
+          <div class="count-row">
+            <div class="tx"><b>${esc(label)}</b></div>
+            <div class="star-row" data-field="${key}">
+              ${[1, 2, 3, 4, 5].map(n => `
+                <button type="button" class="star sm ${n <= (state.reviewDraft?.[key] ?? 5) ? 'is-on' : ''}"
+                        data-act="set-star" data-field="${key}" data-value="${n}" aria-label="${n} sao">★</button>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+
+        <label class="form-field" style="margin-top:20px">
+          <span class="cap">Cảm nhận của bạn</span>
+          <textarea name="text" rows="5" required minlength="10"
+            style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px"
+            placeholder="Chỗ nghỉ thế nào? Chủ nhà hỗ trợ ra sao?">${esc(state.reviewDraft?.text ?? '')}</textarea>
+        </label>
+
+        <button type="submit" class="btn btn-primary btn-block">Gửi đánh giá</button>
+      </form>
     `
   });
 }
@@ -492,6 +623,179 @@ function contactHostModal() {
                   placeholder="Chào ${esc(h.name)}, mình muốn hỏi về..."></textarea>
       </label>
       <button class="btn btn-primary btn-block" data-act="demo-auth">Gửi tin nhắn</button>
+    `
+  });
+}
+
+/* ---------------------------------------------------------- listing editor */
+
+const BLANK_LISTING = {
+  id: 0, title: '', city: '', typeKey: 'house', roomTypeKey: 'entire',
+  bedrooms: 1, beds: 1, bathrooms: 1, maxGuests: 2,
+  pricePerNight: 800000, cleaningFee: 200000, minNights: 1,
+  instantBook: true, isPublished: true,
+  description: '', highlight: '', images: [], amenityKeys: []
+};
+
+function listingEditorModal() {
+  const l = { ...BLANK_LISTING, ...(state.editingListing ?? {}) };
+  const meta = state.meta;
+  const isNew = !l.id;
+
+  return shell({
+    title: isNew ? 'Đăng chỗ nghỉ mới' : 'Chỉnh sửa chỗ nghỉ',
+    size: 'wide',
+    body: `
+      <form id="listing-form" data-act="submit-listing" data-id="${esc(l.id)}">
+        <section class="modal-section">
+          <h3>Thông tin cơ bản</h3>
+          <div class="field-grid">
+            <label class="form-field" style="grid-column:1/-1">
+              <span class="cap">Tiêu đề *</span>
+              <input name="title" value="${esc(l.title)}" placeholder="Villa hồ bơi riêng gần biển Mỹ Khê" required>
+            </label>
+            <label class="form-field">
+              <span class="cap">Thành phố *</span>
+              <input name="city" value="${esc(l.city)}" placeholder="Đà Nẵng" list="city-list" required>
+              <datalist id="city-list">
+                ${(meta?.cities ?? []).map(c => `<option value="${esc(c)}">`).join('')}
+              </datalist>
+            </label>
+            <label class="form-field">
+              <span class="cap">Loại chỗ ở</span>
+              <select name="typeKey">
+                ${(meta?.categories ?? []).filter(c => c.key !== 'all').map(c =>
+                  `<option value="${esc(c.key)}" ${l.typeKey === c.key ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}
+              </select>
+            </label>
+            <label class="form-field">
+              <span class="cap">Loại nơi ở</span>
+              <select name="roomTypeKey">
+                ${[['entire', 'Nguyên căn'], ['private', 'Phòng riêng'], ['shared', 'Phòng chung']].map(([v, t]) =>
+                  `<option value="${v}" ${l.roomTypeKey === v ? 'selected' : ''}>${esc(t)}</option>`).join('')}
+              </select>
+            </label>
+            <label class="form-field">
+              <span class="cap">Số khách tối đa</span>
+              <input type="number" name="maxGuests" min="1" max="30" value="${esc(l.maxGuests)}" required>
+            </label>
+          </div>
+        </section>
+
+        <section class="modal-section">
+          <h3>Bố trí</h3>
+          <div class="field-grid">
+            <label class="form-field"><span class="cap">Phòng ngủ</span>
+              <input type="number" name="bedrooms" min="0" max="20" value="${esc(l.bedrooms)}"></label>
+            <label class="form-field"><span class="cap">Giường</span>
+              <input type="number" name="beds" min="1" max="40" value="${esc(l.beds)}"></label>
+            <label class="form-field"><span class="cap">Phòng tắm</span>
+              <input type="number" name="bathrooms" min="0" max="20" value="${esc(l.bathrooms)}"></label>
+          </div>
+        </section>
+
+        <section class="modal-section">
+          <h3>Giá &amp; quy tắc</h3>
+          <div class="field-grid">
+            <label class="form-field"><span class="cap">Giá mỗi đêm (₫) *</span>
+              <input type="number" name="pricePerNight" min="50000" step="10000" value="${esc(l.pricePerNight)}" required></label>
+            <label class="form-field"><span class="cap">Phí dọn dẹp (₫)</span>
+              <input type="number" name="cleaningFee" min="0" step="10000" value="${esc(l.cleaningFee)}"></label>
+            <label class="form-field"><span class="cap">Số đêm tối thiểu</span>
+              <input type="number" name="minNights" min="1" max="90" value="${esc(l.minNights)}"></label>
+          </div>
+          <div class="pill-row" style="margin-top:14px">
+            <button type="button" class="pill ${l.instantBook ? 'is-on' : ''}" data-act="toggle-listing-flag" data-key="instantBook">
+              Đặt ngay không cần duyệt
+            </button>
+            <button type="button" class="pill ${l.isPublished ? 'is-on' : ''}" data-act="toggle-listing-flag" data-key="isPublished">
+              ${l.isPublished ? 'Đang hiển thị công khai' : 'Đang là bản nháp'}
+            </button>
+          </div>
+        </section>
+
+        <section class="modal-section">
+          <h3>Mô tả</h3>
+          <label class="form-field">
+            <span class="cap">Giới thiệu chỗ nghỉ * <span style="font-weight:400">(tối thiểu 40 ký tự)</span></span>
+            <textarea name="description" rows="5" required
+              style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px"
+              placeholder="Kể về không gian, vị trí và điều khiến chỗ nghỉ của bạn đặc biệt.">${esc(l.description)}</textarea>
+          </label>
+          <label class="form-field">
+            <span class="cap">Điểm nổi bật</span>
+            <input name="highlight" value="${esc(l.highlight ?? '')}" placeholder="Hồ bơi riêng nhìn ra vườn dừa">
+          </label>
+        </section>
+
+        <section class="modal-section">
+          <h3>Ảnh</h3>
+          <span class="hint">Dán liên kết ảnh, mỗi dòng một ảnh. Ảnh đầu tiên là ảnh bìa.</span>
+          <textarea name="images" rows="5"
+            style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:13px;font-family:ui-monospace,monospace"
+            placeholder="https://images.pexels.com/photos/1029599/pexels-photo-1029599.jpeg?auto=compress&cs=tinysrgb&w=1200">${esc((l.images ?? []).join('\n'))}</textarea>
+        </section>
+
+        <section class="modal-section">
+          <h3>Tiện nghi</h3>
+          <div class="pill-row" style="margin-top:14px">
+            ${(meta?.amenities ?? []).map(a => `
+              <button type="button" class="pill ${(l.amenityKeys ?? []).includes(a.key) ? 'is-on' : ''}"
+                      data-act="toggle-listing-amenity" data-key="${esc(a.key)}">
+                ${amenityIcon(a.key, 16)} ${esc(a.label)}
+              </button>`).join('')}
+          </div>
+        </section>
+
+        ${state.authError ? `<div class="form-error">${esc(state.authError)}</div>` : ''}
+      </form>
+    `,
+    foot: `
+      ${l.id ? `<button class="text-btn" data-act="delete-listing" data-id="${esc(l.id)}">Xoá chỗ nghỉ</button>` : '<span></span>'}
+      <button class="btn btn-primary btn-sm" data-act="save-listing">${isNew ? 'Đăng chỗ nghỉ' : 'Lưu thay đổi'}</button>
+    `
+  });
+}
+
+/* ------------------------------------------------------------- host block */
+
+function hostBlockModal() {
+  const cal = state.hostCalendar;
+  if (!cal) return '';
+
+  return shell({
+    title: 'Khoá lịch',
+    size: 'narrow',
+    body: `
+      <p style="margin:0 0 16px;font-size:13.5px;color:var(--ink-muted)">
+        Chặn khoảng ngày bạn không muốn nhận khách (bảo trì, gia đình dùng…).
+      </p>
+      <form data-act="submit-block" data-listing="${esc(cal.listingId)}">
+        <div class="field-grid">
+          <label class="form-field"><span class="cap">Từ ngày</span>
+            <input type="date" name="from" required></label>
+          <label class="form-field"><span class="cap">Đến ngày</span>
+            <input type="date" name="to" required></label>
+        </div>
+        <label class="form-field"><span class="cap">Ghi chú</span>
+          <input name="note" placeholder="Bảo trì hồ bơi"></label>
+        <button type="submit" class="btn btn-dark btn-block">Khoá lịch</button>
+      </form>
+
+      ${cal.blocks?.length ? `
+        <div style="margin-top:22px">
+          <b style="font-size:13px">Đang khoá</b>
+          <div style="display:grid;gap:8px;margin-top:10px">
+            ${cal.blocks.map(b => `
+              <div style="display:flex;align-items:center;gap:10px;border:1px solid var(--divider);border-radius:10px;padding:10px 12px">
+                <div style="flex:1;min-width:0;font-size:13.5px">
+                  ${esc(b.from)} → ${esc(b.to)}
+                  ${b.note ? `<span style="color:var(--ink-muted)"> · ${esc(b.note)}</span>` : ''}
+                </div>
+                <button class="text-btn" data-act="remove-block" data-id="${esc(b.id)}">Bỏ</button>
+              </div>`).join('')}
+          </div>
+        </div>` : ''}
     `
   });
 }

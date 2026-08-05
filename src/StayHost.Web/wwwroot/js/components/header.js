@@ -34,14 +34,16 @@ function renderTopBar() {
       </nav>
 
       <div class="header-actions">
-        <button class="ghost-btn host-link" data-act="go" data-href="/host">Cho thuê nhà</button>
+        <button class="ghost-btn host-link" data-act="go" data-href="${state.user?.isHost ? '/hosting' : '/host'}">
+          ${state.user?.isHost ? 'Trang chủ nhà' : 'Cho thuê nhà'}
+        </button>
         <button class="icon-btn" data-act="open" data-overlay="language"
                 aria-label="Chọn ngôn ngữ và tiền tệ" title="Ngôn ngữ &amp; tiền tệ">${icon('globe', 18)}</button>
         <div class="menu-anchor">
           <button class="account-btn" data-act="toggle-menu" aria-haspopup="true" aria-expanded="${state.menu === 'account'}">
             <span class="ic">${icon('menu', 17)}</span>
-            <span class="fav-count">${esc(state.favCount)}</span>
-            <span class="avatar" aria-hidden="true">MT</span>
+            ${unreadBadge()}
+            <span class="avatar" aria-hidden="true">${esc(state.user?.initials ?? '')}</span>
           </button>
           ${state.menu === 'account' ? renderAccountMenu() : ''}
         </div>
@@ -50,6 +52,13 @@ function renderTopBar() {
 
     ${renderSearchBar()}
   `;
+}
+
+function unreadBadge() {
+  const unread = state.user?.unreadMessages ?? 0;
+  if (unread > 0) return `<span class="fav-count" title="Tin nhắn chưa đọc">${esc(unread)}</span>`;
+  if (state.favCount > 0) return `<span class="fav-count" title="Chỗ nghỉ đã lưu">${esc(state.favCount)}</span>`;
+  return '';
 }
 
 /** Segmented "Địa điểm · Ngày · Khách" pill, expanded on the landing page. */
@@ -85,17 +94,48 @@ function renderSearchBar() {
 }
 
 function renderAccountMenu() {
+  const u = state.user;
+
+  if (!u) {
+    return `
+      <div class="menu" role="menu">
+        <button class="bold" data-act="open-auth" data-mode="register" role="menuitem">Đăng ký</button>
+        <button class="bold" data-act="open-auth" data-mode="login" role="menuitem">Đăng nhập</button>
+        <hr>
+        <button data-act="go" data-href="/wishlists" role="menuitem">Danh sách yêu thích (${esc(state.favCount)})</button>
+        <button data-act="go" data-href="/trips" role="menuitem">Chuyến đi của tôi</button>
+        <button data-act="go" data-href="/host" role="menuitem">Cho thuê nhà trên StayHost</button>
+        <hr>
+        <button data-act="open" data-overlay="language" role="menuitem">Ngôn ngữ &amp; tiền tệ</button>
+        <button data-act="open" data-overlay="help" role="menuitem">Trung tâm trợ giúp</button>
+      </div>
+    `;
+  }
+
   return `
     <div class="menu" role="menu">
-      <button class="bold" data-act="open" data-overlay="login" role="menuitem">Đăng ký</button>
-      <button class="bold" data-act="open" data-overlay="login" role="menuitem">Đăng nhập</button>
+      <div class="menu-user">
+        <span class="avatar">${esc(u.initials)}</span>
+        <div style="min-width:0">
+          <b>${esc(u.fullName)}</b>
+          <span>${esc(u.email)}</span>
+        </div>
+      </div>
       <hr>
-      <button data-act="go" data-href="/wishlists" role="menuitem">Danh sách yêu thích (${esc(state.favCount)})</button>
+      <button class="bold" data-act="go" data-href="/messages" role="menuitem">
+        Tin nhắn ${u.unreadMessages ? `<span class="fav-count" style="margin-left:auto">${esc(u.unreadMessages)}</span>` : ''}
+      </button>
       <button data-act="go" data-href="/trips" role="menuitem">Chuyến đi của tôi</button>
-      <button data-act="go" data-href="/host" role="menuitem">Cho thuê nhà trên StayHost</button>
+      <button data-act="go" data-href="/wishlists" role="menuitem">Danh sách yêu thích (${esc(state.favCount)})</button>
+      <hr>
+      ${u.isHost
+        ? `<button class="bold" data-act="go" data-href="/hosting" role="menuitem">Trang chủ nhà (${esc(u.listingCount)} chỗ nghỉ)</button>`
+        : `<button class="bold" data-act="become-host" role="menuitem">Cho thuê nhà trên StayHost</button>`}
+      <button data-act="open" data-overlay="profile" role="menuitem">Tài khoản</button>
       <hr>
       <button data-act="open" data-overlay="language" role="menuitem">Ngôn ngữ &amp; tiền tệ</button>
       <button data-act="open" data-overlay="help" role="menuitem">Trung tâm trợ giúp</button>
+      <button data-act="logout" role="menuitem">Đăng xuất</button>
     </div>
   `;
 }

@@ -7,6 +7,14 @@ const STATUS = {
   Cancelled: ['cancelled', 'Đã huỷ']
 };
 
+const PAYMENT = {
+  Pending: 'đang chờ',
+  Authorized: 'đã giữ tiền',
+  Captured: 'đã thanh toán',
+  Refunded: 'đã hoàn tiền',
+  Failed: 'thất bại'
+};
+
 export function renderTrips() {
   const items = state.bookings;
 
@@ -36,12 +44,18 @@ function renderTrip(b) {
         <h3>${esc(b.listingTitle)}</h3>
         <div class="meta">${esc(b.listingCity)} · Mã đặt chỗ ${esc(b.reference)}</div>
         <div class="meta">${esc(longDate(b.checkIn))} → ${esc(longDate(b.checkOut))} · ${esc(b.nights)} đêm · ${esc(b.guests)} khách</div>
-        <div class="meta"><b style="color:var(--ink)">${money(b.total)}</b> tổng cộng</div>
-        <span class="badge ${cls}" style="margin-top:8px">${esc(label)}</span>
+        <div class="meta"><b style="color:var(--ink)">${money(b.total)}</b> tổng cộng · thanh toán ${esc(PAYMENT[b.paymentStatus] ?? b.paymentStatus)}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <span class="badge ${cls}">${esc(label)}</span>
+          ${b.hasReview ? '<span class="badge confirmed">Đã đánh giá</span>' : ''}
+        </div>
       </div>
       <div style="display:grid;gap:8px">
-        <button class="btn btn-outline btn-sm" data-act="open-listing" data-slug="${esc(b.listingId)}">Xem chỗ nghỉ</button>
-        ${b.status !== 'Cancelled'
+        <button class="btn btn-outline btn-sm" data-act="open-listing" data-slug="${esc(b.listingSlug || b.listingId)}">Xem chỗ nghỉ</button>
+        ${b.canReview
+          ? `<button class="btn btn-primary btn-sm" data-act="open-review" data-id="${esc(b.id)}">Viết đánh giá</button>`
+          : ''}
+        ${b.status !== 'Cancelled' && b.checkOut > new Date().toISOString().slice(0, 10)
           ? `<button class="btn btn-outline btn-sm" data-act="cancel-booking" data-id="${esc(b.id)}">Huỷ đặt chỗ</button>`
           : ''}
       </div>

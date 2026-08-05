@@ -15,6 +15,8 @@ import { renderDetail } from './views/detail.js';
 import { renderWishlists } from './views/wishlists.js';
 import { renderTrips } from './views/trips.js';
 import { renderHostPage } from './views/host.js';
+import { renderHosting } from './views/hosting.js';
+import { renderMessages } from './views/messages.js';
 
 const headerEl = $('#header');
 const mainEl = $('#main');
@@ -29,6 +31,8 @@ function renderView() {
     case 'wishlists': return renderWishlists();
     case 'trips': return renderTrips();
     case 'host': return renderHostPage();
+    case 'hosting': return renderHosting();
+    case 'messages': return renderMessages();
     default: return renderBrowse();
   }
 }
@@ -93,6 +97,8 @@ function parseRoute(pathname = location.pathname) {
   if (parts[0] === 'wishlists') return { name: 'wishlists', param: null };
   if (parts[0] === 'trips') return { name: 'trips', param: null };
   if (parts[0] === 'host') return { name: 'host', param: null };
+  if (parts[0] === 'hosting') return { name: 'hosting', param: null };
+  if (parts[0] === 'messages') return { name: 'messages', param: parts[1] ?? null };
   return { name: 'browse', param: null };
 }
 
@@ -171,6 +177,13 @@ async function loadRoute() {
       break;
     case 'host':
       notify();
+      break;
+    case 'hosting':
+      await store.loadHosting();
+      break;
+    case 'messages':
+      await store.loadThreads();
+      if (state.route.param) await store.openThread(Number(state.route.param));
       break;
     default:
       if (store.isDiscovery()) {
@@ -577,8 +590,240 @@ document.addEventListener('click', async e => {
         await store.loadBookings();
       } catch (err) { toast(err.message); }
       break;
+
+    /* ------------------------------------------------------------ account */
+
+    case 'open-auth':
+      e.preventDefault();
+      state.authMode = target.dataset.mode ?? 'login';
+      state.authError = null;
+      state.overlay = 'login';
+      state.menu = null;
+      notify();
+      break;
+
+    case 'switch-auth':
+      state.authMode = target.dataset.mode;
+      state.authError = null;
+      notify();
+      break;
+
+    case 'fill-demo': {
+      const form = document.querySelector('[data-act="submit-auth"]');
+      if (form) {
+        form.email.value = 'host1@stayhost.vn';
+        form.password.value = 'stayhost123';
+      }
+      break;
+    }
+
+    case 'logout':
+      await store.logout();
+      if (['hosting', 'messages'].includes(state.route.name)) navigate('/');
+      break;
+
+    case 'become-host':
+      try {
+        await api.becomeHost();
+        await store.loadMe();
+        toast('Bạn đã sẵn sàng cho thuê nhà.');
+        navigate('/hosting');
+      } catch (err) { toast(err.message); }
+      break;
+
+    /* ------------------------------------------------------------ hosting */
+
+    case 'host-tab':
+      state.hostingTab = target.dataset.key;
+      notify();
+      break;
+
+    case 'new-listing':
+      if (!requireAuth()) break;
+      state.editingListing = null;
+      state.authError = null;
+      state.overlay = 'listing-editor';
+      notify();
+      break;
+
+    case 'edit-listing': {
+      const id = Number(target.dataset.id);
+      state.editingListing = state.hosting?.listings.find(l => l.id === id) ?? null;
+      state.authError = null;
+      state.overlay = 'listing-editor';
+      notify();
+      break;
+    }
+
+    case 'toggle-listing-flag': {
+      const key = target.dataset.key;
+      state.editingListing = { ...(state.editingListing ?? {}), [key]: !(state.editingListing?.[key] ?? key !== 'x') };
+      captureListingForm();
+      notify();
+      break;
+    }
+
+    case 'toggle-listing-amenity': {
+      captureListingForm();
+      const key = target.dataset.key;
+      const current = state.editingListing?.amenityKeys ?? [];
+      state.editingListing = {
+        ...(state.editingListing ?? {}),
+        amenityKeys: current.includes(key) ? current.filter(k => k !== key) : [...current, key]
+      };
+      notify();
+      break;
+    }
+
+    case 'save-listing':
+      await submitListing();
+      break;
+
+    case 'delete-listing':
+      if (confirm('Xoá hẳn chỗ nghỉ này?')) {
+        state.overlay = null;
+        await store.removeListing(Number(target.dataset.id));
+      }
+      break;
+
+    case 'open-host-calendar':
+      await store.loadHostCalendar(Number(target.dataset.id));
+      state.overlay = 'host-block';
+      notify();
+      break;
+
+    case 'remove-block':
+      try {
+        await api.removeBlock(Number(target.dataset.id));
+        await store.loadHostCalendar(state.hostCalendar.listingId);
+        toast('Đã bỏ khoá lịch.');
+      } catch (err) { toast(err.message); }
+      break;
+
+    case 'respond-booking':
+      await store.respondBooking(Number(target.dataset.id), target.dataset.mode);
+      break;
+
+    /* ----------------------------------------------------------- messaging */
+
+    case 'open-thread':
+      await store.openThread(Number(target.dataset.id));
+      scrollInboxToEnd();
+      break;
+
+    case 'open-listing-by-id': {
+      const id = Number(target.dataset.id);
+      const slug = state.threads.find(t => t.listingId === id)?.listingId ?? id;
+      navigate(`/rooms/${slug}`);
+      break;
+    }
+
+    case 'message-host': {
+      if (!requireAuth()) break;
+      const listingId = Number(target.dataset.id);
+      state.overlay = null;
+      notify();
+      try {
+        const thread = await api.sendMessage({ listingId, body: target.dataset.body || 'Chào bạn, mình muốn hỏi thêm về chỗ nghỉ.' });
+        state.activeThread = thread;
+        await store.loadThreads();
+        navigate('/messages');
+      } catch (err) { toast(err.message); }
+      break;
+    }
+
+    /* ------------------------------------------------------------- reviews */
+
+    case 'open-review': {
+      if (!requireAuth()) break;
+      const id = Number(target.dataset.id);
+      state.reviewBooking = state.bookings.find(b => b.id === id) ?? null;
+      state.reviewDraft = { rating: 5, cleanliness: 5, accuracy: 5, checkIn: 5, communication: 5, location: 5, value: 5, text: '' };
+      state.overlay = 'review';
+      notify();
+      break;
+    }
+
+    case 'set-star': {
+      const { field, value } = target.dataset;
+      state.reviewDraft = { ...(state.reviewDraft ?? {}), [field]: Number(value) };
+      captureReviewText();
+      notify();
+      break;
+    }
   }
 });
+
+/* ------------------------------------------------------------- form helpers */
+
+function requireAuth() {
+  if (state.user) return true;
+  state.authMode = 'login';
+  state.authError = null;
+  state.overlay = 'login';
+  notify();
+  return false;
+}
+
+/** Keep unsaved editor input when a pill toggle forces a re-render. */
+function captureListingForm() {
+  const form = document.getElementById('listing-form');
+  if (!form) return;
+  const data = readListingForm(form);
+  state.editingListing = { ...(state.editingListing ?? {}), ...data };
+}
+
+function readListingForm(form) {
+  const num = name => Number(form[name]?.value ?? 0);
+  return {
+    id: Number(form.dataset.id) || 0,
+    title: form.title?.value ?? '',
+    city: form.city?.value ?? '',
+    typeKey: form.typeKey?.value ?? 'house',
+    roomTypeKey: form.roomTypeKey?.value ?? 'entire',
+    bedrooms: num('bedrooms'),
+    beds: num('beds'),
+    bathrooms: num('bathrooms'),
+    maxGuests: num('maxGuests'),
+    pricePerNight: num('pricePerNight'),
+    cleaningFee: num('cleaningFee'),
+    minNights: num('minNights') || 1,
+    description: form.description?.value ?? '',
+    highlight: form.highlight?.value ?? '',
+    images: (form.images?.value ?? '').split('\n').map(s => s.trim()).filter(Boolean)
+  };
+}
+
+async function submitListing() {
+  const form = document.getElementById('listing-form');
+  if (!form) return;
+
+  const data = readListingForm(form);
+  const merged = { ...(state.editingListing ?? {}), ...data };
+  const body = {
+    ...merged,
+    instantBook: merged.instantBook ?? true,
+    isPublished: merged.isPublished ?? true,
+    amenityKeys: merged.amenityKeys ?? [],
+    latitude: merged.latitude ?? null,
+    longitude: merged.longitude ?? null
+  };
+
+  state.editingListing = merged;
+  await store.saveListing({ id: data.id || null, body });
+}
+
+function captureReviewText() {
+  const field = document.querySelector('[data-act="submit-review"] textarea[name="text"]');
+  if (field) state.reviewDraft = { ...(state.reviewDraft ?? {}), text: field.value };
+}
+
+function scrollInboxToEnd() {
+  requestAnimationFrame(() => {
+    const box = document.getElementById('inbox-messages');
+    if (box) box.scrollTop = box.scrollHeight;
+  });
+}
 
 async function share() {
   const url = location.href;
@@ -689,10 +934,62 @@ document.addEventListener('submit', e => {
     refreshResults();
   }
 
-  if (target.dataset.act === 'submit-login') {
-    state.overlay = null;
-    notify();
-    toast('Bản demo — đăng nhập chưa kết nối dịch vụ thật.');
+  const act = target.dataset.act;
+
+  if (act === 'submit-auth') {
+    const body = {
+      email: target.email.value.trim(),
+      password: target.password.value,
+      fullName: target.fullName?.value?.trim() ?? '',
+      phone: target.phone?.value?.trim() || null
+    };
+    (state.authMode === 'register' ? store.register(body) : store.login(body))
+      .then(ok => { if (ok) store.loadMe(); });
+  }
+
+  if (act === 'submit-profile') {
+    store.saveProfile({
+      fullName: target.fullName.value.trim(),
+      phone: target.phone.value.trim() || null,
+      bio: target.bio.value.trim() || null
+    });
+  }
+
+  if (act === 'submit-listing') submitListing();
+
+  if (act === 'submit-review') {
+    const draft = state.reviewDraft ?? {};
+    store.submitReview(Number(target.dataset.booking), {
+      bookingId: Number(target.dataset.booking),
+      rating: draft.rating ?? 5,
+      text: target.text.value.trim(),
+      cleanliness: draft.cleanliness ?? 5,
+      accuracy: draft.accuracy ?? 5,
+      checkIn: draft.checkIn ?? 5,
+      communication: draft.communication ?? 5,
+      location: draft.location ?? 5,
+      value: draft.value ?? 5
+    });
+  }
+
+  if (act === 'submit-block') {
+    api.addBlock({
+      listingId: Number(target.dataset.listing),
+      from: target.from.value,
+      to: target.to.value,
+      note: target.note.value.trim() || null
+    })
+      .then(() => store.loadHostCalendar(Number(target.dataset.listing)))
+      .then(() => toast('Đã khoá lịch.'))
+      .catch(err => toast(err.message));
+  }
+
+  if (act === 'submit-message') {
+    const input = target.body;
+    const body = input.value.trim();
+    if (!body) return;
+    input.value = '';
+    store.sendMessage({ threadId: Number(target.dataset.thread), body }).then(scrollInboxToEnd);
   }
 });
 
@@ -720,6 +1017,7 @@ async function boot() {
 
   // Re-read now that meta supplies the price bounds the URL is relative to.
   readSearchFromUrl();
+  await store.loadMe();
   notify();
   await Promise.all([store.loadFavorites(), loadRoute()]);
 }

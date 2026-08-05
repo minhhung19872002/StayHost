@@ -296,9 +296,14 @@ function renderHostProfile(d) {
         <div>Tỉ lệ phản hồi: <b>${esc(h.responseRate)}</b></div>
         <div>Thời gian phản hồi: <b>${esc(h.responseTime)}</b></div>
       </div>
-      <button class="btn btn-outline btn-sm" style="margin-top:18px" data-act="open" data-overlay="contact-host">
-        Nhắn tin cho chủ nhà
-      </button>
+      ${h.userId ? `
+        <button class="btn btn-outline btn-sm" style="margin-top:18px"
+                data-act="message-host" data-id="${esc(state.detail.card.id)}">
+          Nhắn tin cho ${esc(h.name)}
+        </button>`
+      : `<button class="btn btn-outline btn-sm" style="margin-top:18px" data-act="open" data-overlay="contact-host">
+          Nhắn tin cho chủ nhà
+        </button>`}
     </section>
   `;
 }

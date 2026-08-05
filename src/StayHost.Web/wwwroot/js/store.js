@@ -39,6 +39,22 @@ export const state = {
   loading: true,
   loadingMore: false,
 
+  // account
+  user: null,
+  authError: null,
+  authBusy: false,
+  authMode: 'login',
+
+  // hosting + messaging
+  hosting: null,
+  hostingLoading: false,
+  hostingTab: 'overview',
+  editingListing: null,
+  hostCalendar: null,
+  threads: [],
+  activeThread: null,
+  reviewBooking: null,
+
   // data
   home: null,
   homeLoading: true,
@@ -202,6 +218,178 @@ export function resetFilters() {
     minPrice: meta ? meta.minPrice : 0,
     maxPrice: meta ? meta.maxPrice : 0
   });
+}
+
+/* ----------------------------------------------------------------- account */
+
+export async function loadMe() {
+  try {
+    state.user = await api.me();
+  } catch {
+    state.user = null;
+  }
+  notify();
+}
+
+async function runAuth(fn) {
+  state.authBusy = true;
+  state.authError = null;
+  notify();
+
+  try {
+    state.user = await fn();
+    state.overlay = null;
+    toast(`Xin chào ${state.user.fullName}!`);
+    // Wishlist and trips move to the account on sign-in.
+    await Promise.all([loadFavorites(), loadBookings()]);
+    return true;
+  } catch (err) {
+    state.authError = err.message;
+    return false;
+  } finally {
+    state.authBusy = false;
+    notify();
+  }
+}
+
+export const login = body => runAuth(() => api.login(body));
+export const register = body => runAuth(() => api.register(body));
+
+export async function logout() {
+  try {
+    await api.logout();
+  } catch { /* the cookie is dropped either way */ }
+  state.user = null;
+  state.hosting = null;
+  state.threads = [];
+  state.favorites = [];
+  state.favCount = 0;
+  state.bookings = [];
+  state.menu = null;
+  toast('Đã đăng xuất.');
+  notify();
+}
+
+export async function saveProfile(body) {
+  try {
+    state.user = await api.updateProfile(body);
+    toast('Đã lưu hồ sơ.');
+    state.overlay = null;
+  } catch (err) {
+    toast(err.message);
+  }
+  notify();
+}
+
+/* ----------------------------------------------------------------- hosting */
+
+export async function loadHosting() {
+  if (!state.user) return;
+  state.hostingLoading = true;
+  notify();
+  try {
+    state.hosting = await api.hostDashboard();
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    state.hostingLoading = false;
+    notify();
+  }
+}
+
+export async function saveListing(payload) {
+  try {
+    const saved = payload.id
+      ? await api.updateListing(payload.id, payload.body)
+      : await api.createListing(payload.body);
+
+    toast(payload.id ? 'Đã cập nhật chỗ nghỉ.' : 'Đã đăng chỗ nghỉ mới.');
+    state.editingListing = null;
+    await Promise.all([loadHosting(), loadMe()]);
+    return saved;
+  } catch (err) {
+    state.authError = err.message;
+    toast(err.message);
+    notify();
+    return null;
+  }
+}
+
+export async function removeListing(id) {
+  try {
+    await api.deleteListing(id);
+    toast('Đã xoá chỗ nghỉ.');
+    await loadHosting();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+export async function loadHostCalendar(listingId) {
+  try {
+    state.hostCalendar = { listingId, ...(await api.hostCalendar(listingId)) };
+  } catch (err) {
+    toast(err.message);
+    state.hostCalendar = null;
+  }
+  notify();
+}
+
+export async function respondBooking(id, action, reason) {
+  try {
+    await api.respondBooking(id, action, reason);
+    toast(action === 'confirm' ? 'Đã xác nhận đặt chỗ.' : 'Đã từ chối đặt chỗ.');
+    await loadHosting();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+/* --------------------------------------------------------------- messaging */
+
+export async function loadThreads() {
+  if (!state.user) return;
+  try {
+    state.threads = await api.threads();
+  } catch (err) {
+    toast(err.message);
+  }
+  notify();
+}
+
+export async function openThread(id) {
+  try {
+    state.activeThread = await api.thread(id);
+    await loadThreads();
+  } catch (err) {
+    toast(err.message);
+  }
+  notify();
+}
+
+export async function sendMessage(body) {
+  try {
+    state.activeThread = await api.sendMessage(body);
+    await loadThreads();
+  } catch (err) {
+    toast(err.message);
+  }
+  notify();
+}
+
+/* ----------------------------------------------------------------- reviews */
+
+export async function submitReview(bookingId, body) {
+  try {
+    await api.review(bookingId, body);
+    toast('Cảm ơn bạn đã đánh giá!');
+    state.overlay = null;
+    state.reviewBooking = null;
+    await loadBookings();
+  } catch (err) {
+    toast(err.message);
+  }
+  notify();
 }
 
 /* --------------------------------------------------------------- favorites */
