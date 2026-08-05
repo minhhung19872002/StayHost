@@ -74,10 +74,30 @@ tương tác đi qua thuộc tính `data-act` và một handler delegated trong 
 | POST | `/api/bookings/{id}/cancel` | huỷ đặt chỗ |
 | GET | `/health` | health check kèm kiểm tra kết nối Postgres |
 
-Danh tính người dùng là cookie ẩn danh `sh_sid` (HttpOnly, 1 năm) — wishlist và
-booking gắn theo cookie này, không cần đăng ký.
+**Tài khoản** — `GET /api/account/me` (204 khi chưa đăng nhập), `POST register`,
+`POST login`, `POST logout`, `PUT profile`, `POST become-host`.
+
+**Chủ nhà** — `GET /api/host/dashboard`, `POST|PUT|DELETE /api/host/listings[/{id}]`,
+`GET /api/host/listings/{id}/calendar`, `POST|DELETE /api/host/blocks[/{id}]`,
+`POST /api/host/bookings/{id}/{confirm|decline}`.
+
+**Tin nhắn** — `GET /api/messages/threads`, `GET /api/messages/threads/{id}`,
+`POST /api/messages`.
+
+**Đánh giá** — `POST /api/bookings/{id}/review` (chỉ sau khi trả phòng, mỗi lượt đặt
+một lần).
+
+Khách chưa đăng nhập vẫn dùng được wishlist và đặt chỗ nhờ cookie ẩn danh `sh_sid`;
+khi đăng nhập, dữ liệu đó được chuyển sang tài khoản.
 
 ---
+
+## Tài khoản dùng thử
+
+| Vai trò | Email | Mật khẩu |
+|---|---|---|
+| Khách | `guest@stayhost.vn` | `stayhost123` |
+| Chủ nhà | `host1@stayhost.vn` … `host10@stayhost.vn` | `stayhost123` |
 
 ## Tính năng
 
@@ -100,9 +120,25 @@ trong modal, bản đồ vị trí gần đúng, hồ sơ chủ nhà, "Những �
 tương tự, panel đặt phòng dính kèm báo giá thời gian thực, modal thanh toán, thanh
 đặt chỗ cố định trên mobile.
 
-**Khác** — wishlist, chuyến đi (xem/huỷ), trang cho thuê nhà kèm máy tính doanh thu
-và FAQ, modal đăng nhập, đổi ngôn ngữ (8) và tiền tệ (8, quy đổi trực tiếp trên UI),
-footer nhiều cột.
+**Tài khoản** — đăng ký/đăng nhập bằng email + mật khẩu (PBKDF2 210k vòng, salt riêng
+từng người), phiên lưu trong cookie HttpOnly. Wishlist và lượt đặt tạo lúc chưa đăng
+nhập sẽ tự chuyển sang tài khoản khi đăng nhập.
+
+**Trang chủ nhà (`/hosting`)** — tổng quan doanh thu và đánh giá; đăng/sửa/xoá chỗ
+nghỉ (ảnh, tiện nghi, giá, số đêm tối thiểu, đặt-ngay, nháp/công khai); khoá lịch thủ
+công; xác nhận hoặc từ chối lượt đặt; biểu đồ doanh thu theo tháng. Khách đăng chỗ
+nghỉ đầu tiên sẽ tự được nâng thành chủ nhà.
+
+**Tin nhắn (`/messages`)** — mỗi cặp (chỗ nghỉ, khách) là một hội thoại; đánh dấu đã
+đọc khi mở; badge tin chưa đọc trên header.
+
+**Thanh toán & đánh giá** — mỗi lượt đặt sinh một bản ghi `Payment` tách phí nền tảng
+và tiền chi trả cho chủ nhà, có trạng thái giữ tiền / đã thu / đã hoàn. Khách viết
+đánh giá sau khi trả phòng, điểm listing được tính lại ngay.
+
+**Khác** — wishlist, chuyến đi (xem/huỷ), trang giới thiệu cho thuê nhà kèm máy tính
+doanh thu và FAQ, đổi ngôn ngữ (8) và tiền tệ (8, quy đổi trực tiếp trên UI), footer
+nhiều cột.
 
 Responsive từ 320px trở lên; toàn bộ nội dung tiếng Việt.
 

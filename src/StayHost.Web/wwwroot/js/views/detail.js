@@ -52,8 +52,11 @@ export function renderDetail() {
 
       ${renderGallery(c)}
 
+      ${renderSubNav()}
+
       <div class="detail-body">
         <div class="detail-main">
+          ${renderGuestFavoriteBanner(d, c)}
           ${renderSummary(d, c)}
           ${renderHostRow(d)}
           ${renderHighlights(d, c)}
@@ -86,7 +89,7 @@ function renderGallery(c) {
   while (imgs.length < 5) imgs.push(imgs[imgs.length - 1] ?? '');
 
   return `
-    <div class="gallery" style="grid-template-columns:2fr 1fr 1fr;grid-template-rows:repeat(2,clamp(110px,16vw,215px))">
+    <div class="gallery" id="section-photos" style="grid-template-columns:2fr 1fr 1fr;grid-template-rows:repeat(2,clamp(110px,16vw,215px))">
       ${imgs.map((src, i) => `
         <figure class="gallery-tile" style="${i === 0 ? 'grid-row:span 2;' : ''}margin:0"
                 data-act="open" data-overlay="photos">
@@ -94,6 +97,49 @@ function renderGallery(c) {
         </figure>
       `).join('')}
       <button class="gallery-all" data-act="open" data-overlay="photos">⊞ Hiện tất cả ảnh</button>
+    </div>
+  `;
+}
+
+/** Sticky in-page nav, mirroring airbnb.com's NAV_DEFAULT section. */
+function renderSubNav() {
+  const links = [
+    ['section-photos', 'Ảnh'],
+    ['section-amenities', 'Tiện nghi'],
+    ['section-reviews', 'Đánh giá'],
+    ['section-location', 'Vị trí']
+  ];
+
+  return `
+    <nav class="detail-nav" aria-label="Mục trong trang">
+      ${links.map(([target, label]) => `
+        <button data-act="scroll-to" data-target="${target}">${esc(label)}</button>
+      `).join('')}
+    </nav>
+  `;
+}
+
+/** Airbnb's GUEST_FAVORITE_BANNER: award line, big rating, review count. */
+function renderGuestFavoriteBanner(d, c) {
+  if (!c.isGuestFavorite || !c.reviewCount) return '';
+
+  return `
+    <div class="gf-banner">
+      <div class="gf-title">
+        <span class="gf-laurel">${icon('star', 30, { filled: true, weight: 0 })}</span>
+        <div>
+          <b>Khách yêu thích</b>
+          <span>Một trong những chỗ nghỉ được yêu thích nhất trên StayHost</span>
+        </div>
+      </div>
+      <div class="gf-metric">
+        <b>${esc(c.rating.toFixed(2))}</b>
+        <span>★★★★★</span>
+      </div>
+      <div class="gf-metric">
+        <b>${esc(d.reviews.length)}</b>
+        <span>đánh giá</span>
+      </div>
     </div>
   `;
 }
@@ -205,7 +251,7 @@ function renderCalendarSection(nights) {
       <p style="margin:-8px 0 18px;font-size:14px;color:var(--ink-muted)">
         ${esc(longDate(state.checkIn))} – ${esc(longDate(state.checkOut))}
       </p>
-      ${renderCalendar(state.checkIn)}
+      ${renderCalendar(state.checkIn, 4)}
       <div style="display:flex;justify-content:flex-end;margin-top:14px">
         <button class="text-btn" data-act="clear-dates">Xoá ngày</button>
       </div>
@@ -235,6 +281,8 @@ function renderReviews(d, c) {
         `).join('')}
       </div>
 
+      ${renderReviewTopics(d.reviews)}
+
       <div class="review-grid">
         ${shown.map(r => `
           <article class="review">
@@ -258,13 +306,70 @@ function renderReviews(d, c) {
   `;
 }
 
+/**
+ * Airbnb tags reviews with recurring topics and a count. We derive the same
+ * signal from keyword hits so the chips reflect what guests actually wrote.
+ */
+const REVIEW_TOPICS = [
+  ['Sạch sẽ', ['sạch', 'gọn gàng', 'ngăn nắp']],
+  ['Vị trí', ['vị trí', 'đi bộ', 'gần', 'trung tâm', 'biển']],
+  ['Chủ nhà', ['chủ nhà', 'phản hồi', 'chu đáo', 'nhiệt tình', 'tinh tế']],
+  ['Tiện nghi', ['bếp', 'wifi', 'giường', 'điều hoà', 'máy lạnh', 'trái cây']],
+  ['Yên tĩnh', ['yên tĩnh', 'ngủ ngon', 'thoải mái']],
+  ['Đáng tiền', ['giá', 'hợp lý', 'đáng']]
+];
+
+function renderReviewTopics(reviews) {
+  const counts = REVIEW_TOPICS.map(([label, keywords]) => {
+    const n = reviews.filter(r => {
+      const text = r.text.toLowerCase();
+      return keywords.some(k => text.includes(k));
+    }).length;
+    return { label, n };
+  }).filter(t => t.n > 0).sort((a, b) => b.n - a.n);
+
+  if (!counts.length) return '';
+
+  return `
+    <div class="topic-row">
+      ${counts.map(t => `
+        <span class="topic-chip">${esc(t.label)} <b>${esc(t.n)}</b></span>
+      `).join('')}
+    </div>
+  `;
+}
+
+/** Neighbourhood context derived from what the listing actually offers. */
+function neighbourhoodHighlights(c) {
+  const out = [];
+  if (c.amenityKeys.includes('beach')) out.push(['beach', 'Sát biển', 'Đi bộ vài phút là xuống tới bãi tắm.']);
+  if (c.amenityKeys.includes('bike')) out.push(['bike', 'Dễ đi lại', 'Có xe đạp miễn phí để khám phá quanh khu.']);
+  if (c.amenityKeys.includes('view')) out.push(['view', 'Tầm nhìn đẹp', 'Khung cảnh mở, ít bị che chắn.']);
+  if (c.amenityKeys.includes('parking')) out.push(['parking', 'Đỗ xe thuận tiện', 'Có chỗ đậu xe ngay tại chỗ nghỉ.']);
+  if (out.length < 2) out.push(['house', `Trung tâm ${c.city}`, 'Gần quán ăn, cà phê và điểm tham quan chính.']);
+  return out.slice(0, 3);
+}
+
 function renderLocation(c) {
+  const highlights = neighbourhoodHighlights(c);
+
   return `
     <section class="detail-section" id="section-location">
       <h2>Vị trí chỗ nghỉ</h2>
       <p style="margin:-8px 0 16px;font-size:14.5px;color:var(--ink-muted)">${esc(c.city)}, ${esc(c.country)}</p>
       <div class="detail-map" id="detail-map"></div>
-      <p style="margin:14px 0 0;font-size:13.5px;color:var(--ink-muted)">
+
+      <h3 style="margin:22px 0 12px;font-size:15px;font-weight:700">Điểm nổi bật của khu vực</h3>
+      <div class="hood-grid">
+        ${highlights.map(([ic, title, text]) => `
+          <div class="hood">
+            <span class="ic">${icon(ic, 22)}</span>
+            <div><b>${esc(title)}</b><span>${esc(text)}</span></div>
+          </div>
+        `).join('')}
+      </div>
+
+      <p style="margin:16px 0 0;font-size:13.5px;color:var(--ink-muted)">
         Vị trí chính xác được cung cấp sau khi đặt chỗ thành công.
       </p>
     </section>

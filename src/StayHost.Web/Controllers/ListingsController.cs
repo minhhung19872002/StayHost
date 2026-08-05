@@ -32,6 +32,7 @@ public class ListingsController(CatalogService catalog) : ControllerBase
         [FromQuery] int? bathrooms = null,
         [FromQuery] bool superhost = false,
         [FromQuery] bool guestFavorite = false,
+        [FromQuery] bool instantBook = false,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 24,
         CancellationToken ct = default)
@@ -39,7 +40,7 @@ public class ListingsController(CatalogService catalog) : ControllerBase
         var keys = (amenities ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var query = new CatalogService.SearchQuery(
             q, category, minPrice, maxPrice, guests, keys, sort, roomType,
-            bedrooms, beds, bathrooms, superhost, guestFavorite, page, pageSize);
+            bedrooms, beds, bathrooms, superhost, guestFavorite, instantBook, page, pageSize);
 
         return Ok(await catalog.SearchAsync(query, HttpContext.SessionId(), ct));
     }

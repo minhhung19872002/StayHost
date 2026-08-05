@@ -32,7 +32,9 @@ export const state = {
   // ui
   tab: 'homes',
   showInlineFilters: false,
-  showMap: false,
+  /// The results page shows the map beside the list by default, like airbnb.com.
+  hideMap: false,
+  instantBookOnly: false,
   showTotalPrice: false,
   overlay: null,
   menu: null,
@@ -91,8 +93,7 @@ export function isDiscovery() {
     && state.amenities.length === 0
     && state.roomType === 'any'
     && !state.bedrooms && !state.beds && !state.bathrooms
-    && !state.superhostOnly && !state.guestFavoriteOnly
-    && !state.showMap
+    && !state.superhostOnly && !state.guestFavoriteOnly && !state.instantBookOnly
     && (!state.meta || (state.minPrice <= state.meta.minPrice && state.maxPrice >= state.meta.maxPrice));
 }
 
@@ -143,6 +144,7 @@ export function searchParams(page = 1) {
     bathrooms: state.bathrooms || undefined,
     superhost: state.superhostOnly || undefined,
     guestFavorite: state.guestFavoriteOnly || undefined,
+    instantBook: state.instantBookOnly || undefined,
     page,
     pageSize: 24
   };
@@ -201,6 +203,7 @@ export function activeFilterCount() {
   if (state.bathrooms) n++;
   if (state.superhostOnly) n++;
   if (state.guestFavoriteOnly) n++;
+  if (state.instantBookOnly) n++;
   return n;
 }
 
@@ -215,6 +218,7 @@ export function resetFilters() {
     bathrooms: 0,
     superhostOnly: false,
     guestFavoriteOnly: false,
+    instantBookOnly: false,
     minPrice: meta ? meta.minPrice : 0,
     maxPrice: meta ? meta.maxPrice : 0
   });

@@ -381,6 +381,9 @@ public static class DbSeeder
                 ReviewCount = s.Reviews,
                 IsSuperhost = s.Superhost,
                 IsGuestFavorite = s.GuestFavorite,
+                // Roughly a third of the catalogue carries a promotion, so the search
+                // results show struck-through pricing the way airbnb.com does.
+                DiscountPercent = i % 3 == 1 ? 10 + (i % 4) * 5 : 0,
                 Latitude = s.Lat,
                 Longitude = s.Lng,
                 Description = s.Desc,

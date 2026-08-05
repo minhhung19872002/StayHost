@@ -43,7 +43,9 @@ function renderTopBar() {
           <button class="account-btn" data-act="toggle-menu" aria-haspopup="true" aria-expanded="${state.menu === 'account'}">
             <span class="ic">${icon('menu', 17)}</span>
             ${unreadBadge()}
-            <span class="avatar" aria-hidden="true">${esc(state.user?.initials ?? '')}</span>
+            <span class="avatar ${state.user ? '' : 'is-anon'}" aria-hidden="true">
+              ${state.user ? esc(state.user.initials) : icon('heart', 15)}
+            </span>
           </button>
           ${state.menu === 'account' ? renderAccountMenu() : ''}
         </div>
@@ -61,12 +63,17 @@ function unreadBadge() {
   return '';
 }
 
-/** Segmented "Địa điểm · Ngày · Khách" pill, expanded on the landing page. */
+/**
+ * Expanded "Địa điểm · Ngày · Khách" pill on the landing page; airbnb.com
+ * collapses it to a compact summary bar once you are looking at results.
+ */
 function renderSearchBar() {
-  const wide = isDiscovery() && state.route.name === 'browse';
+  // Only the landing page keeps the tall pill; every other route gets the summary bar.
+  const discovery = isDiscovery() && state.route.name === 'browse';
+  if (!discovery) return renderCompactSearch();
 
   return `
-    <div class="search-row ${wide ? 'is-wide' : ''}">
+    <div class="search-row is-wide">
       <form class="searchbar" data-act="submit-search" role="search">
         <label class="seg seg-where">
           <span class="seg-cap">Địa điểm</span>
@@ -88,6 +95,34 @@ function renderSearchBar() {
         </button>
 
         <button type="submit" class="search-go" aria-label="Tìm kiếm">${icon('search', 17)}</button>
+      </form>
+    </div>
+  `;
+}
+
+function renderCompactSearch() {
+  const where = state.q.trim()
+    ? `Chỗ ở tại ${state.q.trim()}`
+    : state.category !== 'all'
+      ? state.meta?.categories.find(c => c.key === state.category)?.label ?? 'Chỗ ở'
+      : 'Mọi nơi';
+
+  return `
+    <div class="search-row">
+      <form class="searchbar is-compact" data-act="submit-search" role="search">
+        <span class="seg-lead" aria-hidden="true">${icon('house', 20)}</span>
+        <label class="seg seg-where">
+          <input id="q" type="text" value="${esc(state.q)}" placeholder="${esc(where)}" autocomplete="off" data-act="input-q">
+        </label>
+        <span class="seg-div"></span>
+        <button type="button" class="seg" data-act="open" data-overlay="dates">
+          <span class="seg-val">${esc(dateRangeLabel(state.checkIn, state.checkOut))}</span>
+        </button>
+        <span class="seg-div"></span>
+        <button type="button" class="seg" data-act="open" data-overlay="guests">
+          <span class="seg-val">${esc(guestLabel())}</span>
+        </button>
+        <button type="submit" class="search-go" aria-label="Tìm kiếm">${icon('search', 15)}</button>
       </form>
     </div>
   `;
@@ -140,34 +175,42 @@ function renderAccountMenu() {
   `;
 }
 
+/**
+ * airbnb.com's /s/ page has no category strip — just a "Filters" button followed
+ * by one-tap chips. The category strip only exists on the landing experience.
+ */
 function renderCategoryBar() {
-  const cats = state.meta?.categories ?? [];
   const filters = activeFilterCount();
+  const amenities = state.meta?.amenities ?? [];
+
+  // Same running order airbnb.com uses: booking perks first, then amenities.
+  const chipOrder = ['kitchen', 'pool', 'wifi', 'ac', 'washer', 'parking', 'tv', 'workspace', 'gym', 'pet'];
+  const chips = chipOrder
+    .map(key => amenities.find(a => a.key === key))
+    .filter(Boolean);
 
   return `
     <div class="catbar-outer">
-      <div class="catbar">
-        <button class="cat-arrow left" data-act="cat-scroll" data-dir="-1" aria-label="Cuộn trái">${icon('chevronLeft', 14)}</button>
-        <div class="cat-scroll" id="cat-scroll">
-          ${cats.map(c => `
-            <button class="cat ${state.category === c.key ? 'is-active' : ''}"
-                    data-act="pick-category" data-key="${esc(c.key)}"
-                    aria-pressed="${state.category === c.key}"
-                    title="${esc(c.label)} · ${esc(c.count)} chỗ nghỉ">
-              <span class="icon">${icon(CATEGORY_ICON[c.key] ?? 'all', 24)}</span>
-              <span class="label">${esc(c.label)}</span>
-            </button>
+      <div class="quickbar">
+        <button class="quick-chip is-lead" data-act="open" data-overlay="filters">
+          ${icon('filter', 15)} Bộ lọc${filters ? ` <span class="count">${esc(filters)}</span>` : ''}
+        </button>
+        <span class="quick-div"></span>
+
+        <div class="quick-scroll" id="cat-scroll">
+          <button class="quick-chip ${state.instantBookOnly ? 'is-on' : ''}" data-act="toggle-instant">Huỷ miễn phí</button>
+          <button class="quick-chip ${state.guestFavoriteOnly ? 'is-on' : ''}" data-act="toggle-guest-fav">Khách yêu thích</button>
+          <button class="quick-chip ${state.superhostOnly ? 'is-on' : ''}" data-act="toggle-superhost">Siêu chủ nhà</button>
+          ${chips.map(a => `
+            <button class="quick-chip ${state.amenities.includes(a.key) ? 'is-on' : ''}"
+                    data-act="toggle-amenity" data-key="${esc(a.key)}"
+                    aria-pressed="${state.amenities.includes(a.key)}">${esc(a.label)}</button>
           `).join('')}
         </div>
-        <button class="cat-arrow right" data-act="cat-scroll" data-dir="1" aria-label="Cuộn phải">${icon('chevronRight', 14)}</button>
 
         <button class="total-toggle ${state.showTotalPrice ? 'is-on' : ''}" data-act="toggle-total"
                 aria-pressed="${state.showTotalPrice}" title="Hiển thị giá trọn kỳ nghỉ thay vì giá mỗi đêm">
-          <span class="switch" aria-hidden="true"></span> Hiển thị tổng giá
-        </button>
-
-        <button class="chip-btn" data-act="open" data-overlay="filters">
-          ${icon('filter', 15)} Bộ lọc ${filters ? `<span class="count">${esc(filters)}</span>` : ''}
+          <span class="switch" aria-hidden="true"></span> Tổng giá
         </button>
       </div>
     </div>

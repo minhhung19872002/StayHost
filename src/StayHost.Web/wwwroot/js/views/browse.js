@@ -24,6 +24,7 @@ function renderDiscovery() {
 
   return `
     <div class="shell" style="padding-block:26px 60px">
+      <h1 class="sr-only">StayHost OS — thuê nhà ngắn hạn khắp Việt Nam</h1>
       ${home.sections.map(renderSection).join('')}
     </div>
     ${renderInspiration(home.inspiration)}
@@ -46,7 +47,7 @@ function renderSection(section) {
         </div>
       </div>
       <div class="rail-track" data-rail-track="${esc(section.key)}">
-        ${section.items.map(c => `<div class="rail-item">${renderCard(c, { lazy: true })}</div>`).join('')}
+        ${section.items.map(c => `<div class="rail-item">${renderCard(c, { lazy: true, variant: 'rail' })}</div>`).join('')}
       </div>
     </section>
   `;
@@ -94,16 +95,19 @@ function renderResults() {
   const grid = loading
     ? `<div class="card-grid">${Array.from({ length: 8 }, renderCardSkeleton).join('')}</div>`
     : results.items.length
-      ? `<div class="card-grid">${results.items.map(c => renderCard(c)).join('')}</div>`
+      ? `<div class="card-grid">${results.items.map(c => renderCard(c, { variant: 'search' })).join('')}</div>`
       : renderEmpty();
 
   const hasMore = !loading && results.items.length < results.total;
 
   const body = `
     <div class="results-head">
-      <h1 class="results-title">${title}</h1>
-      <div class="results-meta">${esc(loading ? '…' : results.total)} chỗ nghỉ · ${esc(dateRangeLabel(state.checkIn, state.checkOut))}</div>
+      <h1 class="results-title">
+        ${loading ? title : `${results.total > 24 ? 'Hơn ' : ''}${esc(results.total)} chỗ nghỉ`}
+      </h1>
+      <div class="fee-note">${icon('star', 15)} Giá đã gồm mọi khoản phí</div>
     </div>
+    <p class="results-context">${title} · ${esc(dateRangeLabel(state.checkIn, state.checkOut))}</p>
     ${grid}
     ${hasMore ? `
       <div class="load-more">
@@ -114,10 +118,11 @@ function renderResults() {
       </div>` : ''}
   `;
 
-  if (state.showMap) {
+  // Airbnb keeps the map pinned beside the results on desktop; the pill collapses it.
+  if (!state.hideMap) {
     return `
       <div class="split">
-        <div class="split-list shell" style="padding-block:22px 90px">${body}</div>
+        <div class="split-list" style="padding:22px var(--gutter) 90px">${body}</div>
         <div class="split-map"><div id="map"></div></div>
       </div>
       ${renderMapToggle()}
@@ -133,7 +138,7 @@ function renderResults() {
 function renderMapToggle() {
   return `
     <button class="map-toggle" data-act="toggle-map">
-      ${state.showMap ? 'Hiện danh sách' : 'Hiện bản đồ'} ${icon(state.showMap ? 'filter' : 'map', 16)}
+      ${state.hideMap ? 'Hiện bản đồ' : 'Hiện danh sách'} ${icon(state.hideMap ? 'map' : 'filter', 16)}
     </button>
   `;
 }

@@ -178,6 +178,10 @@ public record ListingCardDto(
     int Bathrooms,
     int MaxGuests,
     decimal PricePerNight,
+    /// <summary>Pre-discount nightly rate, or null when the listing is not on offer.</summary>
+    decimal? OriginalPricePerNight,
+    int DiscountPercent,
+    bool InstantBook,
     double Rating,
     int ReviewCount,
     bool IsSuperhost,

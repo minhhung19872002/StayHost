@@ -78,6 +78,8 @@ public class Listing
     public int MaxGuests { get; set; }
 
     public decimal PricePerNight { get; set; }
+    /// <summary>0–60. When set, the card shows the pre-discount price struck through.</summary>
+    public int DiscountPercent { get; set; }
     public decimal CleaningFee { get; set; } = 350_000m;
     /// <summary>Fraction of the nightly subtotal charged as the StayHost service fee.</summary>
     public decimal ServiceFeeRate { get; set; } = 0.09m;

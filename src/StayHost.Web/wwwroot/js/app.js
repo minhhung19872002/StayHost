@@ -82,7 +82,7 @@ function render() {
 
     restoreFocus(focus);
 
-    if (state.route.name === 'browse' && state.showMap) mountResultsMap();
+    if (state.route.name === 'browse' && !store.isDiscovery() && !state.hideMap) mountResultsMap();
     if (state.route.name === 'detail' && state.detail) mountDetailMap();
   });
 }
@@ -449,8 +449,14 @@ document.addEventListener('click', async e => {
       break;
 
     case 'toggle-map':
-      state.showMap = !state.showMap;
-      if (!state.showMap) destroyMaps();
+      state.hideMap = !state.hideMap;
+      if (state.hideMap) destroyMaps();
+      notify();
+      break;
+
+    case 'toggle-instant':
+      state.instantBookOnly = !state.instantBookOnly;
+      refreshResults();
       notify();
       break;
 

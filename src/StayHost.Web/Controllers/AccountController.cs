@@ -11,11 +11,12 @@ namespace StayHost.Web.Controllers;
 [Route("api/account")]
 public class AccountController(AuthService auth, StayHostDbContext db) : ControllerBase
 {
+    /// <summary>204 when nobody is signed in, so clients get an unambiguous empty response.</summary>
     [HttpGet("me")]
-    public async Task<ActionResult<CurrentUserDto?>> Me(CancellationToken ct)
+    public async Task<ActionResult<CurrentUserDto>> Me(CancellationToken ct)
     {
         var user = await auth.CurrentUserAsync(ct);
-        return Ok(user is null ? null : await ToDtoAsync(user, ct));
+        return user is null ? NoContent() : Ok(await ToDtoAsync(user, ct));
     }
 
     [HttpPost("register")]

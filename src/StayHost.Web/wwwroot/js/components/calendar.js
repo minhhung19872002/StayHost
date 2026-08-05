@@ -9,20 +9,19 @@ const MONTHS = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Th�
  * Two-month range picker. The first click after a complete range starts a new
  * range; the second click closes it (swapping if the user picked backwards).
  */
-export function renderCalendar(anchorIso) {
+export function renderCalendar(anchorIso, months = 2) {
   const anchor = parseIso(anchorIso || state.checkIn);
-  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1, 12);
-  const second = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1, 12);
+  const panels = Array.from({ length: months }, (_, i) =>
+    new Date(anchor.getFullYear(), anchor.getMonth() + i, 1, 12));
 
   return `
-    <div class="cal-wrap">
-      ${renderMonth(first, true)}
-      ${renderMonth(second, false)}
+    <div class="cal-wrap" data-months="${months}">
+      ${panels.map((m, i) => renderMonth(m, i === 0, i === panels.length - 1)).join('')}
     </div>
   `;
 }
 
-function renderMonth(monthStart, showPrev) {
+function renderMonth(monthStart, isFirst, isLast) {
   const year = monthStart.getFullYear();
   const month = monthStart.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -56,13 +55,13 @@ function renderMonth(monthStart, showPrev) {
   return `
     <div class="cal-month">
       <div class="cal-head">
-        ${showPrev
+        ${isFirst
           ? `<button class="round-btn" data-act="cal-shift" data-dir="-1" aria-label="Tháng trước">‹</button>`
           : '<span style="width:28px"></span>'}
         <b>${esc(MONTHS[month])} ${esc(year)}</b>
-        ${showPrev
-          ? '<span style="width:28px"></span>'
-          : `<button class="round-btn" data-act="cal-shift" data-dir="1" aria-label="Tháng sau">›</button>`}
+        ${isLast
+          ? `<button class="round-btn" data-act="cal-shift" data-dir="1" aria-label="Tháng sau">›</button>`
+          : '<span style="width:28px"></span>'}
       </div>
       <div class="cal-grid" role="grid">
         ${DOW.map(d => `<span class="cal-dow">${d}</span>`).join('')}

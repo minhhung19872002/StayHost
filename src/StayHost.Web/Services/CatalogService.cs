@@ -194,6 +194,7 @@ public class CatalogService(StayHostDbContext db)
         int? Bathrooms,
         bool SuperhostOnly,
         bool GuestFavoriteOnly,
+        bool InstantBookOnly,
         int Page,
         int PageSize);
 
@@ -228,6 +229,7 @@ public class CatalogService(StayHostDbContext db)
         if (q.Bathrooms is > 0) query = query.Where(l => l.Bathrooms >= q.Bathrooms);
         if (q.SuperhostOnly) query = query.Where(l => l.IsSuperhost);
         if (q.GuestFavoriteOnly) query = query.Where(l => l.IsGuestFavorite);
+        if (q.InstantBookOnly) query = query.Where(l => l.InstantBook);
 
         if (!string.IsNullOrWhiteSpace(q.RoomType) && q.RoomType != "any")
         {
@@ -285,6 +287,11 @@ public class CatalogService(StayHostDbContext db)
         l.Bathrooms,
         l.MaxGuests,
         l.PricePerNight,
+        l.DiscountPercent > 0
+            ? Math.Round(l.PricePerNight * 100m / (100 - l.DiscountPercent), 0, MidpointRounding.AwayFromZero)
+            : null,
+        l.DiscountPercent,
+        l.InstantBook,
         Math.Round(l.Rating, 2),
         l.ReviewCount,
         l.IsSuperhost,
