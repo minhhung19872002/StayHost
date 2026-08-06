@@ -94,6 +94,12 @@ export const state = {
   photoIndex: null,
   awaitingCheckout: false,
 
+  // Which month the calendar is looking at. Its own state, because paging must
+  // not touch the chosen dates: a check-out three months out is reached by
+  // paging there, and rewriting the dates on the way makes that impossible.
+  // Null means "wherever the check-in is".
+  calendarMonth: null,
+
   // auth / profile modals
   authMode: 'login',     // login | register | forgot | reset
   profileTab: 'profile',
@@ -795,7 +801,10 @@ export function applyLanguage(code) {
 
 /* ------------------------------------------------------------- ui actions */
 
-export const openOverlay = kind => set({ overlay: kind, menu: null });
+export const openOverlay = kind =>
+  // A picker opened afresh should be looking at the dates it is showing, not at
+  // wherever it was last paged to.
+  set({ overlay: kind, menu: null, ...(kind === 'dates' ? { calendarMonth: null } : {}) });
 export const closeOverlay = () => set({ overlay: null, photoIndex: null });
 export const openMenu = kind => set({ menu: state.menu === kind ? null : kind });
 
@@ -847,17 +856,32 @@ export function pickDate(iso) {
   normaliseDates();
 }
 
-export function shiftCalendar(dir) {
-  const d = parseIso(state.checkIn);
-  d.setMonth(d.getMonth() + dir);
-  const iso = isoOf(d);
-  if (iso < todayIso()) return;
+/** The first of whichever month the calendar is showing on its left panel. */
+export function calendarAnchor() {
+  const from = parseIso(state.calendarMonth ?? state.checkIn);
+  return new Date(from.getFullYear(), from.getMonth(), 1, 12);
+}
 
-  state.checkIn = iso;
-  const out = parseIso(iso);
-  out.setDate(out.getDate() + 3);
-  state.checkOut = isoOf(out);
-  normaliseDates();
+/**
+ * Pages the calendar. It moves the view and nothing else — this used to move the
+ * check-in date with it, so paging forward to find a check-out three months away
+ * silently rewrote the dates you had just chosen.
+ */
+export function shiftCalendar(dir) {
+  const d = calendarAnchor();
+  d.setMonth(d.getMonth() + dir);
+
+  // Nobody can book the past, so there is nothing to see behind this month.
+  const floor = parseIso(todayIso());
+  if (d < new Date(floor.getFullYear(), floor.getMonth(), 1, 12)) return;
+
+  state.calendarMonth = isoOf(d);
+  notify();
+}
+
+/** Puts the view back on the chosen dates, for when the picker is opened afresh. */
+export function resetCalendarView() {
+  state.calendarMonth = null;
 }
 
 export function applyDatePreset(key) {
@@ -875,6 +899,11 @@ export function applyDatePreset(key) {
     start.setDate(start.getDate() + (spans[key] ?? 3));
     state.checkOut = isoOf(start);
   }
+
+  // A preset chooses both ends at once, so nothing is half-picked afterwards,
+  // and the view follows the dates it just set.
+  state.awaitingCheckout = false;
+  state.calendarMonth = null;
   normaliseDates();
 }
 
@@ -884,6 +913,10 @@ export function clearDates() {
   state.stay = 'exact';
   state.flexDays = 0;
   state.startMonths = [];
+  state.awaitingCheckout = false;
+  // Dates that jump somewhere else take the view with them, or the picker sits
+  // on a month with nothing selected in it.
+  state.calendarMonth = null;
   normaliseDates();
 }
 

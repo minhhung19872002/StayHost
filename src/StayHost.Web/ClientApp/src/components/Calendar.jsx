@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../lib/useStore.js';
-import { pickDate, shiftCalendar, set, normaliseDates } from '../lib/store.js';
+import { pickDate, shiftCalendar, calendarAnchor, set, normaliseDates } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { isoOf, parseIso, todayIso, shortMoney, longDate } from '../lib/format.js';
 
@@ -18,7 +18,9 @@ export function Calendar({ months = 2 }) {
   const listingId = state.detail?.card.id;
   const [calendar, setCalendar] = useState(null);
 
-  const anchor = parseIso(state.checkIn);
+  // The view follows its own state, not the chosen dates: paging must be able to
+  // reach a check-out months away without moving the check-in to get there.
+  const anchor = calendarAnchor();
   const panels = Array.from({ length: months }, (_, i) =>
     new Date(anchor.getFullYear(), anchor.getMonth() + i, 1, 12));
 

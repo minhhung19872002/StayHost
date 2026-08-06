@@ -22,7 +22,15 @@ const RATING_LABELS = {
   value: 'Giá trị'
 };
 
-const scrollTo = id => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+/**
+ * The photos are the first thing on the page, so going back to them means going
+ * back to the top — which is also how the site header, let go on this page,
+ * comes back. Anything below scrolls to itself.
+ */
+const scrollTo = id => {
+  if (id === 'section-photos') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
 
 export function Detail() {
   const state = useStore();
