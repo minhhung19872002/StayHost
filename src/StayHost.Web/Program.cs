@@ -61,6 +61,7 @@ await using (var scope = app.Services.CreateAsyncScope())
             await HelpSeeder.SeedAsync(db);
             await ExperienceSeeder.SeedAsync(db);
             await ServiceSeeder.SeedAsync(db);
+            await HotelSeeder.SeedAsync(db);
             log.LogInformation("Database ready.");
             break;
         }

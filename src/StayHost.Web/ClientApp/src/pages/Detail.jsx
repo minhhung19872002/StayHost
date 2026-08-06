@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
   loadDetail, toggleFavorite, totalGuests, guestLabel, bumpTotalGuests,
-  clearDates, openOverlay, requireAuth, toast, set
+  clearDates, openOverlay, requireAuth, toast, set, setRoom
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate, nightsBetween } from '../lib/format.js';
@@ -501,10 +501,47 @@ function ThingsToKnow({ detail }) {
   );
 }
 
-function BookPanel({ card }) {
+/**
+ * docs/01 MR-08 and MR-09 — a hotel sells rooms of a kind, so the guest picks
+ * one before checkout and the price follows the room rather than the property.
+ */
+function RoomPicker({ rooms }) {
+  const state = useStore();
+
+  // Pick the first room that still has one free, so the panel is never in a
+  // state where nothing is selected and the price means nothing.
+  useEffect(() => {
+    if (!rooms?.length) { if (state.roomTypeId) setRoom(null); return; }
+    if (rooms.some(r => r.id === state.roomTypeId && r.available > 0)) return;
+    setRoom(rooms.find(r => r.available > 0)?.id ?? rooms[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rooms]);
+
+  if (!rooms?.length) return null;
+
+  return (
+    <div className="room-picker">
+      <p className="cap" style={{ margin: '14px 0 8px' }}>Chọn loại phòng</p>
+      {rooms.map(r => (
+        <button key={r.id} className={`room-option ${state.roomTypeId === r.id ? 'is-on' : ''}`}
+                disabled={r.available === 0} onClick={() => setRoom(r.id)}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <b>{r.name}</b>
+            <span>{r.summary}</span>
+            <i>{r.available > 0 ? `Còn ${r.available}/${r.inventory} phòng` : 'Hết phòng cho ngày này'}</i>
+          </div>
+          <div className="room-price">{money(r.pricePerNight)}<span>/ đêm</span></div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BookPanel({ detail, card }) {
   const state = useStore();
   const q = state.quote;
   const result = state.bookingResult;
+  const rooms = detail?.roomTypes ?? null;
 
   const checkout = () => {
     if (!requireAuth()) return;
@@ -515,9 +552,11 @@ function BookPanel({ card }) {
     <aside className="book-panel">
       <div className="book-price">
         <span className="amount">{money(card.pricePerNight)}</span>
-        <span className="per">/ đêm</span>
+        <span className="per">/ đêm{rooms ? ' · phòng rẻ nhất' : ''}</span>
         {card.isGuestFavorite && <span className="per" style={{ marginLeft: 'auto' }}>★ {card.rating.toFixed(2)}</span>}
       </div>
+
+      <RoomPicker rooms={rooms} />
 
       <div className="book-fields">
         <div className="book-dates">

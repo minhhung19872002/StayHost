@@ -8,7 +8,9 @@ public enum PlaceType
     Homestay = 3,
     House = 4,
     Cabin = 5,
-    Boutique = 6
+    Boutique = 6,
+    /// <summary>docs/01 MR-08 — one property with several kinds of room.</summary>
+    Hotel = 7
 }
 
 /// <summary>Whether the guest books the whole place or shares it.</summary>
@@ -230,6 +232,15 @@ public class Listing
 
     public List<CalendarFeed> CalendarFeeds { get; set; } = [];
 
+    /// <summary>
+    /// docs/01 MR-08 — empty for an ordinary place. When it has rows the listing
+    /// is a hotel: a guest picks a room type and the count of that type decides
+    /// whether the dates are free.
+    /// </summary>
+    public List<RoomTypeOption> RoomTypes { get; set; } = [];
+
+    public bool IsHotel => Type == PlaceType.Hotel;
+
     // --- docs/01 CN-12: what the host has to declare before publishing.
     /// <summary>Business or rental licence number, where the area requires one.</summary>
     public string? LicenseNumber { get; set; }
@@ -427,6 +438,10 @@ public class Booking
     /// <summary>Starts the 72-hour retry window of docs/03 §1.</summary>
     public DateTime? BalanceFirstFailedAt { get; set; }
     public DateTime? BalanceLastAttemptAt { get; set; }
+
+    /// <summary>docs/01 MR-09 — which kind of room, for a hotel booking.</summary>
+    public int? RoomTypeId { get; set; }
+    public RoomTypeOption? RoomType { get; set; }
 
     /// <summary>When the 15-minute payment hold lapses (docs/03 §2).</summary>
     public DateTime? HoldExpiresAt { get; set; }

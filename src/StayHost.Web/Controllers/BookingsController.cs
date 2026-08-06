@@ -57,7 +57,8 @@ public class BookingsController(
             : new PartySize(Math.Max(1, req.Adults.Value), req.Children, req.Infants, req.Pets);
 
         // The nine checks of docs/03 §2, in order, stopping at the first failure.
-        var check = await rules.CheckAsync(listing, req.CheckIn, req.CheckOut, party, ct);
+        var check = await rules.CheckAsync(
+            listing, req.CheckIn, req.CheckOut, party, ct, roomTypeId: req.RoomTypeId);
         if (!check.Ok)
         {
             return check.Reason is Availability.Reason.DatesTaken or Availability.Reason.TurnoverTime
@@ -72,7 +73,8 @@ public class BookingsController(
 
         // Quoting and booking go through the same builder so the guest is charged
         // exactly what the room page showed them (docs/00 §6.8).
-        var quoteRequest = await catalog.BuildQuoteRequestAsync(listing.Id, req.CheckIn, req.CheckOut, party, ct);
+        var quoteRequest = await catalog.BuildQuoteRequestAsync(
+            listing.Id, req.CheckIn, req.CheckOut, party, ct, roomTypeId: req.RoomTypeId);
         var price = Pricing.Quote(quoteRequest!);
 
         var booking = new Booking
@@ -104,6 +106,7 @@ public class BookingsController(
             HostServiceFee = price.HostServiceFee,
             HostPayout = price.HostPayout,
             PriceLinesJson = SerializeLines(price.Lines),
+            RoomTypeId = req.RoomTypeId,
             CancellationTier = listing.CancellationTier,
             GuestName = req.GuestName ?? user.FullName,
             GuestEmail = req.GuestEmail ?? user.Email,
@@ -210,7 +213,7 @@ public class BookingsController(
         // ĐP-12 — price it again and stop if anything moved while the guest paid.
         var party = new PartySize(booking.Adults, booking.Children, booking.Infants, booking.Pets);
         var fresh = await catalog.BuildQuoteRequestAsync(
-            booking.ListingId, booking.CheckIn, booking.CheckOut, party, ct, booking.Id);
+            booking.ListingId, booking.CheckIn, booking.CheckOut, party, ct, booking.Id, booking.RoomTypeId);
         var price = Pricing.Quote(fresh!);
 
         if (price.Total != booking.Total)

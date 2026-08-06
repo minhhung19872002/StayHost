@@ -46,6 +46,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<ServiceOffering> ServiceOfferings => Set<ServiceOffering>();
     public DbSet<ServiceImage> ServiceImages => Set<ServiceImage>();
     public DbSet<ServiceBooking> ServiceBookings => Set<ServiceBooking>();
+    public DbSet<RoomTypeOption> RoomTypes => Set<RoomTypeOption>();
+    public DbSet<PriceMatchClaim> PriceMatchClaims => Set<PriceMatchClaim>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -212,6 +214,32 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 e.Property(money).HasColumnType("numeric(14,2)");
             e.HasOne(x => x.Slot).WithMany()
                 .HasForeignKey(x => x.SlotId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.GuestUser).WithMany()
+                .HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<RoomTypeOption>(e =>
+        {
+            e.ToTable("room_types");
+            e.HasIndex(x => new { x.ListingId, x.SortOrder });
+            e.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Summary).HasMaxLength(400);
+            e.Property(x => x.ImageUrl).HasMaxLength(600);
+            e.Property(x => x.PricePerNight).HasColumnType("numeric(14,2)");
+            e.HasOne(x => x.Listing).WithMany(l => l.RoomTypes)
+                .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<PriceMatchClaim>(e =>
+        {
+            e.ToTable("price_match_claims");
+            e.HasIndex(x => x.BookingId);
+            e.Property(x => x.CompetitorUrl).HasMaxLength(600).IsRequired();
+            e.Property(x => x.Decision).HasMaxLength(400);
+            foreach (var money in new[] { "CompetitorNightlyRate", "OurNightlyRate", "Difference" })
+                e.Property(money).HasColumnType("numeric(14,2)");
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.GuestUser).WithMany()
                 .HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -497,6 +525,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.GuestUser).WithMany()
                 .HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.RoomType).WithMany()
+                .HasForeignKey(x => x.RoomTypeId).OnDelete(DeleteBehavior.Restrict);
 
             // docs/03 §2 calls double-booking "yêu cầu bắt buộc, không phải tối
             // ưu hoá", so the guarantee lives in the database, not in a check

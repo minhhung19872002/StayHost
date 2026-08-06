@@ -146,7 +146,8 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
       tự huỷ suất thiếu người và hoàn tiền
 - [x] Dịch vụ (`MR-05`→`MR-07`): phạm vi phục vụ theo bán kính, đặt theo khung giờ
       kèm địa chỉ, dịch vụ đối tác ăn hoa hồng
-- [ ] Khách sạn (`MR-08`→`MR-10`)
+- [x] Khách sạn (`MR-08`→`MR-10`): nhiều loại phòng có tồn kho, chọn phòng rồi mới
+      thanh toán, cam kết giá tốt bù chênh lệch bằng số dư
 - [ ] Thẻ quà tặng, số dư khuyến mãi, giới thiệu bạn bè
 
 ---
@@ -154,7 +155,7 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (241 test)
+# Test nghiệp vụ (255 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

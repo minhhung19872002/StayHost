@@ -105,6 +105,8 @@ export const state = {
   payMethod: 'card',
   // docs/01 ĐP-06 — take a deposit now instead of the whole amount.
   payDeposit: false,
+  // docs/01 MR-09 — the room type chosen on a hotel listing.
+  roomTypeId: null,
   // docs/01 ĐP-07 — let other people pay their share instead of paying it all.
   splitBill: false,
   splitEmails: '',
@@ -489,12 +491,20 @@ export async function refreshQuote() {
       adults: state.guests.adults,
       children: state.guests.children,
       infants: state.guests.infants,
-      pets: state.guests.pets
+      pets: state.guests.pets,
+      roomTypeId: state.roomTypeId
     });
   } catch {
     state.quote = null;
   }
   notify();
+}
+
+/** docs/01 MR-09 — picking a room re-prices the panel against that room. */
+export function setRoom(roomTypeId) {
+  state.roomTypeId = roomTypeId;
+  notify();
+  refreshQuote();
 }
 
 /**
@@ -515,6 +525,8 @@ export async function holdDates(extra = {}) {
       children: state.guests.children,
       infants: state.guests.infants,
       pets: state.guests.pets,
+      // docs/01 MR-09 — a hotel booking carries the room the guest picked.
+      roomTypeId: state.roomTypeId,
       ...extra
     });
     set({ held });

@@ -198,6 +198,7 @@ public class ListingsController(CatalogService catalog, BookingService bookings)
         [FromQuery] int children = 0,
         [FromQuery] int infants = 0,
         [FromQuery] int pets = 0,
+        [FromQuery] int? roomTypeId = null,
         CancellationToken ct = default)
     {
         // `guests` is the legacy single number; adults/children win when supplied.
@@ -205,7 +206,7 @@ public class ListingsController(CatalogService catalog, BookingService bookings)
             ? PartySize.Of(guests) with { Infants = infants, Pets = pets }
             : new PartySize(Math.Max(1, adults.Value), children, infants, pets);
 
-        var quote = await catalog.QuoteAsync(listingId, checkIn, checkOut, party, ct);
+        var quote = await catalog.QuoteAsync(listingId, checkIn, checkOut, party, ct, roomTypeId);
         return quote is null ? NotFound() : Ok(quote);
     }
 }

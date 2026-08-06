@@ -16,7 +16,8 @@ public class CatalogService(StayHostDbContext db)
         (PlaceType.Homestay,  "homestay",  "Homestay",      "✿"),
         (PlaceType.House,     "house",     "Nhà nguyên căn", "⬡"),
         (PlaceType.Cabin,     "cabin",     "Cabin gỗ",      "⛰"),
-        (PlaceType.Boutique,  "boutique",  "Boutique",      "✧")
+        (PlaceType.Boutique,  "boutique",  "Boutique",      "✧"),
+        (PlaceType.Hotel,     "hotel",     "Khách sạn",     "▣")
     ];
 
     private static readonly RoomTypeDto[] RoomTypes =
@@ -774,7 +775,44 @@ public class CatalogService(StayHostDbContext db)
             rb,
             hostDto,
             similar.Select(l => ToCard(l, favIds, pricer)).ToList(),
-            unavailable);
+            unavailable,
+            await RoomTypesAsync(listing, checkIn, checkOut, ct));
+    }
+
+    /// <summary>
+    /// docs/01 MR-08 — the kinds of room a hotel has, with how many of each are
+    /// still free on the busiest night of the dates the guest is looking at.
+    /// </summary>
+    private async Task<List<HotelRoomDto>?> RoomTypesAsync(
+        Listing listing, DateOnly? checkIn, DateOnly? checkOut, CancellationToken ct)
+    {
+        if (!listing.IsHotel) return null;
+
+        var rooms = await db.RoomTypes
+            .Where(r => r.ListingId == listing.Id)
+            .OrderBy(r => r.SortOrder).ThenBy(r => r.Id)
+            .ToListAsync(ct);
+        if (rooms.Count == 0) return null;
+
+        var from = checkIn ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var to = checkOut ?? from.AddDays(1);
+
+        var taken = await db.Bookings
+            .Where(b => b.ListingId == listing.Id && b.RoomTypeId != null
+                        && BookingLifecycle.BlocksDates.Contains(b.Status)
+                        && b.CheckIn < to && from < b.CheckOut)
+            .Select(b => new { b.RoomTypeId, b.CheckIn, b.CheckOut })
+            .ToListAsync(ct);
+
+        return rooms.Select(r =>
+        {
+            var mine = taken.Where(t => t.RoomTypeId == r.Id).Select(t => (t.CheckIn, t.CheckOut)).ToList();
+            var peak = HotelRules.PeakOccupancy(from, to, mine);
+
+            return new HotelRoomDto(
+                r.Id, r.Name, r.Summary, r.Inventory, Math.Max(0, r.Inventory - peak),
+                r.MaxGuests, r.Beds, r.SizeSqm, r.PricePerNight, r.ImageUrl, r.FeatureList);
+        }).ToList();
     }
 
     /// <summary>
@@ -823,10 +861,16 @@ public class CatalogService(StayHostDbContext db)
     /// </param>
     public async Task<Pricing.Request?> BuildQuoteRequestAsync(
         int listingId, DateOnly checkIn, DateOnly checkOut, PartySize party, CancellationToken ct,
-        int? excludeBookingId = null)
+        int? excludeBookingId = null, int? roomTypeId = null)
     {
         var l = await db.Listings.FirstOrDefaultAsync(x => x.Id == listingId, ct);
         if (l is null) return null;
+
+        // docs/01 MR-09 — a hotel is priced by the room the guest picked.
+        var roomRate = roomTypeId is { } id
+            ? await db.RoomTypes.Where(r => r.Id == id && r.ListingId == listingId)
+                .Select(r => (decimal?)r.PricePerNight).FirstOrDefaultAsync(ct)
+            : null;
 
         var rules = await db.PriceRules
             .Where(r => r.ListingId == listingId && r.From <= checkOut && checkIn <= r.To)
@@ -846,14 +890,17 @@ public class CatalogService(StayHostDbContext db)
             Party = party,
             PriceRules = rules,
             TaxRules = await ActiveTaxRulesAsync(ct),
-            ListingBookingCount = soldStays
+            ListingBookingCount = soldStays,
+            NightlyRateOverride = roomRate
         };
     }
 
     public async Task<QuoteDto?> QuoteAsync(
-        int listingId, DateOnly checkIn, DateOnly checkOut, PartySize party, CancellationToken ct)
+        int listingId, DateOnly checkIn, DateOnly checkOut, PartySize party, CancellationToken ct,
+        int? roomTypeId = null)
     {
-        var request = await BuildQuoteRequestAsync(listingId, checkIn, checkOut, party, ct);
+        var request = await BuildQuoteRequestAsync(
+            listingId, checkIn, checkOut, party, ct, roomTypeId: roomTypeId);
         if (request is null) return null;
 
         var l = request.Listing;

@@ -185,6 +185,11 @@ export const api = {
   cancelExperienceBooking: id =>
     request(`/api/experiences/bookings/${id}/cancel`, { method: 'POST' }),
 
+  /* docs/01 MR-10 — best-price guarantee on a hotel room. */
+  submitPriceMatch: (bookingId, body) =>
+    request(`/api/bookings/${bookingId}/price-match`, { method: 'POST', body: JSON.stringify(body) }),
+  priceMatch: bookingId => request(`/api/bookings/${bookingId}/price-match`),
+
   /* docs/01 MR-05 → MR-07 — services, booked by the slot. */
   services: params => request(`/api/services${qs(params ?? {})}`),
   service: idOrSlug => request(`/api/services/${idOrSlug}`),

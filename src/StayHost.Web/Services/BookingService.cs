@@ -45,11 +45,17 @@ public class BookingService(StayHostDbContext db)
     /// </summary>
     public async Task<Availability.Result> CheckAsync(
         Listing listing, DateOnly checkIn, DateOnly checkOut, PartySize party, CancellationToken ct,
-        int? ignoreBookingId = null)
+        int? ignoreBookingId = null, int? roomTypeId = null)
     {
         // A window either side of the stay, wide enough for the turnover check.
         var from = checkIn.AddDays(-Math.Max(1, listing.TurnoverDays));
         var to = checkOut.AddDays(Math.Max(1, listing.TurnoverDays));
+
+        // docs/01 MR-08 — a hotel sells rooms of a kind, so an existing booking
+        // only stands in the way when it took the same kind of room and the
+        // property has run out of them. Availability is counted, not exclusive.
+        if (listing.IsHotel)
+            return await CheckHotelAsync(listing, checkIn, checkOut, party, roomTypeId, ignoreBookingId, ct);
 
         var stays = await db.Bookings
             .Where(b => b.ListingId == listing.Id
@@ -91,6 +97,59 @@ public class BookingService(StayHostDbContext db)
             ],
             MinNightsByDay = byDay
         });
+    }
+
+    /// <summary>
+    /// docs/01 MR-08 and MR-09 — the same nine checks, except that "is it
+    /// taken" becomes "are all the rooms of this kind taken on some night of
+    /// the stay". Everything else about a hotel booking is an ordinary booking.
+    /// </summary>
+    private async Task<Availability.Result> CheckHotelAsync(
+        Listing listing, DateOnly checkIn, DateOnly checkOut, PartySize party,
+        int? roomTypeId, int? ignoreBookingId, CancellationToken ct)
+    {
+        var rooms = await db.RoomTypes.Where(r => r.ListingId == listing.Id).ToListAsync(ct);
+        var room = rooms.FirstOrDefault(r => r.Id == roomTypeId);
+
+        var blocks = await db.CalendarBlocks
+            .Where(b => b.ListingId == listing.Id && b.From < checkOut && checkIn <= b.To)
+            .Select(b => new { b.From, b.To })
+            .ToListAsync(ct);
+
+        // Run the ordinary checks first, with no stays: notice, horizon, party
+        // size, night count and closed weekdays all still apply to a hotel.
+        var basic = Availability.Check(new Availability.Request
+        {
+            Listing = listing,
+            CheckIn = checkIn,
+            CheckOut = checkOut,
+            Party = party,
+            LocalNow = LocalNow(listing),
+            Occupied = [.. blocks.Select(b => new Availability.Occupied(b.From, b.To, true))],
+            MinNightsByDay = new Dictionary<DateOnly, int>()
+        });
+        if (!basic.Ok) return basic;
+
+        var taken = await db.Bookings
+            .Where(b => b.ListingId == listing.Id
+                        && b.RoomTypeId == roomTypeId
+                        && b.Id != (ignoreBookingId ?? 0)
+                        && BookingLifecycle.BlocksDates.Contains(b.Status)
+                        && b.CheckIn < checkOut && checkIn < b.CheckOut)
+            .Select(b => new { b.CheckIn, b.CheckOut })
+            .ToListAsync(ct);
+
+        var peak = HotelRules.PeakOccupancy(
+            checkIn, checkOut, taken.Select(t => (t.CheckIn, t.CheckOut)).ToList());
+
+        var check = HotelRules.CanBook(room, party.Counted, peak);
+        return check.Ok
+            ? Availability.Result.Pass
+            : Availability.Result.Fail(
+                check.Reason == HotelRules.Refusal.SoldOut
+                    ? Availability.Reason.DatesTaken
+                    : Availability.Reason.OverCapacity,
+                check.Message);
     }
 
     /// <summary>

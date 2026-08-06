@@ -629,9 +629,45 @@ public record ListingDetailDto(
     HostDto Host,
     IReadOnlyList<ListingCardDto> Similar,
     /// <summary>Nights already taken by a live booking; the picker greys these out.</summary>
-    IReadOnlyList<DateOnly> UnavailableDates);
+    IReadOnlyList<DateOnly> UnavailableDates,
+    /// <summary>
+    /// docs/01 MR-08 — empty for an ordinary place. When it has rows the guest
+    /// must pick one before checkout (MR-09).
+    /// </summary>
+    IReadOnlyList<HotelRoomDto>? RoomTypes = null);
+
+public record HotelRoomDto(
+    int Id,
+    string Name,
+    string Summary,
+    int Inventory,
+    /// <summary>How many of this kind are still free on the busiest night of the searched stay.</summary>
+    int Available,
+    int MaxGuests,
+    int Beds,
+    double SizeSqm,
+    decimal PricePerNight,
+    string? ImageUrl,
+    IReadOnlyList<string> Features);
 
 public record QuoteRequest(int ListingId, DateOnly CheckIn, DateOnly CheckOut, int Guests);
+
+/* ---- docs/01 MR-10: best-price guarantee -------------------------------- */
+
+public record PriceMatchDto(
+    int Id,
+    int BookingId,
+    string Reference,
+    string CompetitorUrl,
+    decimal CompetitorNightlyRate,
+    decimal OurNightlyRate,
+    decimal Difference,
+    string Status,
+    string StatusLabel,
+    string? Decision,
+    DateTime CreatedAt);
+
+public record SubmitPriceMatchRequest(string? CompetitorUrl, decimal CompetitorNightlyRate);
 
 /// <summary>One row of the price breakdown, already rounded. Negative means a reduction.</summary>
 public record PriceLineDto(string Key, string Label, decimal Amount);
@@ -695,7 +731,9 @@ public record CreateBookingRequest(
     int? Adults = null,
     int Children = 0,
     int Infants = 0,
-    int Pets = 0);
+    int Pets = 0,
+    /// <summary>docs/01 MR-09 — which kind of room, when the listing is a hotel.</summary>
+    int? RoomTypeId = null);
 
 public record BookingDto(
     int Id,

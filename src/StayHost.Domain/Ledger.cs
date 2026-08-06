@@ -297,6 +297,20 @@ public static class Ledger
         return entries;
     }
 
+    /// <summary>
+    /// Balance handed to a guest out of the platform's own pocket — a price
+    /// match (docs/01 MR-10), a goodwill gesture, a referral. No host is out of
+    /// anything, so it lands on the platform's expense line.
+    /// </summary>
+    public static List<LedgerEntry> GrantCredit(
+        Booking booking, decimal amount, string memo, DateTime at) =>
+        amount <= 0
+            ? []
+            : Post("credit-granted", booking.Id, at,
+                new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Debit, amount, memo),
+                new Leg(LedgerAccount.PromotionalCredit, LedgerDirection.Credit, amount,
+                    $"Số dư tặng khách đơn {booking.Reference}"));
+
     /// <summary>Cash actually leaves for the guest's card; the payable is cleared.</summary>
     public static List<LedgerEntry> SettleRefund(Booking booking, decimal amount, DateTime at) =>
         Post("refund-settled", booking.Id, at,

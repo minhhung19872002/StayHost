@@ -31,6 +31,14 @@ public static class Pricing
         public decimal PromotionAmount { get; init; }
         public string PromotionLabel { get; init; } = "Mã giảm giá";
 
+        /// <summary>
+        /// docs/01 MR-09 — the nightly rate of the room type the guest picked.
+        /// A hotel sells rooms at different prices under one listing; the
+        /// listing's own price is the cheapest of them, which is what search
+        /// shows. Null for an ordinary place.
+        /// </summary>
+        public decimal? NightlyRateOverride { get; init; }
+
         public PricingSettings Settings { get; init; } = PricingSettings.Current;
     }
 
@@ -84,8 +92,13 @@ public static class Pricing
     /// host's price for that exact day → seasonal rule → weekend rate → base.
     /// The weekend uplift is its own tier, not an addition on top of a season.
     /// </summary>
-    public static NightRate RateFor(Listing listing, DateOnly night, IReadOnlyCollection<PriceRule> rules)
+    public static NightRate RateFor(
+        Listing listing, DateOnly night, IReadOnlyCollection<PriceRule> rules, decimal? rateOverride = null)
     {
+        // A chosen room type replaces the base rate, but seasons and day
+        // overrides still win over it — a hotel raises prices at Tết too.
+        var basePrice = rateOverride ?? listing.PricePerNight;
+
         var day = rules.FirstOrDefault(r => r.Kind == PriceRuleKind.DayOverride && r.From <= night && night <= r.To);
         if (day is not null) return new(night, day.NightlyRate, "day");
 
@@ -93,9 +106,9 @@ public static class Pricing
         if (season is not null) return new(night, season.NightlyRate, "season");
 
         if (night.DayOfWeek is DayOfWeek.Friday or DayOfWeek.Saturday && listing.WeekendSurchargeRate > 0)
-            return new(night, Round(listing.PricePerNight * (1 + listing.WeekendSurchargeRate)), "weekend");
+            return new(night, Round(basePrice * (1 + listing.WeekendSurchargeRate)), "weekend");
 
-        return new(night, listing.PricePerNight, "base");
+        return new(night, basePrice, "base");
     }
 
     /* ------------------------------------------------------------ steps 2–4 */
@@ -154,7 +167,8 @@ public static class Pricing
 
         // Step 1 — room charge, night by night.
         var nightly = new List<NightRate>(nights);
-        for (var i = 0; i < nights; i++) nightly.Add(RateFor(l, req.CheckIn.AddDays(i), req.PriceRules));
+        for (var i = 0; i < nights; i++)
+            nightly.Add(RateFor(l, req.CheckIn.AddDays(i), req.PriceRules, req.NightlyRateOverride));
         var roomBeforeDiscount = nightly.Sum(n => n.Rate);
 
         // Steps 2–4 — discounts, applied to the room charge only.
