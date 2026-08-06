@@ -32,6 +32,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<ResolutionCase> ResolutionCases => Set<ResolutionCase>();
     public DbSet<ResolutionEvent> ResolutionEvents => Set<ResolutionEvent>();
     public DbSet<AdminAuditEntry> AdminAudit => Set<AdminAuditEntry>();
+    public DbSet<QuickReply> QuickReplies => Set<QuickReply>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -110,8 +111,19 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Body).HasMaxLength(4000).IsRequired();
             e.HasOne(x => x.Thread).WithMany(t => t.Messages)
                 .HasForeignKey(x => x.ThreadId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.Attachments).HasMaxLength(2000);
             e.HasOne(x => x.SenderUser).WithMany()
                 .HasForeignKey(x => x.SenderUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<QuickReply>(e =>
+        {
+            e.ToTable("quick_replies");
+            e.HasIndex(x => new { x.HostUserId, x.SortOrder });
+            e.Property(x => x.Title).HasMaxLength(80).IsRequired();
+            e.Property(x => x.Body).HasMaxLength(2000).IsRequired();
+            e.HasOne(x => x.HostUser).WithMany()
+                .HasForeignKey(x => x.HostUserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<PriceRule>(e =>

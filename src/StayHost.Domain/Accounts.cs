@@ -199,6 +199,25 @@ public class Message
     /// cancelled, check-in tomorrow). Rendered differently and never masked.
     /// </summary>
     public bool IsSystem { get; set; }
+
+    /// <summary>docs/01 TN-02 — photo URLs sent with the message, newline-separated.</summary>
+    public string Attachments { get; set; } = "";
+}
+
+/// <summary>
+/// docs/01 TN-08 — a phrase a host reuses often enough to be worth saving.
+/// Personal to the host; never shown to guests as a list.
+/// </summary>
+public class QuickReply
+{
+    public int Id { get; set; }
+    public int HostUserId { get; set; }
+    public User? HostUser { get; set; }
+
+    public string Title { get; set; } = "";
+    public string Body { get; set; } = "";
+    public int SortOrder { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
 /// <summary>

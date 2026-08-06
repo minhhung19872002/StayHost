@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
-import { set, loadThreads, openThread, sendMessage } from '../lib/store.js';
+import { set, loadThreads, openThread, sendMessage, respondBooking, toast } from '../lib/store.js';
+import { api } from '../lib/api.js';
+import { money, longDate } from '../lib/format.js';
 
 const TIME = new Intl.DateTimeFormat('vi-VN', {
   day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
@@ -76,6 +78,9 @@ export function Messages() {
 function Conversation({ thread, onOpenListing }) {
   const s = thread.summary;
   const boxRef = useRef(null);
+  const inputRef = useRef(null);
+  const [pending, setPending] = useState([]);
+  const [uploading, setUploading] = useState(false);
 
   // New messages arrive at the bottom, so the pane follows them.
   useEffect(() => {
@@ -87,9 +92,31 @@ function Conversation({ thread, onOpenListing }) {
     e.preventDefault();
     const input = e.currentTarget.body;
     const body = input.value.trim();
-    if (!body) return;
+    if (!body && !pending.length) return;
+
     input.value = '';
-    await sendMessage({ threadId: s.id, body });
+    setPending([]);
+    await sendMessage({ threadId: s.id, body, attachments: pending });
+  };
+
+  // docs/01 TN-02 — photos go through the same upload endpoint as listing images.
+  const attach = async files => {
+    const list = Array.from(files ?? []);
+    if (!list.length) return;
+
+    setUploading(true);
+    try {
+      const form = new FormData();
+      list.slice(0, 6).forEach(f => form.append('files', f));
+      const res = await fetch('/api/uploads/images', { method: 'POST', body: form, credentials: 'same-origin' });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(payload?.message ?? 'Tải ảnh thất bại.');
+      setPending(p => [...p, ...payload.urls].slice(0, 6));
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   return <>
@@ -101,6 +128,8 @@ function Conversation({ thread, onOpenListing }) {
       </div>
       <button className="btn btn-outline btn-sm" onClick={() => onOpenListing(s.listingSlug)}>Xem chỗ nghỉ</button>
     </header>
+
+    <BookingCard booking={thread.booking} />
 
     {!thread.contactsUnlocked && (
       <div className="inbox-notice">
@@ -118,7 +147,16 @@ function Conversation({ thread, onOpenListing }) {
                   <time>{TIME.format(new Date(m.sentAt))}</time>
                 </div>
               : <div className={`bubble ${m.mine ? 'mine' : ''}`} key={m.id}>
-                  <p>{m.body}</p>
+                  {m.body && <p>{m.body}</p>}
+                  {!!m.attachments?.length && (
+                    <div className="bubble-photos">
+                      {m.attachments.map((url, i) => (
+                        <a href={url} target="_blank" rel="noreferrer" key={i}>
+                          <img src={url} alt={`Ảnh ${i + 1}`} loading="lazy" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
                   {m.contactsMasked && (
                     <span className="bubble-note">Đã che thông tin liên hệ cho tới khi đơn được xác nhận.</span>
                   )}
@@ -128,9 +166,100 @@ function Conversation({ thread, onOpenListing }) {
         : <div className="inbox-empty"><p>Hãy gửi lời chào đầu tiên.</p></div>}
     </div>
 
+    <QuickReplies replies={thread.quickReplies} onPick={body => {
+      if (inputRef.current) {
+        inputRef.current.value = body;
+        inputRef.current.focus();
+      }
+    }} />
+
+    {!!pending.length && (
+      <div className="bubble-photos" style={{ padding: '8px 16px 0' }}>
+        {pending.map((url, i) => (
+          <img src={url} alt={`Sẽ gửi ${i + 1}`} key={i}
+               onClick={() => setPending(p => p.filter((_, x) => x !== i))}
+               title="Bấm để bỏ" style={{ cursor: 'pointer' }} />
+        ))}
+      </div>
+    )}
+
     <form className="inbox-compose" onSubmit={send}>
-      <input name="body" placeholder="Nhập tin nhắn…" autoComplete="off" required />
+      <label className="btn btn-outline btn-sm" style={{ cursor: 'pointer' }} title="Gửi ảnh">
+        <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple hidden
+               onChange={e => { attach(e.target.files); e.target.value = ''; }} />
+        {uploading ? '…' : '📷'}
+      </label>
+      <input name="body" ref={inputRef} placeholder="Nhập tin nhắn…" autoComplete="off" />
       <button type="submit" className="btn btn-primary btn-sm">Gửi</button>
     </form>
   </>;
+}
+
+/** docs/01 TN-03 — the order this conversation is about, with the action to take. */
+function BookingCard({ booking }) {
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+  if (!booking) return null;
+
+  const answer = async decision => {
+    setBusy(true);
+    await respondBooking(booking.id, decision);
+    setBusy(false);
+  };
+
+  return (
+    <div className="inbox-booking">
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <b>Đơn {booking.reference}</b>
+        <div style={{ color: 'var(--ink-muted)' }}>
+          {longDate(booking.checkIn)} → {longDate(booking.checkOut)} · {booking.nights} đêm ·
+          {' '}{booking.guests} khách · {money(booking.total)}
+        </div>
+      </div>
+      <span className={`badge ${booking.statusBadge}`}>{booking.statusLabel}</span>
+      {booking.needsHostAnswer ? <>
+        <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => answer('confirm')}>Xác nhận</button>
+        <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => answer('decline')}>Từ chối</button>
+      </> : (
+        <button className="btn btn-outline btn-sm" onClick={() => navigate(`/trips/${booking.id}`)}>Xem đơn</button>
+      )}
+    </div>
+  );
+}
+
+/** docs/01 TN-08 — phrases the host reuses, one tap to drop into the box. */
+function QuickReplies({ replies, onPick }) {
+  const [items, setItems] = useState(replies ?? []);
+  useEffect(() => { setItems(replies ?? []); }, [replies]);
+
+  const add = async () => {
+    const title = prompt('Tên mẫu (ví dụ: Hướng dẫn nhận phòng)');
+    if (!title?.trim()) return;
+    const body = prompt('Nội dung mẫu');
+    if (!body?.trim()) return;
+
+    try {
+      const saved = await api.addQuickReply({ title: title.trim(), body: body.trim(), sortOrder: items.length });
+      setItems(x => [...x, saved]);
+      toast('Đã lưu mẫu trả lời.');
+    } catch (err) { toast(err.message); }
+  };
+
+  // Guests never see this row: the server sends an empty list to them.
+  if (!replies) return null;
+
+  return (
+    <div className="quick-replies">
+      {items.map(r => (
+        <button className="pill" key={r.id} onClick={() => onPick(r.body)}
+                onContextMenu={async e => {
+                  e.preventDefault();
+                  if (!confirm(`Xoá mẫu "${r.title}"?`)) return;
+                  await api.deleteQuickReply(r.id);
+                  setItems(x => x.filter(y => y.id !== r.id));
+                }}>{r.title}</button>
+      ))}
+      <button className="pill" onClick={add}>+ Mẫu trả lời</button>
+    </div>
+  );
 }

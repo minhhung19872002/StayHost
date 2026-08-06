@@ -475,6 +475,48 @@ public class BookingsController(
         });
     }
 
+    /// <summary>
+    /// docs/01 ĐG-08 — the writer may correct a review inside 48 hours, and only
+    /// while the other side has not written theirs. Once it is public, it stands.
+    /// </summary>
+    [HttpPut("{id:int}/review")]
+    public async Task<IActionResult> EditReview(int id, [FromBody] SubmitReviewRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập để sửa đánh giá." });
+
+        var review = await db.Reviews
+            .FirstOrDefaultAsync(r => r.BookingId == id && r.AuthorUserId == user.Id, ct);
+        if (review is null) return NotFound();
+
+        if (review.PublishedAt is not null)
+            return BadRequest(new { message = "Đánh giá đã công khai nên không sửa được nữa." });
+
+        if (review.EditableUntil is { } until && DateTime.UtcNow > until)
+            return BadRequest(new { message = "Đã quá 48 giờ kể từ khi gửi nên không sửa được nữa." });
+
+        var text = (req.Text ?? "").Trim();
+        if (text.Length < 10) return BadRequest(new { message = "Nội dung đánh giá cần tối thiểu 10 ký tự." });
+
+        var guard = ContentGuard.CheckReview(text);
+        if (!guard.Ok) return BadRequest(new { message = guard.Message });
+
+        double Clamp(double v) => Math.Clamp(v, 1, 5);
+
+        review.Text = text;
+        review.Rating = Clamp(req.Rating);
+        review.Cleanliness = Clamp(req.Cleanliness);
+        review.Accuracy = Clamp(req.Accuracy);
+        review.CheckIn = Clamp(req.CheckIn);
+        review.Communication = Clamp(req.Communication);
+        review.Location = Clamp(req.Location);
+        review.Value = Clamp(req.Value);
+        review.PrivateNote = string.IsNullOrWhiteSpace(req.PrivateNote) ? null : req.PrivateNote.Trim();
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     /// <summary>Single booking, used by the trip detail page and the printable receipt.</summary>
     [HttpGet("{id:int}")]
     public async Task<ActionResult<BookingDto>> Detail(int id, CancellationToken ct)

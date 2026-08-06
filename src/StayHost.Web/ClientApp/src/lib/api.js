@@ -90,6 +90,10 @@ export const api = {
   review: (bookingId, body) =>
     request(`/api/bookings/${bookingId}/review`, { method: 'POST', body: JSON.stringify(body) }),
 
+  /** docs/01 ĐG-08 — correct a review inside 48 hours, before it goes public. */
+  editReview: (bookingId, body) =>
+    request(`/api/bookings/${bookingId}/review`, { method: 'PUT', body: JSON.stringify(body) }),
+
   /* ------------------------------------------------------------- account */
   me: () => request('/api/account/me'),
   register: body => request('/api/account/register', { method: 'POST', body: JSON.stringify(body) }),
@@ -124,6 +128,7 @@ export const api = {
 
   /* ------------------------------------------------------ host operations */
   hostToday: () => request('/api/host/today'),
+  multiCalendar: params => request(`/api/host/calendar${qs(params ?? {})}`),
   hostRules: id => request(`/api/host/listings/${id}/rules`),
   saveHostRules: (id, body) =>
     request(`/api/host/listings/${id}/rules`, { method: 'PUT', body: JSON.stringify(body) }),
@@ -161,5 +166,10 @@ export const api = {
 
   threads: () => request('/api/messages/threads'),
   thread: id => request(`/api/messages/threads/${id}`),
-  sendMessage: body => request('/api/messages', { method: 'POST', body: JSON.stringify(body) })
+  sendMessage: body => request('/api/messages', { method: 'POST', body: JSON.stringify(body) }),
+
+  /* docs/01 TN-08 — the host's saved phrases. */
+  quickReplies: () => request('/api/messages/quick-replies'),
+  addQuickReply: body => request('/api/messages/quick-replies', { method: 'POST', body: JSON.stringify(body) }),
+  deleteQuickReply: id => request(`/api/messages/quick-replies/${id}`, { method: 'DELETE' })
 };

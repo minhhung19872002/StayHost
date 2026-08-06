@@ -83,6 +83,73 @@ public class HostOperationsController(StayHostDbContext db, AuthService auth) : 
             waiting.Count));
     }
 
+    /* ------------------------------------------------------------- QL-04 */
+
+    /// <summary>
+    /// docs/01 QL-04 — every listing's availability side by side for one date
+    /// range, so a host with several places can see the whole month at once.
+    /// </summary>
+    [HttpGet("calendar")]
+    public async Task<ActionResult<MultiCalendarDto>> MultiCalendar(
+        [FromQuery] DateOnly? from, [FromQuery] int days = 30, CancellationToken ct = default)
+    {
+        var (user, profile) = await ResolveAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+        if (profile is null) return Ok(new MultiCalendarDto(DateOnly.FromDateTime(DateTime.UtcNow), 0, []));
+
+        var start = from ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var span = Math.Clamp(days, 7, 90);
+        var end = start.AddDays(span);
+
+        var listings = await db.Listings
+            .Where(l => l.HostId == profile.Id)
+            .OrderBy(l => l.Title)
+            .ToListAsync(ct);
+        var ids = listings.Select(l => l.Id).ToList();
+
+        var stays = await db.Bookings
+            .Where(b => ids.Contains(b.ListingId)
+                        && BookingLifecycle.BlocksDates.Contains(b.Status)
+                        && b.CheckIn < end && start < b.CheckOut)
+            .Select(b => new { b.ListingId, b.CheckIn, b.CheckOut, b.Reference, b.Guests })
+            .ToListAsync(ct);
+
+        var blocks = await db.CalendarBlocks
+            .Where(b => ids.Contains(b.ListingId) && b.From <= end && start <= b.To)
+            .Select(b => new { b.ListingId, b.From, b.To })
+            .ToListAsync(ct);
+
+        var rules = await db.PriceRules
+            .Where(r => ids.Contains(r.ListingId) && r.From <= end && start <= r.To)
+            .ToListAsync(ct);
+
+        var rows = new List<MultiCalendarRowDto>();
+        foreach (var listing in listings)
+        {
+            var booked = new Dictionary<DateOnly, string>();
+            foreach (var s in stays.Where(x => x.ListingId == listing.Id))
+                for (var d = s.CheckIn; d < s.CheckOut; d = d.AddDays(1)) booked[d] = s.Reference;
+
+            var blocked = new HashSet<DateOnly>();
+            foreach (var b in blocks.Where(x => x.ListingId == listing.Id))
+                for (var d = b.From; d <= b.To; d = d.AddDays(1)) blocked.Add(d);
+
+            var listingRules = rules.Where(r => r.ListingId == listing.Id).ToList();
+            var cells = new List<MultiCalendarCellDto>(span);
+
+            for (var d = start; d < end; d = d.AddDays(1))
+            {
+                var rate = Pricing.RateFor(listing, d, listingRules);
+                var state = booked.ContainsKey(d) ? "booked" : blocked.Contains(d) ? "blocked" : "open";
+                cells.Add(new MultiCalendarCellDto(d, rate.Rate, rate.Source, state, booked.GetValueOrDefault(d)));
+            }
+
+            rows.Add(new MultiCalendarRowDto(listing.Id, listing.Title, listing.IsPublished, cells));
+        }
+
+        return Ok(new MultiCalendarDto(start, span, rows));
+    }
+
     /* --------------------------------------------------------- QL-06/07 */
 
     /// <summary>

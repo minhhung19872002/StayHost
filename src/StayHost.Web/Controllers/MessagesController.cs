@@ -52,11 +52,7 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
             await db.SaveChangesAsync(ct);
         }
 
-        var open = await ContactsUnlockedAsync(thread, ct);
-        return Ok(new ThreadDetailDto(
-            Summarize(thread, user.Id, open),
-            thread.Messages.OrderBy(m => m.SentAt).Select(m => ToDto(m, user.Id, open)).ToList(),
-            open));
+        return Ok(await DetailAsync(thread, user, ct));
     }
 
     [HttpPost]
@@ -66,7 +62,8 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
 
         var body = (req.Body ?? "").Trim();
-        if (body.Length == 0) return BadRequest(new { message = "Tin nhắn trống." });
+        var hasPhotos = (req.Attachments ?? []).Any(u => !string.IsNullOrWhiteSpace(u));
+        if (body.Length == 0 && !hasPhotos) return BadRequest(new { message = "Tin nhắn trống." });
         if (body.Length > 4000) return BadRequest(new { message = "Tin nhắn quá dài." });
 
         MessageThread? thread;
@@ -108,7 +105,15 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
             }
         }
 
-        thread.Messages.Add(new Message { ThreadId = thread.Id, SenderUserId = user.Id, Body = body });
+        // docs/01 TN-02 — photos ride along with the text, capped so one message
+        // cannot become an album.
+        var attachments = string.Join('\n',
+            (req.Attachments ?? []).Where(u => !string.IsNullOrWhiteSpace(u)).Select(u => u.Trim()).Take(6));
+
+        thread.Messages.Add(new Message
+        {
+            ThreadId = thread.Id, SenderUserId = user.Id, Body = body, Attachments = attachments
+        });
         thread.LastMessageAt = DateTime.UtcNow;
 
         var recipientId = thread.GuestUserId == user.Id ? thread.HostUserId : thread.GuestUserId;
@@ -122,11 +127,95 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
         await db.SaveChangesAsync(ct);
 
         var fresh = await LoadThreadAsync(thread.Id, ct);
-        var open = await ContactsUnlockedAsync(fresh!, ct);
-        return Ok(new ThreadDetailDto(
-            Summarize(fresh!, user.Id, open),
-            fresh!.Messages.OrderBy(m => m.SentAt).Select(m => ToDto(m, user.Id, open)).ToList(),
-            open));
+        return Ok(await DetailAsync(fresh!, user, ct));
+    }
+
+    /// <summary>
+    /// One place builds the thread payload: the masked messages, the order card
+    /// of docs/01 TN-03, and the host's saved phrases of TN-08.
+    /// </summary>
+    private async Task<ThreadDetailDto> DetailAsync(MessageThread thread, User viewer, CancellationToken ct)
+    {
+        var open = await ContactsUnlockedAsync(thread, ct);
+        var viewerIsHost = thread.HostUserId == viewer.Id;
+
+        // TN-03 — the most relevant order for these two on this listing: the live
+        // one if there is one, otherwise the most recent.
+        var booking = await db.Bookings
+            .Where(b => b.ListingId == thread.ListingId && b.GuestUserId == thread.GuestUserId)
+            .OrderByDescending(b => BookingLifecycle.BlocksDates.Contains(b.Status))
+            .ThenByDescending(b => b.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        var quickReplies = viewerIsHost
+            ? await db.QuickReplies
+                .Where(q => q.HostUserId == viewer.Id)
+                .OrderBy(q => q.SortOrder).ThenBy(q => q.Id)
+                .Select(q => new QuickReplyDto(q.Id, q.Title, q.Body, q.SortOrder))
+                .ToListAsync(ct)
+            : [];
+
+        return new ThreadDetailDto(
+            Summarize(thread, viewer.Id, open),
+            thread.Messages.OrderBy(m => m.SentAt).Select(m => ToDto(m, viewer.Id, open)).ToList(),
+            open,
+            booking is null ? null : new ThreadBookingDto(
+                booking.Id, booking.Reference, booking.CheckIn, booking.CheckOut,
+                booking.Nights, booking.Guests, booking.Total,
+                BookingLifecycle.Label(booking.Status), BookingLifecycle.BadgeClass(booking.Status),
+                viewerIsHost && booking.Status == BookingStatus.PendingHostApproval),
+            quickReplies);
+    }
+
+    /* ------------------------------------------------------------- TN-08 */
+
+    [HttpGet("quick-replies")]
+    public async Task<ActionResult<IReadOnlyList<QuickReplyDto>>> QuickReplies(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        return Ok(await db.QuickReplies
+            .Where(q => q.HostUserId == user.Id)
+            .OrderBy(q => q.SortOrder).ThenBy(q => q.Id)
+            .Select(q => new QuickReplyDto(q.Id, q.Title, q.Body, q.SortOrder))
+            .ToListAsync(ct));
+    }
+
+    [HttpPost("quick-replies")]
+    public async Task<ActionResult<QuickReplyDto>> AddQuickReply(
+        [FromBody] SaveQuickReplyRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var title = (req.Title ?? "").Trim();
+        var body = (req.Body ?? "").Trim();
+        if (title.Length == 0 || body.Length == 0)
+            return BadRequest(new { message = "Mẫu trả lời cần cả tên và nội dung." });
+
+        var reply = new QuickReply
+        {
+            HostUserId = user.Id, Title = title, Body = body, SortOrder = req.SortOrder
+        };
+        db.QuickReplies.Add(reply);
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new QuickReplyDto(reply.Id, reply.Title, reply.Body, reply.SortOrder));
+    }
+
+    [HttpDelete("quick-replies/{id:int}")]
+    public async Task<IActionResult> DeleteQuickReply(int id, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var reply = await db.QuickReplies.FirstOrDefaultAsync(q => q.Id == id && q.HostUserId == user.Id, ct);
+        if (reply is null) return NoContent();
+
+        db.QuickReplies.Remove(reply);
+        await db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     /// <summary>
@@ -198,7 +287,8 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
     private static MessageDto ToDto(Message m, int viewerId, bool contactsUnlocked) => new(
         m.Id, m.SenderUserId, m.SenderUser?.FullName ?? "",
         Visible(m, contactsUnlocked), m.SentAt, m.SenderUserId == viewerId, m.IsSystem,
-        !contactsUnlocked && !m.IsSystem && ContactGuardHit(m.Body));
+        !contactsUnlocked && !m.IsSystem && ContactGuardHit(m.Body),
+        m.Attachments.Split('\n', StringSplitOptions.RemoveEmptyEntries));
 
     /// <summary>
     /// What actually goes over the wire. The stored text is never altered — the

@@ -8,10 +8,11 @@ import { money, longDate } from '../lib/format.js';
 import { Icon } from '../components/Icon.jsx';
 import { Today } from './hosting/Today.jsx';
 import { Payout, SuperhostProgress } from './hosting/Payout.jsx';
+import { MultiCalendar } from './hosting/MultiCalendar.jsx';
 
 const TABS = [
   ['today', 'Hôm nay'], ['overview', 'Tổng quan'], ['listings', 'Chỗ nghỉ'],
-  ['bookings', 'Đơn đặt'], ['earnings', 'Doanh thu'], ['payout', 'Nhận tiền']
+  ['calendar', 'Lịch'], ['bookings', 'Đơn đặt'], ['earnings', 'Doanh thu'], ['payout', 'Nhận tiền']
 ];
 
 export function Hosting() {
@@ -94,6 +95,7 @@ export function Hosting() {
           {d.listings.map(l => <ListingCard key={l.id} listing={l} navigate={navigate} />)}
         </div>
       )}
+      {tab === 'calendar' && <MultiCalendar />}
       {tab === 'bookings' && <Bookings d={d} navigate={navigate} />}
       {tab === 'earnings' && <Earnings d={d} />}
       {tab === 'payout' && <><Payout /><SuperhostProgress /></>}

@@ -188,6 +188,18 @@ public record TodayItemDto(
     DateOnly CheckIn, DateOnly CheckOut, int Nights, int Guests,
     string What, string StatusLabel, string StatusBadge);
 
+/// <summary>docs/01 QL-04 — every listing's month, side by side.</summary>
+public record MultiCalendarDto(DateOnly From, int Days, IReadOnlyList<MultiCalendarRowDto> Rows);
+
+public record MultiCalendarRowDto(
+    int ListingId, string Title, bool IsPublished, IReadOnlyList<MultiCalendarCellDto> Days);
+
+public record MultiCalendarCellDto(
+    DateOnly Date, decimal Rate, string RateSource,
+    /// <summary>open / booked / blocked.</summary>
+    string State,
+    string? BookingReference);
+
 /// <summary>docs/01 QL-06 and QL-07 — the rules that decide who can book which nights.</summary>
 public record CalendarRulesDto(
     int MinNights,
@@ -364,15 +376,30 @@ public record MessageDto(
     /// <summary>Written by the platform, not a person (docs/01 TN-04).</summary>
     bool IsSystem,
     /// <summary>True when contact details in this message are currently masked (TN-07).</summary>
-    bool ContactsMasked);
+    bool ContactsMasked,
+    /// <summary>docs/01 TN-02 — photos sent with the message.</summary>
+    IReadOnlyList<string> Attachments);
 
 public record ThreadDetailDto(
     ThreadSummaryDto Summary,
     IReadOnlyList<MessageDto> Messages,
     /// <summary>False until the guest has a confirmed booking at this listing.</summary>
-    bool ContactsUnlocked);
+    bool ContactsUnlocked,
+    /// <summary>docs/01 TN-03 — the order this conversation is about, if there is one.</summary>
+    ThreadBookingDto? Booking,
+    /// <summary>docs/01 TN-08 — the host's saved phrases; empty for a guest.</summary>
+    IReadOnlyList<QuickReplyDto> QuickReplies);
 
-public record SendMessageRequest(int? ThreadId, int? ListingId, string Body);
+/// <summary>docs/01 TN-03 — a compact order card, with the actions worth taking from here.</summary>
+public record ThreadBookingDto(
+    int Id, string Reference, DateOnly CheckIn, DateOnly CheckOut, int Nights, int Guests,
+    decimal Total, string StatusLabel, string StatusBadge, bool NeedsHostAnswer);
+
+public record QuickReplyDto(int Id, string Title, string Body, int SortOrder);
+
+public record SaveQuickReplyRequest(string Title, string Body, int SortOrder);
+
+public record SendMessageRequest(int? ThreadId, int? ListingId, string Body, IReadOnlyList<string>? Attachments = null);
 
 public record ReplyToReviewRequest(string Text);
 
