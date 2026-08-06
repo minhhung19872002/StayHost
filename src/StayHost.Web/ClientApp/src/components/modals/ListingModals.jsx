@@ -5,6 +5,7 @@ import { money, longDate, parseIso, isoOf } from '../../lib/format.js';
 import { AmenityIcon } from '../Icon.jsx';
 import { HostReply, StarDistribution } from '../../pages/Detail.jsx';
 import { api } from '../../lib/api.js';
+import { useSlideshow } from '../../lib/useSlideshow.js';
 import { Modal } from './Modal.jsx';
 
 const PHOTO_CAPTIONS = ['Ảnh chính', 'Phòng khách', 'Phòng ngủ', 'Không gian ngoài trời', 'Phòng tắm'];
@@ -17,32 +18,7 @@ export function PhotosModal() {
   const index = state.photoIndex;
 
   // A focused index turns the grid into a single-photo viewer with arrows.
-  if (index != null) {
-    const total = c.images.length;
-    const step = dir => set({ photoIndex: Math.min(total - 1, Math.max(0, index + dir)) });
-
-    return (
-      <Modal title={`${index + 1} / ${total}`} size="wide" foot={<>
-        <button className="text-btn" onClick={() => set({ photoIndex: null })}>← Xem dạng lưới</button>
-        <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>{index + 1} trong {total} ảnh</span>
-      </>}>
-        <div className="lightbox-stage">
-          <button className="lightbox-nav prev" onClick={() => step(-1)} aria-label="Ảnh trước" disabled={index === 0}>‹</button>
-          <img src={c.images[index]} alt={`${c.title} — ảnh ${index + 1}`} />
-          <button className="lightbox-nav next" onClick={() => step(1)} aria-label="Ảnh tiếp theo" disabled={index === total - 1}>›</button>
-        </div>
-        <p className="lightbox-caption">{PHOTO_CAPTIONS[index] ?? `Ảnh ${index + 1}`}</p>
-        <div className="lightbox-strip">
-          {c.images.map((src, i) => (
-            <button key={i} className={`strip-thumb ${i === index ? 'is-on' : ''}`}
-                    onClick={() => set({ photoIndex: i })} aria-label={`Xem ảnh ${i + 1}`}>
-              <img src={src} alt="" loading="lazy" />
-            </button>
-          ))}
-        </div>
-      </Modal>
-    );
-  }
+  if (index != null) return <PhotoLightbox card={c} index={index} />;
 
   return (
     <Modal title={`${c.title} — ${c.images.length} ảnh`} size="wide">
@@ -54,6 +30,60 @@ export function PhotosModal() {
             </button>
             <figcaption>{PHOTO_CAPTIONS[i] ?? `Ảnh ${i + 1}`}</figcaption>
           </figure>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * The photo viewer. Moving between photos uses the slide-and-zoom of
+ * codepen.io/daniesy/pen/JoWOpR: the one arriving grows from half size while the
+ * one being replaced slides out the side you came from.
+ */
+function PhotoLightbox({ card, index }) {
+  const total = card.images.length;
+  const slides = useSlideshow(index, i => set({ photoIndex: i }), total);
+  const { idx } = slides;
+
+  // Arrow keys are how anybody looks through photos at this size.
+  useEffect(() => {
+    const onKey = e => {
+      if (e.key === 'ArrowLeft') slides.step(-1);
+      else if (e.key === 'ArrowRight') slides.step(1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  return (
+    <Modal title={`${idx + 1} / ${total}`} size="wide" foot={<>
+      <button className="text-btn" onClick={() => set({ photoIndex: null })}>← Xem dạng lưới</button>
+      <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>{idx + 1} trong {total} ảnh</span>
+    </>}>
+      <div className="lightbox-stage">
+        <button className="lightbox-nav prev" onClick={() => slides.step(-1)} aria-label="Ảnh trước">‹</button>
+
+        {card.images.map((src, i) =>
+          // Only the photo on screen, its two neighbours and the one still
+          // sliding away are worth downloading.
+          slides.isMounted(i) || Math.abs(i - idx) === 1 || Math.abs(i - idx) === total - 1
+            ? <img key={i} src={src} alt={`${card.title} — ảnh ${i + 1}`}
+                   className={slides.frameClass(i)} decoding="async" />
+            : <img key={i} alt="" aria-hidden="true" className="is-deferred" />
+        )}
+
+        <button className="lightbox-nav next" onClick={() => slides.step(1)} aria-label="Ảnh tiếp theo">›</button>
+      </div>
+
+      <p className="lightbox-caption">{PHOTO_CAPTIONS[idx] ?? `Ảnh ${idx + 1}`}</p>
+
+      <div className="lightbox-strip">
+        {card.images.map((src, i) => (
+          <button key={i} className={`strip-thumb ${i === idx ? 'is-on' : ''}`}
+                  onClick={() => slides.goTo(i)} aria-label={`Xem ảnh ${i + 1}`}>
+            <img src={src} alt="" loading="lazy" />
+          </button>
         ))}
       </div>
     </Modal>

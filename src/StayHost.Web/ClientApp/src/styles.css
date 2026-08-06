@@ -1140,8 +1140,34 @@ select.field { width: 100%; padding: 10px 12px; }
 
 /* --------------------------------------------------------------- lightbox */
 .lightbox-open { border: 0; background: transparent; padding: 0; width: 100%; display: block; cursor: zoom-in; }
-.lightbox-stage { position: relative; background: #111; border-radius: 14px; overflow: hidden; }
-.lightbox-stage img { width: 100%; max-height: min(62vh, 620px); object-fit: contain; display: block; }
+/*
+ * The stage keeps its own height because every photo in it is taken out of the
+ * flow: left to size itself off the current image it would collapse the moment
+ * the frames became absolute, and jump about as portraits and landscapes follow
+ * one another.
+ */
+.lightbox-stage {
+  position: relative; background: #111; border-radius: 14px; overflow: hidden;
+  height: min(62vh, 620px);
+}
+.lightbox-stage img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; display: block;
+  opacity: 0; transform: scale(.5);
+  transition: transform .35s ease, opacity .35s ease;
+}
+.lightbox-stage img.is-current { opacity: 1; transform: scale(1); z-index: 1; }
+.lightbox-stage img.is-leaving { opacity: 1; z-index: 2; }
+.lightbox-stage img.is-leaving.to-left { transform: translateX(-100%) scale(1); }
+.lightbox-stage img.is-leaving.to-right { transform: translateX(100%) scale(1); }
+.lightbox-stage img.is-deferred { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Photographs flying across the screen is what this setting is asking us not to do. */
+  .lightbox-stage img { transition: opacity .2s ease; transform: none; }
+  .lightbox-stage img.is-current { transform: none; }
+  .lightbox-stage img.is-leaving { opacity: 0; transform: none; }
+}
 .lightbox-nav {
   position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px;
   border-radius: 50%; border: 0; background: rgba(255,255,255,.92); font-size: 20px; line-height: 1;

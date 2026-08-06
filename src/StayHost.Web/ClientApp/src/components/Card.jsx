@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSlideshow } from '../lib/useSlideshow.js';
 import { useStore } from '../lib/useStore.js';
 import { state as store, toggleFavorite } from '../lib/store.js';
 import { money, shortDate } from '../lib/format.js';
@@ -17,50 +18,20 @@ export function Card({ card, variant, lazy = false }) {
   const state = useStore();
   const navigate = useNavigate();
   const [index, setIndex] = useState(0);
-  // The frame being left behind, and which way it is leaving. It keeps its own
-  // class for the length of the transition and is then dropped.
-  const [leaving, setLeaving] = useState(null);
 
   const images = card.images?.length ? card.images : [''];
-  const idx = Math.min(index, images.length - 1);
   const badge = card.isGuestFavorite ? 'KHÁCH YÊU THÍCH' : card.isSuperhost ? 'SIÊU CHỦ NHÀ' : null;
+
+  const slides = useSlideshow(index, setIndex, images.length);
+  const { idx, frameClass } = slides;
 
   const open = () => navigate(`/rooms/${card.slug}`);
 
-  // Wrapping round is what makes the arrows worth having on a small card: with
-  // three photos you would otherwise hit a dead end after two clicks.
-  const step = (event, dir) => {
+  // The card is a link, so an arrow must not carry the click through to it.
+  const own = (event, run) => {
     event.preventDefault();
     event.stopPropagation();
-
-    const next = (idx + dir + images.length) % images.length;
-    if (next === idx) return;
-
-    setLeaving({ index: idx, side: dir > 0 ? 'left' : 'right' });
-    setIndex(next);
-  };
-
-  const goTo = (event, to) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (to === idx) return;
-
-    setLeaving({ index: idx, side: to > idx ? 'left' : 'right' });
-    setIndex(to);
-  };
-
-  // Matches the .35s in the stylesheet; the class has to outlive the animation
-  // or the outgoing frame vanishes instead of sliding away.
-  useEffect(() => {
-    if (!leaving) return;
-    const timer = setTimeout(() => setLeaving(null), 380);
-    return () => clearTimeout(timer);
-  }, [leaving]);
-
-  const frameClass = i => {
-    if (i === idx) return 'is-current';
-    if (leaving?.index === i) return `is-leaving to-${leaving.side}`;
-    return '';
+    run();
   };
 
   return (
@@ -75,7 +46,7 @@ export function Card({ card, variant, lazy = false }) {
           // Only the visible frame, its neighbours and the one on its way out
           // carry a real src, so a grid of cards costs a handful of images
           // rather than hundreds.
-          Math.abs(i - idx) <= 1 || i === leaving?.index || Math.abs(i - idx) === images.length - 1
+          slides.isMounted(i) || Math.abs(i - idx) === 1 || Math.abs(i - idx) === images.length - 1
             ? <img key={i} src={src} alt={`${card.title} — ảnh ${i + 1}`}
                    className={frameClass(i)}
                    loading={i === 0 && !lazy ? 'eager' : 'lazy'} decoding="async" />
@@ -90,12 +61,14 @@ export function Card({ card, variant, lazy = false }) {
                 aria-pressed={!!card.isFavorite}>♥</button>
 
         {images.length > 1 && <>
-          <button className="carousel-nav prev" onClick={e => step(e, -1)} aria-label="Ảnh trước">‹</button>
-          <button className="carousel-nav next" onClick={e => step(e, 1)} aria-label="Ảnh tiếp theo">›</button>
+          <button className="carousel-nav prev" onClick={e => own(e, () => slides.step(-1))}
+                  aria-label="Ảnh trước">‹</button>
+          <button className="carousel-nav next" onClick={e => own(e, () => slides.step(1))}
+                  aria-label="Ảnh tiếp theo">›</button>
           <div className="carousel-dots">
             {images.map((_, i) => (
               <button key={i} className={`bullet ${i === idx ? 'is-on' : ''}`}
-                      onClick={e => goTo(e, i)} aria-label={`Xem ảnh ${i + 1}`} />
+                      onClick={e => own(e, () => slides.goTo(i))} aria-label={`Xem ảnh ${i + 1}`} />
             ))}
           </div>
         </>}
