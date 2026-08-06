@@ -126,15 +126,15 @@ function UnreadBadge() {
 }
 
 /**
- * The landing page keeps the tall "Địa điểm · Ngày · Khách" pill; every other
- * route gets the compact summary bar, the same way airbnb.com collapses it.
- */
-/**
  * Below this the calendar has nowhere to hang: two months need more room than a
  * phone has, so those screens keep the modal.
  */
 const DROPDOWN_FROM = '(min-width: 900px)';
 
+/**
+ * The landing page keeps the tall "Địa điểm · Ngày · Khách" pill; every other
+ * route gets the compact summary bar, the same way airbnb.com collapses it.
+ */
 function SearchBar({ wide, onSubmit, onQueryInput }) {
   const state = useStore();
 
@@ -156,8 +156,10 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
   useEffect(() => {
     if (!openSeg) return undefined;
 
-    const away = e => { if (!barRef.current?.contains(e.target)) setOpenSeg(null); };
-    const key = e => { if (e.key === 'Escape') setOpenSeg(null); };
+    const away = e => {
+      if (!barRef.current?.contains(e.target)) { setOpenSeg(null); set({ suggestOpen: false }); }
+    };
+    const key = e => { if (e.key === 'Escape') { setOpenSeg(null); set({ suggestOpen: false }); } };
 
     document.addEventListener('pointerdown', away);
     document.addEventListener('keydown', key);
@@ -170,10 +172,16 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
   // Opening the date panel should show the dates it is about, wherever the
   // calendar was last paged to.
   const toggle = seg => {
+    // The suggestion list belongs to the destination field; moving to another
+    // segment should take it off the screen with it.
+    set({ suggestOpen: false });
+
     if (!roomy) { openOverlay(seg === 'when' ? 'dates' : 'guests'); return; }
     if (seg === 'when' && openSeg !== 'when') resetCalendarView();
     setOpenSeg(current => (current === seg ? null : seg));
   };
+
+  const closeBar = () => { setOpenSeg(null); set({ suggestOpen: false }); };
 
   const placeholder = wide
     ? 'Tìm điểm đến'
@@ -183,19 +191,25 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
         ? state.meta?.categories.find(c => c.key === state.category)?.label ?? 'Chỗ ở'
         : 'Mọi nơi';
 
+  const segClass = (seg, extra) =>
+    `seg ${wide ? extra : ''} ${openSeg === seg ? 'is-active' : ''}`;
+
   const field = (
-    <label className="seg seg-where">
+    // The destination is a segment like the other two: putting the caret in it
+    // greys the bar and lifts this one, so all three behave the same way.
+    <label className={segClass('where', 'seg-where')}>
       {wide && <span className="seg-cap">Địa điểm</span>}
       <input id="q" type="text" value={state.q} placeholder={placeholder} autoComplete="off"
              onChange={e => onQueryInput(e.target.value)}
-             onFocus={() => { set({ suggestOpen: true }); loadSuggestions(); }}
+             onFocus={() => {
+               setOpenSeg('where');
+               set({ suggestOpen: true });
+               loadSuggestions();
+             }}
              aria-autocomplete="list" aria-expanded={state.suggestOpen} />
       <Suggestions />
     </label>
   );
-
-  const segClass = (seg, extra) =>
-    `seg ${wide ? extra : ''} ${openSeg === seg ? 'is-active' : ''}`;
 
   return (
     <div className={`search-row ${wide ? 'is-wide' : ''}`} ref={barRef}>
@@ -229,7 +243,7 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
           <div className="search-pop-foot">
             <button type="button" className="text-btn"
                     onClick={() => { clearDates(); applySearch(); }}>Xoá ngày</button>
-            <button type="button" className="btn btn-dark btn-sm" onClick={() => setOpenSeg(null)}>Xong</button>
+            <button type="button" className="btn btn-dark btn-sm" onClick={closeBar}>Xong</button>
           </div>
         </div>
       )}
@@ -239,7 +253,7 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
           <GuestFields />
           <div className="search-pop-foot">
             <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>Tổng {totalGuests()} khách</span>
-            <button type="button" className="btn btn-dark btn-sm" onClick={() => setOpenSeg(null)}>Xong</button>
+            <button type="button" className="btn btn-dark btn-sm" onClick={closeBar}>Xong</button>
           </div>
         </div>
       )}

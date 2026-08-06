@@ -135,8 +135,8 @@ img { max-width: 100%; display: block; }
 .searchbar.is-open .seg.is-active:hover {
   background: #fff; box-shadow: var(--shadow-md);
 }
-/* The typing field never dims — it is where the caret is. */
-.searchbar.is-open .seg-where { background: #fff; box-shadow: var(--shadow-sm); }
+/* A label, not a button, so it needs telling that it is clickable. */
+.seg-where { cursor: text; }
 
 /* Exactly as wide as the bar, so a panel's edges are the bar's edges. */
 .search-anchor { position: relative; width: 100%; max-width: 620px; }
@@ -903,7 +903,9 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
 .cal-wrap[data-months="4"] { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
 .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .cal-head b { font-size: 15px; font-weight: 700; }
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+/* No gap between columns: a chosen run has to read as one band, and a 2px white
+   line every day chopped it into separate squares. Rows still breathe. */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px 0; }
 .cal-dow { font-size: 11px; font-weight: 600; color: var(--ink-faint); text-align: center; padding: 6px 0; }
 .cal-day {
   aspect-ratio: 1; border: 0; background: transparent; border-radius: 50%;
@@ -912,7 +914,11 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
 .cal-day:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--ink); }
 .cal-day:disabled { color: #cfcfcf; text-decoration: line-through; cursor: not-allowed; }
 .cal-day.is-edge { background: var(--ink); color: #fff; }
-.cal-day.is-between { background: #f2f2f2; border-radius: 0; }
+/* #f2f2f2 was so close to white that the chosen run barely read as one thing;
+   this is dark enough to see the band at a glance and still light enough to
+   leave the dates on top of it legible. */
+.cal-day.is-between { background: #e4e4e4; border-radius: 0; color: var(--ink); }
+.cal-day.is-between .cal-rate { color: var(--ink-muted); }
 
 /* TM-05: the nightly rate sits under the date, so the grid keeps a square cell
    but stacks two lines inside it. */
