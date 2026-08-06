@@ -101,6 +101,10 @@ cd src/StayHost.Web/ClientApp && npm run build
 docker compose up -d --build                      # web: http://localhost:8090
 ```
 
+**Production và CI/CD: xem `DEPLOY.md`.** Push lên `main` là tự chạy test → build image
+lên GHCR → deploy vào VPS. `docker-compose.yml` chỉ dùng cho máy dev;
+`docker-compose.prod.yml` mới là bản chạy thật.
+
 **Reset DB khi đổi schema:**
 ```bash
 docker exec stayhost-db psql -U stayhost -d stayhost -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"

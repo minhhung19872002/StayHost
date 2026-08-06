@@ -1,0 +1,56 @@
+# Production stack for the VPS.
+#
+# Unlike docker-compose.yml (which builds locally for development), this file never
+# builds: CI builds the image on GitHub and pushes it to GHCR, and the deploy job on
+# the VPS only pulls and restarts. Secrets come from an env file kept off the repo —
+# see DEPLOY.md.
+#
+#   docker compose -p stayhost -f docker-compose.prod.yml --env-file ~/deploy/stayhost.env up -d
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: stayhost-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-stayhost}
+      POSTGRES_USER: ${POSTGRES_USER:-stayhost}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      TZ: Asia/Ho_Chi_Minh
+    # No published port: only the web container needs the database.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stayhost} -d ${POSTGRES_DB:-stayhost}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  web:
+    image: ${STAYHOST_IMAGE:?STAYHOST_IMAGE must be set}
+    container_name: stayhost-web
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__Postgres: "Host=db;Port=5432;Database=${POSTGRES_DB:-stayhost};Username=${POSTGRES_USER:-stayhost};Password=${POSTGRES_PASSWORD}"
+      TZ: Asia/Ho_Chi_Minh
+    # Nginx terminates TLS on the host and proxies here, so the port stays on loopback.
+    ports:
+      - "127.0.0.1:8090:8080"
+    volumes:
+      # Listing photos are written to wwwroot/uploads; they must outlive the image.
+      - uploads:/app/wwwroot/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:

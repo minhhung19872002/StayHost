@@ -1,0 +1,139 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Two deploys must never overlap on the single-CPU VPS.
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # github.repository is mixed case; GHCR only accepts lowercase names.
+  IMAGE: ghcr.io/minhhung19872002/stayhost
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore
+        run: dotnet restore StayHost.sln
+
+      - name: Build
+        run: dotnet build StayHost.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test StayHost.sln -c Release --no-build --logger "console;verbosity=normal"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: src/StayHost.Web/ClientApp/package-lock.json
+
+      - name: Install client dependencies
+        working-directory: src/StayHost.Web/ClientApp
+        run: npm ci
+
+      - name: Lint client
+        working-directory: src/StayHost.Web/ClientApp
+        run: npm run lint
+
+      - name: Build client
+        working-directory: src/StayHost.Web/ClientApp
+        run: npm run build
+
+  image:
+    name: Publish image to GHCR
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=long
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/StayHost.Web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # The VPS has one CPU; keeping the layer cache on GitHub keeps deploys short.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to VPS
+    needs: image
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, stayhost-vps]
+    permissions:
+      contents: read
+      packages: read
+    env:
+      ENV_FILE: /home/hung/deploy/stayhost.env
+      COMPOSE_PROJECT: stayhost
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+
+      - name: Pull and restart
+        env:
+          # Pin the exact commit rather than :latest so a rollback is a re-run away.
+          STAYHOST_IMAGE: ${{ env.IMAGE }}:sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker compose -p "$COMPOSE_PROJECT" -f docker-compose.prod.yml --env-file "$ENV_FILE" pull
+          docker compose -p "$COMPOSE_PROJECT" -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --remove-orphans
+
+      - name: Wait for the app to report healthy
+        run: |
+          set -uo pipefail
+          for attempt in $(seq 1 40); do
+            if curl -fsS --max-time 5 http://127.0.0.1:8090/health >/dev/null; then
+              echo "Healthy after ${attempt} attempt(s)."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::/health never answered; dumping container logs"
+          docker compose -p "$COMPOSE_PROJECT" -f docker-compose.prod.yml --env-file "$ENV_FILE" logs --tail=200
+          exit 1
+
+      - name: Reclaim disk from superseded images
+        if: always()
+        run: docker image prune -f

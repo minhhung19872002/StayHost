@@ -37,7 +37,9 @@ ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
     TZ=Asia/Ho_Chi_Minh
 
 COPY --from=build /app/publish .
-RUN chown -R app:app /app
+# Create the uploads directory in the image so a volume mounted there inherits
+# `app` ownership; a volume over a missing path would land root-owned and unwritable.
+RUN mkdir -p /app/wwwroot/uploads && chown -R app:app /app
 USER app
 
 EXPOSE 8080
