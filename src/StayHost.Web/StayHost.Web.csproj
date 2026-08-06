@@ -1,6 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <!-- Vite compiles ClientApp into wwwroot; MSBuild must not walk the source
+         tree (node_modules alone is tens of thousands of files). -->
+    <Content Remove="ClientApp\**" />
+    <None Remove="ClientApp\**" />
+    <Compile Remove="ClientApp\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\StayHost.Infrastructure\StayHost.Infrastructure.csproj" />
     <ProjectReference Include="..\StayHost.Domain\StayHost.Domain.csproj" />
   </ItemGroup>

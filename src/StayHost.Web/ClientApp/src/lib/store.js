@@ -3,7 +3,7 @@
 // business logic stays plain JS and testable, while React handles the DOM.
 
 import { api } from './api.js';
-import { todayIso, setCurrency } from './format.js';
+import { todayIso, isoOf, parseIso, setCurrency } from './format.js';
 
 const listeners = new Set();
 let version = 0;
@@ -71,9 +71,47 @@ export const state = {
   notifications: { unread: 0, items: [] },
   admin: null,
 
-  // ui
+  // ui — chrome that React renders but that lives outside component state so
+  // any handler can flip it without prop-drilling.
   hideMap: false,
-  showTotalPrice: false
+  showTotalPrice: false,
+  tab: 'homes',
+  menu: null,            // 'account' | 'bell' | null
+  overlay: null,         // key into the overlay registry
+  suggestOpen: false,
+  inspirationTab: null,
+  photoIndex: null,
+  awaitingCheckout: false,
+
+  // auth / profile modals
+  authMode: 'login',     // login | register | forgot | reset
+  profileTab: 'profile',
+  resetLink: null,
+  resetToken: null,
+
+  // checkout
+  checkoutStep: 0,
+  payMethod: 'card',
+  checkoutName: '',
+  checkoutEmail: '',
+  checkoutNote: '',
+  cancelPreview: null,
+
+  // hosting
+  hostingTab: 'overview',
+  editingListing: null,
+  uploading: false,
+  hostMonthOffset: 0,
+  hostCalcNights: 20,
+  hostCalcRate: 1_500_000,
+  guestReviewBooking: null,
+  guestReviewDraft: { rating: 5, wouldHostAgain: true },
+
+  // reviews
+  reviewBooking: null,
+  reviewDraft: null,
+  reviewQuery: '',
+  reviewSort: 'recent'
 };
 
 /* ------------------------------------------------------------ react bridge */
@@ -597,5 +635,145 @@ export function applyLanguage(code) {
   if (!l) return;
   state.language = l;
   localStorage.setItem('sh_language', code);
+  notify();
+}
+
+/* ------------------------------------------------------------- ui actions */
+
+export const openOverlay = kind => set({ overlay: kind, menu: null });
+export const closeOverlay = () => set({ overlay: null, photoIndex: null });
+export const openMenu = kind => set({ menu: state.menu === kind ? null : kind });
+
+/** Signed-out guests get the login modal instead of the action they asked for. */
+export function requireAuth() {
+  if (state.user) return true;
+  set({ authMode: 'login', authError: null, overlay: 'login', menu: null });
+  return false;
+}
+
+/* ------------------------------------------------------- dates and guests */
+
+const blockedNights = () => new Set(state.detail?.unavailableDates ?? []);
+
+function rangeHasBlockedNight(fromIso, toIso) {
+  const blocked = blockedNights();
+  if (!blocked.size) return false;
+  for (const d = parseIso(fromIso); isoOf(d) < toIso; d.setDate(d.getDate() + 1)) {
+    if (blocked.has(isoOf(d))) return true;
+  }
+  return false;
+}
+
+/**
+ * Two-click range picking: the first click sets check-in with a one-night
+ * default, the second closes the range, any later click starts over.
+ */
+export function pickDate(iso) {
+  const previous = { checkIn: state.checkIn, checkOut: state.checkOut };
+
+  if (state.awaitingCheckout && iso > state.checkIn) {
+    state.checkOut = iso;
+    state.awaitingCheckout = false;
+  } else {
+    state.checkIn = iso;
+    const next = parseIso(iso);
+    next.setDate(next.getDate() + 1);
+    state.checkOut = isoOf(next);
+    state.awaitingCheckout = true;
+  }
+
+  if (rangeHasBlockedNight(state.checkIn, state.checkOut)) {
+    Object.assign(state, previous, { awaitingCheckout: false });
+    toast('Khoảng ngày này đã có người đặt. Chọn ngày khác nhé.');
+    notify();
+    return;
+  }
+
+  normaliseDates();
+}
+
+export function shiftCalendar(dir) {
+  const d = parseIso(state.checkIn);
+  d.setMonth(d.getMonth() + dir);
+  const iso = isoOf(d);
+  if (iso < todayIso()) return;
+
+  state.checkIn = iso;
+  const out = parseIso(iso);
+  out.setDate(out.getDate() + 3);
+  state.checkOut = isoOf(out);
+  normaliseDates();
+}
+
+export function applyDatePreset(key) {
+  const start = parseIso(todayIso());
+  if (key === 'weekend') {
+    const daysToFriday = (5 - start.getDay() + 7) % 7 || 7;
+    start.setDate(start.getDate() + daysToFriday);
+    state.checkIn = isoOf(start);
+    start.setDate(start.getDate() + 2);
+    state.checkOut = isoOf(start);
+  } else {
+    const spans = { week: 7, fortnight: 14, month: 30 };
+    start.setDate(start.getDate() + 7);
+    state.checkIn = isoOf(start);
+    start.setDate(start.getDate() + (spans[key] ?? 3));
+    state.checkOut = isoOf(start);
+  }
+  normaliseDates();
+}
+
+export function clearDates() {
+  state.checkIn = todayIso(9);
+  state.checkOut = todayIso(12);
+  normaliseDates();
+}
+
+/** Keeps check-out after check-in, then re-prices whatever screen is open. */
+export function normaliseDates() {
+  if (state.checkOut <= state.checkIn) {
+    const out = parseIso(state.checkIn);
+    out.setDate(out.getDate() + 1);
+    state.checkOut = isoOf(out);
+  }
+  notify();
+  if (state.detail) refreshQuote();
+}
+
+export function bumpGuest(key, delta) {
+  const min = key === 'adults' ? 1 : 0;
+  state.guests = { ...state.guests, [key]: Math.max(min, Math.min(16, state.guests[key] + delta)) };
+  notify();
+  if (state.detail) refreshQuote();
+}
+
+/** The book panel's single +/- pair, which only moves adults and children. */
+export function bumpTotalGuests(delta) {
+  const max = state.detail?.card.maxGuests ?? 16;
+  const next = Math.min(max, Math.max(1, totalGuests() + delta));
+  const diff = next - totalGuests();
+  if (!diff) return;
+
+  const g = { ...state.guests };
+  if (diff > 0) g.adults += diff;
+  else if (g.children > 0) g.children = Math.max(0, g.children + diff);
+  else g.adults = Math.max(1, g.adults + diff);
+
+  state.guests = g;
+  notify();
+  if (state.detail) refreshQuote();
+}
+
+/* ------------------------------------------------------------- filter ops */
+
+export function toggleAmenity(key) {
+  state.amenities = state.amenities.includes(key)
+    ? state.amenities.filter(a => a !== key)
+    : [...state.amenities, key];
+  notify();
+}
+
+export function bumpCount(key, delta) {
+  state[key] = Math.max(0, Math.min(8, (state[key] || 0) + delta));
   notify();
 }

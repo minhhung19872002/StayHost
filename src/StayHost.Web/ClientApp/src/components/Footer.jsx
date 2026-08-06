@@ -1,5 +1,5 @@
-import { esc } from '../util.js';
-import { state } from '../store.js';
+import { useStore } from '../lib/useStore.js';
+import { openOverlay, toast } from '../lib/store.js';
 
 const COLUMNS = [
   {
@@ -26,31 +26,35 @@ const COLUMNS = [
 
 const LEGAL = ['© 2026 StayHost OS, Inc.', 'Quyền riêng tư', 'Điều khoản', 'Sơ đồ trang web', 'Thông tin công ty'];
 
-export function renderFooter() {
-  return `
-    <div class="footer-cols">
-      ${COLUMNS.map(col => `
-        <div class="footer-col">
-          <h4>${esc(col.title)}</h4>
+const demo = e => { e.preventDefault(); toast('Bản demo — chức năng này chưa kết nối dịch vụ thật.'); };
+
+export function Footer() {
+  const state = useStore();
+
+  return <>
+    <div className="footer-cols">
+      {COLUMNS.map(col => (
+        <div className="footer-col" key={col.title}>
+          <h4>{col.title}</h4>
           <ul>
-            ${col.links.map(l => `<li><a href="#" data-act="noop">${esc(l)}</a></li>`).join('')}
+            {col.links.map(l => <li key={l}><a href="#" onClick={demo}>{l}</a></li>)}
           </ul>
         </div>
-      `).join('')}
+      ))}
     </div>
-    <div class="footer-bottom">
-      <div class="footer-bottom-inner">
-        <div class="footer-legal">
-          ${LEGAL.map(l => `<span>${esc(l)}</span>`).join('')}
+    <div className="footer-bottom">
+      <div className="footer-bottom-inner">
+        <div className="footer-legal">
+          {LEGAL.map(l => <span key={l}>{l}</span>)}
         </div>
-        <div class="footer-prefs">
-          <button data-act="open" data-overlay="language">⊕ ${esc(state.language.label)}</button>
-          <button data-act="open" data-overlay="language">${esc(state.currency.symbol)} ${esc(state.currency.code)}</button>
-          <button data-act="noop" aria-label="Facebook">ⓕ</button>
-          <button data-act="noop" aria-label="X">✕</button>
-          <button data-act="noop" aria-label="Instagram">◉</button>
+        <div className="footer-prefs">
+          <button onClick={() => openOverlay('language')}>⊕ {state.language.label}</button>
+          <button onClick={() => openOverlay('language')}>{state.currency.symbol} {state.currency.code}</button>
+          <button onClick={demo} aria-label="Facebook">ⓕ</button>
+          <button onClick={demo} aria-label="X">✕</button>
+          <button onClick={demo} aria-label="Instagram">◉</button>
         </div>
       </div>
     </div>
-  `;
+  </>;
 }
