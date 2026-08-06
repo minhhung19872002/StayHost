@@ -64,9 +64,29 @@ Hoặc chạy lại workflow của commit đó trong tab Actions trên GitHub.
 
 ### Sao lưu cơ sở dữ liệu
 
+Timer `stayhost-backup.timer` chạy **03:30 mỗi đêm** (lệch ngẫu nhiên trong 15 phút),
+ghi vào `~/backups/stayhost-<ngày>-<giờ>.sql.gz` và **giữ 7 ngày**. Dump được viết
+ra tên `.partial` trước rồi mới đổi tên, nên không bao giờ có file cụt trông như bản
+sao lưu tốt. Nếu dump nhỏ bất thường (<10 KB) thì script vứt bỏ và báo lỗi.
+
 ```bash
-docker exec stayhost-db pg_dump -U stayhost stayhost | gzip > ~/backup-$(date +%F).sql.gz
+systemctl list-timers stayhost-backup.timer   # lần chạy kế tiếp
+journalctl -u stayhost-backup -n 20           # kết quả gần nhất
+sudo systemctl start stayhost-backup          # chạy ngay một bản
+ls -lh ~/backups
 ```
+
+**Phục hồi** — thử vào DB tạm trước khi ghi đè bản thật:
+
+```bash
+gunzip -c ~/backups/stayhost-<...>.sql.gz | docker exec -i stayhost-db psql -U stayhost -d stayhost
+```
+
+Dump có `--clean --if-exists` nên nó tự xoá bảng cũ trước khi dựng lại.
+
+> Backup nằm **cùng ổ đĩa** với dữ liệu gốc. Nó cứu được lỗi xoá nhầm hoặc migration
+> hỏng, **không** cứu được hỏng ổ hay mất VPS. Muốn an toàn thật thì phải đẩy bản dump
+> sang nơi khác (S3, máy khác, Google Drive…).
 
 ### Chứng chỉ TLS
 
