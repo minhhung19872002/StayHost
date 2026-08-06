@@ -12,13 +12,6 @@ const TABS = [
   ['bookings', 'Đơn đặt'], ['earnings', 'Doanh thu']
 ];
 
-const BOOKING_STATUS = {
-  Pending: ['pending', 'Chờ xác nhận'],
-  Confirmed: ['confirmed', 'Đã xác nhận'],
-  Cancelled: ['cancelled', 'Đã huỷ'],
-  Completed: ['confirmed', 'Đã hoàn tất']
-};
-
 export function Hosting() {
   const state = useStore();
   const navigate = useNavigate();
@@ -112,7 +105,7 @@ function Overview({ d, navigate }) {
     ['Điểm đánh giá', d.totalReviews ? `★ ${d.averageRating.toFixed(2)}` : 'Chưa có', `${d.totalReviews} đánh giá`]
   ];
 
-  const pending = d.bookings.filter(b => b.status === 'Pending');
+  const pending = d.bookings.filter(b => b.status === 'PendingHostApproval');
 
   return <>
     <div className="stat-grid" style={{ marginTop: 24 }}>
@@ -189,9 +182,20 @@ function Bookings({ d, navigate }) {
   return <div style={{ marginTop: 24 }}>{d.bookings.map(b => <BookingRow key={b.id} booking={b} navigate={navigate} />)}</div>;
 }
 
+/** docs/03 §3 — the host has 24 hours before the request expires by itself. */
+function RespondDeadline({ at }) {
+  const minutes = Math.round((new Date(at) - Date.now()) / 60000);
+  if (minutes <= 0) return null;
+
+  return (
+    <span className="badge pending">
+      {minutes < 60 ? `Còn ${minutes} phút để trả lời` : `Còn ${Math.round(minutes / 60)} giờ để trả lời`}
+    </span>
+  );
+}
+
 function BookingRow({ booking: b, navigate }) {
-  const [cls, label] = BOOKING_STATUS[b.status] ?? BOOKING_STATUS.Pending;
-  const stayEnded = new Date(b.checkOut) < new Date();
+  const awaitingHost = b.status === 'PendingHostApproval';
 
   return (
     <article className="host-booking">
@@ -205,14 +209,17 @@ function BookingRow({ booking: b, navigate }) {
           Khách trả <b style={{ color: 'var(--ink)' }}>{money(b.total)}</b> ·
           bạn nhận <b style={{ color: 'var(--brand)' }}>{money(b.hostPayout)}</b>
         </div>
-        <span className={`badge ${cls}`} style={{ marginTop: 8 }}>{label}</span>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+          <span className={`badge ${b.statusBadge}`}>{b.statusLabel}</span>
+          {awaitingHost && b.requestExpiresAt && <RespondDeadline at={b.requestExpiresAt} />}
+        </div>
       </div>
       <div className="host-booking-actions">
-        {b.status === 'Pending' && <>
+        {awaitingHost && <>
           <button className="btn btn-primary btn-sm" onClick={() => respondBooking(b.id, 'confirm')}>Xác nhận</button>
           <button className="btn btn-outline btn-sm" onClick={() => respondBooking(b.id, 'decline')}>Từ chối</button>
         </>}
-        {b.status !== 'Cancelled' && stayEnded && (
+        {b.status === 'Completed' && (
           <button className="btn btn-outline btn-sm"
                   onClick={() => set({ guestReviewBooking: b, overlay: 'guest-review' })}>Đánh giá khách</button>
         )}

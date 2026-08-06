@@ -175,6 +175,11 @@ public class PriceRule
     public DateOnly To { get; set; }
     /// <summary>Flat nightly rate that replaces the base price inside the window.</summary>
     public decimal NightlyRate { get; set; }
+    /// <summary>
+    /// Minimum nights for stays starting inside this window, overriding the
+    /// listing's own minimum (docs/03 §2 step 6). Null leaves it unchanged.
+    /// </summary>
+    public int? MinNights { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 

@@ -401,6 +401,17 @@ public static class DbSeeder
                 PetsAllowed = s.Amenities.Contains("pet"),
                 PetFee = s.Amenities.Contains("pet") ? 200_000m : 0m,
                 CleaningFee = 200_000m + (i % 5) * 50_000m,
+                // Every fourth listing takes requests instead of instant bookings,
+                // so the 24-hour approval flow of docs/03 §3 has something to run on.
+                InstantBook = i % 4 != 3,
+                // A spread of booking constraints (docs/03 §2) so the nine checks
+                // are exercised by the demo data rather than only by tests.
+                MinNights = 1 + (i % 3),
+                MaxNights = i % 5 == 0 ? 30 : 0,
+                AdvanceNoticeHours = i % 3 == 0 ? 24 : 0,
+                SameDayCutoffHour = i % 3 == 0 ? null : 14,
+                CalendarVisibilityMonths = 12,
+                TurnoverDays = i % 6 == 0 ? 1 : 0,
                 Latitude = s.Lat,
                 Longitude = s.Lng,
                 Description = s.Desc,

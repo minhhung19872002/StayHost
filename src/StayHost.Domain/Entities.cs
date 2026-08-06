@@ -19,12 +19,29 @@ public enum RoomType
     SharedRoom = 3
 }
 
+/// <summary>
+/// The ten states of docs/03 §3. Only the arrows drawn in that diagram are
+/// legal; <see cref="BookingLifecycle"/> owns the transition table.
+/// </summary>
 public enum BookingStatus
 {
-    Pending = 0,
-    Confirmed = 1,
-    Cancelled = 2,
-    Completed = 3
+    /// <summary>Request-to-book waiting on the host. Does not hold the dates.</summary>
+    PendingHostApproval = 0,
+    /// <summary>Dates are held for 15 minutes while the guest pays.</summary>
+    PendingPayment = 1,
+    Confirmed = 2,
+    /// <summary>Check-in has passed in the listing's own time zone.</summary>
+    InProgress = 3,
+    /// <summary>Check-out has passed; reviews and the host payout unlock here.</summary>
+    Completed = 4,
+
+    Declined = 5,
+    /// <summary>The host did not answer the request within 24 hours.</summary>
+    Expired = 6,
+    /// <summary>Payment failed, or the 15-minute hold ran out.</summary>
+    PaymentFailed = 7,
+    CancelledByGuest = 8,
+    CancelledByHost = 9
 }
 
 /// <summary>
@@ -146,7 +163,28 @@ public class Listing
     /// <summary>Drafts are visible only to their host until published.</summary>
     public bool IsPublished { get; set; } = true;
     public bool InstantBook { get; set; } = true;
+
+    // --- docs/03 §2: the nine checks that decide whether a stay can be booked.
     public int MinNights { get; set; } = 1;
+    /// <summary>0 means no upper limit.</summary>
+    public int MaxNights { get; set; }
+    /// <summary>How much warning the host needs before check-in. 0 allows same-day.</summary>
+    public int AdvanceNoticeHours { get; set; }
+    /// <summary>Latest local hour a same-day booking may be made; null means any time.</summary>
+    public int? SameDayCutoffHour { get; set; }
+    /// <summary>How far ahead the calendar is open, in months. 0 means unlimited.</summary>
+    public int CalendarVisibilityMonths { get; set; }
+    /// <summary>Clear days the host needs between two stays.</summary>
+    public int TurnoverDays { get; set; }
+    /// <summary>Bitmask over <see cref="DayOfWeek"/>; see <c>Availability.MaskOf</c>.</summary>
+    public int BlockedCheckInDays { get; set; }
+    public int BlockedCheckOutDays { get; set; }
+
+    /// <summary>
+    /// docs/03 §3: check-in and check-out roll over in the listing's own time
+    /// zone, not the guest's and not the server's.
+    /// </summary>
+    public string TimeZoneId { get; set; } = "Asia/Ho_Chi_Minh";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -290,14 +328,21 @@ public class Booking
     public string? GuestName { get; set; }
     public string? GuestEmail { get; set; }
     public string? GuestNote { get; set; }
-    public BookingStatus Status { get; set; } = BookingStatus.Pending;
+    public BookingStatus Status { get; set; } = BookingStatus.PendingHostApproval;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? RespondedAt { get; set; }
     public string? CancellationReason { get; set; }
     public CancelledBy? CancelledBy { get; set; }
 
+    /// <summary>When the 15-minute payment hold lapses (docs/03 §2).</summary>
+    public DateTime? HoldExpiresAt { get; set; }
+    /// <summary>When an unanswered request to book expires (docs/03 §3).</summary>
+    public DateTime? RequestExpiresAt { get; set; }
+
     public Payment? Payment { get; set; }
     public List<LedgerEntry> LedgerEntries { get; set; } = [];
+    /// <summary>Append-only history; see <see cref="BookingLifecycle"/>.</summary>
+    public List<BookingEvent> Events { get; set; } = [];
     /// <summary>Guarded so a stay can only be reviewed once.</summary>
     public bool HasReview { get; set; }
 }

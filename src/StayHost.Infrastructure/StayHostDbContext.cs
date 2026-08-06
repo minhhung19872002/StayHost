@@ -28,6 +28,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<GuestReview> GuestReviews => Set<GuestReview>();
     public DbSet<TaxRule> TaxRules => Set<TaxRule>();
     public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
+    public DbSet<BookingEvent> BookingEvents => Set<BookingEvent>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -282,6 +283,23 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.GuestUser).WithMany()
                 .HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.SetNull);
+
+            // docs/03 §2 calls double-booking "yêu cầu bắt buộc, không phải tối
+            // ưu hoá", so the guarantee lives in the database, not in a check
+            // that two concurrent requests could both pass. The migration turns
+            // this into a GiST exclusion constraint over listing + date range.
+            e.HasIndex(x => new { x.ListingId, x.CheckIn, x.CheckOut })
+                .HasDatabaseName("ix_bookings_listing_range");
+        });
+
+        b.Entity<BookingEvent>(e =>
+        {
+            e.ToTable("booking_events");
+            e.HasIndex(x => new { x.BookingId, x.CreatedAt });
+            e.Property(x => x.Actor).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Reason).HasMaxLength(300);
+            e.HasOne(x => x.Booking).WithMany(bk => bk.Events)
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<TaxRule>(e =>
@@ -335,6 +353,15 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
         {
             throw new InvalidOperationException(
                 "Sổ ghi tiền là bất biến: chỉ được thêm bút toán mới, không sửa hay xoá bút toán cũ.");
+        }
+
+        var rewrittenHistory = ChangeTracker.Entries<BookingEvent>()
+            .Any(e => e.State is EntityState.Modified or EntityState.Deleted);
+
+        if (rewrittenHistory)
+        {
+            throw new InvalidOperationException(
+                "Lịch sử đơn chỉ được thêm, không sửa hay xoá (docs/00 §6.2).");
         }
     }
 }

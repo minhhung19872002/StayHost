@@ -383,7 +383,7 @@ public class CatalogService(StayHostDbContext db)
         // The new-listing discount is part of the price, so a card that ignored it
         // would quote a different number to the room page (docs/00 §6.8).
         var soldStays = await db.Bookings
-            .Where(b => ids.Contains(b.ListingId) && b.Status != BookingStatus.Cancelled)
+            .Where(b => ids.Contains(b.ListingId) && BookingLifecycle.BlocksDates.Contains(b.Status))
             .GroupBy(b => b.ListingId)
             .Select(g => new { ListingId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.ListingId, x => x.Count, ct);
@@ -491,7 +491,7 @@ public class CatalogService(StayHostDbContext db)
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var liveBookings = await db.Bookings
-            .Where(b => b.ListingId == listing.Id && b.Status != BookingStatus.Cancelled && b.CheckOut >= today)
+            .Where(b => b.ListingId == listing.Id && BookingLifecycle.BlocksDates.Contains(b.Status) && b.CheckOut >= today)
             .Select(b => new { b.CheckIn, b.CheckOut })
             .ToListAsync(ct);
 
@@ -549,7 +549,7 @@ public class CatalogService(StayHostDbContext db)
 
         // The new-listing discount only looks at stays that actually went ahead.
         var soldStays = await db.Bookings
-            .CountAsync(b => b.ListingId == listingId && b.Status != BookingStatus.Cancelled, ct);
+            .CountAsync(b => b.ListingId == listingId && BookingLifecycle.BlocksDates.Contains(b.Status), ct);
 
         return new Pricing.Request
         {

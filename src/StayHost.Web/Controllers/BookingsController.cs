@@ -11,9 +11,18 @@ namespace StayHost.Web.Controllers;
 [ApiController]
 [Route("api/bookings")]
 public class BookingsController(
-    StayHostDbContext db, AuthService auth, NotificationService notifications, CatalogService catalog)
+    StayHostDbContext db, AuthService auth, NotificationService notifications,
+    CatalogService catalog, BookingService rules)
     : ControllerBase
 {
+    /// <summary>
+    /// The exclusion constraint added by the DoubleBookingGuard migration. It is
+    /// the only thing that can decide between two simultaneous checkouts, so its
+    /// violation is a normal outcome, not a server error.
+    /// </summary>
+    private static bool IsOverlapViolation(DbUpdateException ex) =>
+        ex.InnerException?.Message.Contains("bookings_no_overlap", StringComparison.OrdinalIgnoreCase) == true;
+
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<BookingDto>>> List(CancellationToken ct)
     {
@@ -25,6 +34,7 @@ public class BookingsController(
             .Include(b => b.Listing!).ThenInclude(l => l.Images)
             .Include(b => b.Listing!).ThenInclude(l => l.Host)
             .Include(b => b.Payment)
+            .Include(b => b.Events)
             .OrderByDescending(b => b.CreatedAt)
             .ToListAsync(ct);
 
@@ -39,43 +49,20 @@ public class BookingsController(
             .Include(l => l.Host)
             .FirstOrDefaultAsync(l => l.Id == req.ListingId, ct);
         if (listing is null) return NotFound(new { message = "Chỗ nghỉ không tồn tại." });
-        if (!listing.IsPublished) return BadRequest(new { message = "Chỗ nghỉ này hiện không nhận đặt." });
 
-        if (req.CheckOut <= req.CheckIn)
-            return BadRequest(new { message = "Ngày trả phòng phải sau ngày nhận phòng." });
-
-        var nights = req.CheckOut.DayNumber - req.CheckIn.DayNumber;
-        if (nights < listing.MinNights)
-            return BadRequest(new { message = $"Chỗ nghỉ này yêu cầu tối thiểu {listing.MinNights} đêm." });
-
-        // docs/03 §2 rule 2: infants do not count towards capacity.
+        // docs/03 §2 rule 2: infants count towards neither capacity nor price.
         var party = req.Adults is null
             ? PartySize.Of(req.Guests) with { Infants = req.Infants, Pets = req.Pets }
             : new PartySize(Math.Max(1, req.Adults.Value), req.Children, req.Infants, req.Pets);
 
-        if (party.Counted < 1 || party.Counted > listing.MaxGuests)
-            return BadRequest(new { message = $"Chỗ nghỉ này nhận tối đa {listing.MaxGuests} khách." });
-
-        if (party.Pets > 0 && !listing.PetsAllowed)
-            return BadRequest(new { message = "Chỗ nghỉ này không nhận thú cưng." });
-
-        if (party.Pets > listing.MaxPets)
-            return BadRequest(new { message = $"Chỗ nghỉ này nhận tối đa {listing.MaxPets} thú cưng." });
-
-        if (req.CheckIn < DateOnly.FromDateTime(DateTime.UtcNow))
-            return BadRequest(new { message = "Không thể đặt ngày trong quá khứ." });
-
-        var overlaps = await db.Bookings.AnyAsync(b =>
-            b.ListingId == listing.Id &&
-            b.Status != BookingStatus.Cancelled &&
-            b.CheckIn < req.CheckOut && req.CheckIn < b.CheckOut, ct);
-        if (overlaps)
-            return Conflict(new { message = "Khoảng ngày này đã có người đặt. Vui lòng chọn ngày khác." });
-
-        var blocked = await db.CalendarBlocks.AnyAsync(b =>
-            b.ListingId == listing.Id && b.From < req.CheckOut && req.CheckIn <= b.To, ct);
-        if (blocked)
-            return Conflict(new { message = "Chủ nhà đã khoá lịch trong khoảng ngày này." });
+        // The nine checks of docs/03 §2, in order, stopping at the first failure.
+        var check = await rules.CheckAsync(listing, req.CheckIn, req.CheckOut, party, ct);
+        if (!check.Ok)
+        {
+            return check.Reason is Availability.Reason.DatesTaken or Availability.Reason.TurnoverTime
+                ? Conflict(new { message = check.Message, reason = check.Reason.ToString() })
+                : BadRequest(new { message = check.Message, reason = check.Reason.ToString() });
+        }
 
         // Bookings carry money and liability, so they need a real account behind them.
         var user = await auth.CurrentUserAsync(ct);
@@ -120,8 +107,11 @@ public class BookingsController(
             GuestName = req.GuestName ?? user.FullName,
             GuestEmail = req.GuestEmail ?? user.Email,
             GuestNote = req.GuestNote,
-            // Instant-book listings confirm immediately; the rest wait for the host.
-            Status = listing.InstantBook ? BookingStatus.Confirmed : BookingStatus.Pending
+            // docs/03 §3: instant book goes straight to confirmed (this demo takes
+            // the card in the same call); a request waits 24 hours on the host and
+            // deliberately does not hold the dates.
+            Status = listing.InstantBook ? BookingStatus.Confirmed : BookingStatus.PendingHostApproval,
+            RequestExpiresAt = listing.InstantBook ? null : DateTime.UtcNow + BookingLifecycle.RequestWindow
         };
 
         booking.Payment = new Payment
@@ -139,15 +129,31 @@ public class BookingsController(
         };
 
         db.Bookings.Add(booking);
-        await db.SaveChangesAsync(ct);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsOverlapViolation(ex))
+        {
+            // Two guests reached checkout for the same nights at the same moment.
+            // The database exclusion constraint decided; this one lost.
+            return Conflict(new
+            {
+                message = "Khoảng ngày này vừa có người khác đặt xong. Vui lòng chọn ngày khác.",
+                reason = nameof(Availability.Reason.DatesTaken)
+            });
+        }
+
+        db.BookingEvents.Add(BookingLifecycle.Created(booking, $"guest:{user.Id}",
+            listing.InstantBook ? "Đặt ngay" : "Gửi yêu cầu đặt"));
 
         // docs/03 §5: money only enters the books once it has actually been taken.
         // A request-to-book is not charged until the host accepts.
         if (listing.InstantBook)
-        {
             db.LedgerEntries.AddRange(Ledger.CaptureBooking(booking, price, DateTime.UtcNow));
-            await db.SaveChangesAsync(ct);
-        }
+
+        await db.SaveChangesAsync(ct);
 
         var hostUser = await db.Users.FirstOrDefaultAsync(u => u.HostProfile!.Id == listing.HostId, ct);
         await notifications.QueueWithEmailAsync(hostUser, NotificationKind.BookingCreated,
@@ -182,8 +188,14 @@ public class BookingsController(
     {
         var booking = await FindOwnedAsync(id, ct);
         if (booking is null) return NotFound();
-        if (booking.Status == BookingStatus.Cancelled)
-            return BadRequest(new { message = "Chuyến đi này đã được huỷ." });
+
+        if (!BookingLifecycle.CanTransition(booking.Status, BookingStatus.CancelledByGuest))
+        {
+            return BadRequest(new
+            {
+                message = $"Đơn đang ở trạng thái \"{BookingLifecycle.Label(booking.Status)}\" nên không huỷ được."
+            });
+        }
 
         var outcome = Cancellation.Refund(await BuildCancelContextAsync(booking, CancelledBy.Guest, ct));
         await ApplyCancellationAsync(booking, outcome, CancelledBy.Guest, "Khách huỷ", ct);
@@ -215,7 +227,7 @@ public class BookingsController(
             ? 0
             : await db.Bookings.CountAsync(b =>
                 b.GuestUserId == booking.GuestUserId &&
-                b.Status == BookingStatus.Cancelled &&
+                b.Status == BookingStatus.CancelledByGuest &&
                 b.RefundedAmount > 0 &&
                 b.CreatedAt >= yearAgo, ct);
 
@@ -235,7 +247,17 @@ public class BookingsController(
     internal static void PostCancellation(
         StayHostDbContext db, Booking booking, Cancellation.Outcome outcome, CancelledBy by, string reason)
     {
-        booking.Status = BookingStatus.Cancelled;
+        var to = by == CancelledBy.Host ? BookingStatus.CancelledByHost : BookingStatus.CancelledByGuest;
+        var actor = by switch
+        {
+            CancelledBy.Host => "host",
+            CancelledBy.ForceMajeure => "admin",
+            CancelledBy.Platform => "system",
+            _ => "guest"
+        };
+
+        db.BookingEvents.Add(BookingLifecycle.Transition(booking, to, actor, reason));
+
         booking.CancellationReason = reason;
         booking.CancelledBy = by;
         booking.RefundedAmount = outcome.Amount;
@@ -284,10 +306,18 @@ public class BookingsController(
 
         if (booking is null) return NotFound();
         if (booking.HasReview) return Conflict(new { message = "Bạn đã đánh giá chuyến đi này rồi." });
-        if (booking.Status == BookingStatus.Cancelled)
-            return BadRequest(new { message = "Chuyến đi đã huỷ không thể đánh giá." });
-        if (booking.CheckOut > DateOnly.FromDateTime(DateTime.UtcNow))
-            return BadRequest(new { message = "Bạn có thể đánh giá sau khi trả phòng." });
+
+        // docs/03 §7: only a completed stay can be reviewed, and "completed" is
+        // the lifecycle's own judgement, made in the listing's time zone.
+        if (booking.Status != BookingStatus.Completed)
+        {
+            return BadRequest(new
+            {
+                message = BookingLifecycle.IsCancelled(booking.Status)
+                    ? "Chuyến đi đã huỷ không thể đánh giá."
+                    : "Bạn có thể đánh giá sau khi trả phòng."
+            });
+        }
 
         var text = (req.Text ?? "").Trim();
         if (text.Length < 10) return BadRequest(new { message = "Nội dung đánh giá cần tối thiểu 10 ký tự." });
@@ -338,7 +368,7 @@ public class BookingsController(
         var user = await auth.CurrentUserAsync(ct);
         var sid = HttpContext.SessionId();
 
-        var query = db.Bookings.Include(b => b.Payment).AsQueryable();
+        var query = db.Bookings.Include(b => b.Payment).Include(b => b.Events).AsQueryable();
         if (includeListing)
         {
             query = query
@@ -370,8 +400,8 @@ public class BookingsController(
 
     private static BookingDto ToDto(Booking b)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-
+        // "Can review" and "can cancel" are now decisions the lifecycle makes,
+        // so this no longer compares dates itself.
         return new BookingDto(
             b.Id,
             b.Reference,
@@ -395,13 +425,23 @@ public class BookingsController(
             Cancellation.Label(b.CancellationTier),
             Cancellation.Summary(b.CancellationTier),
             b.Status.ToString(),
+            BookingLifecycle.Label(b.Status),
+            BookingLifecycle.BadgeClass(b.Status),
             b.Payment?.Status.ToString() ?? "Pending",
             b.Payment?.Reference,
             b.Payment?.Method,
             b.Payment?.CardLast4,
             b.HasReview,
-            b.CheckOut <= today && !b.HasReview && b.Status != BookingStatus.Cancelled,
-            b.Status != BookingStatus.Cancelled && b.CheckIn > today,
+            b.Status == BookingStatus.Completed && !b.HasReview,
+            BookingLifecycle.CanTransition(b.Status, BookingStatus.CancelledByGuest),
+            b.HoldExpiresAt,
+            b.RequestExpiresAt,
+            b.Events.OrderBy(e => e.CreatedAt).ThenBy(e => e.Id).Select(e => new BookingEventDto(
+                e.FromStatus?.ToString(),
+                e.FromStatus is null ? "" : BookingLifecycle.Label(e.FromStatus.Value),
+                e.ToStatus.ToString(),
+                BookingLifecycle.Label(e.ToStatus),
+                e.Actor, e.Reason, e.CreatedAt)).ToList(),
             b.GuestNote,
             b.Listing?.Host?.Name ?? "",
             b.CreatedAt);

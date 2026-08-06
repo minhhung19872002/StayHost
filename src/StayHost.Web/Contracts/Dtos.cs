@@ -129,7 +129,11 @@ public record HostBookingDto(
     decimal Total,
     decimal HostPayout,
     string Status,
+    string StatusLabel,
+    string StatusBadge,
     string PaymentStatus,
+    /// <summary>Set while a request is still inside its 24-hour window.</summary>
+    DateTime? RequestExpiresAt,
     DateTime CreatedAt);
 
 public record HostDashboardDto(
@@ -458,6 +462,10 @@ public record BookingDto(
     string CancellationTier,
     string CancellationSummary,
     string Status,
+    /// <summary>The Vietnamese wording; the server owns it so every screen agrees.</summary>
+    string StatusLabel,
+    /// <summary>pending / confirmed / cancelled — the badge classes the UI already has.</summary>
+    string StatusBadge,
     string PaymentStatus,
     string? PaymentReference,
     string? PaymentMethod,
@@ -465,6 +473,16 @@ public record BookingDto(
     bool HasReview,
     bool CanReview,
     bool CanCancel,
+    /// <summary>When the 15-minute payment hold lapses, if one is running.</summary>
+    DateTime? HoldExpiresAt,
+    /// <summary>When an unanswered request to book expires.</summary>
+    DateTime? RequestExpiresAt,
+    /// <summary>Append-only history, oldest first (docs/00 §6.2).</summary>
+    IReadOnlyList<BookingEventDto> History,
     string? GuestNote,
     string HostName,
     DateTime CreatedAt);
+
+public record BookingEventDto(
+    string? FromStatus, string FromLabel, string ToStatus, string ToLabel,
+    string Actor, string Reason, DateTime At);

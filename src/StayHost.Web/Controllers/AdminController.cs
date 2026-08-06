@@ -76,7 +76,7 @@ public class AdminController(StayHostDbContext db, AuthService auth, Notificatio
             await db.Listings.CountAsync(l => l.IsPublished, ct),
             await db.Listings.CountAsync(l => !l.IsPublished, ct),
             await db.Bookings.CountAsync(ct),
-            await db.Bookings.CountAsync(b => b.Status != BookingStatus.Cancelled && b.CheckOut >= today, ct),
+            await db.Bookings.CountAsync(b => BookingLifecycle.BlocksDates.Contains(b.Status) && b.CheckOut >= today, ct),
             payments.Sum(p => p.Amount),
             payments.Sum(p => p.PlatformFee),
             await db.ListingReports.CountAsync(r => r.Status == ReportStatus.Open, ct),

@@ -10,7 +10,8 @@ namespace StayHost.Web.Controllers;
 /// <summary>Everything a host needs to run their listings: inventory, calendar, orders, money.</summary>
 [ApiController]
 [Route("api/host")]
-public class HostController(StayHostDbContext db, AuthService auth, NotificationService notifications)
+public class HostController(
+    StayHostDbContext db, AuthService auth, NotificationService notifications, BookingService rules)
     : ControllerBase
 {
     private async Task<(User? User, HostProfile? Profile)> ResolveAsync(CancellationToken ct)
@@ -50,7 +51,7 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
             .OrderByDescending(b => b.CreatedAt)
             .ToListAsync(ct);
 
-        var live = bookings.Where(b => b.Status != BookingStatus.Cancelled).ToList();
+        var live = bookings.Where(b => BookingLifecycle.BlocksDates.Contains(b.Status)).ToList();
         var past = live.Where(b => b.CheckOut <= today).ToList();
         var upcoming = live.Where(b => b.CheckOut > today).ToList();
 
@@ -151,7 +152,7 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var hasLiveStay = await db.Bookings.AnyAsync(b =>
-            b.ListingId == id && b.Status != BookingStatus.Cancelled && b.CheckOut > today, ct);
+            b.ListingId == id && BookingLifecycle.BlocksDates.Contains(b.Status) && b.CheckOut > today, ct);
 
         if (hasLiveStay)
             return Conflict(new { message = "Chỗ nghỉ còn lượt đặt sắp tới. Hãy gỡ đăng thay vì xoá." });
@@ -182,7 +183,7 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
             .ToListAsync(ct);
 
         var booked = await db.Bookings
-            .Where(b => b.ListingId == id && b.Status != BookingStatus.Cancelled && b.CheckOut >= today)
+            .Where(b => b.ListingId == id && BookingLifecycle.BlocksDates.Contains(b.Status) && b.CheckOut >= today)
             .Select(b => new { b.Reference, b.CheckIn, b.CheckOut, b.Guests })
             .ToListAsync(ct);
 
@@ -207,7 +208,7 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
         if (req.To < req.From) return BadRequest(new { message = "Ngày kết thúc phải sau ngày bắt đầu." });
 
         var clash = await db.Bookings.AnyAsync(b =>
-            b.ListingId == req.ListingId && b.Status != BookingStatus.Cancelled &&
+            b.ListingId == req.ListingId && BookingLifecycle.BlocksDates.Contains(b.Status) &&
             b.CheckIn <= req.To && req.From < b.CheckOut, ct);
         if (clash) return Conflict(new { message = "Khoảng ngày này đã có khách đặt." });
 
@@ -338,10 +339,10 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var completed = await db.Bookings.CountAsync(b =>
-            listingIds.Contains(b.ListingId) && b.Status != BookingStatus.Cancelled && b.CheckOut < today, ct);
+            listingIds.Contains(b.ListingId) && BookingLifecycle.BlocksDates.Contains(b.Status) && b.CheckOut < today, ct);
 
         var hostCancellations = await db.Bookings.CountAsync(b =>
-            listingIds.Contains(b.ListingId) && b.Status == BookingStatus.Cancelled &&
+            listingIds.Contains(b.ListingId) && b.Status == BookingStatus.CancelledByGuest &&
             b.CancellationReason != null && b.CancellationReason.Contains("Chủ nhà"), ct);
 
         var rated = listings.Where(l => l.ReviewCount > 0).ToList();
@@ -360,8 +361,11 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
 
     /* ------------------------------------------------------------ bookings */
 
-    [HttpPost("bookings/{id:int}/{action}")]
-    public async Task<IActionResult> Respond(int id, string action, [FromBody] RespondBody? body, CancellationToken ct)
+    // "action" is a reserved route token in attribute routing — ASP.NET Core
+    // replaces it with the method name, so /confirm never matched. The parameter
+    // has to be called something else.
+    [HttpPost("bookings/{id:int}/{decision}")]
+    public async Task<IActionResult> Respond(int id, string decision, [FromBody] RespondBody? body, CancellationToken ct)
     {
         var (user, profile) = await ResolveAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
@@ -373,34 +377,57 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
         if (booking is null) return NotFound();
         if (profile is null || booking.Listing!.HostId != profile.Id) return Forbid();
 
-        switch (action.ToLowerInvariant())
+        var verb = decision.ToLowerInvariant();
+        if (verb is not ("confirm" or "decline"))
+            return BadRequest(new { message = "Hành động không hợp lệ." });
+
+        if (booking.Status != BookingStatus.PendingHostApproval)
         {
-            case "confirm":
-                booking.Status = BookingStatus.Confirmed;
-                if (booking.Payment is not null)
-                {
-                    booking.Payment.Status = PaymentStatus.Captured;
-                    booking.Payment.CapturedAt = DateTime.UtcNow;
-                    booking.Payment.PayoutDueOn = booking.CheckIn.AddDays(1);
-                }
+            return BadRequest(new
+            {
+                message = $"Đơn đang ở trạng thái \"{BookingLifecycle.Label(booking.Status)}\" nên không trả lời được nữa."
+            });
+        }
 
-                // docs/03 §5: a request-to-book is only charged once the host accepts,
-                // so this is the moment the money enters the books.
-                if (!await db.LedgerEntries.AnyAsync(e => e.BookingId == booking.Id, ct))
-                    db.LedgerEntries.AddRange(Ledger.CaptureBooking(booking, BookedPrice(booking), DateTime.UtcNow));
-                break;
+        if (verb == "confirm")
+        {
+            // docs/03 §2: a request never held the dates, so someone else may have
+            // taken them while the host was thinking. Re-run the nine checks.
+            var check = await rules.CheckAsync(
+                booking.Listing!, booking.CheckIn, booking.CheckOut,
+                new PartySize(booking.Adults, booking.Children, booking.Infants, booking.Pets), ct,
+                ignoreBookingId: booking.Id);
 
-            case "decline":
-                // Declining a request that was never charged simply drops it; there
-                // is nothing to reverse and nothing to refund.
-                booking.Status = BookingStatus.Cancelled;
-                booking.CancellationReason = body?.Reason ?? "Chủ nhà từ chối";
-                booking.CancelledBy = CancelledBy.Host;
-                if (booking.Payment is not null) booking.Payment.Status = PaymentStatus.Refunded;
-                break;
+            if (!check.Ok) return Conflict(new { message = check.Message, reason = check.Reason.ToString() });
 
-            default:
-                return BadRequest(new { message = "Hành động không hợp lệ." });
+            // The guest pays as the host accepts, so the booking passes through
+            // "chờ thanh toán" rather than jumping straight to confirmed.
+            db.BookingEvents.Add(BookingLifecycle.Transition(
+                booking, BookingStatus.PendingPayment, $"host:{user.Id}", "Chủ nhà chấp nhận yêu cầu."));
+            db.BookingEvents.Add(BookingLifecycle.Transition(
+                booking, BookingStatus.Confirmed, "system", "Thanh toán thành công."));
+
+            if (booking.Payment is not null)
+            {
+                booking.Payment.Status = PaymentStatus.Captured;
+                booking.Payment.CapturedAt = DateTime.UtcNow;
+                booking.Payment.PayoutDueOn = booking.CheckIn.AddDays(1);
+            }
+
+            // docs/03 §5: a request-to-book is only charged once the host accepts,
+            // so this is the moment the money enters the books.
+            if (!await db.LedgerEntries.AnyAsync(e => e.BookingId == booking.Id, ct))
+                db.LedgerEntries.AddRange(Ledger.CaptureBooking(booking, BookedPrice(booking), DateTime.UtcNow));
+        }
+        else
+        {
+            // Declining a request that was never charged simply drops it; there
+            // is nothing to reverse and nothing to refund.
+            db.BookingEvents.Add(BookingLifecycle.Transition(
+                booking, BookingStatus.Declined, $"host:{user.Id}", body?.Reason ?? "Chủ nhà từ chối"));
+            booking.CancellationReason = body?.Reason ?? "Chủ nhà từ chối";
+            booking.CancelledBy = CancelledBy.Host;
+            if (booking.Payment is not null) booking.Payment.Status = PaymentStatus.Refunded;
         }
 
         booking.RespondedAt = DateTime.UtcNow;
@@ -608,6 +635,9 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
         b.CheckIn, b.CheckOut, b.Nights, b.Guests, b.Total,
         b.Payment?.HostPayout ?? b.HostPayout,
         b.Status.ToString(),
+        BookingLifecycle.Label(b.Status),
+        BookingLifecycle.BadgeClass(b.Status),
         b.Payment?.Status.ToString() ?? "Pending",
+        b.RequestExpiresAt,
         b.CreatedAt);
 }

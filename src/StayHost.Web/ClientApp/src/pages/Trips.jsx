@@ -5,13 +5,8 @@ import { set, loadBookings, requireAuth, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate } from '../lib/format.js';
 
-export const STATUS = {
-  Pending: ['pending', 'Chờ chủ nhà xác nhận'],
-  Confirmed: ['confirmed', 'Đã xác nhận'],
-  Cancelled: ['cancelled', 'Đã huỷ'],
-  Completed: ['confirmed', 'Đã hoàn tất']
-};
-
+// Status wording and badge colour come from the server (BookingLifecycle), so
+// the ten states of docs/03 §3 read the same everywhere.
 export const PAYMENT = {
   Pending: 'đang chờ',
   Authorized: 'đã giữ tiền',
@@ -33,6 +28,26 @@ export function openReview(booking) {
   set({ reviewBooking: booking, reviewDraft: null, overlay: 'review' });
 }
 
+/**
+ * The two timers of docs/03 §2–§3, shown as a countdown so the guest knows how
+ * long they actually have rather than being surprised by an expiry.
+ */
+export function Deadline({ booking }) {
+  const at = booking.holdExpiresAt ?? booking.requestExpiresAt;
+  if (!at) return null;
+
+  const minutes = Math.round((new Date(at) - Date.now()) / 60000);
+  if (minutes <= 0) return null;
+
+  const label = booking.holdExpiresAt
+    ? `Giữ chỗ còn ${minutes} phút`
+    : minutes < 60
+      ? `Chủ nhà còn ${minutes} phút để trả lời`
+      : `Chủ nhà còn ${Math.round(minutes / 60)} giờ để trả lời`;
+
+  return <span className="badge pending">{label}</span>;
+}
+
 export function Trips() {
   const state = useStore();
   const navigate = useNavigate();
@@ -46,9 +61,7 @@ export function Trips() {
       <h1 className="section-title">Chuyến đi của tôi</h1>
       <p className="section-sub">{items.length} lượt đặt chỗ</p>
 
-      {items.length ? items.map(b => {
-        const [cls, label] = STATUS[b.status] ?? STATUS.Pending;
-        return (
+      {items.length ? items.map(b => (
           <article className="trip" key={b.id}>
             <img src={b.listingImage} alt={b.listingTitle} loading="lazy" decoding="async" />
             <div style={{ minWidth: 0 }}>
@@ -62,8 +75,9 @@ export function Trips() {
                 thanh toán {PAYMENT[b.paymentStatus] ?? b.paymentStatus}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-                <span className={`badge ${cls}`}>{label}</span>
+                <span className={`badge ${b.statusBadge}`}>{b.statusLabel}</span>
                 {b.hasReview && <span className="badge confirmed">Đã đánh giá</span>}
+                <Deadline booking={b} />
               </div>
             </div>
             <div style={{ display: 'grid', gap: 8 }}>
@@ -72,8 +86,7 @@ export function Trips() {
               {b.canCancel && <button className="btn btn-outline btn-sm" onClick={() => previewCancel(b.id)}>Huỷ đặt chỗ</button>}
             </div>
           </article>
-        );
-      }) : (
+      )) : (
         <div className="empty-state" style={{ marginTop: 24 }}>
           <h3>Chưa có chuyến đi nào</h3>
           <p>Khi bạn đặt chỗ, thông tin chuyến đi sẽ hiện ở đây.</p>

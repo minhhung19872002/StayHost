@@ -3,9 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { loadTrip, set, requireAuth, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
-import { money, longDate } from '../lib/format.js';
+import { money, longDate, dateTime } from '../lib/format.js';
 import { Icon } from '../components/Icon.jsx';
-import { STATUS, previewCancel, openReview } from './Trips.jsx';
+import { Deadline, previewCancel, openReview } from './Trips.jsx';
 
 const PAYMENT = {
   Pending: 'Đang chờ',
@@ -33,8 +33,6 @@ export function Trip() {
     );
   }
 
-  const [cls, label] = STATUS[b.status] ?? STATUS.Pending;
-
   const messageHost = async () => {
     if (!requireAuth()) return;
     try {
@@ -56,7 +54,10 @@ export function Trip() {
           <h1 className="section-title">{b.listingTitle}</h1>
           <p className="section-sub">{b.listingCity} · mã đặt chỗ <b>{b.reference}</b></p>
         </div>
-        <span className={`badge ${cls}`}>{label}</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span className={`badge ${b.statusBadge}`}>{b.statusLabel}</span>
+          <Deadline booking={b} />
+        </div>
       </div>
 
       <div className="trip-layout">
@@ -94,6 +95,8 @@ export function Trip() {
             )}
           </section>
 
+          <History events={b.history} />
+
           <section className="detail-section">
             <h2>Hỗ trợ</h2>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -107,6 +110,36 @@ export function Trip() {
         <Receipt booking={b} />
       </div>
     </div>
+  );
+}
+
+const ACTOR = { system: 'Hệ thống', guest: 'Bạn', host: 'Chủ nhà', admin: 'StayHost' };
+
+/**
+ * docs/00 §6.2 — every state change is a row, never an overwrite. Showing it
+ * is what makes that guarantee worth anything to the guest.
+ */
+function History({ events }) {
+  if (!events?.length) return null;
+
+  return (
+    <section className="detail-section">
+      <h2>Lịch sử đơn</h2>
+      <div style={{ display: 'grid', gap: 10 }}>
+        {events.map((e, i) => (
+          <div className="cal-row" key={i}>
+            <span className="badge pending">{dateTime(e.at)}</span>
+            <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>
+              <b>{e.fromLabel ? `${e.fromLabel} → ${e.toLabel}` : e.toLabel}</b>
+              {e.reason && <span style={{ color: 'var(--ink-muted)' }}> · {e.reason}</span>}
+            </div>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>
+              {ACTOR[e.actor.split(':')[0]] ?? e.actor}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
