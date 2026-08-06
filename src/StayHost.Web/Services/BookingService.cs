@@ -368,6 +368,11 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var calledOff = await experiences.SweepAsync(stoppingToken);
                 if (calledOff > 0) log.LogInformation("Đã huỷ {Count} suất trải nghiệm thiếu người.", calledOff);
 
+                // Referrals pay out once the newcomer has actually travelled.
+                var wallet = scope.ServiceProvider.GetRequiredService<WalletService>();
+                var rewarded = await wallet.RewardCompletedStaysAsync(stoppingToken);
+                if (rewarded > 0) log.LogInformation("Đã thưởng {Count} lượt giới thiệu.", rewarded);
+
                 // docs/01 TN-09 — milestone lines in the conversation itself.
                 var messenger = scope.ServiceProvider.GetRequiredService<ThreadMessenger>();
                 var posted = await messenger.SweepAsync(stoppingToken);

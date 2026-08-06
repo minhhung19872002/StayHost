@@ -33,7 +33,12 @@ public enum LedgerAccount
     /// confirmed. Nothing is recognised while the money sits here — it either
     /// becomes a booking or goes back to the people who sent it.
     /// </summary>
-    SplitEscrow = 9
+    SplitEscrow = 9,
+    /// <summary>
+    /// Gift cards sold but not yet moved onto anyone's balance. Somebody paid
+    /// real money for these, so they are owed until redeemed.
+    /// </summary>
+    GiftCardLiability = 10
 }
 
 public enum LedgerDirection
@@ -133,16 +138,26 @@ public static class Ledger
     /// paid a deposit (docs/01 ĐP-06); the rest is carried as a receivable so
     /// the host's share, the fees and the tax are all recognised at once.
     /// </param>
+    /// <param name="creditUsed">
+    /// Balance the guest spent on this booking. It was already an expense when
+    /// it was granted, so spending it discharges that liability rather than
+    /// costing the platform a second time.
+    /// </param>
     public static List<LedgerEntry> CaptureBooking(
-        Booking booking, Pricing.Breakdown price, DateTime at, decimal? paidNow = null)
+        Booking booking, Pricing.Breakdown price, DateTime at,
+        decimal? paidNow = null, decimal creditUsed = 0m)
     {
         var cash = paidNow is { } part ? Math.Clamp(part, 0, price.Total) : price.Total;
+        var credit = Math.Clamp(creditUsed, 0, price.Promotion);
 
         return Post("booking-captured", booking.Id, at,
             new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, cash, $"Khách trả đơn {booking.Reference}"),
             new Leg(LedgerAccount.GuestReceivable, LedgerDirection.Debit, price.Total - cash, "Phần khách còn nợ"),
-            // A promo code is money the platform gives up, not money the host loses.
-            new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Debit, price.Promotion, "Mã giảm giá sàn chịu"),
+            new Leg(LedgerAccount.PromotionalCredit, LedgerDirection.Debit, credit, "Khách dùng số dư"),
+            // A promo code is money the platform gives up; balance already cost it
+            // once, when it was granted, so only the difference is an expense here.
+            new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Debit, price.Promotion - credit,
+                "Mã giảm giá sàn chịu"),
             new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, price.HostPayout, "Phần chủ nhà nhận"),
             new Leg(LedgerAccount.GuestServiceFeeRevenue, LedgerDirection.Credit, price.GuestServiceFee, "Phí dịch vụ khách"),
             new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Credit, price.HostServiceFee, "Phí dịch vụ chủ nhà"),
@@ -303,13 +318,44 @@ public static class Ledger
     /// anything, so it lands on the platform's expense line.
     /// </summary>
     public static List<LedgerEntry> GrantCredit(
-        Booking booking, decimal amount, string memo, DateTime at) =>
+        Booking? booking, decimal amount, string memo, DateTime at) =>
         amount <= 0
             ? []
-            : Post("credit-granted", booking.Id, at,
+            : Post("credit-granted", booking?.Id, at,
                 new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Debit, amount, memo),
                 new Leg(LedgerAccount.PromotionalCredit, LedgerDirection.Credit, amount,
-                    $"Số dư tặng khách đơn {booking.Reference}"));
+                    booking is null ? "Số dư tặng khách" : $"Số dư tặng khách đơn {booking.Reference}"));
+
+    /// <summary>
+    /// Somebody bought a gift card. Real money came in and the platform now
+    /// owes that much in balance to whoever ends up holding the code.
+    /// </summary>
+    public static List<LedgerEntry> SellGiftCard(decimal amount, string code, DateTime at) =>
+        Post("gift-card-sold", null, at,
+            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, amount, $"Bán thẻ quà tặng {code}"),
+            new Leg(LedgerAccount.GiftCardLiability, LedgerDirection.Credit, amount, "Nợ thẻ quà tặng"));
+
+    /// <summary>
+    /// A code was typed in. Nothing was bought and nothing was spent: the debt
+    /// simply moves from "a card out there" to "this person's balance".
+    /// </summary>
+    public static List<LedgerEntry> RedeemGiftCard(decimal amount, string code, DateTime at) =>
+        Post("gift-card-redeemed", null, at,
+            new Leg(LedgerAccount.GiftCardLiability, LedgerDirection.Debit, amount, $"Đổi thẻ {code}"),
+            new Leg(LedgerAccount.PromotionalCredit, LedgerDirection.Credit, amount, "Chuyển vào số dư khách"));
+
+    /// <summary>
+    /// The balance part of a refund. A guest who paid with credit is owed
+    /// credit back, not cash, so the payable is cleared against the balance
+    /// they hold rather than against the platform's bank.
+    /// </summary>
+    public static List<LedgerEntry> SettleRefundAsCredit(Booking booking, decimal amount, DateTime at) =>
+        amount <= 0
+            ? []
+            : Post("refund-as-credit", booking.Id, at,
+                new Leg(LedgerAccount.GuestRefundPayable, LedgerDirection.Debit, amount, "Hoàn bằng số dư"),
+                new Leg(LedgerAccount.PromotionalCredit, LedgerDirection.Credit, amount,
+                    $"Trả lại số dư đơn {booking.Reference}"));
 
     /// <summary>Cash actually leaves for the guest's card; the payable is cleared.</summary>
     public static List<LedgerEntry> SettleRefund(Booking booking, decimal amount, DateTime at) =>

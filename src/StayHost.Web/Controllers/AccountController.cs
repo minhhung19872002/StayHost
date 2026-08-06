@@ -9,7 +9,7 @@ namespace StayHost.Web.Controllers;
 
 [ApiController]
 [Route("api/account")]
-public class AccountController(AuthService auth, StayHostDbContext db) : ControllerBase
+public class AccountController(AuthService auth, StayHostDbContext db, WalletService wallet) : ControllerBase
 {
     /// <summary>204 when nobody is signed in, so clients get an unambiguous empty response.</summary>
     [HttpGet("me")]
@@ -24,6 +24,11 @@ public class AccountController(AuthService auth, StayHostDbContext db) : Control
     {
         var result = await auth.RegisterAsync(req.Email, req.Password, req.FullName, req.Phone, ct);
         if (!result.Ok) return BadRequest(new { message = result.Error });
+
+        // A referral code typed at signup, or simply the email somebody invited:
+        // either way the new account is linked to whoever brought them here.
+        await wallet.ClaimAsync(result.User!, req.ReferralCode, ct);
+
         return Ok(await ToDtoAsync(result.User!, ct));
     }
 

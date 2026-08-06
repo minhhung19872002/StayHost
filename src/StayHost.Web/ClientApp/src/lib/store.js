@@ -105,6 +105,8 @@ export const state = {
   payMethod: 'card',
   // docs/01 ĐP-06 — take a deposit now instead of the whole amount.
   payDeposit: false,
+  // Spend the guest's balance on this booking.
+  useCredit: false,
   // docs/01 MR-09 — the room type chosen on a hotel listing.
   roomTypeId: null,
   // docs/01 ĐP-07 — let other people pay their share instead of paying it all.
@@ -527,6 +529,7 @@ export async function holdDates(extra = {}) {
       pets: state.guests.pets,
       // docs/01 MR-09 — a hotel booking carries the room the guest picked.
       roomTypeId: state.roomTypeId,
+      useCredit: state.useCredit,
       ...extra
     });
     set({ held });

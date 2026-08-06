@@ -48,6 +48,9 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<ServiceBooking> ServiceBookings => Set<ServiceBooking>();
     public DbSet<RoomTypeOption> RoomTypes => Set<RoomTypeOption>();
     public DbSet<PriceMatchClaim> PriceMatchClaims => Set<PriceMatchClaim>();
+    public DbSet<CreditEntry> CreditEntries => Set<CreditEntry>();
+    public DbSet<GiftCard> GiftCards => Set<GiftCard>();
+    public DbSet<Referral> Referrals => Set<Referral>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -216,6 +219,49 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.SlotId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.GuestUser).WithMany()
                 .HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<CreditEntry>(e =>
+        {
+            e.ToTable("credit_entries");
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
+            e.Property(x => x.Amount).HasColumnType("numeric(14,2)");
+            e.Property(x => x.Memo).HasMaxLength(200);
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<GiftCard>(e =>
+        {
+            e.ToTable("gift_cards");
+            e.HasIndex(x => x.Code).IsUnique();
+            e.Property(x => x.Code).HasMaxLength(24).IsRequired();
+            e.Property(x => x.RecipientEmail).HasMaxLength(200).IsRequired();
+            e.Property(x => x.RecipientName).HasMaxLength(120);
+            e.Property(x => x.Message).HasMaxLength(400);
+            e.Property(x => x.Amount).HasColumnType("numeric(14,2)");
+            e.Property(x => x.Remaining).HasColumnType("numeric(14,2)");
+            e.HasOne(x => x.PurchasedByUser).WithMany()
+                .HasForeignKey(x => x.PurchasedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.RedeemedByUser).WithMany()
+                .HasForeignKey(x => x.RedeemedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<Referral>(e =>
+        {
+            e.ToTable("referrals");
+            e.HasIndex(x => x.Code).IsUnique();
+            e.HasIndex(x => new { x.ReferrerUserId, x.InviteeEmail });
+            e.Property(x => x.Code).HasMaxLength(24).IsRequired();
+            e.Property(x => x.InviteeEmail).HasMaxLength(200).IsRequired();
+            e.Property(x => x.ReferrerReward).HasColumnType("numeric(14,2)");
+            e.Property(x => x.InviteeReward).HasColumnType("numeric(14,2)");
+            e.HasOne(x => x.ReferrerUser).WithMany()
+                .HasForeignKey(x => x.ReferrerUserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.InviteeUser).WithMany()
+                .HasForeignKey(x => x.InviteeUserId).OnDelete(DeleteBehavior.SetNull);
         });
 
         b.Entity<RoomTypeOption>(e =>

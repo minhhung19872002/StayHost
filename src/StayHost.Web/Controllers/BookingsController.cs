@@ -13,7 +13,7 @@ namespace StayHost.Web.Controllers;
 public class BookingsController(
     StayHostDbContext db, AuthService auth, NotificationService notifications,
     CatalogService catalog, BookingService rules, ReviewService reviews, ThreadMessenger messenger,
-    PaymentGateway gateway, RiskWatch risk)
+    PaymentGateway gateway, RiskWatch risk, WalletService wallet)
     : ControllerBase
 {
     /// <summary>
@@ -75,6 +75,24 @@ public class BookingsController(
         // exactly what the room page showed them (docs/00 §6.8).
         var quoteRequest = await catalog.BuildQuoteRequestAsync(
             listing.Id, req.CheckIn, req.CheckOut, party, ct, roomTypeId: req.RoomTypeId);
+
+        // Balance comes off the room charge, never off the fees or the tax: it
+        // is money towards a stay, not a discount on what is owed elsewhere.
+        var creditUsed = 0m;
+        if (req.UseCredit)
+        {
+            var dry = Pricing.Quote(quoteRequest!);
+            creditUsed = CreditRules.Spendable(
+                await wallet.BalanceAsync(user.Id, ct), dry.RoomBeforeDiscount - dry.RoomDiscount);
+
+            if (creditUsed > 0)
+                quoteRequest = quoteRequest! with
+                {
+                    PromotionAmount = creditUsed,
+                    PromotionLabel = "Số dư StayHost"
+                };
+        }
+
         var price = Pricing.Quote(quoteRequest!);
 
         var booking = new Booking
@@ -107,6 +125,7 @@ public class BookingsController(
             HostPayout = price.HostPayout,
             PriceLinesJson = SerializeLines(price.Lines),
             RoomTypeId = req.RoomTypeId,
+            CreditUsed = creditUsed,
             CancellationTier = listing.CancellationTier,
             GuestName = req.GuestName ?? user.FullName,
             GuestEmail = req.GuestEmail ?? user.Email,
@@ -214,6 +233,13 @@ public class BookingsController(
         var party = new PartySize(booking.Adults, booking.Children, booking.Infants, booking.Pets);
         var fresh = await catalog.BuildQuoteRequestAsync(
             booking.ListingId, booking.CheckIn, booking.CheckOut, party, ct, booking.Id, booking.RoomTypeId);
+
+        // The balance the guest committed at the hold is part of the price they
+        // were shown, so the re-price has to include it or every credit booking
+        // would fail its own "did the price move" check.
+        if (booking.CreditUsed > 0)
+            fresh = fresh! with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư StayHost" };
+
         var price = Pricing.Quote(fresh!);
 
         if (price.Total != booking.Total)
@@ -255,7 +281,14 @@ public class BookingsController(
             if (!string.IsNullOrWhiteSpace(req?.CardLast4)) booking.Payment.CardLast4 = req.CardLast4;
         }
 
-        db.LedgerEntries.AddRange(Ledger.CaptureBooking(booking, price, DateTime.UtcNow, charged));
+        if (booking.CreditUsed > 0)
+        {
+            wallet.Add(user.Id, -booking.CreditUsed, CreditReason.Spent,
+                $"Dùng cho đơn {booking.Reference}", booking.Id);
+        }
+
+        db.LedgerEntries.AddRange(
+            Ledger.CaptureBooking(booking, price, DateTime.UtcNow, charged, booking.CreditUsed));
         await db.SaveChangesAsync(ct);
 
         var listing = booking.Listing!;
@@ -474,6 +507,24 @@ public class BookingsController(
         var leftover = booking.BalanceDue - netted;
         if (leftover > 0)
             db.LedgerEntries.AddRange(Ledger.WriteOffReceivable(booking, leftover, DateTime.UtcNow));
+
+        // Balance spent on a booking comes back as balance, not as cash — and the
+        // refund payable is cleared against that balance, not against the bank.
+        if (booking.CreditUsed > 0 && booking.GuestUserId is { } creditOwner)
+        {
+            var creditBack = Math.Min(booking.CreditUsed, Math.Max(0m, outcome.Amount - cashBack - netted));
+            db.LedgerEntries.AddRange(Ledger.SettleRefundAsCredit(booking, creditBack, DateTime.UtcNow));
+
+            db.CreditEntries.Add(new CreditEntry
+            {
+                UserId = creditOwner,
+                Amount = booking.CreditUsed,
+                Reason = CreditReason.Returned,
+                Memo = $"Hoàn số dư đơn {booking.Reference}",
+                BookingId = booking.Id
+            });
+            booking.CreditUsed = 0;
+        }
 
         booking.RefundedAmount = cashBack;
         if (booking.BalanceDue > 0)

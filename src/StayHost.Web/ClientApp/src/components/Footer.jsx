@@ -34,7 +34,8 @@ const ROUTES = {
   'Trung tâm trợ giúp': '/help',
   'Cho thuê nhà trên StayHost': '/host',
   'Trải nghiệm': '/experiences',
-  'Dịch vụ': '/services'
+  'Dịch vụ': '/services',
+  'Thẻ quà tặng': '/wallet'
 };
 
 export function Footer() {

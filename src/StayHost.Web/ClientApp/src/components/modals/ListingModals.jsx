@@ -4,6 +4,7 @@ import { set, holdDates, payHeld, releaseHold, openSplit, openOverlay, closeOver
 import { money, longDate, parseIso, isoOf } from '../../lib/format.js';
 import { AmenityIcon } from '../Icon.jsx';
 import { HostReply, StarDistribution } from '../../pages/Detail.jsx';
+import { api } from '../../lib/api.js';
 import { Modal } from './Modal.jsx';
 
 const PHOTO_CAPTIONS = ['Ảnh chính', 'Phòng khách', 'Phòng ngủ', 'Không gian ngoài trời', 'Phòng tắm'];
@@ -324,6 +325,30 @@ function StepTrip({ q }) {
   </>;
 }
 
+/** Spend the guest's balance on this booking, against the room charge only. */
+function CreditChoice({ q }) {
+  const state = useStore();
+  const [balance, setBalance] = useState(null);
+
+  useEffect(() => {
+    if (!state.user) return;
+    api.wallet().then(w => setBalance(w.balance)).catch(() => setBalance(0));
+  }, [state.user]);
+
+  if (!balance) return null;
+
+  const room = q.roomBeforeDiscount - q.roomDiscount;
+  const usable = Math.min(balance, room);
+
+  return (
+    <button type="button" className={`opt ${state.useCredit ? 'is-on' : ''}`} style={{ marginTop: 18 }}
+            onClick={() => set({ useCredit: !state.useCredit })}>
+      <b>Dùng số dư {money(usable)}</b>
+      <span>Bạn đang có {money(balance)}. Số dư chỉ trừ vào tiền phòng.</span>
+    </button>
+  );
+}
+
 /**
  * docs/01 ĐP-06 — half now and the rest automatically, but only when there is
  * still runway for a second charge. Inside two weeks of check-in the option is
@@ -420,6 +445,7 @@ function StepPayment({ q }) {
         </p>
       </>}
 
+      <CreditChoice q={q} />
       <DepositChoice q={q} />
       <SplitChoice q={q} />
 

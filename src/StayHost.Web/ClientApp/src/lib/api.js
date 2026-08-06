@@ -185,6 +185,14 @@ export const api = {
   cancelExperienceBooking: id =>
     request(`/api/experiences/bookings/${id}/cancel`, { method: 'POST' }),
 
+  /* Balance, gift cards and referrals. */
+  wallet: () => request('/api/wallet'),
+  buyGiftCard: body => request('/api/wallet/gift-cards', { method: 'POST', body: JSON.stringify(body) }),
+  redeemGiftCard: code =>
+    request('/api/wallet/redeem', { method: 'POST', body: JSON.stringify({ code }) }),
+  inviteFriend: email =>
+    request('/api/wallet/referrals', { method: 'POST', body: JSON.stringify({ email }) }),
+
   /* docs/01 MR-10 — best-price guarantee on a hotel room. */
   submitPriceMatch: (bookingId, body) =>
     request(`/api/bookings/${bookingId}/price-match`, { method: 'POST', body: JSON.stringify(body) }),

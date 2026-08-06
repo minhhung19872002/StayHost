@@ -2,7 +2,10 @@ namespace StayHost.Web.Contracts;
 
 /* ------------------------------------------------------------------ account */
 
-public record RegisterRequest(string Email, string Password, string FullName, string? Phone);
+public record RegisterRequest(
+    string Email, string Password, string FullName, string? Phone,
+    /// <summary>Optional: the code a friend sent. Falls back to matching on email.</summary>
+    string? ReferralCode = null);
 
 public record LoginRequest(string Email, string Password);
 
@@ -733,7 +736,9 @@ public record CreateBookingRequest(
     int Infants = 0,
     int Pets = 0,
     /// <summary>docs/01 MR-09 — which kind of room, when the listing is a hotel.</summary>
-    int? RoomTypeId = null);
+    int? RoomTypeId = null,
+    /// <summary>Spend the guest's balance on this booking, up to the room charge.</summary>
+    bool UseCredit = false);
 
 public record BookingDto(
     int Id,
@@ -1164,3 +1169,53 @@ public record BookServiceRequest(
     string? Note,
     string? PaymentMethod,
     string? CardLast4);
+
+/* ---- gift cards, balance and referrals ---------------------------------- */
+
+public record CreditEntryDto(
+    long Id,
+    /// <summary>Positive when granted, negative when spent.</summary>
+    decimal Amount,
+    string Reason,
+    string ReasonLabel,
+    string Memo,
+    int? BookingId,
+    DateTime CreatedAt);
+
+public record GiftCardDto(
+    int Id,
+    string Code,
+    decimal Amount,
+    decimal Remaining,
+    string RecipientEmail,
+    string? RecipientName,
+    string? Message,
+    string Status,
+    string StatusLabel,
+    DateTime CreatedAt,
+    DateTime? RedeemedAt);
+
+public record ReferralDto(
+    int Id,
+    string Code,
+    string InviteeEmail,
+    string? InviteeName,
+    string Status,
+    string StatusLabel,
+    decimal ReferrerReward,
+    decimal InviteeReward,
+    DateTime CreatedAt);
+
+public record WalletDto(
+    decimal Balance,
+    IReadOnlyList<CreditEntryDto> Entries,
+    IReadOnlyList<GiftCardDto> GiftCards,
+    IReadOnlyList<ReferralDto> Referrals,
+    decimal ReferrerReward,
+    decimal InviteeReward,
+    decimal MinGiftCard,
+    decimal MaxGiftCard);
+
+public record BuyGiftCardRequest(decimal Amount, string? RecipientEmail, string? RecipientName, string? Message);
+public record RedeemGiftCardRequest(string? Code);
+public record InviteFriendRequest(string? Email);

@@ -439,6 +439,9 @@ public class Booking
     public DateTime? BalanceFirstFailedAt { get; set; }
     public DateTime? BalanceLastAttemptAt { get; set; }
 
+    /// <summary>How much of the guest's balance went into this booking.</summary>
+    public decimal CreditUsed { get; set; }
+
     /// <summary>docs/01 MR-09 — which kind of room, for a hotel booking.</summary>
     public int? RoomTypeId { get; set; }
     public RoomTypeOption? RoomType { get; set; }

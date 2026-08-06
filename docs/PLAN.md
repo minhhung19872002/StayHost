@@ -148,14 +148,15 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
       kèm địa chỉ, dịch vụ đối tác ăn hoa hồng
 - [x] Khách sạn (`MR-08`→`MR-10`): nhiều loại phòng có tồn kho, chọn phòng rồi mới
       thanh toán, cam kết giá tốt bù chênh lệch bằng số dư
-- [ ] Thẻ quà tặng, số dư khuyến mãi, giới thiệu bạn bè
+- [x] Thẻ quà tặng, số dư khuyến mãi, giới thiệu bạn bè: số dư là sổ chỉ-thêm,
+      chỉ trừ vào tiền phòng, huỷ đơn thì trả lại bằng số dư
 
 ---
 
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (255 test)
+# Test nghiệp vụ (266 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

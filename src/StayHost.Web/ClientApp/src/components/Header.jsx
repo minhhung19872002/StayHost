@@ -330,6 +330,7 @@ function AccountMenu() {
       <button role="menuitem" onClick={() => goTo('/wishlists')}>Danh sách yêu thích ({state.favCount})</button>
       <button role="menuitem" onClick={() => goTo('/experiences/bookings')}>Vé trải nghiệm</button>
       <button role="menuitem" onClick={() => goTo('/services/bookings')}>Dịch vụ đã đặt</button>
+      <button role="menuitem" onClick={() => goTo('/wallet')}>Số dư &amp; thẻ quà tặng</button>
       <button role="menuitem" onClick={() => goTo('/resolutions')}>Trung tâm giải quyết</button>
       <hr />
       {u.isHost
