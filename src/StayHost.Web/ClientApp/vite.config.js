@@ -1,10 +1,25 @@
+import { rmSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // The SPA is served by ASP.NET Core from wwwroot, so the build lands there.
 // emptyOutDir stays off because wwwroot also holds runtime image uploads.
+// emptyOutDir has to stay off (wwwroot also holds runtime uploads), so the
+// hashed assets from previous builds would pile up. This clears just that one
+// directory before each build.
+function cleanAssets(dir) {
+  return {
+    name: 'clean-assets',
+    apply: 'build',
+    buildStart() {
+      rmSync(resolve(import.meta.dirname, dir), { recursive: true, force: true });
+    }
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), cleanAssets('../wwwroot/assets')],
   build: {
     outDir: '../wwwroot',
     emptyOutDir: false,
