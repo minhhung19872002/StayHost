@@ -1,7 +1,7 @@
 import { useStore } from '../../lib/useStore.js';
 import { useEffect, useState } from 'react';
 import { set, holdDates, payHeld, releaseHold, openOverlay, closeOverlay } from '../../lib/store.js';
-import { money, longDate } from '../../lib/format.js';
+import { money, longDate, parseIso, isoOf } from '../../lib/format.js';
 import { AmenityIcon } from '../Icon.jsx';
 import { HostReply, StarDistribution } from '../../pages/Detail.jsx';
 import { Modal } from './Modal.jsx';
@@ -183,7 +183,13 @@ export function CheckoutModal() {
 
   const confirm = async () => {
     const card = document.getElementById('card-number')?.value?.replace(/\D/g, '') ?? '';
-    const payment = { paymentMethod: state.payMethod, cardLast4: card.length >= 4 ? card.slice(-4) : null };
+    const payment = {
+      paymentMethod: state.payMethod,
+      cardLast4: card.length >= 4 ? card.slice(-4) : null,
+      // docs/01 ĐP-06 — a deposit now, the rest taken 14 days before check-in.
+      payDeposit: state.payDeposit,
+      depositAmount: state.payDeposit ? Math.ceil(q.total / 2) : null
+    };
 
     setBusy(true);
     // A request to book has nothing to pay for yet — it goes to the host first.
@@ -203,8 +209,12 @@ export function CheckoutModal() {
   return (
     <Modal title="Đặt chỗ" foot={<>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 16, fontWeight: 800 }}>{money(q.total)}</div>
-        <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>{q.nights} đêm · đã gồm thuế</div>
+        <div style={{ fontSize: 16, fontWeight: 800 }}>
+          {money(state.payDeposit ? Math.ceil(q.total / 2) : q.total)}
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>
+          {state.payDeposit ? `trả trước · tổng ${money(q.total)}` : `${q.nights} đêm · đã gồm thuế`}
+        </div>
       </div>
       <div style={{ display: 'flex', gap: 10 }}>
         {step > 0 && <button className="btn btn-outline btn-sm" onClick={() => set({ checkoutStep: step - 1 })}>Quay lại</button>}
@@ -303,6 +313,35 @@ function StepTrip({ q }) {
   </>;
 }
 
+/**
+ * docs/01 ĐP-06 — half now and the rest automatically, but only when there is
+ * still runway for a second charge. Inside two weeks of check-in the option is
+ * not offered at all, which is what the rule says.
+ */
+function DepositChoice({ q }) {
+  const state = useStore();
+  const days = Math.round((parseIso(state.checkIn) - new Date()) / 86400000);
+  if (days <= 14) return null;
+
+  const half = Math.ceil(q.total / 2);
+  const dueOn = parseIso(state.checkIn);
+  dueOn.setDate(dueOn.getDate() - 14);
+
+  return (
+    <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
+      <button type="button" className={`opt ${!state.payDeposit ? 'is-on' : ''}`}
+              onClick={() => set({ payDeposit: false })}>
+        <b>Trả toàn bộ {money(q.total)}</b><span>Xong luôn, không phải nhớ gì thêm</span>
+      </button>
+      <button type="button" className={`opt ${state.payDeposit ? 'is-on' : ''}`}
+              onClick={() => set({ payDeposit: true })}>
+        <b>Trả trước {money(half)}</b>
+        <span>Phần còn lại {money(q.total - half)} tự động thu ngày {longDate(isoOf(dueOn))}</span>
+      </button>
+    </div>
+  );
+}
+
 function StepPayment({ q }) {
   const state = useStore();
   const method = state.payMethod;
@@ -332,6 +371,8 @@ function StepPayment({ q }) {
           Bản demo dùng thẻ thử nghiệm, không có giao dịch thật nào được thực hiện.
         </p>
       </>}
+
+      <DepositChoice q={q} />
 
       {method === 'momo' && (
         <p style={{ marginTop: 18, fontSize: 14, color: 'var(--ink-body)', lineHeight: 1.6 }}>

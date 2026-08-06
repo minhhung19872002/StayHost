@@ -21,7 +21,13 @@ public enum LedgerAccount
     /// <summary>Promotional balance the platform has granted, e.g. host-cancellation goodwill.</summary>
     PromotionalCredit = 6,
     /// <summary>The platform's own expense line, funding credits and goodwill.</summary>
-    PlatformExpense = 7
+    PlatformExpense = 7,
+    /// <summary>
+    /// The half of a part-paid booking the guest still owes (docs/01 ĐP-06).
+    /// The stay is recognised whole at booking time, so this stands in for the
+    /// cash until the second charge lands.
+    /// </summary>
+    GuestReceivable = 8
 }
 
 public enum LedgerDirection
@@ -96,15 +102,59 @@ public static class Ledger
     /// The guest has paid. Cash lands in the platform's hands and is immediately
     /// split into what it owes the host, what it keeps, and what it holds for tax.
     /// </summary>
-    public static List<LedgerEntry> CaptureBooking(Booking booking, Pricing.Breakdown price, DateTime at) =>
-        Post("booking-captured", booking.Id, at,
-            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, price.Total, $"Khách trả đơn {booking.Reference}"),
+    /// <param name="paidNow">
+    /// What the card was actually charged. Less than the total means the guest
+    /// paid a deposit (docs/01 ĐP-06); the rest is carried as a receivable so
+    /// the host's share, the fees and the tax are all recognised at once.
+    /// </param>
+    public static List<LedgerEntry> CaptureBooking(
+        Booking booking, Pricing.Breakdown price, DateTime at, decimal? paidNow = null)
+    {
+        var cash = paidNow is { } part ? Math.Clamp(part, 0, price.Total) : price.Total;
+
+        return Post("booking-captured", booking.Id, at,
+            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, cash, $"Khách trả đơn {booking.Reference}"),
+            new Leg(LedgerAccount.GuestReceivable, LedgerDirection.Debit, price.Total - cash, "Phần khách còn nợ"),
             // A promo code is money the platform gives up, not money the host loses.
             new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Debit, price.Promotion, "Mã giảm giá sàn chịu"),
             new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, price.HostPayout, "Phần chủ nhà nhận"),
             new Leg(LedgerAccount.GuestServiceFeeRevenue, LedgerDirection.Credit, price.GuestServiceFee, "Phí dịch vụ khách"),
             new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Credit, price.HostServiceFee, "Phí dịch vụ chủ nhà"),
             new Leg(LedgerAccount.TaxPayable, LedgerDirection.Credit, price.Tax, "Thuế thu hộ"));
+    }
+
+    /// <summary>
+    /// docs/01 ĐP-06 — the second charge. Nothing is recognised again; the cash
+    /// simply arrives and the receivable goes away.
+    /// </summary>
+    public static List<LedgerEntry> CollectBalance(Booking booking, decimal amount, DateTime at) =>
+        Post("balance-collected", booking.Id, at,
+            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, amount, $"Khách trả nốt đơn {booking.Reference}"),
+            new Leg(LedgerAccount.GuestReceivable, LedgerDirection.Credit, amount, "Xoá phần còn nợ"));
+
+    /// <summary>
+    /// A part-paid booking cancelled before the rest was taken. What the guest
+    /// is owed is set against what they still owe rather than moved as cash —
+    /// nobody sends money in both directions on the same booking.
+    /// </summary>
+    public static List<LedgerEntry> NetRefundAgainstReceivable(Booking booking, decimal amount, DateTime at) =>
+        amount <= 0
+            ? []
+            : Post("refund-netted", booking.Id, at,
+                new Leg(LedgerAccount.GuestRefundPayable, LedgerDirection.Debit, amount, "Cấn trừ vào phần khách còn nợ"),
+                new Leg(LedgerAccount.GuestReceivable, LedgerDirection.Credit, amount, $"Đơn {booking.Reference}"));
+
+    /// <summary>
+    /// A part-paid booking that ends before the balance was ever collected: the
+    /// receivable is written off against the same accounts that recognised it,
+    /// so the books do not carry a debt nobody is going to pay.
+    /// </summary>
+    public static List<LedgerEntry> WriteOffReceivable(Booking booking, decimal amount, DateTime at) =>
+        amount <= 0
+            ? []
+            : Post("receivable-written-off", booking.Id, at,
+                new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Debit, amount, "Xoá nợ khách không trả"),
+                new Leg(LedgerAccount.GuestReceivable, LedgerDirection.Credit, amount, $"Đơn {booking.Reference}"));
 
     /// <summary>
     /// A cancellation. Everything being returned is taken back out of the

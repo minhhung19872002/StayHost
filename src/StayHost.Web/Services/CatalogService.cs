@@ -816,8 +816,14 @@ public class CatalogService(StayHostDbContext db)
     /// Builds the priced request for a stay. Booking and quoting share this so a
     /// guest is never charged something other than what they were shown.
     /// </summary>
+    /// <param name="excludeBookingId">
+    /// The booking being priced. Creating a hold already counts as a sold stay,
+    /// so without this a booking pushes the listing past the new-listing
+    /// threshold and then fails its own price check at payment.
+    /// </param>
     public async Task<Pricing.Request?> BuildQuoteRequestAsync(
-        int listingId, DateOnly checkIn, DateOnly checkOut, PartySize party, CancellationToken ct)
+        int listingId, DateOnly checkIn, DateOnly checkOut, PartySize party, CancellationToken ct,
+        int? excludeBookingId = null)
     {
         var l = await db.Listings.FirstOrDefaultAsync(x => x.Id == listingId, ct);
         if (l is null) return null;
@@ -828,7 +834,9 @@ public class CatalogService(StayHostDbContext db)
 
         // The new-listing discount only looks at stays that actually went ahead.
         var soldStays = await db.Bookings
-            .CountAsync(b => b.ListingId == listingId && BookingLifecycle.BlocksDates.Contains(b.Status), ct);
+            .CountAsync(b => b.ListingId == listingId
+                             && b.Id != (excludeBookingId ?? 0)
+                             && BookingLifecycle.BlocksDates.Contains(b.Status), ct);
 
         return new Pricing.Request
         {

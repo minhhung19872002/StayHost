@@ -174,6 +174,8 @@ export const api = {
   deleteQuickReply: id => request(`/api/messages/quick-replies/${id}`, { method: 'DELETE' }),
 
   /* docs/01 QL-19 — people helping run a listing. */
+  payBalance: id => request(`/api/bookings/${id}/balance`, { method: 'POST' }),
+
   coHosts: () => request('/api/host/co-hosts'),
   inviteCoHost: body => request('/api/host/co-hosts', { method: 'POST', body: JSON.stringify(body) }),
   respondCoHost: (id, decision) => request(`/api/host/co-hosts/${id}/${decision}`, { method: 'POST' }),

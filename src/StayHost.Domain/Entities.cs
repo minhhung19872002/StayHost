@@ -415,6 +415,19 @@ public class Booking
     public string? CancellationReason { get; set; }
     public CancelledBy? CancelledBy { get; set; }
 
+    // --- docs/01 ĐP-06: paying a deposit now and the rest nearer the stay.
+    /// <summary>What the guest actually paid at booking. Equal to Total when they paid in full.</summary>
+    public decimal DepositPaid { get; set; }
+    /// <summary>What is still owed. Zero unless the guest chose to part-pay.</summary>
+    public decimal BalanceDue { get; set; }
+    /// <summary>When the rest is taken: 14 days before check-in, or at once for a late booking.</summary>
+    public DateOnly? BalanceDueOn { get; set; }
+    public BalanceStatus BalanceStatus { get; set; } = BalanceStatus.None;
+    public int BalanceAttempts { get; set; }
+    /// <summary>Starts the 72-hour retry window of docs/03 §1.</summary>
+    public DateTime? BalanceFirstFailedAt { get; set; }
+    public DateTime? BalanceLastAttemptAt { get; set; }
+
     /// <summary>When the 15-minute payment hold lapses (docs/03 §2).</summary>
     public DateTime? HoldExpiresAt { get; set; }
     /// <summary>When an unanswered request to book expires (docs/03 §3).</summary>

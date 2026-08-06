@@ -663,7 +663,13 @@ public record QuoteDto(
     string CancellationSummary);
 
 /// <summary>Card details captured when the guest actually pays, not when the hold started.</summary>
-public record PayBookingRequest(string? PaymentMethod, string? CardLast4);
+public record PayBookingRequest(
+    string? PaymentMethod,
+    string? CardLast4,
+    /// <summary>docs/01 ĐP-06 — take a deposit now instead of the whole amount.</summary>
+    bool PayDeposit = false,
+    /// <summary>How much of a deposit. Held to at least half the total.</summary>
+    decimal? DepositAmount = null);
 
 public record RefundPreviewDto(
     decimal Refund,
@@ -734,7 +740,13 @@ public record BookingDto(
     IReadOnlyList<BookingEventDto> History,
     string? GuestNote,
     string HostName,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    // --- docs/01 ĐP-06: paying a deposit now and the rest later.
+    decimal DepositPaid = 0,
+    decimal BalanceDue = 0,
+    DateOnly? BalanceDueOn = null,
+    string BalanceStatus = "None",
+    string BalanceLabel = "");
 
 public record BookingEventDto(
     string? FromStatus, string FromLabel, string ToStatus, string ToLabel,

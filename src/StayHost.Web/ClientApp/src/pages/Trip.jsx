@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
-import { loadTrip, set, requireAuth, toast } from '../lib/store.js';
+import { loadTrip, set, requireAuth, toast, payBalance } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate, dateTime } from '../lib/format.js';
 import { Icon } from '../components/Icon.jsx';
@@ -95,6 +95,8 @@ export function Trip() {
             )}
           </section>
 
+          <Balance booking={b} />
+
           <History events={b.history} />
 
           <section className="detail-section">
@@ -119,6 +121,33 @@ const ACTOR = { system: 'Hệ thống', guest: 'Bạn', host: 'Chủ nhà', admi
  * docs/00 §6.2 — every state change is a row, never an overwrite. Showing it
  * is what makes that guarantee worth anything to the guest.
  */
+/** docs/01 ĐP-06 — what is still owed on a part-paid booking, and when. */
+function Balance({ booking }) {
+  const [busy, setBusy] = useState(false);
+  if (booking.balanceStatus === 'None') return null;
+
+  const settled = booking.balanceDue <= 0;
+
+  return (
+    <section className="detail-section">
+      <h2>Thanh toán</h2>
+      <div className="kv-grid">
+        <Kv label="Đã trả" value={money(booking.depositPaid)} />
+        <Kv label="Còn phải trả" value={money(booking.balanceDue)}
+            hint={booking.balanceDueOn ? `Thu tự động ngày ${longDate(booking.balanceDueOn)}` : undefined} />
+      </div>
+      <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--ink-body)' }}>{booking.balanceLabel}</p>
+
+      {!settled && (
+        <button className="btn btn-primary btn-sm" style={{ marginTop: 16 }} disabled={busy}
+                onClick={async () => { setBusy(true); await payBalance(booking.id); setBusy(false); }}>
+          {busy ? 'Đang xử lý…' : `Trả nốt ${money(booking.balanceDue)} ngay`}
+        </button>
+      )}
+    </section>
+  );
+}
+
 function History({ events }) {
   if (!events?.length) return null;
 

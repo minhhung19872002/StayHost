@@ -25,6 +25,8 @@ builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<ReviewService>();
 builder.Services.AddScoped<ThreadMessenger>();
 builder.Services.AddScoped<AdminAudit>();
+builder.Services.AddScoped<PaymentGateway>();
+builder.Services.AddScoped<BalanceCollector>();
 builder.Services.AddScoped<HostAccess>();
 builder.Services.AddScoped<CalendarSyncService>();
 builder.Services.AddHttpClient("ical");

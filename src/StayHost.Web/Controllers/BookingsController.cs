@@ -12,7 +12,8 @@ namespace StayHost.Web.Controllers;
 [Route("api/bookings")]
 public class BookingsController(
     StayHostDbContext db, AuthService auth, NotificationService notifications,
-    CatalogService catalog, BookingService rules, ReviewService reviews, ThreadMessenger messenger)
+    CatalogService catalog, BookingService rules, ReviewService reviews, ThreadMessenger messenger,
+    PaymentGateway gateway)
     : ControllerBase
 {
     /// <summary>
@@ -208,7 +209,8 @@ public class BookingsController(
 
         // ĐP-12 — price it again and stop if anything moved while the guest paid.
         var party = new PartySize(booking.Adults, booking.Children, booking.Infants, booking.Pets);
-        var fresh = await catalog.BuildQuoteRequestAsync(booking.ListingId, booking.CheckIn, booking.CheckOut, party, ct);
+        var fresh = await catalog.BuildQuoteRequestAsync(
+            booking.ListingId, booking.CheckIn, booking.CheckOut, party, ct, booking.Id);
         var price = Pricing.Quote(fresh!);
 
         if (price.Total != booking.Total)
@@ -222,8 +224,25 @@ public class BookingsController(
             });
         }
 
+        // docs/01 ĐP-06 — a deposit of at least half, with the rest taken 14 days
+        // out. Too close to check-in for that and the whole amount is due now.
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var partial = req?.PayDeposit == true && PartialPayment.IsAvailable(booking.CheckIn, today);
+        var charged = partial ? PartialPayment.Deposit(price.Total, req?.DepositAmount) : price.Total;
+
+        var attempt = gateway.Charge(charged, req?.PaymentMethod ?? "card", req?.CardLast4);
+        if (!attempt.Ok) return BadRequest(new { message = attempt.Reason });
+
         db.BookingEvents.Add(BookingLifecycle.Transition(
-            booking, BookingStatus.Confirmed, $"guest:{user.Id}", "Thanh toán thành công."));
+            booking, BookingStatus.Confirmed, $"guest:{user.Id}",
+            partial
+                ? $"Đã đặt cọc {charged:#,##0}₫ trên tổng {price.Total:#,##0}₫."
+                : "Thanh toán thành công."));
+
+        booking.DepositPaid = charged;
+        booking.BalanceDue = price.Total - charged;
+        booking.BalanceDueOn = partial ? PartialPayment.BalanceDueOn(booking.CheckIn, today) : null;
+        booking.BalanceStatus = partial ? BalanceStatus.Scheduled : BalanceStatus.None;
 
         if (booking.Payment is not null)
         {
@@ -233,7 +252,7 @@ public class BookingsController(
             if (!string.IsNullOrWhiteSpace(req?.CardLast4)) booking.Payment.CardLast4 = req.CardLast4;
         }
 
-        db.LedgerEntries.AddRange(Ledger.CaptureBooking(booking, price, DateTime.UtcNow));
+        db.LedgerEntries.AddRange(Ledger.CaptureBooking(booking, price, DateTime.UtcNow, charged));
         await db.SaveChangesAsync(ct);
 
         var listing = booking.Listing!;
@@ -255,6 +274,50 @@ public class BookingsController(
             "Đặt chỗ đã được xác nhận",
             $"Mã đặt chỗ {booking.Reference} · {listing.Title} · {booking.Nights} đêm.",
             $"/trips/{booking.Id}", ct);
+
+        await db.SaveChangesAsync(ct);
+        return Ok(ToDto(booking));
+    }
+
+    /// <summary>
+    /// docs/01 ĐP-06 — the rest of a part-paid booking, either because its date
+    /// came round or because the guest chose to settle up early.
+    /// </summary>
+    [HttpPost("{id:int}/balance")]
+    public async Task<ActionResult<BookingDto>> PayBalance(int id, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var booking = await db.Bookings
+            .Include(b => b.Payment).Include(b => b.Events)
+            .Include(b => b.Listing!).ThenInclude(l => l.Images)
+            .FirstOrDefaultAsync(b => b.Id == id && b.GuestUserId == user.Id, ct);
+
+        if (booking is null) return NotFound();
+        if (booking.BalanceDue <= 0 || booking.BalanceStatus is BalanceStatus.None or BalanceStatus.Paid)
+            return BadRequest(new { message = "Đơn này không còn khoản nào phải trả." });
+
+        var attempt = gateway.Charge(booking.BalanceDue, booking.Payment?.Method ?? "card", booking.Payment?.CardLast4);
+        booking.BalanceAttempts++;
+        booking.BalanceLastAttemptAt = DateTime.UtcNow;
+
+        if (!attempt.Ok)
+        {
+            booking.BalanceFirstFailedAt ??= DateTime.UtcNow;
+            booking.BalanceStatus = BalanceStatus.Retrying;
+            await db.SaveChangesAsync(ct);
+            return BadRequest(new { message = attempt.Reason });
+        }
+
+        db.LedgerEntries.AddRange(Ledger.CollectBalance(booking, booking.BalanceDue, DateTime.UtcNow));
+        db.BookingEvents.Add(BookingLifecycle.Note(
+            booking, $"guest:{user.Id}", $"Đã thu nốt {booking.BalanceDue:#,##0}₫."));
+
+        booking.DepositPaid += booking.BalanceDue;
+        booking.BalanceDue = 0;
+        booking.BalanceStatus = BalanceStatus.Paid;
+        booking.BalanceFirstFailedAt = null;
 
         await db.SaveChangesAsync(ct);
         return Ok(ToDto(booking));
@@ -388,8 +451,29 @@ public class BookingsController(
         hostFeeReturned = Math.Min(hostFeeReturned, hostSideRefund);
 
         db.LedgerEntries.AddRange(Ledger.RefundBooking(booking, outcome, hostFeeReturned, DateTime.UtcNow));
-        if (outcome.Amount > 0)
-            db.LedgerEntries.AddRange(Ledger.SettleRefund(booking, outcome.Amount, DateTime.UtcNow));
+
+        // docs/01 ĐP-06 — a guest who only paid a deposit cannot be sent back
+        // more than they handed over. What they are owed is set against what
+        // they still owe first, and only the cash difference actually moves.
+        var paid = booking.BalanceStatus == BalanceStatus.None ? booking.Total : booking.DepositPaid;
+        var cashBack = Math.Min(outcome.Amount, paid);
+        var netted = Math.Min(outcome.Amount - cashBack, booking.BalanceDue);
+
+        if (cashBack > 0)
+            db.LedgerEntries.AddRange(Ledger.SettleRefund(booking, cashBack, DateTime.UtcNow));
+        if (netted > 0)
+            db.LedgerEntries.AddRange(Ledger.NetRefundAgainstReceivable(booking, netted, DateTime.UtcNow));
+
+        var leftover = booking.BalanceDue - netted;
+        if (leftover > 0)
+            db.LedgerEntries.AddRange(Ledger.WriteOffReceivable(booking, leftover, DateTime.UtcNow));
+
+        booking.RefundedAmount = cashBack;
+        if (booking.BalanceDue > 0)
+        {
+            booking.BalanceDue = 0;
+            booking.BalanceStatus = BalanceStatus.Failed;
+        }
     }
 
     private async Task ApplyCancellationAsync(
@@ -606,6 +690,11 @@ public class BookingsController(
                 e.Actor, e.Reason, e.CreatedAt)).ToList(),
             b.GuestNote,
             b.Listing?.Host?.Name ?? "",
-            b.CreatedAt);
+            b.CreatedAt,
+            b.DepositPaid,
+            b.BalanceDue,
+            b.BalanceDueOn,
+            b.BalanceStatus.ToString(),
+            PartialPayment.Label(b.BalanceStatus));
     }
 }

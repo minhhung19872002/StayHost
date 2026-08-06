@@ -294,6 +294,11 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var reviewResult = await reviews.SweepAsync(notifications, stoppingToken);
                 if (reviewResult.Any) log.LogInformation("Đánh giá: {Result}.", reviewResult);
 
+                // docs/01 ĐP-06 — the second half of part-paid bookings.
+                var balances = scope.ServiceProvider.GetRequiredService<BalanceCollector>();
+                var balanceResult = await balances.SweepAsync(stoppingToken);
+                if (balanceResult.Any) log.LogInformation("Trả một phần: {Result}.", balanceResult);
+
                 // docs/01 TN-09 — milestone lines in the conversation itself.
                 var messenger = scope.ServiceProvider.GetRequiredService<ThreadMessenger>();
                 var posted = await messenger.SweepAsync(stoppingToken);

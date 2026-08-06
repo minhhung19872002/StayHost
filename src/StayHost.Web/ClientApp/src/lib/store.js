@@ -103,6 +103,8 @@ export const state = {
   // checkout
   checkoutStep: 0,
   payMethod: 'card',
+  // docs/01 ĐP-06 — take a deposit now instead of the whole amount.
+  payDeposit: false,
   checkoutName: '',
   checkoutEmail: '',
   checkoutNote: '',
@@ -533,6 +535,22 @@ export async function payHeld(extra = {}) {
     return state.bookingResult;
   } catch (err) {
     state.bookingError = err.message;
+    return null;
+  } finally {
+    notify();
+  }
+}
+
+/** docs/01 ĐP-06 — the guest settles the rest before its date comes round. */
+export async function payBalance(bookingId) {
+  try {
+    const updated = await api.payBalance(bookingId);
+    state.trip = updated;
+    toast('Đã thanh toán phần còn lại.');
+    await loadBookings();
+    return updated;
+  } catch (err) {
+    toast(err.message);
     return null;
   } finally {
     notify();

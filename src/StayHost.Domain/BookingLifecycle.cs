@@ -96,6 +96,24 @@ public static class BookingLifecycle
         return evt;
     }
 
+    /// <summary>
+    /// Something worth recording that did not change the status — a second
+    /// charge landing, say. The history is append-only either way.
+    /// </summary>
+    public static BookingEvent Note(Booking booking, string actor, string reason)
+    {
+        var evt = new BookingEvent
+        {
+            BookingId = booking.Id,
+            FromStatus = booking.Status,
+            ToStatus = booking.Status,
+            Actor = actor,
+            Reason = reason
+        };
+        booking.Events.Add(evt);
+        return evt;
+    }
+
     /// <summary>The row that records a booking being created in the first place.</summary>
     public static BookingEvent Created(Booking booking, string actor, string reason) =>
         new() { BookingId = booking.Id, FromStatus = null, ToStatus = booking.Status, Actor = actor, Reason = reason };
