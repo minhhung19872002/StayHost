@@ -87,7 +87,7 @@ export function Detail() {
           <Summary detail={d} card={c} />
           <HostRow host={d.host} />
           <Highlights detail={d} card={c} />
-          <Sleeping card={c} />
+          <Sleeping bedrooms={d.bedrooms} />
           <Amenities detail={d} />
           <CalendarSection nights={nights} city={c.city} />
           <Reviews detail={d} card={c} />
@@ -219,47 +219,55 @@ function Highlights({ detail, card }) {
   );
 }
 
-/** Airbnb's "Where you'll sleep" strip — one card per bedroom. */
-function Sleeping({ card }) {
-  const bedrooms = Math.max(1, card.bedrooms);
-  const perRoom = Math.max(1, Math.round(card.beds / bedrooms));
+/** docs/01 TĐ-05 — which beds are in which room, as the host described them. */
+function Sleeping({ bedrooms }) {
+  if (!bedrooms?.length) return null;
 
   return (
     <section className="detail-section" id="section-sleeping">
       <h2>Nơi bạn sẽ ngủ</h2>
       <div className="sleep-grid">
-        {Array.from({ length: bedrooms }, (_, i) => {
-          const extra = i === 0 ? card.beds - perRoom * bedrooms : 0;
-          return (
-            <div className="sleep-card" key={i}>
-              <span className="ic"><Icon name="house" size={26} /></span>
-              <b>Phòng ngủ {i + 1}</b>
-              <span>{Math.max(1, perRoom + extra)} giường đôi</span>
-            </div>
-          );
-        })}
+        {bedrooms.map((room, i) => (
+          <div className="sleep-card" key={`${room.name}-${i}`}>
+            <span className="ic"><Icon name="house" size={26} /></span>
+            <b>{room.name}</b>
+            <span>{summariseBeds(room.beds)}</span>
+          </div>
+        ))}
       </div>
     </section>
   );
 }
 
+/** "2 giường đôi, 1 giường đơn" rather than a bare list. */
+function summariseBeds(beds) {
+  const counts = new Map();
+  for (const bed of beds) counts.set(bed, (counts.get(bed) ?? 0) + 1);
+  return [...counts].map(([bed, n]) => `${n} ${bed.toLowerCase()}`).join(', ');
+}
+
+/**
+ * docs/01 TĐ-04 — the present amenities come first, then the notable ones this
+ * place does not have, struck through so absence is stated rather than implied.
+ */
 function Amenities({ detail }) {
-  const all = detail.amenityGroups.flatMap(g => g.items);
-  const preview = all.slice(0, 8);
+  const present = detail.allAmenities.filter(a => a.available);
+  const missing = detail.allAmenities.filter(a => !a.available);
+  const preview = [...present.slice(0, 8), ...missing.slice(0, 4)];
 
   return (
     <section className="detail-section" id="section-amenities">
       <h2>Tiện nghi tại đây</h2>
       <div className="amenity-grid">
         {preview.map(a => (
-          <div className="amenity" key={a.key}>
+          <div className={`amenity ${a.available ? '' : 'is-missing'}`} key={a.key}>
             <span className="ic"><AmenityIcon name={a.key} /></span><span>{a.label}</span>
           </div>
         ))}
       </div>
-      {all.length > preview.length && (
+      {detail.allAmenities.length > preview.length && (
         <button className="btn btn-outline btn-sm" style={{ marginTop: 18 }} onClick={() => openOverlay('amenities')}>
-          Hiện tất cả {all.length} tiện nghi
+          Hiện tất cả {detail.allAmenities.length} tiện nghi
         </button>
       )}
     </section>
@@ -316,6 +324,8 @@ function Reviews({ detail, card }) {
         {card.isGuestFavorite && <span className="badge confirmed" style={{ marginLeft: 6 }}>Khách yêu thích</span>}
       </div>
 
+      <StarDistribution counts={rb.starCounts} total={detail.reviews.length} />
+
       <div className="rating-bars">
         {Object.entries(RATING_LABELS).map(([key, label]) => (
           <div className="rating-bar" key={key}>
@@ -343,6 +353,7 @@ function Reviews({ detail, card }) {
               </div>
             </div>
             <p>{r.text}</p>
+            <HostReply review={r} />
           </article>
         ))}
       </div>
@@ -353,6 +364,35 @@ function Reviews({ detail, card }) {
         </button>
       )}
     </section>
+  );
+}
+
+/** docs/01 TĐ-10 — how the reviews split across five stars, five first. */
+export function StarDistribution({ counts, total }) {
+  if (!counts?.length || !total) return null;
+
+  return (
+    <div className="star-dist">
+      {counts.map((n, i) => (
+        <div className="star-dist-row" key={i}>
+          <span>{5 - i} sao</span>
+          <span className="track"><span className="fill" style={{ width: `${(n / total) * 100}%` }} /></span>
+          <span>{n}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** docs/01 TĐ-12 — the host's single public answer, under the review. */
+export function HostReply({ review }) {
+  if (!review.hostReply) return null;
+
+  return (
+    <div className="review-reply">
+      <b>Phản hồi của chủ nhà{review.hostRepliedAt ? ` · ${longDate(review.hostRepliedAt.slice(0, 10))}` : ''}</b>
+      <p>{review.hostReply}</p>
+    </div>
   );
 }
 

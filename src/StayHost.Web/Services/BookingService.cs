@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using StayHost.Domain;
 using StayHost.Infrastructure;
+using StayHost.Web.Contracts;
 
 namespace StayHost.Web.Services;
 
@@ -90,6 +91,96 @@ public class BookingService(StayHostDbContext db)
             ],
             MinNightsByDay = byDay
         });
+    }
+
+    /// <summary>
+    /// docs/01 TM-05 and TĐ-09: the nightly rate on every date cell, and — when
+    /// the guest's dates are gone — the next few runs of free nights.
+    /// </summary>
+    public async Task<ListingCalendarDto?> CalendarAsync(
+        int listingId, DateOnly from, DateOnly to, CancellationToken ct)
+    {
+        var listing = await db.Listings.FirstOrDefaultAsync(l => l.Id == listingId, ct);
+        if (listing is null) return null;
+
+        // Cap the window so a bad query cannot ask for a decade of nights.
+        if (to <= from) to = from.AddMonths(3);
+        if (to.DayNumber - from.DayNumber > 400) to = from.AddDays(400);
+
+        var rules = await db.PriceRules
+            .Where(r => r.ListingId == listingId && r.From <= to && from <= r.To)
+            .ToListAsync(ct);
+
+        var stays = await db.Bookings
+            .Where(b => b.ListingId == listingId
+                        && BookingLifecycle.BlocksDates.Contains(b.Status)
+                        && b.CheckIn < to && from < b.CheckOut)
+            .Select(b => new { b.CheckIn, b.CheckOut })
+            .ToListAsync(ct);
+
+        var blocks = await db.CalendarBlocks
+            .Where(b => b.ListingId == listingId && b.From <= to && from <= b.To)
+            .Select(b => new { b.From, b.To })
+            .ToListAsync(ct);
+
+        var taken = new HashSet<DateOnly>();
+        foreach (var s in stays)
+            for (var d = s.CheckIn; d < s.CheckOut; d = d.AddDays(1)) taken.Add(d);
+        foreach (var b in blocks)
+            for (var d = b.From; d <= b.To; d = d.AddDays(1)) taken.Add(d);
+
+        var today = DateOnly.FromDateTime(LocalNow(listing));
+
+        var nights = new List<CalendarNightDto>();
+        for (var d = from; d < to; d = d.AddDays(1))
+        {
+            var rate = Pricing.RateFor(listing, d, rules);
+            var perDayMin = rules
+                .Where(r => r.MinNights != null && r.From <= d && d <= r.To)
+                .Select(r => r.MinNights!.Value)
+                .DefaultIfEmpty(0)
+                .Max();
+
+            nights.Add(new CalendarNightDto(
+                d, rate.Rate, rate.Source,
+                d >= today && !taken.Contains(d),
+                Math.Max(listing.MinNights, perDayMin)));
+        }
+
+        return new ListingCalendarDto(listingId, from, to, nights, NextOpenings(nights, listing.MinNights));
+    }
+
+    /// <summary>
+    /// The three longest runs of consecutive free nights, soonest first. Offered
+    /// when the dates the guest picked are already sold (docs/01 TĐ-09).
+    /// </summary>
+    private static List<OpeningDto> NextOpenings(List<CalendarNightDto> nights, int minNights)
+    {
+        var openings = new List<OpeningDto>();
+        DateOnly? runStart = null;
+
+        foreach (var n in nights)
+        {
+            if (n.Available)
+            {
+                runStart ??= n.Date;
+                continue;
+            }
+
+            if (runStart is { } start) openings.Add(Run(start, n.Date));
+            runStart = null;
+        }
+
+        if (runStart is { } tail && nights.Count > 0)
+            openings.Add(Run(tail, nights[^1].Date.AddDays(1)));
+
+        return openings
+            .Where(o => o.Nights >= Math.Max(1, minNights))
+            .Take(3)
+            .ToList();
+
+        static OpeningDto Run(DateOnly start, DateOnly endExclusive) =>
+            new(start, endExclusive, endExclusive.DayNumber - start.DayNumber);
     }
 
     /// <summary>

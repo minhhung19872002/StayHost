@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
@@ -7,6 +7,7 @@ import {
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { applySearch } from '../lib/nav.js';
+import { recentSearches, clearSearchHistory } from '../lib/history.js';
 import { dateRangeLabel, debounce } from '../lib/format.js';
 import { Icon } from './Icon.jsx';
 
@@ -171,11 +172,21 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
   );
 }
 
-/** Destination dropdown; cities jump to a search, listings open the room page. */
+/**
+ * Destination dropdown. With nothing typed it leads with the guest's recent
+ * searches (docs/01 TM-04); cities jump to a search, listings open the room page.
+ */
 function Suggestions() {
   const state = useStore();
   const navigate = useNavigate();
-  if (!state.suggestOpen || !state.suggestions?.length) return null;
+  const [recent, setRecent] = useState(() => recentSearches());
+
+  // The list is re-read each time the panel opens, so a search made a moment
+  // ago is already there.
+  useEffect(() => { if (state.suggestOpen) setRecent(recentSearches()); }, [state.suggestOpen]);
+
+  const showRecent = !state.q.trim() && recent.length > 0;
+  if (!state.suggestOpen || (!state.suggestions?.length && !showRecent)) return null;
 
   const pick = s => {
     set({ suggestOpen: false });
@@ -184,10 +195,40 @@ function Suggestions() {
     applySearch({ replace: false });
   };
 
+  const replay = entry => {
+    set({
+      suggestOpen: false,
+      q: entry.q,
+      checkIn: entry.checkIn ?? state.checkIn,
+      checkOut: entry.checkOut ?? state.checkOut,
+      guests: entry.guests ?? state.guests
+    });
+    applySearch({ replace: false });
+  };
+
   return (
     <div className="suggest" role="listbox">
+      {showRecent && <>
+        <div className="suggest-head">
+          Tìm kiếm gần đây
+          <button className="link-btn" style={{ float: 'right', fontSize: 12 }}
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => { clearSearchHistory(); setRecent([]); }}>Xoá</button>
+        </div>
+        {recent.map(entry => (
+          <button type="button" className="suggest-row" role="option" key={`recent:${entry.q}`}
+                  onMouseDown={e => e.preventDefault()} onClick={() => replay(entry)}>
+            <span className="suggest-ic"><Icon name="search" size={18} /></span>
+            <span style={{ minWidth: 0 }}>
+              <b>{entry.q}</b>
+              <span>{entry.checkIn ? dateRangeLabel(entry.checkIn, entry.checkOut) : 'Mọi ngày'}</span>
+            </span>
+          </button>
+        ))}
+      </>}
+
       <div className="suggest-head">{state.q.trim() ? 'Kết quả gợi ý' : 'Điểm đến phổ biến'}</div>
-      {state.suggestions.map(s => (
+      {(state.suggestions ?? []).map(s => (
         <button type="button" className="suggest-row" role="option" key={`${s.kind}:${s.value}`}
                 onMouseDown={e => e.preventDefault()} onClick={() => pick(s)}>
           <span className="suggest-ic"><Icon name={s.kind === 'city' ? 'map' : 'house'} size={18} /></span>

@@ -75,6 +75,10 @@ export const state = {
   // any handler can flip it without prop-drilling.
   hideMap: false,
   showTotalPrice: false,
+  /** docs/01 TM-12 — re-run the search whenever the map is moved. */
+  searchOnMapMove: false,
+  /** The map rectangle the current results were searched in, if any. */
+  searchArea: null,
   tab: 'homes',
   menu: null,            // 'account' | 'bell' | null
   overlay: null,         // key into the overlay registry
@@ -235,7 +239,9 @@ export async function loadMeta() {
 
 export function searchParams(page = 1) {
   const meta = state.meta;
+  const area = state.searchArea;
   return {
+    ...(area ?? {}),
     // Dates go to the server so it can price every card with the same engine
     // checkout uses (docs/00 §6.8).
     checkIn: state.checkIn,

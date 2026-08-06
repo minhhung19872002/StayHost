@@ -46,6 +46,13 @@ export const api = {
 
   search: params => request(`/api/listings${qs(params)}`),
 
+  /** docs/01 TM-19 — how many results the current filters would return. */
+  count: params => request(`/api/listings/count${qs(params)}`),
+
+  /** docs/01 TM-05 / TĐ-09 — nightly rates and the next free windows. */
+  listingCalendar: (id, params) => request(`/api/listings/${id}/calendar${qs(params ?? {})}`),
+
+
   listing: (idOrSlug, params) =>
     request(`/api/listings/${encodeURIComponent(idOrSlug)}${qs(params ?? {})}`),
 
@@ -103,8 +110,10 @@ export const api = {
   removePriceRule: id => request(`/api/host/price-rules/${id}`, { method: 'DELETE' }),
   reviewGuest: (bookingId, body) =>
     request(`/api/host/bookings/${bookingId}/review-guest`, { method: 'POST', body: JSON.stringify(body) }),
-  respondBooking: (id, action, reason) =>
-    request(`/api/host/bookings/${id}/${action}`, { method: 'POST', body: JSON.stringify({ reason: reason ?? null }) }),
+  respondBooking: (id, decision, reason) =>
+    request(`/api/host/bookings/${id}/${decision}`, { method: 'POST', body: JSON.stringify({ reason: reason ?? null }) }),
+  replyToReview: (reviewId, text) =>
+    request(`/api/host/reviews/${reviewId}/reply`, { method: 'POST', body: JSON.stringify({ text }) }),
 
   /* ------------------------------------------------------------- messages */
   /* --------------------------------------------------------- notifications */

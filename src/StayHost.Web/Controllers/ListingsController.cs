@@ -8,8 +8,24 @@ namespace StayHost.Web.Controllers;
 
 [ApiController]
 [Route("api")]
-public class ListingsController(CatalogService catalog) : ControllerBase
+public class ListingsController(CatalogService catalog, BookingService bookings) : ControllerBase
 {
+    /// <summary>
+    /// Nightly rates and availability for the date picker (docs/01 TM-05), plus
+    /// the next free windows when the guest's dates are gone (TĐ-09).
+    /// </summary>
+    [HttpGet("listings/{id:int}/calendar")]
+    public async Task<ActionResult<ListingCalendarDto>> Calendar(
+        int id,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        CancellationToken ct = default)
+    {
+        var start = from ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var calendar = await bookings.CalendarAsync(id, start, to ?? start.AddMonths(4), ct);
+        return calendar is null ? NotFound() : Ok(calendar);
+    }
+
     [HttpGet("meta")]
     public async Task<ActionResult<MetaDto>> Meta(CancellationToken ct) =>
         Ok(await catalog.GetMetaAsync(ct));
@@ -51,17 +67,71 @@ public class ListingsController(CatalogService catalog) : ControllerBase
         [FromQuery] bool freeCancellation = false,
         [FromQuery] DateOnly? checkIn = null,
         [FromQuery] DateOnly? checkOut = null,
+        [FromQuery] double? south = null,
+        [FromQuery] double? west = null,
+        [FromQuery] double? north = null,
+        [FromQuery] double? east = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 24,
         CancellationToken ct = default)
     {
-        var keys = (amenities ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var query = new CatalogService.SearchQuery(
-            q, category, minPrice, maxPrice, guests, keys, sort, roomType,
+        var query = BuildQuery(
+            q, category, minPrice, maxPrice, guests, amenities, sort, roomType,
             bedrooms, beds, bathrooms, superhost, guestFavorite, instantBook, freeCancellation,
-            page, pageSize, checkIn, checkOut);
+            checkIn, checkOut, south, west, north, east, page, pageSize);
 
         return Ok(await catalog.SearchAsync(query, HttpContext.SessionId(), ct));
+    }
+
+    /// <summary>
+    /// docs/01 TM-19 — the filter panel needs the number of matches as the guest
+    /// changes a filter, without paying for a page of listings.
+    /// </summary>
+    [HttpGet("listings/count")]
+    public async Task<ActionResult<object>> Count(
+        [FromQuery] string? q,
+        [FromQuery] string? category,
+        [FromQuery] decimal? minPrice,
+        [FromQuery] decimal? maxPrice,
+        [FromQuery] int guests = 0,
+        [FromQuery] string? amenities = null,
+        [FromQuery] string? roomType = "any",
+        [FromQuery] int? bedrooms = null,
+        [FromQuery] int? beds = null,
+        [FromQuery] int? bathrooms = null,
+        [FromQuery] bool superhost = false,
+        [FromQuery] bool guestFavorite = false,
+        [FromQuery] bool instantBook = false,
+        [FromQuery] bool freeCancellation = false,
+        CancellationToken ct = default)
+    {
+        var query = BuildQuery(
+            q, category, minPrice, maxPrice, guests, amenities, "reco", roomType,
+            bedrooms, beds, bathrooms, superhost, guestFavorite, instantBook, freeCancellation,
+            null, null, null, null, null, null, 1, 1);
+
+        return Ok(new { total = await catalog.CountAsync(query, ct) });
+    }
+
+    private static CatalogService.SearchQuery BuildQuery(
+        string? q, string? category, decimal? minPrice, decimal? maxPrice, int guests,
+        string? amenities, string? sort, string? roomType,
+        int? bedrooms, int? beds, int? bathrooms,
+        bool superhost, bool guestFavorite, bool instantBook, bool freeCancellation,
+        DateOnly? checkIn, DateOnly? checkOut,
+        double? south, double? west, double? north, double? east,
+        int page, int pageSize)
+    {
+        var keys = (amenities ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        var bounds = south is not null && west is not null && north is not null && east is not null
+            ? new CatalogService.MapBounds(south.Value, west.Value, north.Value, east.Value)
+            : (CatalogService.MapBounds?)null;
+
+        return new CatalogService.SearchQuery(
+            q, category, minPrice, maxPrice, guests, keys, sort, roomType,
+            bedrooms, beds, bathrooms, superhost, guestFavorite, instantBook, freeCancellation,
+            page, pageSize, checkIn, checkOut, bounds);
     }
 
     [HttpGet("listings/{idOrSlug}")]

@@ -2,6 +2,7 @@ import { useStore } from '../../lib/useStore.js';
 import { set, book, openOverlay, closeOverlay } from '../../lib/store.js';
 import { money, longDate } from '../../lib/format.js';
 import { AmenityIcon } from '../Icon.jsx';
+import { HostReply, StarDistribution } from '../../pages/Detail.jsx';
 import { Modal } from './Modal.jsx';
 
 const PHOTO_CAPTIONS = ['Ảnh chính', 'Phòng khách', 'Phòng ngủ', 'Không gian ngoài trời', 'Phòng tắm'];
@@ -57,19 +58,29 @@ export function PhotosModal() {
   );
 }
 
+/**
+ * docs/01 TĐ-04 — grouped, with the amenities this place does not have kept in
+ * the list and struck through rather than quietly omitted.
+ */
 export function AmenitiesModal() {
   const state = useStore();
   const d = state.detail;
   if (!d) return null;
 
+  const groups = d.allAmenities.reduce((acc, a) => {
+    (acc[a.group] ||= []).push(a);
+    return acc;
+  }, {});
+
   return (
     <Modal title="Nơi này có những gì">
-      {d.amenityGroups.map(g => (
-        <section className="modal-section" key={g.group}>
-          <h3>{g.group}</h3>
+      {Object.entries(groups).map(([group, items]) => (
+        <section className="modal-section" key={group}>
+          <h3>{group}</h3>
           <div style={{ display: 'grid', gap: 2, marginTop: 12 }}>
-            {g.items.map(a => (
-              <div className="amenity" key={a.key} style={{ padding: '14px 0', borderBottom: '1px solid #f0f0f0' }}>
+            {[...items].sort((a, b) => Number(b.available) - Number(a.available)).map(a => (
+              <div className={`amenity ${a.available ? '' : 'is-missing'}`} key={a.key}
+                   style={{ padding: '14px 0', borderBottom: '1px solid #f0f0f0' }}>
                 <span className="ic"><AmenityIcon name={a.key} /></span><span>{a.label}</span>
               </div>
             ))}
@@ -106,6 +117,8 @@ export function ReviewsModal() {
           {REVIEW_SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
       </div>
+      <StarDistribution counts={d.ratingBreakdown.starCounts} total={d.reviews.length} />
+
       {!list.length && <p style={{ fontSize: 14, color: 'var(--ink-muted)' }}>Không có đánh giá nào khớp từ khoá.</p>}
       <div className="review-grid">
         {list.map(r => (
@@ -119,6 +132,7 @@ export function ReviewsModal() {
               <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 700 }}>★ {r.rating.toFixed(1)}</span>
             </div>
             <p>{r.text}</p>
+            <HostReply review={r} />
           </article>
         ))}
       </div>

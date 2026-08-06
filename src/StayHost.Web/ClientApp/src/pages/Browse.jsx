@@ -7,7 +7,8 @@ import {
 } from '../lib/store.js';
 import { queryToSearch } from '../lib/urlState.js';
 import { applySearch } from '../lib/nav.js';
-import { dateRangeLabel } from '../lib/format.js';
+import { rememberSearch } from '../lib/history.js';
+import { dateRangeLabel, money } from '../lib/format.js';
 import { Card, CardSkeleton } from '../components/Card.jsx';
 import { ResultsMap } from '../components/Maps.jsx';
 import { Icon } from '../components/Icon.jsx';
@@ -20,8 +21,14 @@ export function Browse() {
   // every change, then fetch whichever view that lands us in.
   useEffect(() => {
     queryToSearch(location.search);
-    if (isDiscovery()) loadHome();
-    else runSearch();
+    // A new destination means the map rectangle from the last search no longer applies.
+    set({ searchArea: null });
+
+    if (isDiscovery()) { loadHome(); return; }
+    runSearch();
+    rememberSearch({
+      q: store.q, checkIn: store.checkIn, checkOut: store.checkOut, guests: store.guests
+    });
   }, [location.search, state.meta]);
 
   return isDiscovery() ? <Discovery /> : <Results />;
@@ -139,7 +146,7 @@ function Results() {
       ? <div className="card-grid">{Array.from({ length: 8 }, (_, i) => <CardSkeleton key={i} />)}</div>
       : results.items.length
         ? <div className="card-grid">{results.items.map(c => <Card key={c.id} card={c} variant="search" />)}</div>
-        : <Empty />}
+        : <Empty noResults={results.noResults} />}
 
     <Pagination results={results} />
   </>;
@@ -150,7 +157,9 @@ function Results() {
       : (
         <div className="split">
           <div className="split-list" style={{ padding: '22px var(--gutter) 90px' }}>{body}</div>
-          <div className="split-map"><ResultsMap /></div>
+          <div className="split-map">
+            <ResultsMap onSearchArea={area => { set({ searchArea: area }); runSearch(); }} />
+          </div>
         </div>
       )}
 
@@ -198,17 +207,69 @@ function Pagination({ results }) {
   );
 }
 
-function Empty() {
+/**
+ * docs/01 TM-22 — an empty result set has to say which filter is doing the
+ * blocking and where there is something nearby, not just "no results".
+ */
+function Empty({ noResults }) {
+  const navigate = useNavigate();
   const filters = activeFilterCount();
+  const blocking = noResults?.blockingFilters ?? [];
+  const nearby = noResults?.nearbyAreas ?? [];
+
+  const drop = key => {
+    const clear = {
+      price: () => set({ minPrice: store.meta?.minPrice ?? 0, maxPrice: store.meta?.maxPrice ?? 0 }),
+      amenities: () => set({ amenities: [] }),
+      roomType: () => set({ roomType: 'any' }),
+      rooms: () => set({ bedrooms: 0, beds: 0, bathrooms: 0 }),
+      guests: () => set({ guests: { ...store.guests, adults: 1, children: 0 } }),
+      superhost: () => set({ superhostOnly: false }),
+      guestFavorite: () => set({ guestFavoriteOnly: false }),
+      instantBook: () => set({ instantBookOnly: false }),
+      freeCancellation: () => set({ freeCancellationOnly: false }),
+      category: () => set({ category: 'all' })
+    }[key];
+
+    clear?.();
+    applySearch();
+  };
 
   return (
     <div className="empty-state">
       <h3>Không tìm thấy chỗ nghỉ phù hợp</h3>
-      <p>{filters
-        ? 'Thử nới giá hoặc bỏ bớt tiện nghi trong bộ lọc.'
-        : 'Thử một điểm đến khác hoặc đổi ngày.'}</p>
-      <button className="btn btn-primary" style={{ marginTop: 18 }}
-              onClick={() => { resetFilters(); store.q = ''; applySearch(); }}>Xoá bộ lọc</button>
+
+      {blocking.length ? <>
+        <p>Bỏ một trong các bộ lọc sau là có kết quả ngay:</p>
+        <div className="pill-row" style={{ justifyContent: 'center', marginTop: 14 }}>
+          {blocking.map(f => (
+            <button className="pill" key={f.key} onClick={() => drop(f.key)}>
+              Bỏ “{f.label}” · {f.count} chỗ nghỉ
+            </button>
+          ))}
+        </div>
+      </> : (
+        <p>{filters
+          ? 'Thử nới giá hoặc bỏ bớt tiện nghi trong bộ lọc.'
+          : 'Thử một điểm đến khác hoặc đổi ngày.'}</p>
+      )}
+
+      {!!nearby.length && <>
+        <p style={{ marginTop: 22 }}>Hoặc xem khu vực lân cận:</p>
+        <div className="pill-row" style={{ justifyContent: 'center', marginTop: 12 }}>
+          {nearby.map(a => (
+            <button className="pill" key={a.city}
+                    onClick={() => { set({ q: a.city, searchArea: null }); applySearch({ replace: false }); }}>
+              {a.city} · {a.count} chỗ · từ {money(a.fromPrice)}
+            </button>
+          ))}
+        </div>
+      </>}
+
+      <button className="btn btn-primary" style={{ marginTop: 22 }}
+              onClick={() => { resetFilters(); set({ q: '', searchArea: null }); applySearch(); navigate('/'); }}>
+        Xoá tất cả bộ lọc
+      </button>
     </div>
   );
 }

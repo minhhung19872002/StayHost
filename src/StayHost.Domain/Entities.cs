@@ -156,6 +156,23 @@ public class Listing
 
     public string Description { get; set; } = "";
     public string? SpaceHighlight { get; set; }
+
+    /// <summary>
+    /// Title, city, country and the city's common abbreviations, all lowercase
+    /// and stripped of diacritics, so "da lat" and "hcm" find the right rows
+    /// (docs/03 §6). Kept in sync by <see cref="RefreshSearchText"/>.
+    /// </summary>
+    public string SearchText { get; set; } = "";
+
+    /// <summary>
+    /// Beds per room, as JSON: <c>[{"name":"Phòng ngủ 1","beds":["Giường đôi"]}]</c>.
+    /// Empty means the detail page falls back to spreading <see cref="Beds"/>
+    /// evenly across <see cref="Bedrooms"/>.
+    /// </summary>
+    public string BedLayoutJson { get; set; } = "[]";
+
+    public void RefreshSearchText() =>
+        SearchText = Domain.SearchText.ForListing(Title, City, Country);
     public CancellationTier CancellationTier { get; set; } = CancellationTier.Moderate;
     public string HouseRules { get; set; } = "Nhận phòng sau 14:00|Trả phòng trước 12:00|Không hút thuốc trong nhà|Không tổ chức tiệc";
     public string SafetyInfo { get; set; } = "Có thiết bị báo khói|Có bình chữa cháy|Có bộ sơ cứu";
@@ -234,6 +251,13 @@ public class Review
     public string When { get; set; } = "";
     public string Text { get; set; } = "";
     public double Rating { get; set; } = 5;
+
+    /// <summary>
+    /// docs/01 TĐ-12 — the host's public answer, shown under the review. One
+    /// reply only, within 30 days (docs/03 §7).
+    /// </summary>
+    public string? HostReply { get; set; }
+    public DateTime? HostRepliedAt { get; set; }
 
     // Airbnb-style per-category scores, averaged into the ratings breakdown.
     public double Cleanliness { get; set; } = 5;

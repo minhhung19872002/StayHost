@@ -247,22 +247,36 @@ public class CatalogService(StayHostDbContext db)
         int Page,
         int PageSize,
         DateOnly? CheckIn = null,
-        DateOnly? CheckOut = null);
+        DateOnly? CheckOut = null,
+        MapBounds? Bounds = null);
 
-    public async Task<SearchResultDto> SearchAsync(SearchQuery q, string sessionId, CancellationToken ct)
+    /// <summary>The visible map rectangle, when the guest is searching by moving it.</summary>
+    public readonly record struct MapBounds(double South, double West, double North, double East);
+
+    /// <summary>
+    /// Every filter of a search, with no ordering or paging. Shared so the
+    /// no-results explanation (docs/01 TM-22) can re-run the same query with one
+    /// filter dropped and count what comes back.
+    /// </summary>
+    private IQueryable<Listing> BaseQuery(SearchQuery q)
     {
-        IQueryable<Listing> query = db.Listings
-            .Where(l => l.IsPublished)
-            .Include(l => l.Images)
-            .Include(l => l.Amenities).ThenInclude(la => la.Amenity);
+        IQueryable<Listing> query = db.Listings.Where(l => l.IsPublished);
 
-        if (!string.IsNullOrWhiteSpace(q.Q))
+        // docs/03 §6: "da lat" must find Đà Lạt and "hcm" must find Thành phố Hồ
+        // Chí Minh, so the match runs against the normalised column and every
+        // typed word has to appear somewhere in it.
+        foreach (var term in SearchText.Terms(q.Q))
         {
-            var term = q.Q.Trim();
+            var t = term;
+            query = query.Where(l => EF.Functions.Like(l.SearchText, $"%{t}%"));
+        }
+
+        // docs/01 TM-12 — searching again as the map moves.
+        if (q.Bounds is { } b)
+        {
             query = query.Where(l =>
-                EF.Functions.ILike(l.City, $"%{term}%") ||
-                EF.Functions.ILike(l.Title, $"%{term}%") ||
-                EF.Functions.ILike(l.Country, $"%{term}%"));
+                l.Latitude >= b.South && l.Latitude <= b.North &&
+                l.Longitude >= b.West && l.Longitude <= b.East);
         }
 
         if (!string.IsNullOrWhiteSpace(q.Category) && q.Category != "all")
@@ -304,27 +318,124 @@ public class CatalogService(StayHostDbContext db)
             query = query.Where(l => l.Amenities.Any(la => la.Amenity!.Key == k));
         }
 
-        query = q.Sort switch
+        return query;
+    }
+
+    public Task<int> CountAsync(SearchQuery q, CancellationToken ct) => BaseQuery(q).CountAsync(ct);
+
+    public async Task<SearchResultDto> SearchAsync(SearchQuery q, string sessionId, CancellationToken ct)
+    {
+        var ordered = q.Sort switch
         {
-            "low" => query.OrderBy(l => l.PricePerNight).ThenBy(l => l.Id),
-            "high" => query.OrderByDescending(l => l.PricePerNight).ThenBy(l => l.Id),
-            "rating" => query.OrderByDescending(l => l.Rating).ThenByDescending(l => l.ReviewCount),
-            "reviews" => query.OrderByDescending(l => l.ReviewCount).ThenByDescending(l => l.Rating),
-            _ => query.OrderByDescending(l => l.IsGuestFavorite)
-                      .ThenByDescending(l => l.Rating)
-                      .ThenBy(l => l.Id)
+            "low" => BaseQuery(q).OrderBy(l => l.PricePerNight).ThenBy(l => l.Id),
+            "high" => BaseQuery(q).OrderByDescending(l => l.PricePerNight).ThenBy(l => l.Id),
+            "rating" => BaseQuery(q).OrderByDescending(l => l.Rating).ThenByDescending(l => l.ReviewCount),
+            "reviews" => BaseQuery(q).OrderByDescending(l => l.ReviewCount).ThenByDescending(l => l.Rating),
+            _ => BaseQuery(q).OrderByDescending(l => l.IsGuestFavorite)
+                             .ThenByDescending(l => l.Rating)
+                             .ThenBy(l => l.Id)
         };
 
-        var total = await query.CountAsync(ct);
+        var total = await ordered.CountAsync(ct);
         var pageSize = Math.Clamp(q.PageSize, 1, 60);
         var page = Math.Max(1, q.Page);
 
-        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        var items = await ordered
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Include(l => l.Images)
+            .Include(l => l.Amenities).ThenInclude(la => la.Amenity)
+            .AsSplitQuery()
+            .ToListAsync(ct);
         var favIds = await FavoriteIdsAsync(sessionId, ct);
         var pricer = await BuildPricerAsync(items, q.CheckIn, q.CheckOut, PartySize.Of(Math.Max(1, q.Guests)), ct);
 
-        return new SearchResultDto(total, page, pageSize, items.Select(l => ToCard(l, favIds, pricer)).ToList());
+        return new SearchResultDto(
+            total, page, pageSize,
+            items.Select(l => ToCard(l, favIds, pricer)).ToList(),
+            total == 0 ? await ExplainEmptyAsync(q, ct) : null);
     }
+
+    /// <summary>
+    /// docs/01 TM-22. Re-runs the search with one filter removed at a time; a
+    /// filter that unlocks results is the one worth telling the guest about.
+    /// Then offers the nearest cities that do have something.
+    /// </summary>
+    private async Task<NoResultsDto> ExplainEmptyAsync(SearchQuery q, CancellationToken ct)
+    {
+        // Ordered from most likely to be the culprit to least, which is also the
+        // order the second pass peels them off in.
+        var candidates = new List<(string Key, string Label)>();
+
+        if (q.MinPrice is > 0 || q.MaxPrice is > 0) candidates.Add(("price", "Khoảng giá"));
+        if (q.Amenities.Length > 0) candidates.Add(("amenities", $"{q.Amenities.Length} tiện nghi đã chọn"));
+        if (q.SuperhostOnly) candidates.Add(("superhost", "Chỉ Siêu chủ nhà"));
+        if (q.GuestFavoriteOnly) candidates.Add(("guestFavorite", "Chỉ Khách yêu thích"));
+        if (q.InstantBookOnly) candidates.Add(("instantBook", "Chỉ Đặt ngay"));
+        if (q.FreeCancellationOnly) candidates.Add(("freeCancellation", "Chỉ Huỷ miễn phí"));
+        if (q.Bedrooms is > 0 || q.Beds is > 0 || q.Bathrooms is > 0) candidates.Add(("rooms", "Số phòng và giường"));
+        if (!string.IsNullOrWhiteSpace(q.RoomType) && q.RoomType != "any") candidates.Add(("roomType", "Loại nơi ở"));
+        if (!string.IsNullOrWhiteSpace(q.Category) && q.Category != "all") candidates.Add(("category", "Loại chỗ ở"));
+        if (q.Guests > 0) candidates.Add(("guests", $"Sức chứa {q.Guests} khách"));
+
+        // First pass: which single filter, dropped on its own, unlocks results.
+        var blocking = new List<BlockingFilterDto>();
+        foreach (var (key, label) in candidates)
+        {
+            var count = await CountAsync(Relax(q, key), ct);
+            if (count > 0) blocking.Add(new BlockingFilterDto(key, label, count));
+        }
+
+        // Second pass: sometimes no single filter is the culprit. Peel them off
+        // one at a time until something appears, so the guest still gets a way
+        // forward instead of a dead end.
+        var loosened = q;
+        if (blocking.Count == 0)
+        {
+            foreach (var (key, label) in candidates)
+            {
+                loosened = Relax(loosened, key);
+                var count = await CountAsync(loosened, ct);
+                blocking.Add(new BlockingFilterDto(key, label, count));
+                if (count > 0) break;
+            }
+
+            // Only worth showing if the peeling actually got somewhere.
+            if (blocking.Count > 0 && blocking[^1].Count == 0) blocking.Clear();
+        }
+
+        // Nearby drops the destination as well as every filter that was in the
+        // way, otherwise it would come back as empty as the search itself.
+        var wide = loosened with { Q = null, Bounds = null };
+        foreach (var f in blocking) wide = Relax(wide, f.Key);
+
+        // Grouped into an anonymous shape because EF cannot project a positional
+        // record out of a GroupBy.
+        var elsewhere = await BaseQuery(wide)
+            .GroupBy(l => l.City)
+            .Select(g => new { City = g.Key, Count = g.Count(), FromPrice = g.Min(l => l.PricePerNight) })
+            .OrderByDescending(a => a.Count)
+            .Take(6)
+            .ToListAsync(ct);
+
+        return new NoResultsDto(
+            blocking.OrderByDescending(b => b.Count).ToList(),
+            elsewhere.Select(a => new NearbyAreaDto(a.City, a.Count, a.FromPrice)).ToList());
+    }
+
+    private static SearchQuery Relax(SearchQuery q, string key) => key switch
+    {
+        "price" => q with { MinPrice = null, MaxPrice = null },
+        "amenities" => q with { Amenities = [] },
+        "roomType" => q with { RoomType = "any" },
+        "rooms" => q with { Bedrooms = null, Beds = null, Bathrooms = null },
+        "guests" => q with { Guests = 0 },
+        "superhost" => q with { SuperhostOnly = false },
+        "guestFavorite" => q with { GuestFavoriteOnly = false },
+        "instantBook" => q with { InstantBookOnly = false },
+        "freeCancellation" => q with { FreeCancellationOnly = false },
+        "category" => q with { Category = "all" },
+        _ => q
+    };
 
     public async Task<HashSet<int>> FavoriteIdsAsync(string sessionId, CancellationToken ct) =>
         (await db.Favorites.Where(f => f.SessionId == sessionId).Select(f => f.ListingId).ToListAsync(ct)).ToHashSet();
@@ -455,18 +566,40 @@ public class CatalogService(StayHostDbContext db)
 
         var reviews = listing.Reviews
             .OrderByDescending(r => r.CreatedAt)
-            .Select(r => new ReviewDto(r.Id, r.AuthorName, r.AuthorInitials, r.AuthorLocation, r.When, r.Text, Math.Round(r.Rating, 1)))
+            .Select(r => new ReviewDto(
+                r.Id, r.AuthorName, r.AuthorInitials, r.AuthorLocation, r.When, r.Text,
+                Math.Round(r.Rating, 1), r.HostReply, r.HostRepliedAt))
+            .ToList();
+
+        // docs/01 TĐ-10 — the distribution, five stars first.
+        var stars = Enumerable.Range(1, 5)
+            .Select(n => listing.Reviews.Count(r => (int)Math.Round(r.Rating) == n))
+            .Reverse()
             .ToList();
 
         var rb = listing.Reviews.Count == 0
-            ? new RatingBreakdownDto(5, 5, 5, 5, 5, 5)
+            ? new RatingBreakdownDto(5, 5, 5, 5, 5, 5, stars)
             : new RatingBreakdownDto(
                 Math.Round(listing.Reviews.Average(r => r.Cleanliness), 1),
                 Math.Round(listing.Reviews.Average(r => r.Accuracy), 1),
                 Math.Round(listing.Reviews.Average(r => r.CheckIn), 1),
                 Math.Round(listing.Reviews.Average(r => r.Communication), 1),
                 Math.Round(listing.Reviews.Average(r => r.Location), 1),
-                Math.Round(listing.Reviews.Average(r => r.Value), 1));
+                Math.Round(listing.Reviews.Average(r => r.Value), 1),
+                stars);
+
+        // docs/01 TĐ-04 — show every filterable amenity, striking through the
+        // ones this place does not have, so absence is visible rather than implied.
+        var owned = listing.Amenities.Select(a => a.Amenity!.Key).ToHashSet();
+        var allAmenities = await db.Amenities
+            .Where(a => a.IsFilterable)
+            .OrderBy(a => a.SortOrder)
+            .Select(a => new { a.Key, a.Label, a.Icon, a.Group })
+            .ToListAsync(ct);
+
+        var amenityAvailability = allAmenities
+            .Select(a => new AmenityAvailabilityDto(a.Key, a.Label, a.Icon, a.Group, owned.Contains(a.Key)))
+            .ToList();
 
         var hostListings = await db.Listings.Where(l => l.HostId == listing.HostId)
             .Select(l => new { l.Rating, l.ReviewCount }).ToListAsync(ct);
@@ -523,12 +656,46 @@ public class CatalogService(StayHostDbContext db)
             Split(listing.HouseRules),
             Split(listing.SafetyInfo),
             groups,
+            amenityAvailability,
+            BedLayout(listing),
             reviews,
             rb,
             hostDto,
             similar.Select(l => ToCard(l, favIds, pricer)).ToList(),
             unavailable);
     }
+
+    /// <summary>
+    /// docs/01 TĐ-05. Hosts who have filled in a layout get theirs; the rest
+    /// fall back to spreading the bed count evenly across the bedrooms.
+    /// </summary>
+    private static List<BedroomDto> BedLayout(Listing listing)
+    {
+        try
+        {
+            var stored = System.Text.Json.JsonSerializer.Deserialize<List<BedroomDto>>(
+                listing.BedLayoutJson, LayoutJson);
+            if (stored is { Count: > 0 }) return stored;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // A malformed layout is not worth failing the page over.
+        }
+
+        var rooms = Math.Max(1, listing.Bedrooms);
+        var perRoom = Math.Max(1, listing.Beds / rooms);
+        var leftover = Math.Max(0, listing.Beds - perRoom * rooms);
+
+        return Enumerable.Range(0, rooms).Select(i =>
+        {
+            var beds = perRoom + (i == 0 ? leftover : 0);
+            return new BedroomDto($"Phòng ngủ {i + 1}",
+                Enumerable.Repeat("Giường đôi", Math.Max(1, beds)).ToList());
+        }).ToList();
+    }
+
+    private static readonly System.Text.Json.JsonSerializerOptions LayoutJson =
+        new(System.Text.Json.JsonSerializerDefaults.Web);
 
     private static string[] Split(string s) =>
         s.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

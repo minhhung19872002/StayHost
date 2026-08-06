@@ -458,6 +458,7 @@ public static class DbSeeder
                 });
             }
 
+            listing.RefreshSearchText();
             db.Listings.Add(listing);
         }
 

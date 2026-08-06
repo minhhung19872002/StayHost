@@ -451,6 +451,39 @@ public class HostController(
 
     public record RespondBody(string? Reason);
 
+    /// <summary>
+    /// docs/01 TĐ-12 and docs/03 §7: the host answers a review publicly, once,
+    /// within 30 days of it appearing.
+    /// </summary>
+    [HttpPost("reviews/{id:int}/reply")]
+    public async Task<IActionResult> ReplyToReview(int id, [FromBody] ReplyToReviewRequest req, CancellationToken ct)
+    {
+        var (user, profile) = await ResolveAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+        if (profile is null) return Forbid();
+
+        var review = await db.Reviews.Include(r => r.Listing)
+            .FirstOrDefaultAsync(r => r.Id == id, ct);
+
+        if (review is null) return NotFound();
+        if (review.Listing!.HostId != profile.Id) return Forbid();
+
+        if (review.HostReply is not null)
+            return Conflict(new { message = "Bạn chỉ được trả lời một lần cho mỗi đánh giá." });
+
+        if (review.CreatedAt.AddDays(30) < DateTime.UtcNow)
+            return BadRequest(new { message = "Đã quá 30 ngày kể từ khi đánh giá được công khai." });
+
+        var text = (req.Text ?? "").Trim();
+        if (text.Length < 10) return BadRequest(new { message = "Phản hồi cần tối thiểu 10 ký tự." });
+
+        review.HostReply = text;
+        review.HostRepliedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     /* ------------------------------------------------------------- helpers */
 
     private static string? Validate(SaveListingRequest r)
@@ -495,6 +528,8 @@ public class HostController(
         listing.Description = r.Description.Trim();
         listing.SpaceHighlight = string.IsNullOrWhiteSpace(r.Highlight) ? null : r.Highlight.Trim();
         listing.UpdatedAt = DateTime.UtcNow;
+        // Title and city just changed, so the diacritic-free search column has to follow.
+        listing.RefreshSearchText();
 
         if (r.Pricing is { } p)
         {

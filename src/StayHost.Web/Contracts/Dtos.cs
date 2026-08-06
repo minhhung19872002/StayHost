@@ -228,6 +228,8 @@ public record ThreadDetailDto(ThreadSummaryDto Summary, IReadOnlyList<MessageDto
 
 public record SendMessageRequest(int? ThreadId, int? ListingId, string Body);
 
+public record ReplyToReviewRequest(string Text);
+
 /* ------------------------------------------------------------- guest review */
 
 public record SubmitReviewRequest(
@@ -330,7 +332,41 @@ public record SearchResultDto(
     int Total,
     int Page,
     int PageSize,
-    IReadOnlyList<ListingCardDto> Items);
+    IReadOnlyList<ListingCardDto> Items,
+    /// <summary>Only present when nothing matched (docs/01 TM-22).</summary>
+    NoResultsDto? NoResults = null);
+
+/// <summary>
+/// docs/01 TM-22 — when a search comes back empty, say which filter is doing
+/// the blocking and where there is something nearby, rather than a dead end.
+/// </summary>
+public record NoResultsDto(
+    IReadOnlyList<BlockingFilterDto> BlockingFilters,
+    IReadOnlyList<NearbyAreaDto> NearbyAreas);
+
+/// <summary>A filter that, dropped on its own, would bring back <c>Count</c> stays.</summary>
+public record BlockingFilterDto(string Key, string Label, int Count);
+
+public record NearbyAreaDto(string City, int Count, decimal FromPrice);
+
+/// <summary>One night on the room calendar: its rate and whether it is for sale.</summary>
+public record CalendarNightDto(
+    DateOnly Date,
+    decimal Rate,
+    /// <summary>day / season / weekend / base — where the rate came from.</summary>
+    string RateSource,
+    bool Available,
+    int MinNights);
+
+/// <summary>docs/01 TĐ-09 — a run of free nights offered when the chosen dates are taken.</summary>
+public record OpeningDto(DateOnly From, DateOnly To, int Nights);
+
+public record ListingCalendarDto(
+    int ListingId,
+    DateOnly From,
+    DateOnly To,
+    IReadOnlyList<CalendarNightDto> Nights,
+    IReadOnlyList<OpeningDto> NextOpenings);
 
 public record HostDto(
     int Id,
@@ -355,7 +391,10 @@ public record ReviewDto(
     string? AuthorLocation,
     string When,
     string Text,
-    double Rating);
+    double Rating,
+    /// <summary>docs/01 TĐ-12 — the host's single public answer.</summary>
+    string? HostReply,
+    DateTime? HostRepliedAt);
 
 public record RatingBreakdownDto(
     double Cleanliness,
@@ -363,9 +402,20 @@ public record RatingBreakdownDto(
     double CheckIn,
     double Communication,
     double Location,
-    double Value);
+    double Value,
+    /// <summary>docs/01 TĐ-10 — how many reviews gave 5, 4, 3, 2 and 1 star.</summary>
+    IReadOnlyList<int> StarCounts);
 
 public record AmenityGroupDto(string Group, IReadOnlyList<AmenityDto> Items);
+
+/// <summary>
+/// docs/01 TĐ-04 — the amenity list shows everything, with the ones this place
+/// does not have struck through, so a guest can see what is missing.
+/// </summary>
+public record AmenityAvailabilityDto(string Key, string Label, string Icon, string Group, bool Available);
+
+/// <summary>docs/01 TĐ-05 — which beds are in which room.</summary>
+public record BedroomDto(string Name, IReadOnlyList<string> Beds);
 
 public record ListingDetailDto(
     ListingCardDto Card,
@@ -374,6 +424,9 @@ public record ListingDetailDto(
     IReadOnlyList<string> HouseRules,
     IReadOnlyList<string> SafetyInfo,
     IReadOnlyList<AmenityGroupDto> AmenityGroups,
+    /// <summary>Every filterable amenity, marked present or missing (TĐ-04).</summary>
+    IReadOnlyList<AmenityAvailabilityDto> AllAmenities,
+    IReadOnlyList<BedroomDto> Bedrooms,
     IReadOnlyList<ReviewDto> Reviews,
     RatingBreakdownDto RatingBreakdown,
     HostDto Host,

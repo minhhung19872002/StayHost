@@ -195,6 +195,11 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.WeekendSurchargeRate).HasPrecision(5, 4);
             e.Property(x => x.ExtraGuestFee).HasPrecision(12, 2);
             e.Property(x => x.PetFee).HasPrecision(12, 2);
+            e.Property(x => x.TimeZoneId).HasMaxLength(60);
+            // Diacritic-free haystack for docs/03 §6; indexed for the LIKE the search runs.
+            e.Property(x => x.SearchText).HasMaxLength(400);
+            e.HasIndex(x => x.SearchText);
+            e.Property(x => x.BedLayoutJson).HasColumnType("jsonb");
             e.HasOne(x => x.Host).WithMany(h => h.Listings)
                 .HasForeignKey(x => x.HostId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -222,6 +227,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.ToTable("reviews");
             e.Property(x => x.AuthorName).HasMaxLength(120).IsRequired();
             e.Property(x => x.Text).HasMaxLength(2000);
+            e.Property(x => x.HostReply).HasMaxLength(2000);
             e.HasOne(x => x.Listing).WithMany(l => l.Reviews)
                 .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.AuthorUser).WithMany()
