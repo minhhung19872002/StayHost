@@ -21,6 +21,10 @@ export function searchToQuery() {
   if (state.guestFavoriteOnly) usp.set('guestFavorite', '1');
   if (state.instantBookOnly) usp.set('instantBook', '1');
   if (state.freeCancellationOnly) usp.set('freeCancellation', '1');
+  if (state.stay !== 'exact') usp.set('stay', state.stay);
+  if (state.flexDays) usp.set('flex', String(state.flexDays));
+  if (state.stay === 'months') usp.set('months', String(state.stayMonths));
+  if (state.stay === 'months' && state.startMonths.length) usp.set('startMonths', state.startMonths.join(','));
   usp.set('checkIn', state.checkIn);
   usp.set('checkOut', state.checkOut);
   usp.set('guests', String(totalGuests()));
@@ -47,6 +51,11 @@ export function queryToSearch(search) {
     state.minPrice = Number(usp.get('minPrice')) || state.meta.minPrice;
     state.maxPrice = Number(usp.get('maxPrice')) || state.meta.maxPrice;
   }
+
+  state.stay = usp.get('stay') ?? 'exact';
+  state.flexDays = Number(usp.get('flex')) || 0;
+  state.stayMonths = Number(usp.get('months')) || 1;
+  state.startMonths = (usp.get('startMonths') ?? '').split(',').filter(Boolean);
 
   if (usp.get('checkIn')) state.checkIn = usp.get('checkIn');
   if (usp.get('checkOut')) state.checkOut = usp.get('checkOut');

@@ -67,6 +67,10 @@ public class ListingsController(CatalogService catalog, BookingService bookings)
         [FromQuery] bool freeCancellation = false,
         [FromQuery] DateOnly? checkIn = null,
         [FromQuery] DateOnly? checkOut = null,
+        [FromQuery] string? stay = null,
+        [FromQuery] int flex = 0,
+        [FromQuery] int months = 0,
+        [FromQuery] string? startMonths = null,
         [FromQuery] double? south = null,
         [FromQuery] double? west = null,
         [FromQuery] double? north = null,
@@ -78,7 +82,8 @@ public class ListingsController(CatalogService catalog, BookingService bookings)
         var query = BuildQuery(
             q, category, minPrice, maxPrice, guests, amenities, sort, roomType,
             bedrooms, beds, bathrooms, superhost, guestFavorite, instantBook, freeCancellation,
-            checkIn, checkOut, south, west, north, east, page, pageSize);
+            checkIn, checkOut, south, west, north, east, page, pageSize,
+            Flexible(stay, flex, months, startMonths, checkIn, checkOut));
 
         return Ok(await catalog.SearchAsync(query, HttpContext.SessionId(), ct));
     }
@@ -120,7 +125,7 @@ public class ListingsController(CatalogService catalog, BookingService bookings)
         bool superhost, bool guestFavorite, bool instantBook, bool freeCancellation,
         DateOnly? checkIn, DateOnly? checkOut,
         double? south, double? west, double? north, double? east,
-        int page, int pageSize)
+        int page, int pageSize, FlexibleRequest? flex = null)
     {
         var keys = (amenities ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
@@ -131,7 +136,44 @@ public class ListingsController(CatalogService catalog, BookingService bookings)
         return new CatalogService.SearchQuery(
             q, category, minPrice, maxPrice, guests, keys, sort, roomType,
             bedrooms, beds, bathrooms, superhost, guestFavorite, instantBook, freeCancellation,
-            page, pageSize, checkIn, checkOut, bounds);
+            page, pageSize, checkIn, checkOut, bounds, flex);
+    }
+
+    /// <summary>
+    /// docs/01 TM-06 and TM-07. `stay` names the length (weekend / week / month
+    /// / months), `flex` is the ± 1–7 days, and for whole-month stays
+    /// `startMonths` lists the months it may begin in as yyyy-MM.
+    /// </summary>
+    private static FlexibleRequest? Flexible(
+        string? stay, int flex, int months, string? startMonths, DateOnly? checkIn, DateOnly? checkOut)
+    {
+        var length = (stay ?? "").Trim().ToLowerInvariant() switch
+        {
+            "weekend" => StayLength.Weekend,
+            "week" => StayLength.Week,
+            "month" => StayLength.Month,
+            "months" => StayLength.Months,
+            _ => StayLength.Exact
+        };
+
+        if (length == StayLength.Exact && flex <= 0) return null;
+
+        var starts = (startMonths ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(m => DateOnly.TryParse($"{m}-01", out var d) ? d : (DateOnly?)null)
+            .Where(d => d is not null)
+            .Select(d => d!.Value)
+            .ToList();
+
+        return new FlexibleRequest
+        {
+            Length = length,
+            CheckIn = checkIn,
+            CheckOut = checkOut,
+            FlexDays = Math.Clamp(flex, 0, FlexibleDates.MaxShift),
+            Months = months,
+            StartMonths = starts
+        };
     }
 
     [HttpGet("listings/{idOrSlug}")]

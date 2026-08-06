@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
-import { toggleFavorite } from '../lib/store.js';
-import { money } from '../lib/format.js';
+import { state as store, toggleFavorite } from '../lib/store.js';
+import { money, shortDate } from '../lib/format.js';
 import { stayTotal, originalStayTotal } from '../lib/pricing.js';
 import { setHoveredListing } from './Maps.jsx';
 
@@ -120,8 +120,22 @@ function SearchBody({ card }) {
       {original && <><s>{money(original)}</s> </>}
       <b>{money(total)}</b> <span>cho {nights} đêm</span>
     </div>
+    <MatchedDates card={card} />
     <div className="card-perks">Đã gồm phí · Huỷ miễn phí</div>
   </>;
+}
+
+/**
+ * docs/01 TM-06 — a flexible search puts each card on the dates that place has
+ * free, so the card has to say which ones rather than let the guest assume.
+ */
+function MatchedDates({ card }) {
+  const shifted = card.stayCheckIn && card.stayCheckIn !== store.checkIn;
+  if (!shifted) return null;
+
+  return (
+    <div className="card-dates">{shortDate(card.stayCheckIn)} – {shortDate(card.stayCheckOut)}</div>
+  );
 }
 
 export function CardSkeleton() {

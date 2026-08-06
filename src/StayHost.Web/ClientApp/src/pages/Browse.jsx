@@ -140,7 +140,14 @@ function Results() {
       </h1>
       <div className="fee-note"><Icon name="star" size={15} /> Giá đã gồm mọi khoản phí</div>
     </div>
-    <p className="results-context">{title} · {dateRangeLabel(state.checkIn, state.checkOut)}</p>
+    <p className="results-context">
+      {title} · {dateRangeLabel(state.checkIn, state.checkOut)}
+      {results.dates && (
+        <span className="flex-note">
+          {' '}· {results.dates.label}, {results.dates.nights} đêm — đã xét {results.dates.options} khoảng ngày
+        </span>
+      )}
+    </p>
 
     {loading
       ? <div className="card-grid">{Array.from({ length: 8 }, (_, i) => <CardSkeleton key={i} />)}</div>

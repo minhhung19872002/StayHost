@@ -15,7 +15,11 @@ const fees = () => state.meta?.fees ?? FALLBACK;
 
 /** Total the guest actually pays for the selected dates, fees included. */
 export function stayTotal(card) {
-  const nights = nightsBetween(state.checkIn, state.checkOut);
+  // A flexible search matches each card on its own free dates (docs/01 TM-06),
+  // so the night count comes from the card when the server sent one.
+  const nights = card.stayCheckIn && card.stayCheckOut
+    ? nightsBetween(card.stayCheckIn, card.stayCheckOut)
+    : nightsBetween(state.checkIn, state.checkOut);
   if (card.stayTotal != null) return { nights, total: card.stayTotal };
 
   const f = fees();

@@ -1,7 +1,7 @@
 import { useStore } from '../../lib/useStore.js';
 import {
   set, state as store, activeFilterCount, resetFilters, totalGuests,
-  toggleAmenity, bumpCount, bumpGuest, applyDatePreset, clearDates,
+  toggleAmenity, bumpCount, bumpGuest, applyDatePreset, clearDates, setStayShape,
   applyCurrency, applyLanguage, closeOverlay, toast
 } from '../../lib/store.js';
 import { api } from '../../lib/api.js';
@@ -144,25 +144,106 @@ export function FiltersModal() {
 export function DatesModal() {
   const state = useStore();
   const nights = nightsBetween(state.checkIn, state.checkOut);
+  const flexible = state.stay !== 'exact' || state.flexDays > 0;
+
+  const tab = state.stay === 'months' ? 'months' : flexible ? 'flex' : 'exact';
+  const pick = next => {
+    if (next === 'exact') setStayShape({ stay: 'exact', flexDays: 0 });
+    else if (next === 'flex') setStayShape({ stay: 'exact', flexDays: 3 });
+    else setStayShape({ stay: 'months', flexDays: 0, stayMonths: 1 });
+    applySearch();
+  };
 
   return (
     <Modal title="Chọn ngày" foot={<>
       <button className="text-btn" onClick={() => { clearDates(); applySearch(); }}>Xoá ngày</button>
       <button className="btn btn-dark btn-sm" onClick={closeOverlay}>Xong</button>
     </>}>
-      <div style={{ marginBottom: 20 }}>
-        <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>{nights} đêm</h3>
-        <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--ink-muted)' }}>
-          {longDate(state.checkIn)} – {longDate(state.checkOut)}
-        </p>
-      </div>
-      <Calendar months={2} />
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
-        {[['Cuối tuần này', 'weekend'], ['1 tuần', 'week'], ['2 tuần', 'fortnight'], ['1 tháng', 'month']].map(([label, key]) => (
-          <button className="pill" key={key} onClick={() => { applyDatePreset(key); applySearch(); }}>{label}</button>
+      <div className="date-tabs">
+        {[['exact', 'Ngày cụ thể'], ['flex', 'Linh hoạt'], ['months', 'Theo tháng']].map(([key, label]) => (
+          <button key={key} className={`date-tab ${tab === key ? 'is-on' : ''}`} onClick={() => pick(key)}>{label}</button>
         ))}
       </div>
+
+      {tab === 'months' ? <MonthPicker state={state} /> : <>
+        <div style={{ margin: '18px 0' }}>
+          <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>{nights} đêm</h3>
+          <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--ink-muted)' }}>
+            {longDate(state.checkIn)} – {longDate(state.checkOut)}
+          </p>
+        </div>
+        <Calendar months={2} />
+
+        {tab === 'flex' && <FlexRow state={state} />}
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
+          {[['Cuối tuần này', 'weekend'], ['1 tuần', 'week'], ['2 tuần', 'fortnight'], ['1 tháng', 'month']].map(([label, key]) => (
+            <button className="pill" key={key} onClick={() => { applyDatePreset(key); applySearch(); }}>{label}</button>
+          ))}
+        </div>
+      </>}
     </Modal>
+  );
+}
+
+/** docs/01 TM-06 — the same trip, a few days either side. */
+function FlexRow({ state }) {
+  return (
+    <div style={{ marginTop: 18 }}>
+      <p style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700 }}>Xê dịch được bao nhiêu ngày?</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {[0, 1, 2, 3, 5, 7].map(d => (
+          <button key={d} className={`pill ${state.flexDays === d ? 'is-on' : ''}`}
+                  onClick={() => { setStayShape({ stay: 'exact', flexDays: d }); applySearch(); }}>
+            {d === 0 ? 'Đúng ngày' : `± ${d} ngày`}
+          </button>
+        ))}
+      </div>
+      <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--ink-muted)' }}>
+        Chúng tôi giữ nguyên số đêm và tìm chỗ còn trống ở những ngày gần nhất.
+      </p>
+    </div>
+  );
+}
+
+/** docs/01 TM-07 — how many months, starting from which month. */
+function MonthPicker({ state }) {
+  const now = new Date();
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + 1 + i, 1);
+    return { key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, d };
+  });
+
+  const toggle = key => {
+    const on = state.startMonths.includes(key);
+    setStayShape({ startMonths: on ? state.startMonths.filter(m => m !== key) : [...state.startMonths, key] });
+    applySearch();
+  };
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <p style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700 }}>Ở bao nhiêu tháng?</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {[1, 2, 3, 6, 12].map(m => (
+          <button key={m} className={`pill ${state.stayMonths === m ? 'is-on' : ''}`}
+                  onClick={() => { setStayShape({ stayMonths: m }); applySearch(); }}>{m} tháng</button>
+        ))}
+      </div>
+
+      <p style={{ margin: '18px 0 10px', fontSize: 14, fontWeight: 700 }}>Bắt đầu từ tháng nào?</p>
+      <div className="month-grid">
+        {months.map(({ key, d }) => (
+          <button key={key} className={`month-cell ${state.startMonths.includes(key) ? 'is-on' : ''}`}
+                  onClick={() => toggle(key)}>
+            <b>Tháng {d.getMonth() + 1}</b>
+            <span>{d.getFullYear()}</span>
+          </button>
+        ))}
+      </div>
+      <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--ink-muted)' }}>
+        Chưa chọn tháng nào thì chúng tôi tìm trong ba tháng tới.
+      </p>
+    </div>
   );
 }
 

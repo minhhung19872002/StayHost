@@ -1398,3 +1398,25 @@ select.field { width: 100%; padding: 10px 12px; }
   display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 16px;
   border-top: 1px solid var(--divider);
 }
+
+/* ---- flexible dates (docs/01 TM-06, TM-07) ------------------------------ */
+
+.date-tabs { display: flex; gap: 6px; padding: 4px; background: var(--wash); border-radius: 999px; }
+.date-tab {
+  flex: 1; padding: 9px 14px; border: 0; border-radius: 999px; background: transparent;
+  font: inherit; font-size: 14px; font-weight: 700; color: var(--ink-muted); cursor: pointer;
+}
+.date-tab.is-on { background: #fff; color: var(--ink); box-shadow: var(--shadow-sm); }
+
+.month-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.month-cell {
+  display: flex; flex-direction: column; gap: 2px; align-items: center; justify-content: center;
+  padding: 16px 8px; border: 1px solid var(--line); border-radius: 14px; background: #fff;
+  font: inherit; cursor: pointer;
+}
+.month-cell b { font-size: 14px; }
+.month-cell span { font-size: 12px; color: var(--ink-muted); }
+.month-cell.is-on { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink) inset; }
+
+.flex-note { color: var(--brand); font-weight: 600; }
+.card-dates { margin-top: 2px; font-size: 13px; color: var(--brand); font-weight: 600; }

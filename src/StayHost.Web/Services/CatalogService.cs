@@ -248,7 +248,17 @@ public class CatalogService(StayHostDbContext db)
         int PageSize,
         DateOnly? CheckIn = null,
         DateOnly? CheckOut = null,
-        MapBounds? Bounds = null);
+        MapBounds? Bounds = null,
+        /// <summary>docs/01 TM-06 and TM-07 — a length and a tolerance instead of two firm dates.</summary>
+        FlexibleRequest? Flex = null,
+        /// <summary>
+        /// Listings with nothing free in the searched window. Filled in by
+        /// <see cref="ResolveDatesAsync"/> so counting, paging and the no-results
+        /// explanation all see the same set.
+        /// </summary>
+        IReadOnlySet<int>? Unavailable = null,
+        /// <summary>The stay each listing was matched on, when the dates were flexible.</summary>
+        IReadOnlyDictionary<int, StayWindow>? Matched = null);
 
     /// <summary>The visible map rectangle, when the guest is searching by moving it.</summary>
     public readonly record struct MapBounds(double South, double West, double North, double East);
@@ -318,13 +328,71 @@ public class CatalogService(StayHostDbContext db)
             query = query.Where(l => l.Amenities.Any(la => la.Amenity!.Key == k));
         }
 
+        // Dates are a filter like any other: a place with someone already in it
+        // has no business on the results page (docs/01 TM-05, TM-06).
+        if (q.Unavailable is { Count: > 0 } taken)
+            query = query.Where(l => !taken.Contains(l.Id));
+
         return query;
+    }
+
+    /// <summary>
+    /// Works out which stays the guest would accept and which listings can host
+    /// none of them. One pass over the bookings and blocks inside the searched
+    /// span answers it for the whole catalogue, so counting and paging stay cheap.
+    /// </summary>
+    public async Task<SearchQuery> ResolveDatesAsync(SearchQuery q, CancellationToken ct)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var request = q.Flex ?? new FlexibleRequest { CheckIn = q.CheckIn, CheckOut = q.CheckOut };
+        var windows = FlexibleDates.Windows(request, today);
+        if (windows.Count == 0) return q with { Unavailable = null, Matched = null };
+
+        var from = windows.Min(w => w.CheckIn);
+        var to = windows.Max(w => w.CheckOut);
+
+        var stays = await db.Bookings
+            .Where(b => BookingLifecycle.BlocksDates.Contains(b.Status) && b.CheckIn < to && from < b.CheckOut)
+            .Select(b => new { b.ListingId, From = b.CheckIn, To = b.CheckOut })
+            .ToListAsync(ct);
+
+        // A block names its last blocked day; the rest of the code works in
+        // half-open ranges, so push the end out by one.
+        var blocks = (await db.CalendarBlocks
+                .Where(b => b.From < to && from <= b.To)
+                .Select(b => new { b.ListingId, b.From, b.To })
+                .ToListAsync(ct))
+            .Select(b => new { b.ListingId, b.From, To = b.To.AddDays(1) });
+
+        var occupied = stays.Concat(blocks)
+            .GroupBy(x => x.ListingId)
+            .ToDictionary(g => g.Key, g => g.Select(x => (x.From, x.To)).ToList());
+
+        var unavailable = new HashSet<int>();
+        var matched = new Dictionary<int, StayWindow>();
+
+        foreach (var (listingId, ranges) in occupied)
+        {
+            var free = FlexibleDates.FirstFree(windows, ranges);
+            if (free is null) unavailable.Add(listingId);
+            else if (free != windows[0]) matched[listingId] = free.Value;
+        }
+
+        return q with
+        {
+            CheckIn = windows[0].CheckIn,
+            CheckOut = windows[0].CheckOut,
+            Unavailable = unavailable,
+            Matched = matched
+        };
     }
 
     public Task<int> CountAsync(SearchQuery q, CancellationToken ct) => BaseQuery(q).CountAsync(ct);
 
     public async Task<SearchResultDto> SearchAsync(SearchQuery q, string sessionId, CancellationToken ct)
     {
+        q = await ResolveDatesAsync(q, ct);
+
         var ordered = q.Sort switch
         {
             "low" => BaseQuery(q).OrderBy(l => l.PricePerNight).ThenBy(l => l.Id),
@@ -347,12 +415,27 @@ public class CatalogService(StayHostDbContext db)
             .AsSplitQuery()
             .ToListAsync(ct);
         var favIds = await FavoriteIdsAsync(sessionId, ct);
-        var pricer = await BuildPricerAsync(items, q.CheckIn, q.CheckOut, PartySize.Of(Math.Max(1, q.Guests)), ct);
+        var pricer = await BuildPricerAsync(
+            items, q.CheckIn, q.CheckOut, PartySize.Of(Math.Max(1, q.Guests)), ct, q.Matched);
 
         return new SearchResultDto(
             total, page, pageSize,
             items.Select(l => ToCard(l, favIds, pricer)).ToList(),
-            total == 0 ? await ExplainEmptyAsync(q, ct) : null);
+            total == 0 ? await ExplainEmptyAsync(q, ct) : null,
+            DescribeDates(q));
+    }
+
+    private static FlexibleDatesDto? DescribeDates(SearchQuery q)
+    {
+        if (q.Flex is not { IsFlexible: true } flex || q.CheckIn is not { } checkIn || q.CheckOut is not { } checkOut)
+            return null;
+
+        var options = FlexibleDates.Windows(flex, DateOnly.FromDateTime(DateTime.UtcNow)).Count;
+        return new FlexibleDatesDto(
+            flex.Length.ToString().ToLowerInvariant(),
+            FlexibleDates.Label(flex.Length),
+            checkOut.DayNumber - checkIn.DayNumber,
+            checkIn, checkOut, options);
     }
 
     /// <summary>
@@ -366,6 +449,7 @@ public class CatalogService(StayHostDbContext db)
         // order the second pass peels them off in.
         var candidates = new List<(string Key, string Label)>();
 
+        if (q.Unavailable is { Count: > 0 }) candidates.Add(("dates", "Ngày đã chọn"));
         if (q.MinPrice is > 0 || q.MaxPrice is > 0) candidates.Add(("price", "Khoảng giá"));
         if (q.Amenities.Length > 0) candidates.Add(("amenities", $"{q.Amenities.Length} tiện nghi đã chọn"));
         if (q.SuperhostOnly) candidates.Add(("superhost", "Chỉ Siêu chủ nhà"));
@@ -424,6 +508,7 @@ public class CatalogService(StayHostDbContext db)
 
     private static SearchQuery Relax(SearchQuery q, string key) => key switch
     {
+        "dates" => q with { Unavailable = null },
         "price" => q with { MinPrice = null, MaxPrice = null },
         "amenities" => q with { Amenities = [] },
         "roomType" => q with { RoomType = "any" },
@@ -450,44 +535,62 @@ public class CatalogService(StayHostDbContext db)
         private readonly Dictionary<int, List<PriceRule>> _rulesByListing;
         private readonly Dictionary<int, int> _soldStaysByListing;
         private readonly IReadOnlyCollection<TaxRule> _taxRules;
-        private readonly DateOnly _checkIn;
-        private readonly DateOnly _checkOut;
+        private readonly IReadOnlyDictionary<int, StayWindow> _matched;
+        private readonly StayWindow _default;
         private readonly PartySize _party;
 
         public StayPricer(
             DateOnly checkIn, DateOnly checkOut, PartySize party,
             IEnumerable<PriceRule> rules, IReadOnlyCollection<TaxRule> taxRules,
-            Dictionary<int, int> soldStaysByListing)
+            Dictionary<int, int> soldStaysByListing,
+            IReadOnlyDictionary<int, StayWindow>? matched = null)
         {
-            _checkIn = checkIn;
-            _checkOut = checkOut;
+            _default = new StayWindow(checkIn, checkOut);
             _party = party;
             _taxRules = taxRules;
             _soldStaysByListing = soldStaysByListing;
+            _matched = matched ?? new Dictionary<int, StayWindow>();
             _rulesByListing = rules.GroupBy(r => r.ListingId).ToDictionary(g => g.Key, g => g.ToList());
         }
 
-        public decimal Total(Listing l) => Pricing.Quote(new Pricing.Request
+        /// <summary>
+        /// A flexible search matches different listings on different dates, so a
+        /// card must be priced for the stay it was actually matched on.
+        /// </summary>
+        public StayWindow Window(Listing l) => _matched.TryGetValue(l.Id, out var w) ? w : _default;
+
+        public decimal Total(Listing l)
         {
-            Listing = l,
-            CheckIn = _checkIn,
-            CheckOut = _checkOut,
-            Party = _party,
-            PriceRules = _rulesByListing.GetValueOrDefault(l.Id, []),
-            TaxRules = _taxRules,
-            ListingBookingCount = _soldStaysByListing.GetValueOrDefault(l.Id, 0)
-        }).Total;
+            var window = Window(l);
+            return Pricing.Quote(new Pricing.Request
+            {
+                Listing = l,
+                CheckIn = window.CheckIn,
+                CheckOut = window.CheckOut,
+                Party = _party,
+                PriceRules = _rulesByListing.GetValueOrDefault(l.Id, []),
+                TaxRules = _taxRules,
+                ListingBookingCount = _soldStaysByListing.GetValueOrDefault(l.Id, 0)
+            }).Total;
+        }
     }
 
     /// <summary>Builds a pricer for the listings on one page; null dates mean no stay total.</summary>
     public async Task<StayPricer?> BuildPricerAsync(
-        IReadOnlyCollection<Listing> listings, DateOnly? checkIn, DateOnly? checkOut, PartySize party, CancellationToken ct)
+        IReadOnlyCollection<Listing> listings, DateOnly? checkIn, DateOnly? checkOut, PartySize party,
+        CancellationToken ct, IReadOnlyDictionary<int, StayWindow>? matched = null)
     {
         if (checkIn is null || checkOut is null || checkOut <= checkIn || listings.Count == 0) return null;
 
         var ids = listings.Select(l => l.Id).ToList();
+        var mine = matched?.Where(kv => ids.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        // Widen the rule window to cover every stay on the page, flexible or not.
+        var ruleFrom = mine is { Count: > 0 } ? Min(checkIn.Value, mine.Values.Min(w => w.CheckIn)) : checkIn.Value;
+        var ruleTo = mine is { Count: > 0 } ? Max(checkOut.Value, mine.Values.Max(w => w.CheckOut)) : checkOut.Value;
+
         var rules = await db.PriceRules
-            .Where(r => ids.Contains(r.ListingId) && r.From <= checkOut && checkIn <= r.To)
+            .Where(r => ids.Contains(r.ListingId) && r.From <= ruleTo && ruleFrom <= r.To)
             .ToListAsync(ct);
         var taxRules = await ActiveTaxRulesAsync(ct);
 
@@ -499,8 +602,11 @@ public class CatalogService(StayHostDbContext db)
             .Select(g => new { ListingId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.ListingId, x => x.Count, ct);
 
-        return new StayPricer(checkIn.Value, checkOut.Value, party, rules, taxRules, soldStays);
+        return new StayPricer(checkIn.Value, checkOut.Value, party, rules, taxRules, soldStays, mine);
     }
+
+    private static DateOnly Min(DateOnly a, DateOnly b) => a < b ? a : b;
+    private static DateOnly Max(DateOnly a, DateOnly b) => a > b ? a : b;
 
     /// <summary>Every live tax rule; the set is tiny and shared by every quote on a page.</summary>
     public async Task<List<TaxRule>> ActiveTaxRulesAsync(CancellationToken ct) =>
@@ -536,7 +642,9 @@ public class CatalogService(StayHostDbContext db)
         l.Amenities.Select(a => a.Amenity!.Key).ToList(),
         favIds.Contains(l.Id),
         l.CleaningFee,
-        pricer?.Total(l));
+        pricer?.Total(l),
+        pricer?.Window(l).CheckIn,
+        pricer?.Window(l).CheckOut);
 
     public async Task<ListingDetailDto?> GetDetailAsync(
         string idOrSlug, string sessionId, DateOnly? checkIn, DateOnly? checkOut, int guests, CancellationToken ct)

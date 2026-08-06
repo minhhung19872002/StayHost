@@ -13,6 +13,11 @@ export const state = {
   q: '',
   checkIn: todayIso(9),
   checkOut: todayIso(12),
+  // docs/01 TM-06 & TM-07 — 'exact' | 'weekend' | 'week' | 'month' | 'months'
+  stay: 'exact',
+  flexDays: 0,
+  stayMonths: 1,
+  startMonths: [],
   guests: { adults: 2, children: 0, infants: 0, pets: 0 },
   category: 'all',
   minPrice: 0,
@@ -248,6 +253,12 @@ export function searchParams(page = 1) {
     // checkout uses (docs/00 §6.8).
     checkIn: state.checkIn,
     checkOut: state.checkOut,
+    // A loose wish instead of two firm dates (docs/01 TM-06, TM-07).
+    stay: state.stay !== 'exact' ? state.stay : undefined,
+    flex: state.flexDays || undefined,
+    months: state.stay === 'months' ? state.stayMonths : undefined,
+    startMonths: state.stay === 'months' && state.startMonths.length
+      ? state.startMonths.join(',') : undefined,
     q: state.q.trim() || undefined,
     category: state.category !== 'all' ? state.category : undefined,
     minPrice: meta && state.minPrice > meta.minPrice ? state.minPrice : undefined,
@@ -788,7 +799,17 @@ export function applyDatePreset(key) {
 export function clearDates() {
   state.checkIn = todayIso(9);
   state.checkOut = todayIso(12);
+  state.stay = 'exact';
+  state.flexDays = 0;
+  state.startMonths = [];
   normaliseDates();
+}
+
+/** docs/01 TM-06 & TM-07 — how loose the guest is willing to be about dates. */
+export function setStayShape(patch) {
+  Object.assign(state, patch);
+  if (state.stay === 'exact' && state.flexDays === 0) normaliseDates();
+  else notify();
 }
 
 /** Keeps check-out after check-in, then re-prices whatever screen is open. */

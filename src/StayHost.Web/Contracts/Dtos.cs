@@ -486,7 +486,14 @@ public record ListingCardDto(
     /// All-in total for the searched dates, priced by the same engine as the
     /// room page and checkout. Null when the search carried no dates.
     /// </summary>
-    decimal? StayTotal);
+    decimal? StayTotal,
+    /// <summary>
+    /// The stay this card was matched on. Only set when a flexible search
+    /// (docs/01 TM-06, TM-07) landed it on dates other than the ones shown at
+    /// the top of the page.
+    /// </summary>
+    DateOnly? StayCheckIn = null,
+    DateOnly? StayCheckOut = null);
 
 public record HomeSectionDto(
     string Key,
@@ -509,7 +516,22 @@ public record SearchResultDto(
     int PageSize,
     IReadOnlyList<ListingCardDto> Items,
     /// <summary>Only present when nothing matched (docs/01 TM-22).</summary>
-    NoResultsDto? NoResults = null);
+    NoResultsDto? NoResults = null,
+    /// <summary>Only present when the guest searched flexible dates.</summary>
+    FlexibleDatesDto? Dates = null);
+
+/// <summary>
+/// docs/01 TM-06 and TM-07 — what a loose "a week sometime in October" was
+/// turned into, so the page can say which stay it is pricing.
+/// </summary>
+public record FlexibleDatesDto(
+    string Length,
+    string Label,
+    int Nights,
+    DateOnly CheckIn,
+    DateOnly CheckOut,
+    /// <summary>How many alternative stays were considered.</summary>
+    int Options);
 
 /// <summary>
 /// docs/01 TM-22 — when a search comes back empty, say which filter is doing
