@@ -107,10 +107,11 @@ public class BookingsController(
             GuestName = req.GuestName ?? user.FullName,
             GuestEmail = req.GuestEmail ?? user.Email,
             GuestNote = req.GuestNote,
-            // docs/03 §3: instant book goes straight to confirmed (this demo takes
-            // the card in the same call); a request waits 24 hours on the host and
-            // deliberately does not hold the dates.
-            Status = listing.InstantBook ? BookingStatus.Confirmed : BookingStatus.PendingHostApproval,
+            // docs/03 §2–§3: instant book takes the dates off the market for 15
+            // minutes while the guest pays; a request waits 24 hours on the host
+            // and deliberately does not hold the dates at all.
+            Status = listing.InstantBook ? BookingStatus.PendingPayment : BookingStatus.PendingHostApproval,
+            HoldExpiresAt = listing.InstantBook ? DateTime.UtcNow + BookingLifecycle.PaymentHold : null,
             RequestExpiresAt = listing.InstantBook ? null : DateTime.UtcNow + BookingLifecycle.RequestWindow
         };
 
@@ -121,8 +122,7 @@ public class BookingsController(
             Currency = "VND",
             Method = string.IsNullOrWhiteSpace(req.PaymentMethod) ? "card" : req.PaymentMethod,
             CardLast4 = req.CardLast4 ?? "4242",
-            Status = listing.InstantBook ? PaymentStatus.Captured : PaymentStatus.Authorized,
-            CapturedAt = listing.InstantBook ? DateTime.UtcNow : null,
+            Status = PaymentStatus.Authorized,
             PlatformFee = price.GuestServiceFee + price.HostServiceFee,
             HostPayout = price.HostPayout,
             PayoutDueOn = req.CheckIn.AddDays(1)
@@ -146,30 +146,126 @@ public class BookingsController(
         }
 
         db.BookingEvents.Add(BookingLifecycle.Created(booking, $"guest:{user.Id}",
-            listing.InstantBook ? "Đặt ngay" : "Gửi yêu cầu đặt"));
-
-        // docs/03 §5: money only enters the books once it has actually been taken.
-        // A request-to-book is not charged until the host accepts.
-        if (listing.InstantBook)
-            db.LedgerEntries.AddRange(Ledger.CaptureBooking(booking, price, DateTime.UtcNow));
-
+            listing.InstantBook ? "Giữ chỗ 15 phút để thanh toán" : "Gửi yêu cầu đặt"));
         await db.SaveChangesAsync(ct);
 
+        // An instant booking is still unpaid at this point, so nobody is told
+        // about it until the money is actually taken.
+        if (!listing.InstantBook)
+        {
+            var hostUser = await db.Users.FirstOrDefaultAsync(u => u.HostProfile!.Id == listing.HostId, ct);
+            await notifications.QueueWithEmailAsync(hostUser, NotificationKind.BookingCreated,
+                "Có yêu cầu đặt chỗ cần duyệt",
+                $"{booking.GuestName} đặt \"{listing.Title}\" từ {booking.CheckIn:dd/MM} đến {booking.CheckOut:dd/MM} " +
+                $"({booking.Nights} đêm, {booking.Guests} khách). Bạn có 24 giờ để trả lời.",
+                "/hosting", ct);
+
+            await notifications.QueueWithEmailAsync(user, NotificationKind.BookingCreated,
+                "Đã gửi yêu cầu đặt chỗ",
+                $"Mã đặt chỗ {booking.Reference} · {listing.Title} · {booking.Nights} đêm. " +
+                "Yêu cầu đặt không giữ ngày: ai trả tiền xong trước thì được.",
+                $"/trips/{booking.Id}", ct);
+
+            await db.SaveChangesAsync(ct);
+        }
+
+        return Created($"/api/bookings/{booking.Id}", ToDto(booking));
+    }
+
+    /// <summary>
+    /// Takes the money for a booking that is holding its dates. docs/01 ĐP-12:
+    /// the server prices the stay again here and refuses to charge a number
+    /// different from the one the guest agreed to.
+    /// </summary>
+    [HttpPost("{id:int}/pay")]
+    public async Task<ActionResult<BookingDto>> Pay(int id, [FromBody] PayBookingRequest? req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var booking = await db.Bookings
+            .Include(b => b.Payment).Include(b => b.Events)
+            .Include(b => b.Listing!).ThenInclude(l => l.Images)
+            .FirstOrDefaultAsync(b => b.Id == id && b.GuestUserId == user.Id, ct);
+
+        if (booking is null) return NotFound();
+
+        if (booking.Status != BookingStatus.PendingPayment)
+        {
+            return BadRequest(new
+            {
+                message = $"Đơn đang ở trạng thái \"{BookingLifecycle.Label(booking.Status)}\" nên không thanh toán được."
+            });
+        }
+
+        if (booking.HoldExpiresAt is { } expiry && expiry < DateTime.UtcNow)
+        {
+            db.BookingEvents.Add(BookingLifecycle.Transition(
+                booking, BookingStatus.PaymentFailed, "system", "Hết 15 phút giữ chỗ mà chưa thanh toán xong."));
+            await db.SaveChangesAsync(ct);
+            return Conflict(new { message = "Đã quá 15 phút giữ chỗ. Vui lòng chọn lại ngày và đặt lại." });
+        }
+
+        // ĐP-12 — price it again and stop if anything moved while the guest paid.
+        var party = new PartySize(booking.Adults, booking.Children, booking.Infants, booking.Pets);
+        var fresh = await catalog.BuildQuoteRequestAsync(booking.ListingId, booking.CheckIn, booking.CheckOut, party, ct);
+        var price = Pricing.Quote(fresh!);
+
+        if (price.Total != booking.Total)
+        {
+            return Conflict(new
+            {
+                message = $"Giá vừa thay đổi từ {booking.Total:#,##0}₫ thành {price.Total:#,##0}₫. " +
+                          "Vui lòng xem lại trước khi thanh toán.",
+                newTotal = price.Total,
+                oldTotal = booking.Total
+            });
+        }
+
+        db.BookingEvents.Add(BookingLifecycle.Transition(
+            booking, BookingStatus.Confirmed, $"guest:{user.Id}", "Thanh toán thành công."));
+
+        if (booking.Payment is not null)
+        {
+            booking.Payment.Status = PaymentStatus.Captured;
+            booking.Payment.CapturedAt = DateTime.UtcNow;
+            if (!string.IsNullOrWhiteSpace(req?.PaymentMethod)) booking.Payment.Method = req.PaymentMethod;
+            if (!string.IsNullOrWhiteSpace(req?.CardLast4)) booking.Payment.CardLast4 = req.CardLast4;
+        }
+
+        db.LedgerEntries.AddRange(Ledger.CaptureBooking(booking, price, DateTime.UtcNow));
+        await db.SaveChangesAsync(ct);
+
+        var listing = booking.Listing!;
         var hostUser = await db.Users.FirstOrDefaultAsync(u => u.HostProfile!.Id == listing.HostId, ct);
-        await notifications.QueueWithEmailAsync(hostUser, NotificationKind.BookingCreated,
-            listing.InstantBook ? "Bạn có lượt đặt mới" : "Có yêu cầu đặt chỗ cần duyệt",
+
+        await notifications.QueueWithEmailAsync(hostUser, NotificationKind.BookingConfirmed,
+            "Bạn có lượt đặt mới",
             $"{booking.GuestName} đặt \"{listing.Title}\" từ {booking.CheckIn:dd/MM} đến {booking.CheckOut:dd/MM} " +
             $"({booking.Nights} đêm, {booking.Guests} khách).",
             "/hosting", ct);
 
-        await notifications.QueueWithEmailAsync(user, NotificationKind.BookingCreated,
-            listing.InstantBook ? "Đặt chỗ đã được xác nhận" : "Đã gửi yêu cầu đặt chỗ",
+        await notifications.QueueWithEmailAsync(user, NotificationKind.BookingConfirmed,
+            "Đặt chỗ đã được xác nhận",
             $"Mã đặt chỗ {booking.Reference} · {listing.Title} · {booking.Nights} đêm.",
             $"/trips/{booking.Id}", ct);
 
         await db.SaveChangesAsync(ct);
+        return Ok(ToDto(booking));
+    }
 
-        return Created($"/api/bookings/{booking.Id}", ToDto(booking));
+    /// <summary>The guest walked away from checkout; the dates go back on sale.</summary>
+    [HttpPost("{id:int}/release")]
+    public async Task<IActionResult> Release(int id, CancellationToken ct)
+    {
+        var booking = await FindOwnedAsync(id, ct);
+        if (booking is null) return NotFound();
+        if (booking.Status != BookingStatus.PendingPayment) return NoContent();
+
+        db.BookingEvents.Add(BookingLifecycle.Transition(
+            booking, BookingStatus.CancelledByGuest, "guest", "Khách rời bước thanh toán."));
+        await db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     /// <summary>What the guest would get back if they cancelled right now.</summary>

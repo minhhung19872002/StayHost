@@ -37,6 +37,9 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.ToTable("hosts");
             e.Property(x => x.Name).HasMaxLength(120).IsRequired();
             e.Property(x => x.Initials).HasMaxLength(4);
+            e.Property(x => x.PayoutBankName).HasMaxLength(120);
+            e.Property(x => x.PayoutAccountName).HasMaxLength(120);
+            e.Property(x => x.PayoutAccountLast4).HasMaxLength(4);
             e.HasOne(x => x.User).WithOne(u => u.HostProfile)
                 .HasForeignKey<HostProfile>(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
         });

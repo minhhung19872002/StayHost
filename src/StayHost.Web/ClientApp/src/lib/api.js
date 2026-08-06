@@ -72,7 +72,14 @@ export const api = {
 
   bookings: () => request('/api/bookings'),
 
-  book: body => request('/api/bookings', { method: 'POST', body: JSON.stringify(body) }),
+  /** Creates the 15-minute hold (docs/01 ĐP-02); no money moves yet. */
+  hold: body => request('/api/bookings', { method: 'POST', body: JSON.stringify(body) }),
+
+  /** Takes the money for a held booking; the server re-prices first (ĐP-12). */
+  pay: (id, body) => request(`/api/bookings/${id}/pay`, { method: 'POST', body: JSON.stringify(body ?? {}) }),
+
+  /** Abandons a hold so the dates go back on sale immediately. */
+  release: id => request(`/api/bookings/${id}/release`, { method: 'POST' }),
 
   booking: id => request(`/api/bookings/${id}`),
 
@@ -114,6 +121,17 @@ export const api = {
     request(`/api/host/bookings/${id}/${decision}`, { method: 'POST', body: JSON.stringify({ reason: reason ?? null }) }),
   replyToReview: (reviewId, text) =>
     request(`/api/host/reviews/${reviewId}/reply`, { method: 'POST', body: JSON.stringify({ text }) }),
+
+  /* ------------------------------------------------------ host operations */
+  hostToday: () => request('/api/host/today'),
+  hostRules: id => request(`/api/host/listings/${id}/rules`),
+  saveHostRules: (id, body) =>
+    request(`/api/host/listings/${id}/rules`, { method: 'PUT', body: JSON.stringify(body) }),
+  editDays: (id, body) =>
+    request(`/api/host/listings/${id}/days`, { method: 'POST', body: JSON.stringify(body) }),
+  hostPayout: () => request('/api/host/payout'),
+  saveHostPayout: body => request('/api/host/payout', { method: 'PUT', body: JSON.stringify(body) }),
+  superhostProgress: () => request('/api/host/superhost'),
 
   /* ------------------------------------------------------------- messages */
   /* --------------------------------------------------------- notifications */

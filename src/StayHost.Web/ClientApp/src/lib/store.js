@@ -61,6 +61,8 @@ export const state = {
   tripLoading: false,
   bookingResult: null,
   bookingError: null,
+  /** The booking currently holding dates while the guest is at checkout. */
+  held: null,
 
   // hosting + ops
   hosting: null,
@@ -102,7 +104,7 @@ export const state = {
   cancelPreview: null,
 
   // hosting
-  hostingTab: 'overview',
+  hostingTab: 'today',
   editingListing: null,
   uploading: false,
   hostMonthOffset: 0,
@@ -479,13 +481,16 @@ export async function refreshQuote() {
   notify();
 }
 
-export async function book(extra = {}) {
+/**
+ * docs/01 ĐP-02 — entering checkout takes the dates off the market for 15
+ * minutes. Nothing is charged here; `pay` does that.
+ */
+export async function holdDates(extra = {}) {
   if (!state.detail) return null;
-  state.bookingError = null;
-  notify();
+  set({ bookingError: null });
 
   try {
-    state.bookingResult = await api.book({
+    const held = await api.hold({
       listingId: state.detail.card.id,
       checkIn: state.checkIn,
       checkOut: state.checkOut,
@@ -496,6 +501,22 @@ export async function book(extra = {}) {
       pets: state.guests.pets,
       ...extra
     });
+    set({ held });
+    return held;
+  } catch (err) {
+    set({ bookingError: err.message });
+    return null;
+  }
+}
+
+/** Charges a held booking. The server re-prices and refuses on a mismatch. */
+export async function payHeld(extra = {}) {
+  if (!state.held) return null;
+  set({ bookingError: null });
+
+  try {
+    state.bookingResult = await api.pay(state.held.id, extra);
+    state.held = null;
     toast(`Đặt chỗ thành công — mã ${state.bookingResult.reference}`);
     await loadBookings();
     return state.bookingResult;
@@ -505,6 +526,14 @@ export async function book(extra = {}) {
   } finally {
     notify();
   }
+}
+
+/** Leaving checkout without paying puts the dates straight back on sale. */
+export async function releaseHold() {
+  const held = state.held;
+  if (!held) return;
+  set({ held: null });
+  try { await api.release(held.id); } catch { /* the sweep will expire it anyway */ }
 }
 
 /* ------------------------------------------------------------------- trips */

@@ -64,6 +64,17 @@ public enum CancellationTier
     LongTermStrict = 5
 }
 
+/// <summary>docs/03 §5 — how often the platform sends a host their money.</summary>
+public enum PayoutSchedule
+{
+    /// <summary>24 hours after each guest checks in.</summary>
+    PerBooking = 0,
+    /// <summary>Batched once a week.</summary>
+    Weekly = 1,
+    /// <summary>Batched once a month; required for stays of 28 nights or more.</summary>
+    Monthly = 2
+}
+
 /// <summary>Public-facing host identity. The login account itself is <see cref="User"/>.</summary>
 public class HostProfile
 {
@@ -81,6 +92,13 @@ public class HostProfile
     /// <summary>Null for the seeded demo hosts; set for every host created from a real account.</summary>
     public int? UserId { get; set; }
     public User? User { get; set; }
+
+    // --- docs/01 QL-20: where the money goes and how often.
+    public string? PayoutBankName { get; set; }
+    public string? PayoutAccountName { get; set; }
+    /// <summary>Stored masked; only the last four digits are ever displayed.</summary>
+    public string? PayoutAccountLast4 { get; set; }
+    public PayoutSchedule PayoutSchedule { get; set; } = PayoutSchedule.PerBooking;
 
     public List<Listing> Listings { get; set; } = [];
 }

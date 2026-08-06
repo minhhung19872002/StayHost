@@ -1,5 +1,6 @@
 import { useStore } from '../../lib/useStore.js';
-import { set, book, openOverlay, closeOverlay } from '../../lib/store.js';
+import { useEffect, useState } from 'react';
+import { set, holdDates, payHeld, releaseHold, openOverlay, closeOverlay } from '../../lib/store.js';
 import { money, longDate } from '../../lib/format.js';
 import { AmenityIcon } from '../Icon.jsx';
 import { HostReply, StarDistribution } from '../../pages/Detail.jsx';
@@ -154,21 +155,49 @@ export function CheckoutModal() {
   const state = useStore();
   const d = state.detail;
   const q = state.quote;
+  const [busy, setBusy] = useState(false);
+
+  // docs/01 ĐP-02 — moving past the trip step takes the dates off the market
+  // for 15 minutes; walking away puts them straight back.
+  useEffect(() => () => { releaseHold(); }, []);
+
   if (!d || !q) return null;
 
   const step = state.checkoutStep;
   const blocked = q.guestsExceeded || q.belowMinNights;
+  const isRequest = !d.card.instantBook;
+
+  const next = async () => {
+    if (step === 0 && !isRequest && !state.held) {
+      setBusy(true);
+      const held = await holdDates({
+        guestName: state.checkoutName || state.user?.fullName || null,
+        guestEmail: state.checkoutEmail || state.user?.email || null,
+        guestNote: state.checkoutNote || null
+      });
+      setBusy(false);
+      if (!held) return;
+    }
+    set({ checkoutStep: step + 1 });
+  };
 
   const confirm = async () => {
     const card = document.getElementById('card-number')?.value?.replace(/\D/g, '') ?? '';
-    const result = await book({
-      guestName: state.checkoutName || state.user?.fullName || null,
-      guestEmail: state.checkoutEmail || state.user?.email || null,
-      guestNote: state.checkoutNote || null,
-      paymentMethod: state.payMethod,
-      cardLast4: card.length >= 4 ? card.slice(-4) : null
-    });
-    if (result) closeOverlay();
+    const payment = { paymentMethod: state.payMethod, cardLast4: card.length >= 4 ? card.slice(-4) : null };
+
+    setBusy(true);
+    // A request to book has nothing to pay for yet — it goes to the host first.
+    const result = isRequest
+      ? await holdDates({
+          guestName: state.checkoutName || state.user?.fullName || null,
+          guestEmail: state.checkoutEmail || state.user?.email || null,
+          guestNote: state.checkoutNote || null,
+          ...payment
+        })
+      : await payHeld(payment);
+    setBusy(false);
+
+    if (result) { set({ bookingResult: result, held: null }); closeOverlay(); }
   };
 
   return (
@@ -180,10 +209,15 @@ export function CheckoutModal() {
       <div style={{ display: 'flex', gap: 10 }}>
         {step > 0 && <button className="btn btn-outline btn-sm" onClick={() => set({ checkoutStep: step - 1 })}>Quay lại</button>}
         {step < 2
-          ? <button className="btn btn-primary btn-sm" disabled={blocked} onClick={() => set({ checkoutStep: step + 1 })}>Tiếp tục</button>
-          : <button className="btn btn-primary btn-sm" disabled={blocked} onClick={confirm}>Xác nhận và thanh toán</button>}
+          ? <button className="btn btn-primary btn-sm" disabled={blocked || busy} onClick={next}>
+              {busy ? 'Đang giữ chỗ…' : 'Tiếp tục'}
+            </button>
+          : <button className="btn btn-primary btn-sm" disabled={blocked || busy} onClick={confirm}>
+              {busy ? 'Đang xử lý…' : isRequest ? 'Gửi yêu cầu đặt' : 'Xác nhận và thanh toán'}
+            </button>}
       </div>
     </>}>
+      <HoldCountdown held={state.held} />
       <div className="stepper-bar">
         {CHECKOUT_STEPS.map((label, i) => (
           <div key={label} className={`step-dot ${i === step ? 'is-active' : ''} ${i < step ? 'is-done' : ''}`}>
@@ -344,6 +378,35 @@ function StepReview({ q }) {
     </section>
   </>;
 }
+
+/**
+ * docs/01 ĐP-02 — the guest can see exactly how long the dates are theirs.
+ * Ticking every second is cheap and makes the deadline feel real.
+ */
+function HoldCountdown({ held }) {
+  const [left, setLeft] = useState(() => remaining(held));
+
+  useEffect(() => {
+    if (!held?.holdExpiresAt) return undefined;
+    const id = setInterval(() => setLeft(remaining(held)), 1000);
+    return () => clearInterval(id);
+  }, [held]);
+
+  if (!held?.holdExpiresAt || left <= 0) return null;
+
+  const mm = String(Math.floor(left / 60)).padStart(2, '0');
+  const ss = String(left % 60).padStart(2, '0');
+
+  return (
+    <div className="book-alert" style={{ marginBottom: 4 }}>
+      <b>Đang giữ chỗ cho bạn · {mm}:{ss}</b>
+      <span>Hết giờ mà chưa thanh toán xong thì ngày sẽ được mở lại cho khách khác.</span>
+    </div>
+  );
+}
+
+const remaining = held =>
+  held?.holdExpiresAt ? Math.max(0, Math.round((new Date(held.holdExpiresAt) - Date.now()) / 1000)) : 0;
 
 /**
  * Renders whatever line items the quote carries. The server owns the running

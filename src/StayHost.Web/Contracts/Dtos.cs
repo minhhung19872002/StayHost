@@ -151,6 +151,65 @@ public record HostDashboardDto(
 
 public record MonthlyEarningDto(string Month, decimal Amount, int Nights);
 
+/* --------------------------------------------------------- host operations */
+
+/// <summary>docs/01 QL-01 — the day's work, grouped the way a host thinks about it.</summary>
+public record TodayBoardDto(
+    IReadOnlyList<TodayItemDto> Arriving,
+    IReadOnlyList<TodayItemDto> InHouse,
+    IReadOnlyList<TodayItemDto> Leaving,
+    IReadOnlyList<TodayItemDto> AwaitingAnswer,
+    int NeedsAnswer);
+
+public record TodayItemDto(
+    int BookingId, string Reference, string ListingTitle, string GuestName,
+    DateOnly CheckIn, DateOnly CheckOut, int Nights, int Guests,
+    string What, string StatusLabel, string StatusBadge);
+
+/// <summary>docs/01 QL-06 and QL-07 — the rules that decide who can book which nights.</summary>
+public record CalendarRulesDto(
+    int MinNights,
+    int MaxNights,
+    int AdvanceNoticeHours,
+    int? SameDayCutoffHour,
+    int CalendarVisibilityMonths,
+    int TurnoverDays,
+    /// <summary>Bitmask over DayOfWeek; Sunday is bit 0.</summary>
+    int BlockedCheckInDays,
+    int BlockedCheckOutDays,
+    string TimeZoneId);
+
+/// <summary>docs/01 QL-05 — one edit applied to a run of days.</summary>
+public record BulkDayEditRequest(
+    DateOnly From,
+    DateOnly To,
+    decimal? NightlyRate,
+    int? MinNights,
+    /// <summary>True blocks the range, false clears blocks, null leaves them alone.</summary>
+    bool? Blocked,
+    string? Label);
+
+/// <summary>docs/01 QL-20 — where the money goes, and when.</summary>
+public record PayoutSettingsDto(
+    string? BankName,
+    string? AccountName,
+    string? AccountLast4,
+    string Schedule,
+    IReadOnlyList<PayoutRowDto> Upcoming);
+
+public record PayoutRowDto(string Reference, string ListingTitle, DateOnly DueOn, decimal Amount, string Status);
+
+public record SavePayoutRequest(string? BankName, string? AccountName, string? AccountNumber, string? Schedule);
+
+/// <summary>docs/03 §8 — the four criteria and where the host stands on each.</summary>
+public record SuperhostProgressDto(
+    bool IsSuperhost,
+    bool WouldQualify,
+    DateOnly NextReview,
+    IReadOnlyList<SuperhostCriterionDto> Criteria);
+
+public record SuperhostCriterionDto(string Key, string Label, string Current, string Target, bool Met);
+
 /* ------------------------------------------------------------ notifications */
 
 public record NotificationDto(
@@ -464,6 +523,9 @@ public record QuoteDto(
     bool BelowMinNights,
     string CancellationTier,
     string CancellationSummary);
+
+/// <summary>Card details captured when the guest actually pays, not when the hold started.</summary>
+public record PayBookingRequest(string? PaymentMethod, string? CardLast4);
 
 public record RefundPreviewDto(
     decimal Refund,

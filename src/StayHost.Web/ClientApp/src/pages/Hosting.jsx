@@ -6,10 +6,12 @@ import {
 } from '../lib/store.js';
 import { money, longDate } from '../lib/format.js';
 import { Icon } from '../components/Icon.jsx';
+import { Today } from './hosting/Today.jsx';
+import { Payout, SuperhostProgress } from './hosting/Payout.jsx';
 
 const TABS = [
-  ['overview', 'Tổng quan'], ['listings', 'Chỗ nghỉ'],
-  ['bookings', 'Đơn đặt'], ['earnings', 'Doanh thu']
+  ['today', 'Hôm nay'], ['overview', 'Tổng quan'], ['listings', 'Chỗ nghỉ'],
+  ['bookings', 'Đơn đặt'], ['earnings', 'Doanh thu'], ['payout', 'Nhận tiền']
 ];
 
 export function Hosting() {
@@ -85,6 +87,7 @@ export function Hosting() {
         ))}
       </nav>
 
+      {tab === 'today' && <Today />}
       {tab === 'overview' && <Overview d={d} navigate={navigate} />}
       {tab === 'listings' && (
         <div className="host-listing-grid" style={{ marginTop: 24 }}>
@@ -93,6 +96,7 @@ export function Hosting() {
       )}
       {tab === 'bookings' && <Bookings d={d} navigate={navigate} />}
       {tab === 'earnings' && <Earnings d={d} />}
+      {tab === 'payout' && <><Payout /><SuperhostProgress /></>}
     </div>
   );
 }
@@ -266,7 +270,10 @@ function Earnings({ d }) {
       </div>
 
       <section style={{ marginTop: 34 }}>
-        <h2 className="section-title" style={{ fontSize: 20 }}>Theo tháng nhận phòng</h2>
+        <div className="page-head" style={{ marginBottom: 0 }}>
+          <h2 className="section-title" style={{ fontSize: 20 }}>Theo tháng nhận phòng</h2>
+          <a className="btn btn-outline btn-sm" href="/api/host/earnings.csv" download>Tải file doanh thu</a>
+        </div>
         <div className="bar-chart">
           {d.earningsByMonth.map(m => (
             <div className="bar-col" key={m.month} title={`${m.month}: ${money(m.amount)} · ${m.nights} đêm`}>

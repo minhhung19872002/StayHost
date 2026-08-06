@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../../lib/useStore.js';
 import {
   set, saveListing, removeListing, loadHostCalendar, loadHosting, closeOverlay, toast
@@ -369,6 +369,9 @@ export function HostCalendarModal() {
     <Modal title="Lịch & giá">
       <HostMonths cal={cal} offset={state.hostMonthOffset} />
 
+      <BulkDays listingId={cal.listingId} basePrice={cal.basePrice ?? 0} onDone={reload} />
+      <CalendarRules listingId={cal.listingId} />
+
       <section className="modal-section">
         <h3>Khoá lịch</h3>
         <span className="hint">Chặn khoảng ngày bạn không muốn nhận khách (bảo trì, gia đình dùng…).</span>
@@ -457,6 +460,163 @@ export function HostCalendarModal() {
         </div>
       )}
     </Modal>
+  );
+}
+
+/**
+ * docs/01 QL-05 — one action over a run of days: set the rate, block or unblock
+ * them, or change the minimum stay that may start on them.
+ */
+function BulkDays({ listingId, basePrice, onDone }) {
+  const [busy, setBusy] = useState(false);
+
+  const submit = async e => {
+    e.preventDefault();
+    const f = e.currentTarget;
+    const rate = Number(f.rate.value);
+    const minNights = Number(f.minNights.value);
+    const blocked = f.blocked.value;
+
+    setBusy(true);
+    try {
+      await api.editDays(listingId, {
+        from: f.from.value,
+        to: f.to.value,
+        nightlyRate: rate > 0 ? rate : null,
+        minNights: minNights > 0 ? minNights : null,
+        blocked: blocked === 'keep' ? null : blocked === 'block',
+        label: f.label.value.trim() || null
+      });
+      await onDone();
+      toast('Đã áp dụng cho khoảng ngày đã chọn.');
+      f.reset();
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="modal-section">
+      <h3>Sửa nhiều ngày cùng lúc</h3>
+      <span className="hint">
+        Giá theo ngày được ưu tiên cao nhất, đè lên giá mùa và giá cuối tuần.
+        Giá cơ bản hiện tại: <b>{money(basePrice)}</b>/đêm.
+      </span>
+      <form onSubmit={submit} style={{ marginTop: 14 }}>
+        <div className="field-grid">
+          <label className="form-field"><span className="cap">Từ ngày</span>
+            <input type="date" name="from" required /></label>
+          <label className="form-field"><span className="cap">Đến ngày</span>
+            <input type="date" name="to" required /></label>
+          <label className="form-field"><span className="cap">Giá mỗi đêm (₫)</span>
+            <input type="number" name="rate" min={0} step={10000} placeholder="Để trống nếu không đổi" /></label>
+          <label className="form-field"><span className="cap">Số đêm tối thiểu</span>
+            <input type="number" name="minNights" min={0} max={90} placeholder="Để trống nếu không đổi" /></label>
+          <label className="form-field"><span className="cap">Trạng thái</span>
+            <select name="blocked" defaultValue="keep">
+              <option value="keep">Giữ nguyên</option>
+              <option value="block">Khoá các ngày này</option>
+              <option value="open">Mở lại các ngày này</option>
+            </select></label>
+          <label className="form-field"><span className="cap">Ghi chú</span>
+            <input name="label" placeholder="Cao điểm hè" /></label>
+        </div>
+        <button type="submit" className="btn btn-dark btn-block" disabled={busy}>
+          {busy ? 'Đang áp dụng…' : 'Áp dụng cho khoảng ngày'}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+const WEEKDAYS = [
+  [1, 'T2'], [2, 'T3'], [3, 'T4'], [4, 'T5'], [5, 'T6'], [6, 'T7'], [0, 'CN']
+];
+
+/**
+ * docs/01 QL-06 and QL-07 — the rules the nine availability checks read: night
+ * limits, notice, turnover, calendar horizon, and closed weekdays.
+ */
+function CalendarRules({ listingId }) {
+  const [rules, setRules] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { api.hostRules(listingId).then(setRules).catch(() => setRules(null)); }, [listingId]);
+  if (!rules) return null;
+
+  const field = (key, value) => setRules(r => ({ ...r, [key]: value }));
+  const num = (key, value) => field(key, Number(value) || 0);
+
+  const toggleDay = (key, day) => setRules(r => ({ ...r, [key]: r[key] ^ (1 << day) }));
+  const isOn = (mask, day) => (mask & (1 << day)) !== 0;
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      setRules(await api.saveHostRules(listingId, rules));
+      toast('Đã lưu quy tắc lịch.');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="modal-section">
+      <h3>Quy tắc lịch</h3>
+      <span className="hint">Những quy tắc này quyết định khách có đặt được hay không.</span>
+
+      <div className="field-grid" style={{ marginTop: 14 }}>
+        <label className="form-field"><span className="cap">Số đêm tối thiểu</span>
+          <input type="number" min={1} max={365} value={rules.minNights}
+                 onChange={e => num('minNights', e.target.value)} /></label>
+        <label className="form-field"><span className="cap">Số đêm tối đa (0 = không giới hạn)</span>
+          <input type="number" min={0} max={365} value={rules.maxNights}
+                 onChange={e => num('maxNights', e.target.value)} /></label>
+        <label className="form-field"><span className="cap">Báo trước (giờ)</span>
+          <input type="number" min={0} max={720} value={rules.advanceNoticeHours}
+                 onChange={e => num('advanceNoticeHours', e.target.value)} /></label>
+        <label className="form-field"><span className="cap">Giờ cắt đặt trong ngày</span>
+          <input type="number" min={0} max={23} value={rules.sameDayCutoffHour ?? ''}
+                 placeholder="Không giới hạn"
+                 onChange={e => field('sameDayCutoffHour', e.target.value === '' ? null : Number(e.target.value))} /></label>
+        <label className="form-field"><span className="cap">Mở lịch trước (tháng, 0 = vô hạn)</span>
+          <input type="number" min={0} max={24} value={rules.calendarVisibilityMonths}
+                 onChange={e => num('calendarVisibilityMonths', e.target.value)} /></label>
+        <label className="form-field"><span className="cap">Ngày dọn dẹp giữa hai khách</span>
+          <input type="number" min={0} max={14} value={rules.turnoverDays}
+                 onChange={e => num('turnoverDays', e.target.value)} /></label>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <span className="cap">Không nhận phòng vào</span>
+        <div className="pill-row" style={{ marginTop: 8 }}>
+          {WEEKDAYS.map(([day, label]) => (
+            <button type="button" key={`in-${day}`}
+                    className={`pill ${isOn(rules.blockedCheckInDays, day) ? 'is-on' : ''}`}
+                    onClick={() => toggleDay('blockedCheckInDays', day)}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 14 }}>
+        <span className="cap">Không trả phòng vào</span>
+        <div className="pill-row" style={{ marginTop: 8 }}>
+          {WEEKDAYS.map(([day, label]) => (
+            <button type="button" key={`out-${day}`}
+                    className={`pill ${isOn(rules.blockedCheckOutDays, day) ? 'is-on' : ''}`}
+                    onClick={() => toggleDay('blockedCheckOutDays', day)}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      <button className="btn btn-outline btn-block" style={{ marginTop: 18 }} disabled={busy} onClick={save}>
+        {busy ? 'Đang lưu…' : 'Lưu quy tắc lịch'}
+      </button>
+    </section>
   );
 }
 
