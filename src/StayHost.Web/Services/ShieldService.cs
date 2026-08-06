@@ -80,6 +80,7 @@ public class ShieldService(
             HostContactedAt = contactedAt,
             Urgent = req.Urgent,
             NextGuestArrivesAt = nextGuest?.ToDateTime(new TimeOnly(14, 0), DateTimeKind.Utc),
+            ThirdParty = req.ThirdPartyName,
             EvidenceCount = (req.Evidence ?? []).Count,
             AlreadyHasOpenCase = await db.ShieldClaims.AnyAsync(
                 c => c.BookingId == bookingId
@@ -110,6 +111,9 @@ public class ShieldService(
             Claimed = claimed,
             ExpensesClaimed = Math.Max(0m, req.ExpensesClaimed),
             RehousingDifference = Math.Max(0m, req.RehousingDifference),
+            ThirdPartyName = req.ThirdPartyName?.Trim(),
+            ThirdPartyContact = req.ThirdPartyContact?.Trim(),
+            ThirdPartyKind = req.ThirdPartyKind?.Trim(),
             RespondBy = now + Shield.ResponseWindow,
             FirstResponseDueAt = now + Shield.FirstResponseDue(kind),
             DecisionDueAt = now + Shield.DecisionDue(kind),
@@ -314,21 +318,30 @@ public class ShieldService(
 
         // docs/06 §3.3 — deposit first, then the guest, then the fund. Never reordered.
         var approvedByGuest = Math.Max(0m, req.RecoverFromGuest ?? 0m);
+        var thirdParty = Shield.IsThirdParty(claim.Kind);
+
         var outcome = Shield.SettleHost(
-            req.ApprovedAmount ?? claim.Claimed, req.DepositAvailable ?? 0m, approvedByGuest, paidThisYear);
+            req.ApprovedAmount ?? claim.Claimed, req.DepositAvailable ?? 0m, approvedByGuest, paidThisYear,
+            thirdParty: thirdParty);
 
         claim.Approved = outcome.Approved;
         claim.Deductible = outcome.Deductible;
         claim.RecoveredFromCounterparty = outcome.FromDeposit + outcome.FromGuest;
         claim.PaidFromFund = outcome.FromFund;
 
+        // docs/06 §3.1 C4 — the host is bringing the case, but the money is owed
+        // to whoever was actually damaged, so it never lands on host payables.
         if (claim.RecoveredFromCounterparty > 0)
-            db.LedgerEntries.AddRange(
-                Ledger.ChargeCounterparty(claim, claim.RecoveredFromCounterparty, now));
+            db.LedgerEntries.AddRange(thirdParty
+                ? Ledger.ChargeForThirdParty(claim, claim.RecoveredFromCounterparty, now)
+                : Ledger.ChargeCounterparty(claim, claim.RecoveredFromCounterparty, now));
 
         if (outcome.FromFund > 0)
         {
-            db.LedgerEntries.AddRange(Ledger.PayFromShield(claim, 0m, outcome.FromFund, now));
+            db.LedgerEntries.AddRange(thirdParty
+                ? Ledger.PayFromShield(claim, 0m, 0m, now, outcome.FromFund)
+                : Ledger.PayFromShield(claim, 0m, outcome.FromFund, now));
+
             RecordFund(claim, -outcome.FromFund, FundMovementKind.Payout,
                 $"Chi hồ sơ {claim.Reference} ({Shield.CaseLabel(claim.Kind)})", now);
         }
@@ -595,6 +608,7 @@ public class ShieldService(
         c.Description, c.Claimed, c.ExpensesClaimed, c.RehousingDifference,
         c.Remedy.ToString(), c.Approved, c.Deductible, c.CreditGranted,
         c.PaidFromFund, c.RecoveredFromCounterparty, c.RecoveredLater,
+        c.ThirdPartyName, c.ThirdPartyContact, c.ThirdPartyKind,
         c.Decision, c.DecidedAt, c.Appealed,
         c.NeedsManualReview, c.RespondBy, c.FirstResponseDueAt, c.DecisionDueAt, c.CreatedAt,
         c.OpenedByUser?.FullName ?? "",

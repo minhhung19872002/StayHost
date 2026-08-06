@@ -1266,6 +1266,10 @@ public record ShieldClaimDto(
     decimal PaidFromFund,
     decimal RecoveredFromCounterparty,
     decimal RecoveredLater,
+    /// <summary>docs/06 §3.1 C4 — who the damage was actually done to.</summary>
+    string? ThirdPartyName,
+    string? ThirdPartyContact,
+    string? ThirdPartyKind,
     string? Decision,
     DateTime? DecidedAt,
     bool Appealed,
@@ -1306,7 +1310,11 @@ public record OpenShieldClaimRequest(
     decimal ExpensesClaimed = 0,
     decimal RehousingDifference = 0,
     IReadOnlyList<ShieldEvidenceInput>? Evidence = null,
-    IReadOnlyList<ShieldItemInput>? Items = null);
+    IReadOnlyList<ShieldItemInput>? Items = null,
+    /// <summary>docs/06 §3.1 C4 — required when the loss is somebody else's.</summary>
+    string? ThirdPartyName = null,
+    string? ThirdPartyContact = null,
+    string? ThirdPartyKind = null);
 
 public record RespondShieldRequest(string? Answer, decimal? AgreedAmount, string? Note);
 

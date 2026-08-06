@@ -33,6 +33,13 @@ public class ShieldClaim
 
     public ShieldRemedy Remedy { get; set; } = ShieldRemedy.None;
 
+    // --- docs/06 §3.1 C4: the person or body the damage was actually done to.
+    /// <summary>Neighbour, building management, or somebody else entirely.</summary>
+    public string? ThirdPartyName { get; set; }
+    public string? ThirdPartyContact { get; set; }
+    /// <summary>neighbour · building · other</summary>
+    public string? ThirdPartyKind { get; set; }
+
     // --- what was actually decided
     public decimal Approved { get; set; }
     public decimal Deductible { get; set; }

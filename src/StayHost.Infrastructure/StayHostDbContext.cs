@@ -234,6 +234,9 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Reference).HasMaxLength(20).IsRequired();
             e.Property(x => x.Description).HasMaxLength(2000);
             e.Property(x => x.Decision).HasMaxLength(1000);
+            e.Property(x => x.ThirdPartyName).HasMaxLength(200);
+            e.Property(x => x.ThirdPartyContact).HasMaxLength(200);
+            e.Property(x => x.ThirdPartyKind).HasMaxLength(20);
             foreach (var money in new[]
                      {
                          "Claimed", "ExpensesClaimed", "RehousingDifference", "Approved", "Deductible",

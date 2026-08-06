@@ -31,7 +31,7 @@ thì **code sai**, không phải tài liệu sai.
 3. **14 tham số StayShield** của `docs/06 §10` đã chốt: bù đổi chỗ 40%, tặng số dư
    10%, trần chi phí phát sinh 3 triệu; chủ nhà 75 triệu/đơn, 350 triệu/năm, tự chịu
    500k, 5 đêm mất thu nhập, 15 triệu mỗi món giá trị cao; quỹ trích 5% phí dịch vụ,
-   cảnh báo ở 80%, gắn cờ từ hồ sơ thứ 4. **Có trực 24/7**, **chưa làm nhánh C4**.
+   cảnh báo ở 80%, gắn cờ từ hồ sơ thứ 4. **Có trực 24/7**, **có làm nhánh C4**.
    Tất cả nằm trong `ShieldSettings`, một nơi duy nhất.
 
 ---
@@ -39,7 +39,7 @@ thì **code sai**, không phải tài liệu sai.
 ## 3. Hiện trạng — mọi mục trong `docs/PLAN.md` đã xong
 
 **10/10 tình huống nghiệm thu** của `docs/04` chạy được trên server thật
-(`scripts/acceptance.py`). **303 test nghiệp vụ** xanh.
+(`scripts/acceptance.py`). **311 test nghiệp vụ** xanh.
 
 ### Nền
 
@@ -60,7 +60,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Thanh toán | Trả đủ, trả một phần (cọc ≥50% + tự thu trước 14 ngày), chia hoá đơn tối đa 16 người |
 | Đánh giá & tin nhắn | Đánh giá mù hai chiều, sửa trong 48h, gửi ảnh, thẻ đơn trong hội thoại, mẫu trả lời nhanh |
 | An toàn | Trung tâm giải quyết, trung tâm trợ giúp 14 bài, phát hiện bất thường, nhật ký quản trị chỉ-thêm |
-| StayShield | Hai nhánh K1–K4 / C1–C3, cửa sổ khiếu nại, thứ tự thu tiền, quỹ trích từ phí dịch vụ, khiếu nại một lần do người khác xét |
+| StayShield | Hai nhánh K1–K4 / C1–C4 (kể cả bên thứ ba), cửa sổ khiếu nại, thứ tự thu tiền, quỹ trích từ phí dịch vụ, khiếu nại một lần do người khác xét |
 | Mở rộng | Trải nghiệm (bán theo vé), Dịch vụ (bán theo khung giờ + bán kính), Khách sạn (nhiều loại phòng có tồn kho), thẻ quà tặng, số dư, giới thiệu bạn bè |
 
 ---
@@ -114,7 +114,7 @@ duy nhất chạy được nhánh "thu lần hai thất bại" của `docs/03 §
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 303 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 311 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 cd src/StayHost.Web/ClientApp && npm run build && npx oxlint src
 

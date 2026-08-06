@@ -44,7 +44,13 @@ public enum LedgerAccount
     /// revenue, spent on cases, and topped back up when the platform recovers
     /// what it paid out.
     /// </summary>
-    ShieldFund = 11
+    ShieldFund = 11,
+    /// <summary>
+    /// Owed to somebody who was never on the booking — a neighbour, a building
+    /// (docs/06 §3.1 C4). Kept apart from what the platform owes hosts, because
+    /// it is not a payout and never nets against one.
+    /// </summary>
+    ThirdPartyPayable = 12
 }
 
 public enum LedgerDirection
@@ -241,16 +247,29 @@ public static class Ledger
     /// to them; whatever a host is owed goes onto what the platform owes hosts.
     /// </summary>
     public static List<LedgerEntry> PayFromShield(
-        ShieldClaim claim, decimal toGuest, decimal toHost, DateTime at)
+        ShieldClaim claim, decimal toGuest, decimal toHost, DateTime at, decimal toThirdParty = 0m)
     {
-        var total = Math.Max(0m, toGuest) + Math.Max(0m, toHost);
+        var total = Math.Max(0m, toGuest) + Math.Max(0m, toHost) + Math.Max(0m, toThirdParty);
         if (total <= 0) return [];
 
         return Post("shield-paid", claim.BookingId, at,
             new Leg(LedgerAccount.ShieldFund, LedgerDirection.Debit, total, $"Chi quỹ hồ sơ {claim.Reference}"),
             new Leg(LedgerAccount.GuestRefundPayable, LedgerDirection.Credit, Math.Max(0m, toGuest), "Trả khách"),
-            new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, Math.Max(0m, toHost), "Trả chủ nhà"));
+            new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, Math.Max(0m, toHost), "Trả chủ nhà"),
+            new Leg(LedgerAccount.ThirdPartyPayable, LedgerDirection.Credit, Math.Max(0m, toThirdParty),
+                "Trả bên thứ ba"));
     }
+
+    /// <summary>
+    /// docs/06 §3.3 for a C4 case: what the guest is made to pay goes straight to
+    /// the injured party rather than to the host, who was never out of pocket.
+    /// </summary>
+    public static List<LedgerEntry> ChargeForThirdParty(ShieldClaim claim, decimal amount, DateTime at) =>
+        amount <= 0
+            ? []
+            : Post("shield-charged", claim.BookingId, at,
+                new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, amount, $"Thu từ khách hồ sơ {claim.Reference}"),
+                new Leg(LedgerAccount.ThirdPartyPayable, LedgerDirection.Credit, amount, "Trả bên thứ ba"));
 
     /// <summary>
     /// docs/06 §3.3 - what the guest is made to pay never touches the fund:

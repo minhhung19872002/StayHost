@@ -91,7 +91,13 @@ Không tìm được chỗ thay thế, hoặc khách chọn về sớm:
 | **C2** | Chi phí khắc phục | Dọn dẹp sâu vượt mức bình thường, giặt là đặc biệt, khử mùi thuốc lá, xử lý thiệt hại do thú cưng, thay khoá khi mất chìa |
 | **C3** | Mất thu nhập | Phải huỷ đơn kế tiếp vì chỗ ở cần sửa chữa — bồi thường phần thu nhập bị mất |
 
-Tuỳ chọn mở rộng (quyết định ở §10): **C4 — trách nhiệm với bên thứ ba**, khi khách gây thiệt hại cho hàng xóm hoặc tài sản chung của toà nhà.
+**C4 — trách nhiệm với bên thứ ba** (đã bật ở §10), khi khách gây thiệt hại cho hàng xóm hoặc tài sản chung của toà nhà. Chủ nhà là người mở hồ sơ vì họ ở đó và có bằng chứng, nhưng:
+
+- **Tiền trả thẳng cho bên bị thiệt hại**, không đi qua khoản phải trả chủ nhà — chủ nhà không mất gì nên cũng không nhận gì.
+- **Không trừ mức tự chịu `[C-C]`.** Mức đó là chủ nhà tự gánh phần đầu thiệt hại *của chính mình*; ở đây thiệt hại là của người khác.
+- **Hạn mức `[C-A]`, `[C-B]` vẫn áp dụng** — hai hạn mức đó tính theo hồ sơ và theo chủ nhà, không theo loại thiệt hại.
+- **Không áp mốc "trước khi khách tiếp theo nhận phòng"** của §3.4. Lý do của mốc đó là không xác định được ai gây ra thiệt hại *bên trong* chỗ ở; xe hàng xóm hay sảnh chung không có vấn đề đó. Mốc 14 ngày vẫn giữ.
+- Hồ sơ bắt buộc ghi **tên và liên hệ của bên bị thiệt hại**.
 
 ### 3.2. Hạn mức và mức tự chịu
 
@@ -278,7 +284,7 @@ Tài khoản bị gắn cờ → mọi hồ sơ tiếp theo phải qua duyệt t
 | Q-B | Tỉ lệ trích quỹ từ phí dịch vụ | 3–8% | **5%** |
 | Q-C | Ngưỡng cảnh báo chi vượt | 80% số trích trong tháng | **80%** |
 | A-A | Số hồ sơ trong 12 tháng thì gắn cờ | 3–5 | **4 hồ sơ** |
-| — | Có làm nhánh C4 (trách nhiệm bên thứ ba) không? | nên để sau | **Không** — để sau |
+| — | Có làm nhánh C4 (trách nhiệm bên thứ ba) không? | nên để sau | **Có** — khách đổi ý, đã làm |
 | — | Có trực 24/7 cho tình huống K2/K4 không? | bắt buộc nếu cam kết 1 giờ | **Có** — giữ cam kết 1 giờ |
 
 ---

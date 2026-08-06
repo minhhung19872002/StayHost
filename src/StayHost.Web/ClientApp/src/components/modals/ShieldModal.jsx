@@ -18,8 +18,11 @@ const GUEST_CASES = [
 const HOST_CASES = [
   ['C1', 'Khách làm hư hỏng hoặc mất đồ', 'Nội thất, thiết bị, đồ dùng bị hỏng, mất hoặc bị lấy đi'],
   ['C2', 'Chi phí khắc phục', 'Dọn sâu, giặt là đặc biệt, khử mùi thuốc lá, thay khoá'],
-  ['C3', 'Mất thu nhập vì phải huỷ đơn sau', 'Chỗ ở cần sửa nên đơn kế tiếp không đón được khách']
+  ['C3', 'Mất thu nhập vì phải huỷ đơn sau', 'Chỗ ở cần sửa nên đơn kế tiếp không đón được khách'],
+  ['C4', 'Khách gây thiệt hại cho bên thứ ba', 'Hàng xóm hoặc tài sản chung của toà nhà — tiền trả thẳng cho bên bị thiệt hại']
 ];
+
+const THIRD_PARTY_KINDS = [['neighbour', 'Hàng xóm'], ['building', 'Ban quản lý toà nhà'], ['other', 'Bên khác']];
 
 /**
  * docs/06 AT-06-03 và AT-06-04 — mở hồ sơ. The server re-checks everything this
@@ -40,6 +43,7 @@ export function ShieldModal() {
   const [expenses, setExpenses] = useState('');
   const [photos, setPhotos] = useState([]);
   const [items, setItems] = useState([{ name: '', value: '', declared: false }]);
+  const [thirdParty, setThirdParty] = useState({ name: '', contact: '', kind: 'neighbour' });
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -63,6 +67,7 @@ export function ShieldModal() {
   const send = async () => {
     if (description.trim().length < 10) { toast('Mô tả giúp chúng tôi hiểu chuyện gì đã xảy ra.'); return; }
     if (!photos.length) { toast('Cần ít nhất một ảnh hoặc video làm bằng chứng.'); return; }
+    if (kind === 'C4' && !thirdParty.name.trim()) { toast('Cho biết bên bị thiệt hại là ai.'); return; }
 
     setBusy(true);
     try {
@@ -73,6 +78,9 @@ export function ShieldModal() {
         expensesClaimed: Number((expenses || '').replace(/\D/g, '')) || 0,
         rehousingDifference: 0,
         evidence: photos.map(url => ({ url, kind: 'photo' })),
+        thirdPartyName: kind === 'C4' ? thirdParty.name.trim() : null,
+        thirdPartyContact: kind === 'C4' ? thirdParty.contact.trim() || null : null,
+        thirdPartyKind: kind === 'C4' ? thirdParty.kind : null,
         items: forHost
           ? items
               .filter(i => i.name.trim() && Number((i.value || '').replace(/\D/g, '')) > 0)
@@ -147,6 +155,30 @@ export function ShieldModal() {
         </section>
       )}
 
+      {kind === 'C4' && (
+        <section className="modal-section">
+          <h3>Bên bị thiệt hại</h3>
+          <p style={{ fontSize: 13, color: 'var(--ink-muted)', margin: '4px 0 12px', lineHeight: 1.6 }}>
+            Tiền bồi thường được trả thẳng cho bên này, không qua tài khoản của bạn, và bạn
+            không phải tự chịu phần đầu.
+          </p>
+          <div className="pill-row" style={{ marginBottom: 12 }}>
+            {THIRD_PARTY_KINDS.map(([key, label]) => (
+              <button type="button" key={key} className={`pill ${thirdParty.kind === key ? 'is-on' : ''}`}
+                      onClick={() => setThirdParty(t => ({ ...t, kind: key }))}>{label}</button>
+            ))}
+          </div>
+          <div className="field-grid">
+            <label className="form-field"><span className="cap">Tên bên bị thiệt hại</span>
+              <input value={thirdParty.name} placeholder="Chị Lan, căn 704"
+                     onChange={e => setThirdParty(t => ({ ...t, name: e.target.value }))} /></label>
+            <label className="form-field"><span className="cap">Liên hệ</span>
+              <input value={thirdParty.contact} placeholder="Số điện thoại hoặc email"
+                     onChange={e => setThirdParty(t => ({ ...t, contact: e.target.value }))} /></label>
+          </div>
+        </section>
+      )}
+
       {forHost && (
         <section className="modal-section">
           <h3>Liệt kê từng món</h3>
@@ -170,8 +202,11 @@ export function ShieldModal() {
             + Thêm món
           </button>
           <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', margin: '10px 0 0', lineHeight: 1.6 }}>
-            Tổng yêu cầu {money(total)}. Bạn tự chịu {money(500_000)} đầu tiên. Đồ trên {money(15_000_000)}
-            {' '}chỉ được tính đủ nếu đã khai báo trong tin đăng từ trước.
+            Tổng yêu cầu {money(total)}.
+            {kind === 'C4'
+              ? ' Hồ sơ bên thứ ba không trừ phần tự chịu.'
+              : ` Bạn tự chịu ${money(500_000)} đầu tiên.`}
+            {' '}Đồ trên {money(15_000_000)} chỉ được tính đủ nếu đã khai báo trong tin đăng từ trước.
           </p>
         </section>
       )}

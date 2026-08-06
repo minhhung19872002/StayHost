@@ -27,7 +27,13 @@ public enum ShieldCase
     /// <summary>Putting it right: deep cleaning, deodorising, new locks.</summary>
     C2 = 12,
     /// <summary>Income lost because the next booking had to be cancelled.</summary>
-    C3 = 13
+    C3 = 13,
+    /// <summary>
+    /// docs/06 section 3.1 - damage a guest did to somebody who is not on the
+    /// booking at all: a neighbour, or the building's shared property. The host
+    /// files it, but the money goes to the injured party.
+    /// </summary>
+    C4 = 14
 }
 
 public enum ShieldStatus
@@ -107,8 +113,8 @@ public sealed record ShieldSettings
     /// <summary>docs/06 §10 — the desk is staffed around the clock, so K2/K4 keep the one-hour promise.</summary>
     public bool RoundTheClockDesk { get; init; } = true;
 
-    /// <summary>docs/06 §10 — third-party liability was left for later.</summary>
-    public bool ThirdPartyBranch { get; init; }
+    /// <summary>docs/06 §10 — the C4 branch, switched on by the client on 06/08/2026.</summary>
+    public bool ThirdPartyBranch { get; init; } = true;
 
     public static ShieldSettings Current { get; set; } = new();
 }
@@ -123,7 +129,15 @@ public static class Shield
     /* --------------------------------------------------------- §2.1 §3.1 */
 
     public static ShieldSide SideOf(ShieldCase kind) =>
-        kind is ShieldCase.C1 or ShieldCase.C2 or ShieldCase.C3 ? ShieldSide.Host : ShieldSide.Guest;
+        kind is ShieldCase.C1 or ShieldCase.C2 or ShieldCase.C3 or ShieldCase.C4
+            ? ShieldSide.Host
+            : ShieldSide.Guest;
+
+    /// <summary>
+    /// docs/06 section 3.1 C4 - the loss belongs to somebody who was never party
+    /// to the booking, which changes who is paid and who carries the excess.
+    /// </summary>
+    public static bool IsThirdParty(ShieldCase kind) => kind == ShieldCase.C4;
 
     /// <summary>docs/06 §2.1 K1 — a cancellation this close to the stay is the platform's problem too.</summary>
     public static readonly TimeSpan HostCancelWindow = TimeSpan.FromDays(30);
@@ -158,7 +172,9 @@ public static class Shield
         NoEvidence,
         AlreadyOpen,
         BookedOffPlatform,
-        NothingClaimed
+        NothingClaimed,
+        BranchOff,
+        NoThirdParty
     }
 
     public readonly record struct Check(bool Ok, Refusal Reason, string Message)
@@ -186,6 +202,9 @@ public static class Shield
         /// <summary>When the next guest checks in, if there is one (docs/06 §3.4).</summary>
         public DateTime? NextGuestArrivesAt { get; init; }
 
+        /// <summary>docs/06 §3.1 C4 — who was hurt, when it was not the host.</summary>
+        public string? ThirdParty { get; init; }
+
         public int EvidenceCount { get; init; }
         public bool AlreadyHasOpenCase { get; init; }
         public bool PaidThroughPlatform { get; init; } = true;
@@ -207,7 +226,8 @@ public static class Shield
         if (req.AlreadyHasOpenCase)
             return Check.Fail(Refusal.AlreadyOpen, "Đơn này đã có một hồ sơ StayShield đang mở.");
 
-        return SideOf(req.Kind) == ShieldSide.Guest ? GuestCheck(req) : HostCheck(req);
+        var settings = ShieldSettings.Current;
+        return SideOf(req.Kind) == ShieldSide.Guest ? GuestCheck(req) : HostCheck(req, settings);
     }
 
     private static Check GuestCheck(Request req)
@@ -238,8 +258,17 @@ public static class Shield
                 $"Vui lòng chờ chủ nhà {wait.TotalHours:0} giờ kể từ lúc bạn nhắn.");
     }
 
-    private static Check HostCheck(Request req)
+    private static Check HostCheck(Request req, ShieldSettings settings)
     {
+        if (IsThirdParty(req.Kind))
+        {
+            if (!settings.ThirdPartyBranch)
+                return Check.Fail(Refusal.BranchOff, "StayHost chưa mở nhánh bồi thường cho bên thứ ba.");
+
+            if (string.IsNullOrWhiteSpace(req.ThirdParty))
+                return Check.Fail(Refusal.NoThirdParty, "Cho biết bên bị thiệt hại là ai.");
+        }
+
         if (req.Now < req.CheckOutAt)
             return Check.Fail(Refusal.TooEarly, "Chỉ mở được sau khi khách trả phòng.");
 
@@ -253,8 +282,11 @@ public static class Shield
             return Check.Fail(Refusal.HostNotContacted,
                 "Hãy nhắn cho khách trong StayHost trước khi mở hồ sơ.");
 
-        // Once somebody else has slept there, nobody can say who did it.
-        if (req.NextGuestArrivesAt is { } next && req.Now >= next)
+        // Once somebody else has slept there, nobody can say who did it. That
+        // reasoning is about the inside of the property, so it does not apply to
+        // a neighbour's car or the building's lobby — a C4 case keeps its
+        // fortnight even after the next guest arrives.
+        if (!IsThirdParty(req.Kind) && req.NextGuestArrivesAt is { } next && req.Now >= next)
             return Check.Fail(Refusal.NextGuestArrived,
                 "Khách tiếp theo đã nhận phòng nên không xác định được ai gây ra.");
 
@@ -339,9 +371,15 @@ public static class Shield
     /// excess, and only what is left is chased — deposit, then the guest, then
     /// the fund. The order is fixed and must not be rearranged.
     /// </summary>
+    /// <param name="thirdParty">
+    /// docs/06 §3.1 C4. The excess of §3.2 is the host carrying the first slice
+    /// of their own loss; here the loss is a neighbour's, so charging the host
+    /// for it would be charging them for somebody else's damage. The ceilings
+    /// still apply — they are written per claim and per host, not per kind.
+    /// </param>
     public static HostOutcome SettleHost(
         decimal claimed, decimal deposit, decimal recoverableFromGuest, decimal alreadyPaidThisYear,
-        ShieldSettings? settings = null)
+        ShieldSettings? settings = null, bool thirdParty = false)
     {
         var s = settings ?? ShieldSettings.Current;
 
@@ -350,7 +388,7 @@ public static class Shield
         var yearLeft = Math.Max(0m, s.HostYearlyCeiling - Math.Max(0m, alreadyPaidThisYear));
         var allowed = Math.Min(perClaim, yearLeft);
 
-        var deductible = Math.Min(allowed, s.HostDeductible);
+        var deductible = thirdParty ? 0m : Math.Min(allowed, s.HostDeductible);
         var approved = allowed - deductible;
 
         var fromDeposit = Math.Min(approved, Math.Max(0m, deposit));
@@ -458,7 +496,8 @@ public static class Shield
         ShieldCase.K4 => "Chỗ ở không ở được",
         ShieldCase.C1 => "Hư hỏng tài sản",
         ShieldCase.C2 => "Chi phí khắc phục",
-        _ => "Mất thu nhập"
+        ShieldCase.C3 => "Mất thu nhập",
+        _ => "Thiệt hại cho bên thứ ba"
     };
 
     public static string StatusLabel(ShieldStatus status) => status switch

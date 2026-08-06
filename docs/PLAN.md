@@ -155,7 +155,8 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 - [x] §11: không có từ ngữ bảo hiểm ở bất kỳ đâu người dùng đọc được — có test chặn
 - [x] `AT-06-08` công cụ tìm chỗ thay thế: lọc theo khu vực, số đêm còn lại, sức chứa
       tương đương; hiện khoảng cách, chênh lệch và đánh dấu phương án nằm trong hạn mức
-- [ ] Nhánh `C4` (trách nhiệm bên thứ ba) — khách chốt **để sau**
+- [x] Nhánh `C4` trách nhiệm bên thứ ba: chủ nhà mở hồ sơ, tiền trả thẳng cho bên bị
+      thiệt hại, không trừ mức tự chịu, không vướng mốc "khách tiếp theo đã nhận phòng"
 
 ### Giai đoạn 7 — Mở rộng ⬜ gần như chưa bắt đầu
 - [x] `ĐP-06` trả một phần: cọc ≥50%, tự thu phần còn lại trước 14 ngày, thử lại 72h rồi huỷ
@@ -174,7 +175,7 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (303 test)
+# Test nghiệp vụ (311 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

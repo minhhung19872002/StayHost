@@ -11,7 +11,7 @@ public class StayShieldTests
     private static Shield.Request Ask(
         ShieldCase kind, DateTime now, DateTime? contacted = null, bool urgent = false,
         int evidence = 2, DateTime? nextGuest = null, decimal claimed = 1_000_000m,
-        bool openCase = false, bool onPlatform = true) =>
+        bool openCase = false, bool onPlatform = true, string? thirdParty = "Hàng xóm căn 704") =>
         new()
         {
             Kind = kind,
@@ -24,7 +24,8 @@ public class StayShieldTests
             NextGuestArrivesAt = nextGuest,
             Claimed = claimed,
             AlreadyHasOpenCase = openCase,
-            PaidThroughPlatform = onPlatform
+            PaidThroughPlatform = onPlatform,
+            ThirdParty = thirdParty
         };
 
     /* ------------------------------------------------------------- §2.2 */
@@ -147,6 +148,113 @@ public class StayShieldTests
         Assert.Equal(
             Shield.Refusal.AlreadyOpen,
             Shield.CanFile(Ask(ShieldCase.C1, CheckOut.AddDays(1), contacted: CheckOut, openCase: true)).Reason);
+    }
+
+    /* --------------------------------------------------- §3.1 C4 */
+
+    [Fact]
+    public void A_third_party_case_is_still_the_hosts_to_bring()
+    {
+        Assert.Equal(ShieldSide.Host, Shield.SideOf(ShieldCase.C4));
+        Assert.True(Shield.IsThirdParty(ShieldCase.C4));
+        Assert.False(Shield.IsThirdParty(ShieldCase.C1));
+    }
+
+    [Fact]
+    public void A_third_party_case_needs_to_name_who_was_hurt()
+    {
+        Assert.True(Shield.CanFile(Ask(ShieldCase.C4, CheckOut.AddDays(2), contacted: CheckOut)).Ok);
+
+        Assert.Equal(
+            Shield.Refusal.NoThirdParty,
+            Shield.CanFile(Ask(ShieldCase.C4, CheckOut.AddDays(2), contacted: CheckOut, thirdParty: null)).Reason);
+    }
+
+    [Fact]
+    public void The_next_guest_arriving_does_not_bar_a_third_party_case()
+    {
+        var now = CheckOut.AddDays(3);
+
+        // A neighbour's car is not inside the property, so the attribution
+        // argument that closes C1 does not apply here.
+        Assert.True(Shield.CanFile(
+            Ask(ShieldCase.C4, now, contacted: CheckOut, nextGuest: now.AddHours(-1))).Ok);
+
+        Assert.Equal(
+            Shield.Refusal.NextGuestArrived,
+            Shield.CanFile(Ask(ShieldCase.C1, now, contacted: CheckOut, nextGuest: now.AddHours(-1))).Reason);
+    }
+
+    [Fact]
+    public void A_third_party_case_still_keeps_the_fortnight()
+    {
+        Assert.Equal(
+            Shield.Refusal.WindowClosed,
+            Shield.CanFile(Ask(ShieldCase.C4, CheckOut.AddDays(15), contacted: CheckOut)).Reason);
+    }
+
+    [Fact]
+    public void The_host_carries_no_excess_for_somebody_elses_loss()
+    {
+        var own = Shield.SettleHost(2_000_000m, 0m, 0m, 0m);
+        var neighbour = Shield.SettleHost(2_000_000m, 0m, 0m, 0m, thirdParty: true);
+
+        Assert.Equal(500_000m, own.Deductible);
+        Assert.Equal(1_500_000m, own.Approved);
+
+        // The loss is not the host's, so charging them the first slice of it
+        // would be charging them for somebody else's damage.
+        Assert.Equal(0m, neighbour.Deductible);
+        Assert.Equal(2_000_000m, neighbour.Approved);
+    }
+
+    [Fact]
+    public void The_ceilings_still_bite_on_a_third_party_case()
+    {
+        var outcome = Shield.SettleHost(100_000_000m, 0m, 0m, 0m, thirdParty: true);
+
+        Assert.Equal(75_000_000m, outcome.Approved);          // C-A, and no excess taken off
+        Assert.Equal(25_000_000m, outcome.TrimmedByCeiling);
+    }
+
+    [Fact]
+    public void Nothing_can_be_filed_for_a_third_party_when_the_branch_is_off()
+    {
+        var previous = ShieldSettings.Current;
+        try
+        {
+            ShieldSettings.Current = previous with { ThirdPartyBranch = false };
+
+            Assert.Equal(
+                Shield.Refusal.BranchOff,
+                Shield.CanFile(Ask(ShieldCase.C4, CheckOut.AddDays(2), contacted: CheckOut)).Reason);
+
+            // Everything else carries on regardless.
+            Assert.True(Shield.CanFile(Ask(ShieldCase.C1, CheckOut.AddDays(2), contacted: CheckOut)).Ok);
+        }
+        finally
+        {
+            ShieldSettings.Current = previous;
+        }
+    }
+
+    [Fact]
+    public void Money_for_a_third_party_never_lands_on_host_payables()
+    {
+        var claim = new ShieldClaim { Id = 1, Reference = "SS1", BookingId = 7, Kind = ShieldCase.C4 };
+
+        var paid = Ledger.PayFromShield(claim, 0m, 0m, DateTime.UtcNow, toThirdParty: 3_000_000m);
+        var charged = Ledger.ChargeForThirdParty(claim, 2_000_000m, DateTime.UtcNow);
+
+        Assert.Equal(0m, Ledger.Imbalance(paid));
+        Assert.Equal(0m, Ledger.Imbalance(charged));
+
+        Assert.DoesNotContain(paid, e => e.Account == LedgerAccount.HostPayable);
+        Assert.DoesNotContain(charged, e => e.Account == LedgerAccount.HostPayable);
+
+        Assert.Equal(
+            -5_000_000m,
+            paid.Concat(charged).Where(e => e.Account == LedgerAccount.ThirdPartyPayable).Sum(e => e.Signed));
     }
 
     /* ------------------------------------------------------------- §2.3 */

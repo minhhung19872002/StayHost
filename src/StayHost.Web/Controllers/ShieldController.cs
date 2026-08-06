@@ -37,7 +37,14 @@ public class ShieldController(
                     new ShieldTermsSectionDto("Được hỗ trợ những gì", [
                         "Hư hỏng, mất mát nội thất, thiết bị, đồ dùng do khách hoặc người khách mời gây ra",
                         "Chi phí khắc phục: dọn sâu, giặt là đặc biệt, khử mùi thuốc lá, thay khoá khi mất chìa",
-                        $"Mất thu nhập khi phải huỷ đơn kế tiếp để sửa chữa, tối đa {s.LostIncomeNights} đêm"
+                        $"Mất thu nhập khi phải huỷ đơn kế tiếp để sửa chữa, tối đa {s.LostIncomeNights} đêm",
+                        .. s.ThirdPartyBranch
+                            ? new[]
+                            {
+                                "Thiệt hại khách gây ra cho hàng xóm hoặc tài sản chung của toà nhà — " +
+                                "bạn mở hồ sơ, StayHost trả thẳng cho bên bị thiệt hại và bạn không phải tự chịu phần đầu"
+                            }
+                            : []
                     ]),
                     new ShieldTermsSectionDto("Hạn mức", [
                         $"Tối đa {Vnd.Format(s.HostClaimCeiling)} mỗi đơn",
