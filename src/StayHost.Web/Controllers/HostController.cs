@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using StayHost.Domain;
 using StayHost.Infrastructure;
 using StayHost.Web.Contracts;
+using StayHost.Web.Infrastructure;
 using StayHost.Web.Services;
 
 namespace StayHost.Web.Controllers;
@@ -121,7 +122,7 @@ public class HostController(
     {
         var (user, profile) = await ResolveAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
-        if (profile is null) return Forbid();
+        if (profile is null) return this.Denied();
 
         var listing = await db.Listings
             .Include(l => l.Images)
@@ -129,7 +130,7 @@ public class HostController(
             .FirstOrDefaultAsync(l => l.Id == id, ct);
 
         if (listing is null) return NotFound();
-        if (listing.HostId != profile.Id) return Forbid();
+        if (listing.HostId != profile.Id) return this.Denied();
 
         var error = Validate(req);
         if (error is not null) return BadRequest(new { message = error });
@@ -145,11 +146,11 @@ public class HostController(
     {
         var (user, profile) = await ResolveAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
-        if (profile is null) return Forbid();
+        if (profile is null) return this.Denied();
 
         var listing = await db.Listings.FirstOrDefaultAsync(l => l.Id == id, ct);
         if (listing is null) return NoContent();
-        if (listing.HostId != profile.Id) return Forbid();
+        if (listing.HostId != profile.Id) return this.Denied();
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var hasLiveStay = await db.Bookings.AnyAsync(b =>
@@ -173,7 +174,7 @@ public class HostController(
 
         var listing = await db.Listings.FirstOrDefaultAsync(l => l.Id == id, ct);
         if (listing is null) return NotFound();
-        if (profile is null || listing.HostId != profile.Id) return Forbid();
+        if (profile is null || listing.HostId != profile.Id) return this.Denied();
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
@@ -205,7 +206,7 @@ public class HostController(
 
         var listing = await db.Listings.FirstOrDefaultAsync(l => l.Id == req.ListingId, ct);
         if (listing is null) return NotFound();
-        if (profile is null || listing.HostId != profile.Id) return Forbid();
+        if (profile is null || listing.HostId != profile.Id) return this.Denied();
         if (req.To < req.From) return BadRequest(new { message = "Ngày kết thúc phải sau ngày bắt đầu." });
 
         var clash = await db.Bookings.AnyAsync(b =>
@@ -228,7 +229,7 @@ public class HostController(
 
         var block = await db.CalendarBlocks.Include(b => b.Listing).FirstOrDefaultAsync(b => b.Id == id, ct);
         if (block is null) return NoContent();
-        if (profile is null || block.Listing!.HostId != profile.Id) return Forbid();
+        if (profile is null || block.Listing!.HostId != profile.Id) return this.Denied();
 
         db.CalendarBlocks.Remove(block);
         await db.SaveChangesAsync(ct);
@@ -245,7 +246,7 @@ public class HostController(
 
         var listing = await db.Listings.FirstOrDefaultAsync(l => l.Id == req.ListingId, ct);
         if (listing is null) return NotFound();
-        if (profile is null || listing.HostId != profile.Id) return Forbid();
+        if (profile is null || listing.HostId != profile.Id) return this.Denied();
 
         if (req.To < req.From) return BadRequest(new { message = "Ngày kết thúc phải sau ngày bắt đầu." });
         if (req.NightlyRate < 50_000) return BadRequest(new { message = "Giá mỗi đêm tối thiểu 50.000₫." });
@@ -276,7 +277,7 @@ public class HostController(
 
         var rule = await db.PriceRules.Include(r => r.Listing).FirstOrDefaultAsync(r => r.Id == id, ct);
         if (rule is null) return NoContent();
-        if (profile is null || rule.Listing!.HostId != profile.Id) return Forbid();
+        if (profile is null || rule.Listing!.HostId != profile.Id) return this.Denied();
 
         db.PriceRules.Remove(rule);
         await db.SaveChangesAsync(ct);
@@ -293,7 +294,7 @@ public class HostController(
 
         var booking = await db.Bookings.Include(b => b.Listing).FirstOrDefaultAsync(b => b.Id == id, ct);
         if (booking is null) return NotFound();
-        if (profile is null || booking.Listing!.HostId != profile.Id) return Forbid();
+        if (profile is null || booking.Listing!.HostId != profile.Id) return this.Denied();
         if (booking.GuestUserId is not int guestId)
             return BadRequest(new { message = "Lượt đặt này không gắn với tài khoản khách." });
         // docs/03 §7 — only a completed stay, inside the 14-day window.
@@ -397,7 +398,7 @@ public class HostController(
             .FirstOrDefaultAsync(b => b.Id == id, ct);
 
         if (booking is null) return NotFound();
-        if (profile is null || booking.Listing!.HostId != profile.Id) return Forbid();
+        if (profile is null || booking.Listing!.HostId != profile.Id) return this.Denied();
 
         var verb = decision.ToLowerInvariant();
         if (verb is not ("confirm" or "decline"))
@@ -482,13 +483,13 @@ public class HostController(
     {
         var (user, profile) = await ResolveAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
-        if (profile is null) return Forbid();
+        if (profile is null) return this.Denied();
 
         var review = await db.Reviews.Include(r => r.Listing)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
 
         if (review is null) return NotFound();
-        if (review.Listing!.HostId != profile.Id) return Forbid();
+        if (review.Listing!.HostId != profile.Id) return this.Denied();
 
         if (review.HostReply is not null)
             return Conflict(new { message = "Bạn chỉ được trả lời một lần cho mỗi đánh giá." });

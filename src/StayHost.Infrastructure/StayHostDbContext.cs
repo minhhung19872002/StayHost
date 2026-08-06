@@ -33,6 +33,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<ResolutionEvent> ResolutionEvents => Set<ResolutionEvent>();
     public DbSet<AdminAuditEntry> AdminAudit => Set<AdminAuditEntry>();
     public DbSet<QuickReply> QuickReplies => Set<QuickReply>();
+    public DbSet<CoHost> CoHosts => Set<CoHost>();
+    public DbSet<CalendarFeed> CalendarFeeds => Set<CalendarFeed>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -126,6 +128,32 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.HostUserId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        b.Entity<CoHost>(e =>
+        {
+            e.ToTable("co_hosts");
+            e.HasIndex(x => new { x.OwnerUserId, x.Email });
+            e.HasIndex(x => x.InviteToken).IsUnique();
+            e.Property(x => x.Email).HasMaxLength(200).IsRequired();
+            e.Property(x => x.InviteToken).HasMaxLength(64).IsRequired();
+            e.HasOne(x => x.OwnerUser).WithMany()
+                .HasForeignKey(x => x.OwnerUserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.CoHostUser).WithMany()
+                .HasForeignKey(x => x.CoHostUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.Listing).WithMany()
+                .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<CalendarFeed>(e =>
+        {
+            e.ToTable("calendar_feeds");
+            e.HasIndex(x => x.ListingId);
+            e.Property(x => x.Label).HasMaxLength(80).IsRequired();
+            e.Property(x => x.Url).HasMaxLength(600).IsRequired();
+            e.Property(x => x.LastError).HasMaxLength(400);
+            e.HasOne(x => x.Listing).WithMany(l => l.CalendarFeeds)
+                .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         b.Entity<PriceRule>(e =>
         {
             e.ToTable("price_rules");
@@ -188,8 +216,12 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
         {
             e.ToTable("calendar_blocks");
             e.Property(x => x.Note).HasMaxLength(200);
+            e.Property(x => x.ExternalUid).HasMaxLength(300);
+            e.HasIndex(x => new { x.FeedId, x.ExternalUid });
             e.HasOne(x => x.Listing).WithMany(l => l.Blocks)
                 .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Feed).WithMany()
+                .HasForeignKey(x => x.FeedId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<Amenity>(e =>

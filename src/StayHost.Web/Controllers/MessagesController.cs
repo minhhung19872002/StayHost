@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using StayHost.Domain;
 using StayHost.Infrastructure;
 using StayHost.Web.Contracts;
+using StayHost.Web.Infrastructure;
 using StayHost.Web.Services;
 
 namespace StayHost.Web.Controllers;
@@ -42,7 +43,7 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
 
         var thread = await LoadThreadAsync(id, ct);
         if (thread is null) return NotFound();
-        if (thread.GuestUserId != user.Id && thread.HostUserId != user.Id) return Forbid();
+        if (thread.GuestUserId != user.Id && thread.HostUserId != user.Id) return this.Denied();
 
         // Opening a thread marks the other side's messages as read.
         var unread = thread.Messages.Where(m => m.SenderUserId != user.Id && m.ReadAt is null).ToList();
@@ -72,7 +73,7 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
         {
             thread = await LoadThreadAsync(threadId, ct);
             if (thread is null) return NotFound();
-            if (thread.GuestUserId != user.Id && thread.HostUserId != user.Id) return Forbid();
+            if (thread.GuestUserId != user.Id && thread.HostUserId != user.Id) return this.Denied();
         }
         else
         {

@@ -286,5 +286,16 @@ public class CalendarBlock
     public DateOnly From { get; set; }
     public DateOnly To { get; set; }
     public string? Note { get; set; }
+
+    /// <summary>
+    /// Set when the block came from an imported calendar (docs/01 QL-10). A sync
+    /// only ever replaces its own feed's blocks, never the ones the host made.
+    /// </summary>
+    public int? FeedId { get; set; }
+    public CalendarFeed? Feed { get; set; }
+
+    /// <summary>The UID of the event upstream, so a re-sync updates instead of duplicating.</summary>
+    public string? ExternalUid { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

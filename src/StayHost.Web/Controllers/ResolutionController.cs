@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using StayHost.Domain;
 using StayHost.Infrastructure;
 using StayHost.Web.Contracts;
+using StayHost.Web.Infrastructure;
 using StayHost.Web.Services;
 
 namespace StayHost.Web.Controllers;
@@ -51,7 +52,7 @@ public class ResolutionController(
         var hostUserId = booking.Listing?.Host?.UserId;
         var isGuest = booking.GuestUserId == user.Id;
         var isHost = hostUserId == user.Id;
-        if (!isGuest && !isHost) return Forbid();
+        if (!isGuest && !isHost) return this.Denied();
 
         // A claim is about a stay that happened, not one still being argued over.
         if (booking.Status is not (BookingStatus.Completed or BookingStatus.InProgress
@@ -128,7 +129,7 @@ public class ResolutionController(
             ? kase.Booking?.GuestUserId == user.Id
             : hostUserId == user.Id;
 
-        if (!isRespondent) return Forbid();
+        if (!isRespondent) return this.Denied();
         if (kase.Status != ResolutionStatus.AwaitingResponse)
             return BadRequest(new { message = $"Hồ sơ đang ở trạng thái \"{Resolutions.Label(kase.Status)}\"." });
 
@@ -159,7 +160,7 @@ public class ResolutionController(
 
         var kase = await LoadAsync(id, ct);
         if (kase is null) return NotFound();
-        if (kase.OpenedByUserId != user.Id) return Forbid();
+        if (kase.OpenedByUserId != user.Id) return this.Denied();
         if (!Resolutions.CanTransition(kase.Status, ResolutionStatus.Withdrawn))
             return BadRequest(new { message = "Hồ sơ này không rút lại được nữa." });
 

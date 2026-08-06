@@ -171,5 +171,20 @@ export const api = {
   /* docs/01 TN-08 — the host's saved phrases. */
   quickReplies: () => request('/api/messages/quick-replies'),
   addQuickReply: body => request('/api/messages/quick-replies', { method: 'POST', body: JSON.stringify(body) }),
-  deleteQuickReply: id => request(`/api/messages/quick-replies/${id}`, { method: 'DELETE' })
+  deleteQuickReply: id => request(`/api/messages/quick-replies/${id}`, { method: 'DELETE' }),
+
+  /* docs/01 QL-19 — people helping run a listing. */
+  coHosts: () => request('/api/host/co-hosts'),
+  inviteCoHost: body => request('/api/host/co-hosts', { method: 'POST', body: JSON.stringify(body) }),
+  respondCoHost: (id, decision) => request(`/api/host/co-hosts/${id}/${decision}`, { method: 'POST' }),
+  revokeCoHost: id => request(`/api/host/co-hosts/${id}`, { method: 'DELETE' }),
+
+  /* docs/01 QL-10 — calendars kept on other platforms. */
+  calendarFeeds: id => request(`/api/host/listings/${id}/feeds`),
+  addCalendarFeed: (id, body) =>
+    request(`/api/host/listings/${id}/feeds`, { method: 'POST', body: JSON.stringify(body) }),
+  syncCalendarFeed: (id, feedId) =>
+    request(`/api/host/listings/${id}/feeds/${feedId}/sync`, { method: 'POST' }),
+  removeCalendarFeed: (id, feedId) =>
+    request(`/api/host/listings/${id}/feeds/${feedId}`, { method: 'DELETE' })
 };

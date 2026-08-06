@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc;
+
 namespace StayHost.Web.Infrastructure;
 
 /// <summary>
@@ -29,4 +31,17 @@ public static class SessionAccessor
         ctx.Items[ItemKey] = sid;
         return sid;
     }
+}
+
+/// <summary>
+/// Sessions here are a cookie this app issues itself, with no ASP.NET
+/// authentication scheme behind them — so <c>Forbid()</c> has nothing to hand
+/// the request to and throws. Every refusal goes through this instead, and
+/// comes back as a 403 with a message the interface can show.
+/// </summary>
+public static class DenyExtensions
+{
+    public static ObjectResult Denied(
+        this ControllerBase controller, string message = "Bạn không có quyền với mục này.") =>
+        controller.StatusCode(StatusCodes.Status403Forbidden, new { message });
 }

@@ -1420,3 +1420,19 @@ select.field { width: 100%; padding: 10px 12px; }
 
 .flex-note { color: var(--brand); font-weight: 600; }
 .card-dates { margin-top: 2px; font-size: 13px; color: var(--brand); font-weight: 600; }
+
+/* ---- co-hosts and calendar sync (docs/01 QL-19, QL-10) ------------------- */
+
+.team-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 14px 0; border-bottom: 1px solid var(--line);
+}
+.team-row b { font-size: 15px; }
+.team-sub { font-size: 13px; color: var(--ink-muted); margin-top: 2px; }
+
+.feed-export { margin-top: 16px; }
+.feed-url {
+  display: flex; align-items: center; gap: 10px; margin-top: 6px;
+  padding: 10px 12px; background: var(--wash); border-radius: 12px;
+}
+.feed-url code { font-size: 12.5px; overflow-x: auto; white-space: nowrap; flex: 1; }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { set, loadHostCalendar, toast } from '../../lib/store.js';
-import { shortMoney, isoOf, parseIso } from '../../lib/format.js';
+import { shortMoney, isoOf, parseIso, longDate } from '../../lib/format.js';
 
 const DOW = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
@@ -91,6 +91,101 @@ export function MultiCalendar() {
         <span><i className="sw blocked" /> Bạn khoá</span>
         <span><i className="sw seasonal" /> Còn trống (hiện giá)</span>
       </div>
+
+      <CalendarSync rows={data.rows} />
     </div>
+  );
+}
+
+/**
+ * docs/01 QL-10 — the calendars this listing keeps somewhere else. Anything
+ * they bring in becomes a block, never a booking, and only this feed's blocks
+ * are ever replaced when it syncs again.
+ */
+function CalendarSync({ rows }) {
+  const [listingId, setListingId] = useState(rows[0].listingId);
+  const [board, setBoard] = useState(null);
+  const [url, setUrl] = useState('');
+  const [label, setLabel] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setBoard(null);
+    api.calendarFeeds(listingId).then(setBoard).catch(e => toast(e.message));
+  }, [listingId]);
+
+  const run = async work => {
+    setBusy(true);
+    try { setBoard(await work()); } catch (err) { toast(err.message); } finally { setBusy(false); }
+  };
+
+  const add = async e => {
+    e.preventDefault();
+    await run(async () => {
+      const next = await api.addCalendarFeed(listingId, { url: url.trim(), label: label.trim() || null });
+      setUrl(''); setLabel('');
+      return next;
+    });
+  };
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>Đồng bộ lịch với nền tảng khác</h2>
+      <p className="section-sub">Lịch nhập về chỉ khoá ngày, không tạo đơn và không sinh tiền.</p>
+
+      <label className="form-field" style={{ maxWidth: 420, marginTop: 14 }}>
+        <span className="cap">Chỗ nghỉ</span>
+        <select value={listingId} onChange={e => setListingId(Number(e.target.value))}>
+          {rows.map(r => <option key={r.listingId} value={r.listingId}>{r.title}</option>)}
+        </select>
+      </label>
+
+      {!board ? <div className="stat skeleton" style={{ height: 120, border: 0, marginTop: 16 }} /> : <>
+        <div className="feed-export">
+          <span className="cap">Địa chỉ để nền tảng khác đọc lịch của bạn</span>
+          <div className="feed-url">
+            <code>{board.exportUrl}</code>
+            <button className="btn btn-outline btn-sm" onClick={() => {
+              navigator.clipboard?.writeText(board.exportUrl);
+              toast('Đã chép địa chỉ lịch.');
+            }}>Chép</button>
+          </div>
+        </div>
+
+        {board.feeds.map(f => (
+          <div className="team-row" key={f.id}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <b>{f.label}</b>
+              <div className="team-sub">
+                {f.lastError
+                  ? f.lastError
+                  : `${f.eventCount} khoảng ngày · lần cuối ${f.lastSyncedAt ? longDate(f.lastSyncedAt) : 'chưa chạy'}`}
+              </div>
+            </div>
+            <span className={`badge ${f.lastError ? 'cancelled' : 'confirmed'}`}>
+              {f.lastError ? 'Lỗi' : 'Đang chạy'}
+            </span>
+            <button className="btn btn-outline btn-sm" disabled={busy}
+                    onClick={() => run(() => api.syncCalendarFeed(listingId, f.id))}>Đồng bộ ngay</button>
+            <button className="btn btn-outline btn-sm" disabled={busy}
+                    onClick={() => confirm(`Bỏ lịch "${f.label}" và mở lại những ngày nó khoá?`)
+                      && run(() => api.removeCalendarFeed(listingId, f.id))}>Bỏ</button>
+          </div>
+        ))}
+
+        <form onSubmit={add} className="field-grid" style={{ maxWidth: 620, marginTop: 16 }}>
+          <label className="form-field" style={{ gridColumn: '1/-1' }}>
+            <span className="cap">Địa chỉ lịch (.ics)</span>
+            <input type="url" required value={url} placeholder="https://..."
+                   onChange={e => setUrl(e.target.value)} />
+          </label>
+          <label className="form-field"><span className="cap">Tên gọi</span>
+            <input value={label} placeholder="Nền tảng khác" onChange={e => setLabel(e.target.value)} /></label>
+          <div style={{ display: 'flex', alignItems: 'end' }}>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>Nối lịch</button>
+          </div>
+        </form>
+      </>}
+    </section>
   );
 }

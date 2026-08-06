@@ -9,10 +9,12 @@ import { Icon } from '../components/Icon.jsx';
 import { Today } from './hosting/Today.jsx';
 import { Payout, SuperhostProgress } from './hosting/Payout.jsx';
 import { MultiCalendar } from './hosting/MultiCalendar.jsx';
+import { Team } from './hosting/Team.jsx';
 
 const TABS = [
   ['today', 'Hôm nay'], ['overview', 'Tổng quan'], ['listings', 'Chỗ nghỉ'],
-  ['calendar', 'Lịch'], ['bookings', 'Đơn đặt'], ['earnings', 'Doanh thu'], ['payout', 'Nhận tiền']
+  ['calendar', 'Lịch'], ['bookings', 'Đơn đặt'], ['earnings', 'Doanh thu'],
+  ['payout', 'Nhận tiền'], ['team', 'Đồng quản lý']
 ];
 
 export function Hosting() {
@@ -99,6 +101,7 @@ export function Hosting() {
       {tab === 'bookings' && <Bookings d={d} navigate={navigate} />}
       {tab === 'earnings' && <Earnings d={d} />}
       {tab === 'payout' && <><Payout /><SuperhostProgress /></>}
+      {tab === 'team' && <Team />}
     </div>
   );
 }

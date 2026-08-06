@@ -221,6 +221,15 @@ public class Listing
     /// </summary>
     public string TimeZoneId { get; set; } = "Asia/Ho_Chi_Minh";
 
+    /// <summary>
+    /// Secret in the export URL of docs/01 QL-10. Other platforms poll that URL
+    /// with no login, so the token is the only thing standing between this
+    /// listing's calendar and anyone who guesses an id.
+    /// </summary>
+    public string IcalToken { get; set; } = Guid.NewGuid().ToString("N");
+
+    public List<CalendarFeed> CalendarFeeds { get; set; } = [];
+
     // --- docs/01 CN-12: what the host has to declare before publishing.
     /// <summary>Business or rental licence number, where the area requires one.</summary>
     public string? LicenseNumber { get; set; }

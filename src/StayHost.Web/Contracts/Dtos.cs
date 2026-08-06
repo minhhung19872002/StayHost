@@ -739,3 +739,58 @@ public record BookingDto(
 public record BookingEventDto(
     string? FromStatus, string FromLabel, string ToStatus, string ToLabel,
     string Actor, string Reason, DateTime At);
+
+/* ---- docs/01 QL-19: co-hosts --------------------------------------------- */
+
+public record ScopeOptionDto(string Key, string Label);
+
+public record CoHostDto(
+    int Id,
+    string Email,
+    string? Name,
+    /// <summary>Null means every listing this host has, now and later.</summary>
+    int? ListingId,
+    string? ListingTitle,
+    IReadOnlyList<string> Scopes,
+    string ScopeLabel,
+    string Status,
+    string StatusLabel,
+    DateTime InvitedAt);
+
+/// <summary>The same grant seen from the other side, by the person invited.</summary>
+public record CoHostInviteDto(
+    int Id,
+    string Token,
+    string OwnerName,
+    int? ListingId,
+    string? ListingTitle,
+    string ScopeLabel,
+    string Status,
+    string StatusLabel);
+
+public record CoHostBoardDto(
+    IReadOnlyList<CoHostDto> Invited,
+    IReadOnlyList<CoHostInviteDto> Helping,
+    IReadOnlyList<ScopeOptionDto> Scopes);
+
+public record InviteCoHostRequest(string? Email, int? ListingId, IReadOnlyList<string>? Scopes);
+
+/* ---- docs/01 QL-10: calendar sync ---------------------------------------- */
+
+public record CalendarFeedDto(
+    int Id,
+    string Label,
+    string Url,
+    DateTime? LastSyncedAt,
+    /// <summary>Set when the last attempt failed; the blocks from before are kept.</summary>
+    string? LastError,
+    int EventCount);
+
+public record CalendarSyncDto(
+    int ListingId,
+    string Title,
+    /// <summary>The address other platforms subscribe to. The token in it is the credential.</summary>
+    string ExportUrl,
+    IReadOnlyList<CalendarFeedDto> Feeds);
+
+public record AddCalendarFeedRequest(string? Url, string? Label);

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using StayHost.Domain;
 using StayHost.Infrastructure;
 using StayHost.Web.Contracts;
+using StayHost.Web.Infrastructure;
 using StayHost.Web.Services;
 
 namespace StayHost.Web.Controllers;
@@ -15,7 +16,7 @@ namespace StayHost.Web.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/host")]
-public class HostOperationsController(StayHostDbContext db, AuthService auth) : ControllerBase
+public class HostOperationsController(StayHostDbContext db, AuthService auth, HostAccess access) : ControllerBase
 {
     private async Task<(User? User, HostProfile? Profile)> ResolveAsync(CancellationToken ct)
     {
@@ -35,9 +36,11 @@ public class HostOperationsController(StayHostDbContext db, AuthService auth) : 
     {
         var (user, profile) = await ResolveAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
-        if (profile is null) return Ok(new TodayBoardDto([], [], [], [], 0));
+        // A co-host with the bookings scope sees the same board for the places
+        // they help run (docs/01 QL-19).
+        var listingIds = await access.ListingIdsAsync(user, CoHostScope.Bookings, ct);
+        if (listingIds.Count == 0) return Ok(new TodayBoardDto([], [], [], [], 0));
 
-        var listingIds = await db.Listings.Where(l => l.HostId == profile.Id).Select(l => l.Id).ToListAsync(ct);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var horizon = today.AddDays(7);
 
@@ -95,14 +98,13 @@ public class HostOperationsController(StayHostDbContext db, AuthService auth) : 
     {
         var (user, profile) = await ResolveAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
-        if (profile is null) return Ok(new MultiCalendarDto(DateOnly.FromDateTime(DateTime.UtcNow), 0, []));
-
         var start = from ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var span = Math.Clamp(days, 7, 90);
         var end = start.AddDays(span);
 
+        var mine = await access.ListingIdsAsync(user, CoHostScope.Calendar, ct);
         var listings = await db.Listings
-            .Where(l => l.HostId == profile.Id)
+            .Where(l => mine.Contains(l.Id))
             .OrderBy(l => l.Title)
             .ToListAsync(ct);
         var ids = listings.Select(l => l.Id).ToList();
@@ -161,8 +163,8 @@ public class HostOperationsController(StayHostDbContext db, AuthService auth) : 
     public async Task<ActionResult<CalendarRulesDto>> SaveRules(
         int id, [FromBody] CalendarRulesDto req, CancellationToken ct)
     {
-        var listing = await OwnedListingAsync(id, ct);
-        if (listing is null) return Forbid();
+        var listing = await OwnedListingAsync(id, ct, CoHostScope.Pricing);
+        if (listing is null) return this.Denied();
 
         listing.MinNights = Math.Clamp(req.MinNights, 1, 365);
         listing.MaxNights = Math.Clamp(req.MaxNights, 0, 365);
@@ -186,7 +188,7 @@ public class HostOperationsController(StayHostDbContext db, AuthService auth) : 
     public async Task<ActionResult<CalendarRulesDto>> GetRules(int id, CancellationToken ct)
     {
         var listing = await OwnedListingAsync(id, ct);
-        return listing is null ? Forbid() : Ok(RulesOf(listing));
+        return listing is null ? this.Denied() : Ok(RulesOf(listing));
     }
 
     private static CalendarRulesDto RulesOf(Listing l) => new(
@@ -204,7 +206,7 @@ public class HostOperationsController(StayHostDbContext db, AuthService auth) : 
     public async Task<IActionResult> EditDays(int id, [FromBody] BulkDayEditRequest req, CancellationToken ct)
     {
         var listing = await OwnedListingAsync(id, ct);
-        if (listing is null) return Forbid();
+        if (listing is null) return this.Denied();
 
         if (req.To < req.From) return BadRequest(new { message = "Ngày kết thúc phải sau ngày bắt đầu." });
         if (req.To.DayNumber - req.From.DayNumber > 365)
@@ -315,7 +317,7 @@ public class HostOperationsController(StayHostDbContext db, AuthService auth) : 
     {
         var (user, profile) = await ResolveAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
-        if (profile is null) return Forbid();
+        if (profile is null) return this.Denied();
 
         var digits = new string((req.AccountNumber ?? "").Where(char.IsDigit).ToArray());
         if (digits.Length is > 0 and < 6)
@@ -433,12 +435,12 @@ public class HostOperationsController(StayHostDbContext db, AuthService auth) : 
     private static int ParsePercent(string? value) =>
         int.TryParse(new string((value ?? "").Where(char.IsDigit).ToArray()), out var n) ? n : 0;
 
-    private async Task<Listing?> OwnedListingAsync(int id, CancellationToken ct)
+    /// <summary>
+    /// The owner, or a co-host the owner gave this much rope (docs/01 QL-19).
+    /// </summary>
+    private async Task<Listing?> OwnedListingAsync(int id, CancellationToken ct, CoHostScope scope = CoHostScope.Calendar)
     {
-        var (_, profile) = await ResolveAsync(ct);
-        if (profile is null) return null;
-
-        var listing = await db.Listings.FirstOrDefaultAsync(l => l.Id == id, ct);
-        return listing?.HostId == profile.Id ? listing : null;
+        var user = await auth.CurrentUserAsync(ct);
+        return user is null ? null : await access.ListingAsync(user, id, scope, ct);
     }
 }
