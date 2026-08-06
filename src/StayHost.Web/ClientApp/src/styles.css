@@ -119,6 +119,8 @@ img { max-width: 100%; display: block; }
   display: flex; flex-direction: column; justify-content: center; gap: 2px;
   border: 0; background: transparent; text-align: left; min-width: 0;
   padding: 9px 20px; border-radius: var(--r-pill);
+  /* The white pill fades from one segment to the next rather than jumping. */
+  transition: background-color .22s ease, box-shadow .22s ease;
 }
 .seg:hover { background: #f4f4f4; }
 
@@ -143,24 +145,34 @@ img { max-width: 100%; display: block; }
 .search-row.is-wide .search-anchor { max-width: 860px; }
 .search-anchor .searchbar { max-width: none; }
 
+/*
+ * Left, width and height all arrive from JavaScript as plain numbers, which is
+ * what lets the browser tween them: switching segments glides the box across
+ * and resizes it instead of popping a new one into place.
+ */
 .search-pop {
-  position: absolute; top: calc(100% + 10px); z-index: 80;
+  position: absolute; top: calc(100% + 10px); left: 0; z-index: 80;
   background: #fff; border: 1px solid var(--divider); border-radius: 26px;
-  box-shadow: var(--shadow-lg); padding: 22px 24px;
-  max-height: min(72vh, 680px); overflow-y: auto;
-  animation: search-pop-in .16s ease-out;
+  box-shadow: var(--shadow-lg); overflow: hidden;
+  animation: search-pop-in .18s ease-out;
+  transition: left .3s cubic-bezier(.2, 0, 0, 1),
+              width .3s cubic-bezier(.2, 0, 0, 1),
+              height .3s cubic-bezier(.2, 0, 0, 1);
 }
-/* The slide uses `translate`, not `transform`: the centred panel already holds a
-   translateX(-50%) there, and a keyframe on transform would throw it away. */
 @keyframes search-pop-in {
   from { opacity: 0; translate: 0 -6px; }
   to { opacity: 1; translate: 0 0; }
 }
 
-/* The calendar is centred on the bar; the counters sit under the segment they
-   belong to, at the bar's right edge. */
-.search-pop.is-when { left: 50%; transform: translateX(-50%); width: 700px; max-width: 92vw; }
-.search-pop.is-who { right: 0; width: 400px; max-width: 92vw; }
+/* The contents fade in on their own so the box can be gliding while they change. */
+.search-pop-inner {
+  padding: 22px 24px; max-height: min(72vh, 680px); overflow-y: auto;
+  animation: search-pop-swap .22s ease-out;
+}
+@keyframes search-pop-swap { from { opacity: 0; } to { opacity: 1; } }
+
+/* A list wants its rows edge to edge; the pickers want the box's own padding. */
+.search-pop.is-where .search-pop-inner { padding: 12px 0; }
 
 .search-pop-foot {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -168,7 +180,8 @@ img { max-width: 100%; display: block; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .search-pop { animation: none; }
+  .search-pop, .search-pop-inner { animation: none; transition: none; }
+  .seg { transition: none; }
 }
 .seg-cap { font-size: 11.5px; font-weight: 700; color: var(--ink); letter-spacing: .1px; }
 .seg-val { font-size: 13.5px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1184,15 +1197,12 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
 
 /* ------------------------------------------------- destination suggestions */
 .seg-where { position: relative; }
-.suggest {
-  position: absolute; left: 0; top: calc(100% + 12px); z-index: 70;
-  min-width: min(380px, 86vw); background: #fff; border: 1px solid var(--divider);
-  border-radius: var(--r-panel); box-shadow: var(--shadow-xl); padding: 10px 0; max-height: 60vh; overflow-y: auto;
-}
-.suggest-head { font-size: 11.5px; font-weight: 700; letter-spacing: .5px; color: var(--ink-faint); padding: 6px 18px 10px; text-transform: uppercase; }
+/* The list has no box of its own any more — it lives inside .search-pop, the
+   same box the calendar and the guest counters get. */
+.suggest-head { font-size: 11.5px; font-weight: 700; letter-spacing: .5px; color: var(--ink-faint); padding: 6px 24px 10px; text-transform: uppercase; }
 .suggest-row {
   display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
-  border: 0; background: transparent; padding: 10px 18px;
+  border: 0; background: transparent; padding: 10px 24px;
 }
 .suggest-row:hover { background: var(--surface-soft); }
 .suggest-ic {

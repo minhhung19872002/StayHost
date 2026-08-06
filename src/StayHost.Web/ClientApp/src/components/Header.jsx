@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
@@ -35,7 +35,7 @@ export function Header() {
     const onDocClick = e => {
       const patch = {};
       if (store.menu && !e.target.closest?.('.menu-anchor')) patch.menu = null;
-      if (store.suggestOpen && !e.target.closest?.('.seg-where')) patch.suggestOpen = false;
+      if (store.suggestOpen && !e.target.closest?.('.search-anchor')) patch.suggestOpen = false;
       if (Object.keys(patch).length) set(patch);
     };
     document.addEventListener('click', onDocClick);
@@ -178,10 +178,50 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
 
     if (!roomy) { openOverlay(seg === 'when' ? 'dates' : 'guests'); return; }
     if (seg === 'when' && openSeg !== 'when') resetCalendarView();
-    setOpenSeg(current => (current === seg ? null : seg));
+    setOpenSeg(seg);
   };
 
   const closeBar = () => { setOpenSeg(null); set({ suggestOpen: false }); };
+
+  /*
+   * The panel's box is worked out in pixels rather than left by CSS to one of
+   * three anchorings, because `left: 0` cannot animate into `right: 0`. With
+   * both edges and the height as numbers, the browser can tween all three and
+   * the box glides from under one segment to under the next.
+   */
+  const popRef = useRef(null);
+  const popContentRef = useRef(null);
+  const [popBox, setPopBox] = useState(null);
+
+  useLayoutEffect(() => {
+    const anchor = barRef.current?.querySelector('.search-anchor');
+    const content = popContentRef.current;
+    if (!openSeg || !anchor || !content) { setPopBox(null); return undefined; }
+
+    const measure = () => {
+      const room = anchor.getBoundingClientRect().width;
+      const wanted = { where: 440, when: 700, who: 400 }[openSeg];
+      const width = Math.min(wanted, room);
+
+      // Each panel sits under the thing it belongs to: the destination at the
+      // left edge, the guests at the right, the calendar in the middle.
+      const left = openSeg === 'where' ? 0 : openSeg === 'who' ? room - width : (room - width) / 2;
+
+      setPopBox({ left, width, height: content.offsetHeight });
+    };
+
+    measure();
+
+    // The calendar changes height when its tab changes, and the counters when
+    // the panel is first filled; the box has to follow rather than clip them.
+    const observer = new ResizeObserver(measure);
+    observer.observe(content);
+    observer.observe(anchor);
+    return () => observer.disconnect();
+    // The suggestion list arrives from the server after the panel is already
+    // open, so its length has to be a reason to measure again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSeg, state.suggestOpen, state.suggestions?.length]);
 
   const placeholder = wide
     ? 'Tìm điểm đến'
@@ -207,7 +247,6 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
                loadSuggestions();
              }}
              aria-autocomplete="list" aria-expanded={state.suggestOpen} />
-      <Suggestions />
     </label>
   );
 
@@ -237,23 +276,34 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
         </button>
       </form>
 
-      {openSeg === 'when' && (
-        <div className="search-pop is-when">
-          <DateFields />
-          <div className="search-pop-foot">
-            <button type="button" className="text-btn"
-                    onClick={() => { clearDates(); applySearch(); }}>Xoá ngày</button>
-            <button type="button" className="btn btn-dark btn-sm" onClick={closeBar}>Xong</button>
-          </div>
-        </div>
-      )}
+      {/*
+        * One panel, not three. Moving between segments slides and resizes this
+        * box rather than tearing one down and building another — which is the
+        * difference between airbnb.com's search bar and a set of dropdowns that
+        * happen to share a row.
+        */}
+      {openSeg && (
+        <div className={`search-pop is-${openSeg}`} ref={popRef}
+             style={popBox ? { left: popBox.left, width: popBox.width, height: popBox.height } : undefined}>
+          <div className="search-pop-inner" ref={popContentRef} key={openSeg}>
+            {openSeg === 'where' && <Suggestions onDone={closeBar} />}
 
-      {openSeg === 'who' && (
-        <div className="search-pop is-who">
-          <GuestFields />
-          <div className="search-pop-foot">
-            <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>Tổng {totalGuests()} khách</span>
-            <button type="button" className="btn btn-dark btn-sm" onClick={closeBar}>Xong</button>
+            {openSeg === 'when' && <>
+              <DateFields />
+              <div className="search-pop-foot">
+                <button type="button" className="text-btn"
+                        onClick={() => { clearDates(); applySearch(); }}>Xoá ngày</button>
+                <button type="button" className="btn btn-dark btn-sm" onClick={closeBar}>Xong</button>
+              </div>
+            </>}
+
+            {openSeg === 'who' && <>
+              <GuestFields />
+              <div className="search-pop-foot">
+                <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>Tổng {totalGuests()} khách</span>
+                <button type="button" className="btn btn-dark btn-sm" onClick={closeBar}>Xong</button>
+              </div>
+            </>}
           </div>
         </div>
       )}
@@ -266,7 +316,7 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
  * Destination dropdown. With nothing typed it leads with the guest's recent
  * searches (docs/01 TM-04); cities jump to a search, listings open the room page.
  */
-function Suggestions() {
+function Suggestions({ onDone }) {
   const state = useStore();
   const navigate = useNavigate();
   const [recent, setRecent] = useState(() => recentSearches());
@@ -280,12 +330,14 @@ function Suggestions() {
 
   const pick = s => {
     set({ suggestOpen: false });
+    onDone?.();
     if (s.kind === 'listing') { navigate(`/rooms/${s.value}`); return; }
     set({ q: s.value });
     applySearch({ replace: false });
   };
 
   const replay = entry => {
+    onDone?.();
     set({
       suggestOpen: false,
       q: entry.q,
@@ -297,7 +349,7 @@ function Suggestions() {
   };
 
   return (
-    <div className="suggest" role="listbox">
+    <div className="suggest-list" role="listbox">
       {showRecent && <>
         <div className="suggest-head">
           Tìm kiếm gần đây
