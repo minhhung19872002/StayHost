@@ -35,6 +35,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<QuickReply> QuickReplies => Set<QuickReply>();
     public DbSet<CoHost> CoHosts => Set<CoHost>();
     public DbSet<CalendarFeed> CalendarFeeds => Set<CalendarFeed>();
+    public DbSet<HelpArticle> HelpArticles => Set<HelpArticle>();
+    public DbSet<RiskFlag> RiskFlags => Set<RiskFlag>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -152,6 +154,30 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.LastError).HasMaxLength(400);
             e.HasOne(x => x.Listing).WithMany(l => l.CalendarFeeds)
                 .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<HelpArticle>(e =>
+        {
+            e.ToTable("help_articles");
+            e.HasIndex(x => x.Slug).IsUnique();
+            e.Property(x => x.Slug).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Category).HasMaxLength(80).IsRequired();
+            e.Property(x => x.Summary).HasMaxLength(400);
+            e.Property(x => x.SearchText).HasMaxLength(6000);
+        });
+
+        b.Entity<RiskFlag>(e =>
+        {
+            e.ToTable("risk_flags");
+            e.HasIndex(x => new { x.UserId, x.Kind, x.Status });
+            e.Property(x => x.Summary).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Detail).HasMaxLength(400);
+            e.Property(x => x.Resolution).HasMaxLength(400);
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.SetNull);
         });
 
         b.Entity<PriceRule>(e =>

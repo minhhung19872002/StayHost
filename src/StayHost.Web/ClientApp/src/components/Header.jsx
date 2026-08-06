@@ -298,7 +298,7 @@ function AccountMenu() {
         <button role="menuitem" onClick={() => goTo('/host')}>Cho thuê nhà trên StayHost</button>
         <hr />
         <button role="menuitem" onClick={() => openOverlay('language')}>Ngôn ngữ &amp; tiền tệ</button>
-        <button role="menuitem" onClick={() => openOverlay('help')}>Trung tâm trợ giúp</button>
+        <button role="menuitem" onClick={() => goTo('/help')}>Trung tâm trợ giúp</button>
       </div>
     );
   }
@@ -337,7 +337,7 @@ function AccountMenu() {
       <button role="menuitem" onClick={() => openOverlay('profile')}>Tài khoản</button>
       <hr />
       <button role="menuitem" onClick={() => openOverlay('language')}>Ngôn ngữ &amp; tiền tệ</button>
-      <button role="menuitem" onClick={() => openOverlay('help')}>Trung tâm trợ giúp</button>
+      <button role="menuitem" onClick={() => goTo('/help')}>Trung tâm trợ giúp</button>
       <button role="menuitem" onClick={async () => { set({ menu: null }); await logout(); navigate('/'); }}>Đăng xuất</button>
     </div>
   );

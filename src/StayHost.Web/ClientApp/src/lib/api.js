@@ -174,6 +174,15 @@ export const api = {
   deleteQuickReply: id => request(`/api/messages/quick-replies/${id}`, { method: 'DELETE' }),
 
   /* docs/01 QL-19 — people helping run a listing. */
+  /* docs/01 AT-07 — the help centre. */
+  help: params => request(`/api/help${qs(params ?? {})}`),
+  helpArticle: slug => request(`/api/help/${slug}`),
+
+  /* docs/01 AT-11 — accounts the checks flagged. */
+  riskFlags: () => request('/api/admin/risk'),
+  resolveRiskFlag: (id, body) =>
+    request(`/api/admin/risk/${id}/resolve`, { method: 'POST', body: JSON.stringify(body) }),
+
   payBalance: id => request(`/api/bookings/${id}/balance`, { method: 'POST' }),
 
   coHosts: () => request('/api/host/co-hosts'),

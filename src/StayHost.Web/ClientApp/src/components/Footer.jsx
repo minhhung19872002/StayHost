@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { openOverlay, toast } from '../lib/store.js';
 
@@ -28,8 +29,12 @@ const LEGAL = ['© 2026 StayHost OS, Inc.', 'Quyền riêng tư', 'Điều kho�
 
 const demo = e => { e.preventDefault(); toast('Bản demo — chức năng này chưa kết nối dịch vụ thật.'); };
 
+/** The few footer links that lead somewhere real (docs/01 AT-07). */
+const ROUTES = { 'Trung tâm trợ giúp': '/help', 'Cho thuê nhà trên StayHost': '/host' };
+
 export function Footer() {
   const state = useStore();
+  const navigate = useNavigate();
 
   return <>
     <div className="footer-cols">
@@ -37,7 +42,12 @@ export function Footer() {
         <div className="footer-col" key={col.title}>
           <h4>{col.title}</h4>
           <ul>
-            {col.links.map(l => <li key={l}><a href="#" onClick={demo}>{l}</a></li>)}
+            {col.links.map(l => (
+              <li key={l}>
+                <a href={ROUTES[l] ?? '#'}
+                   onClick={e => { e.preventDefault(); ROUTES[l] ? navigate(ROUTES[l]) : demo(e); }}>{l}</a>
+              </li>
+            ))}
           </ul>
         </div>
       ))}

@@ -209,6 +209,57 @@ public class AdminController(
             accounts);
     }
 
+    /* ------------------------------------------------------------- AT-11 */
+
+    /// <summary>
+    /// docs/01 AT-11 — the accounts the checks flagged, worst first. These are
+    /// hints for a person, not verdicts: nothing was blocked on the way in.
+    /// </summary>
+    [HttpGet("admin/risk")]
+    public async Task<ActionResult<IReadOnlyList<RiskFlagDto>>> RiskFlags(
+        [FromQuery] bool includeResolved = false, CancellationToken ct = default)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Moderation, ct);
+        if (admin is null)
+            return StatusCode(403, new { message = "Bạn không có quyền kiểm duyệt." });
+
+        var query = db.RiskFlags.AsQueryable();
+        if (!includeResolved) query = query.Where(f => f.Status == RiskFlagStatus.Open);
+
+        return Ok(await query
+            .OrderByDescending(f => f.Severity).ThenByDescending(f => f.CreatedAt)
+            .Take(200)
+            .Select(f => new RiskFlagDto(
+                f.Id, f.UserId, f.User!.FullName, f.User.Email,
+                f.BookingId, f.Booking!.Reference,
+                f.Kind.ToString(), f.Severity.ToString(),
+                RiskSignals.Label(f.Severity), RiskSignals.BadgeClass(f.Severity),
+                f.Summary, f.Detail, f.Status.ToString(), f.Resolution, f.CreatedAt))
+            .ToListAsync(ct));
+    }
+
+    [HttpPost("admin/risk/{id:int}/resolve")]
+    public async Task<IActionResult> ResolveRiskFlag(
+        int id, [FromBody] ResolveRiskFlagRequest req, CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Moderation, ct);
+        if (admin is null)
+            return StatusCode(403, new { message = "Bạn không có quyền kiểm duyệt." });
+
+        var flag = await db.RiskFlags.FirstOrDefaultAsync(f => f.Id == id, ct);
+        if (flag is null) return NotFound();
+
+        audit.Record(admin, "risk.resolve", $"risk:{flag.Id}",
+            flag.Status.ToString(), req.Acted ? "Acted" : "Cleared", req.Resolution);
+
+        flag.Status = req.Acted ? RiskFlagStatus.Acted : RiskFlagStatus.Cleared;
+        flag.Resolution = req.Resolution?.Trim();
+        flag.ResolvedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     [HttpPost("admin/listings/{id:int}/publish")]
     public async Task<IActionResult> SetPublished(int id, [FromQuery] bool published, CancellationToken ct)
     {

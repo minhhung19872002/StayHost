@@ -62,6 +62,8 @@ export function Admin() {
         <Stat label="Email chờ gửi" value={String(d.queuedEmails)} note="Hàng đợi giao dịch" />
       </div>
 
+      <RiskPanel />
+
       <Arbitration />
       <LedgerPanel ledger={d.ledger} />
       <TaxRules settings={d.settings} />
@@ -373,6 +375,60 @@ function Gate({ message, showLogin }) {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * docs/01 AT-11 — accounts the checks flagged. These are hints for a person:
+ * nothing was blocked on the way in, so the job here is to look and decide.
+ */
+function RiskPanel() {
+  const [flags, setFlags] = useState(null);
+
+  const reload = () => api.riskFlags().then(setFlags).catch(e => toast(e.message));
+  useEffect(() => { reload(); }, []);
+
+  const resolve = async (flag, acted) => {
+    const note = prompt(acted ? 'Đã làm gì với tài khoản này?' : 'Vì sao bỏ qua?') ?? '';
+    try {
+      await api.resolveRiskFlag(flag.id, { resolution: note.trim() || null, acted });
+      toast(acted ? 'Đã ghi nhận xử lý.' : 'Đã bỏ qua cảnh báo.');
+      reload();
+    } catch (err) { toast(err.message); }
+  };
+
+  if (!flags) return null;
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>Cảnh báo bất thường</h2>
+      <p className="section-sub">
+        Máy chỉ đánh dấu để người xem lại — không đơn nào bị chặn vì những dấu hiệu này.
+      </p>
+
+      {flags.length ? (
+        <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+          {flags.map(f => (
+            <article className="host-booking" key={f.id}>
+              <div style={{ minWidth: 0 }}>
+                <h3>{f.summary}</h3>
+                <div className="meta">{f.detail}</div>
+                <div className="meta">
+                  {f.userName} · {f.userEmail}
+                  {f.bookingReference ? ` · đơn ${f.bookingReference}` : ''}
+                  {' · '}{dateTime(f.createdAt)}
+                </div>
+                <span className={`badge ${f.severityBadge}`} style={{ marginTop: 8 }}>{f.severityLabel}</span>
+              </div>
+              <div className="host-booking-actions">
+                <button className="btn btn-primary btn-sm" onClick={() => resolve(f, true)}>Đã xử lý</button>
+                <button className="btn btn-outline btn-sm" onClick={() => resolve(f, false)}>Bỏ qua</button>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : <p className="section-sub">Không có cảnh báo nào đang mở.</p>}
+    </section>
   );
 }
 

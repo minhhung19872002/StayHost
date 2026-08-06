@@ -806,3 +806,44 @@ public record CalendarSyncDto(
     IReadOnlyList<CalendarFeedDto> Feeds);
 
 public record AddCalendarFeedRequest(string? Url, string? Label);
+
+/* ---- docs/01 AT-07: the help centre ------------------------------------- */
+
+public record HelpArticleDto(
+    string Slug,
+    string Title,
+    string Category,
+    string Audience,
+    string AudienceLabel,
+    string Summary,
+    /// <summary>Only filled in when a single article was asked for.</summary>
+    string? Body,
+    DateTime UpdatedAt);
+
+public record HelpCategoryDto(string Name, int Count);
+
+public record HelpIndexDto(
+    IReadOnlyList<HelpArticleDto> Articles,
+    IReadOnlyList<HelpCategoryDto> Categories,
+    int Total);
+
+/* ---- docs/01 AT-11: anomaly detection ----------------------------------- */
+
+public record RiskFlagDto(
+    int Id,
+    int UserId,
+    string UserName,
+    string UserEmail,
+    int? BookingId,
+    string? BookingReference,
+    string Kind,
+    string Severity,
+    string SeverityLabel,
+    string SeverityBadge,
+    string Summary,
+    string Detail,
+    string Status,
+    string? Resolution,
+    DateTime CreatedAt);
+
+public record ResolveRiskFlagRequest(string? Resolution, bool Acted = false);

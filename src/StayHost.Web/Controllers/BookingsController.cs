@@ -13,7 +13,7 @@ namespace StayHost.Web.Controllers;
 public class BookingsController(
     StayHostDbContext db, AuthService auth, NotificationService notifications,
     CatalogService catalog, BookingService rules, ReviewService reviews, ThreadMessenger messenger,
-    PaymentGateway gateway)
+    PaymentGateway gateway, RiskWatch risk)
     : ControllerBase
 {
     /// <summary>
@@ -274,6 +274,10 @@ public class BookingsController(
             "Đặt chỗ đã được xác nhận",
             $"Mã đặt chỗ {booking.Reference} · {listing.Title} · {booking.Nights} đêm.",
             $"/trips/{booking.Id}", ct);
+
+        // docs/01 AT-11 — a paid booking is the moment worth looking at the
+        // account's pattern; the flag never stands in the guest's way.
+        await risk.EvaluateAsync(user.Id, booking, ct);
 
         await db.SaveChangesAsync(ct);
         return Ok(ToDto(booking));

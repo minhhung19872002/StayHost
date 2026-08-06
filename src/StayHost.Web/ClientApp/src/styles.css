@@ -1436,3 +1436,43 @@ select.field { width: 100%; padding: 10px 12px; }
   padding: 10px 12px; background: var(--wash); border-radius: 12px;
 }
 .feed-url code { font-size: 12.5px; overflow-x: auto; white-space: nowrap; flex: 1; }
+
+/* ---- help centre (docs/01 AT-07) ---------------------------------------- */
+
+.shell-narrow { max-width: 760px; }
+
+.help-search { margin-top: 20px; }
+.help-search input {
+  width: 100%; padding: 16px 20px; font-size: 16px;
+  border: 1px solid var(--line); border-radius: 999px; background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.help-search input:focus { outline: 0; border-color: var(--ink); }
+
+.help-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 14px; margin-top: 14px;
+}
+.help-card {
+  display: flex; flex-direction: column; gap: 6px; align-items: start; text-align: left;
+  padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: #fff;
+  font: inherit; cursor: pointer;
+}
+.help-card:hover { border-color: var(--ink); box-shadow: var(--shadow-md); }
+.help-card b { font-size: 15.5px; }
+.help-card span { font-size: 13.5px; color: var(--ink-muted); line-height: 1.5; }
+.help-card i {
+  margin-top: 4px; font-style: normal; font-size: 12px; font-weight: 700;
+  color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.04em;
+}
+
+.help-body { margin-top: 22px; font-size: 15.5px; line-height: 1.75; color: var(--ink-body); }
+.help-body p { margin: 0 0 18px; }
+.help-body ul { margin: 0 0 18px; padding-left: 22px; }
+.help-body li { margin-bottom: 8px; }
+
+.help-foot {
+  margin-top: 12px; padding: 20px; border-radius: 16px; background: var(--wash);
+  display: grid; gap: 4px;
+}
+.help-foot span { font-size: 14px; color: var(--ink-muted); }

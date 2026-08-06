@@ -27,6 +27,7 @@ builder.Services.AddScoped<ThreadMessenger>();
 builder.Services.AddScoped<AdminAudit>();
 builder.Services.AddScoped<PaymentGateway>();
 builder.Services.AddScoped<BalanceCollector>();
+builder.Services.AddScoped<RiskWatch>();
 builder.Services.AddScoped<HostAccess>();
 builder.Services.AddScoped<CalendarSyncService>();
 builder.Services.AddHttpClient("ical");
@@ -52,6 +53,9 @@ await using (var scope = app.Services.CreateAsyncScope())
         {
             await db.Database.MigrateAsync();
             await DbSeeder.SeedAsync(db);
+            // docs/01 AT-07 — help articles seed on their own, so adding one
+            // later does not need the whole catalogue rebuilt.
+            await HelpSeeder.SeedAsync(db);
             log.LogInformation("Database ready.");
             break;
         }
