@@ -304,6 +304,11 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var unwound = await splits.SweepAsync(stoppingToken);
                 if (unwound > 0) log.LogInformation("Đã hoàn {Count} lượt chia hoá đơn hết hạn.", unwound);
 
+                // docs/01 MR-04 — sessions that never reached their minimum.
+                var experiences = scope.ServiceProvider.GetRequiredService<ExperienceService>();
+                var calledOff = await experiences.SweepAsync(stoppingToken);
+                if (calledOff > 0) log.LogInformation("Đã huỷ {Count} suất trải nghiệm thiếu người.", calledOff);
+
                 // docs/01 TN-09 — milestone lines in the conversation itself.
                 var messenger = scope.ServiceProvider.GetRequiredService<ThreadMessenger>();
                 var posted = await messenger.SweepAsync(stoppingToken);

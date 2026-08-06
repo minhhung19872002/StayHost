@@ -39,6 +39,10 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<RiskFlag> RiskFlags => Set<RiskFlag>();
     public DbSet<BillSplit> BillSplits => Set<BillSplit>();
     public DbSet<BillShare> BillShares => Set<BillShare>();
+    public DbSet<Experience> Experiences => Set<Experience>();
+    public DbSet<ExperienceImage> ExperienceImages => Set<ExperienceImage>();
+    public DbSet<ExperienceSlot> ExperienceSlots => Set<ExperienceSlot>();
+    public DbSet<ExperienceBooking> ExperienceBookings => Set<ExperienceBooking>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -156,6 +160,57 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.LastError).HasMaxLength(400);
             e.HasOne(x => x.Listing).WithMany(l => l.CalendarFeeds)
                 .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<Experience>(e =>
+        {
+            e.ToTable("experiences");
+            e.HasIndex(x => x.Slug).IsUnique();
+            e.Property(x => x.Slug).HasMaxLength(140).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.City).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Country).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Summary).HasMaxLength(400);
+            e.Property(x => x.MeetingPoint).HasMaxLength(300);
+            e.Property(x => x.Languages).HasMaxLength(120);
+            e.Property(x => x.SearchText).HasMaxLength(4000);
+            e.Property(x => x.PricePerPerson).HasColumnType("numeric(14,2)");
+            e.Property(x => x.PrivateGroupPrice).HasColumnType("numeric(14,2)");
+            e.HasOne(x => x.Host).WithMany()
+                .HasForeignKey(x => x.HostId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ExperienceImage>(e =>
+        {
+            e.ToTable("experience_images");
+            e.Property(x => x.Url).HasMaxLength(600).IsRequired();
+            e.Property(x => x.Caption).HasMaxLength(200);
+            e.HasOne(x => x.Experience).WithMany(x => x.Images)
+                .HasForeignKey(x => x.ExperienceId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ExperienceSlot>(e =>
+        {
+            e.ToTable("experience_slots");
+            e.HasIndex(x => new { x.ExperienceId, x.StartsAt });
+            e.Property(x => x.CancelReason).HasMaxLength(300);
+            e.HasOne(x => x.Experience).WithMany(x => x.Slots)
+                .HasForeignKey(x => x.ExperienceId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ExperienceBooking>(e =>
+        {
+            e.ToTable("experience_bookings");
+            e.HasIndex(x => x.Reference).IsUnique();
+            e.Property(x => x.Reference).HasMaxLength(20).IsRequired();
+            e.Property(x => x.CancelReason).HasMaxLength(300);
+            foreach (var money in new[] { "Subtotal", "ServiceFee", "Tax", "Total",
+                                          "HostServiceFee", "HostPayout", "RefundedAmount" })
+                e.Property(money).HasColumnType("numeric(14,2)");
+            e.HasOne(x => x.Slot).WithMany()
+                .HasForeignKey(x => x.SlotId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.GuestUser).WithMany()
+                .HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<BillSplit>(e =>
@@ -474,6 +529,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Ignore(x => x.Signed);
             e.HasOne(x => x.Booking).WithMany(bk => bk.LedgerEntries)
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.ExperienceBooking).WithMany()
+                .HasForeignKey(x => x.ExperienceBookingId).OnDelete(DeleteBehavior.SetNull);
         });
     }
 

@@ -276,6 +276,109 @@ public static class Pricing
     private static string FormatVnd(decimal amount) =>
         Round(amount).ToString("#,##0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN")) + "₫";
 
+    /* --------------------------------------------------------- experiences */
+
+    /// <summary>
+    /// What a seat at a session costs, all in. docs/00 §6.8 says money is
+    /// defined once, so an experience uses the same fee rates and the same tax
+    /// rules as a stay — only the thing being counted changes.
+    /// </summary>
+    public sealed record ExperienceRequest
+    {
+        public required Experience Experience { get; init; }
+        public required int Seats { get; init; }
+        public bool Private { get; init; }
+        public required DateTime StartsAt { get; init; }
+        public IReadOnlyCollection<TaxRule> TaxRules { get; init; } = [];
+    }
+
+    public sealed record ExperienceBreakdown
+    {
+        public required int Seats { get; init; }
+        public required decimal PerSeat { get; init; }
+        public required decimal Subtotal { get; init; }
+        public required decimal GuestServiceFee { get; init; }
+        public required decimal Tax { get; init; }
+        public required IReadOnlyList<PriceLine> TaxLines { get; init; }
+        public required decimal Total { get; init; }
+        public required decimal HostServiceFee { get; init; }
+        public required decimal HostPayout { get; init; }
+        public required IReadOnlyList<PriceLine> Lines { get; init; }
+    }
+
+    public static ExperienceBreakdown QuoteExperience(ExperienceRequest req)
+    {
+        var settings = PricingSettings.Current;
+        var seats = Math.Max(1, req.Seats);
+
+        // A private session is one price for the room, not a price each.
+        var subtotal = req.Private
+            ? Round(req.Experience.PrivateGroupPrice ?? req.Experience.PricePerPerson * seats)
+            : Round(req.Experience.PricePerPerson * seats);
+
+        var guestServiceFee = Round(subtotal * settings.GuestServiceFeeRate);
+        var taxLines = ExperienceTaxLines(req, subtotal, guestServiceFee);
+        var tax = taxLines.Sum(l => l.Amount);
+        var total = subtotal + guestServiceFee + tax;
+
+        var hostServiceFee = Round(subtotal * settings.HostServiceFeeRate);
+        var hostPayout = subtotal - hostServiceFee;
+
+        var lines = new List<PriceLine>
+        {
+            new("subtotal",
+                req.Private ? "Thuê trọn nhóm riêng" : $"{FormatVnd(req.Experience.PricePerPerson)} × {seats} người",
+                subtotal),
+            new("service-fee", "Phí dịch vụ StayHost", guestServiceFee)
+        };
+        lines.AddRange(taxLines);
+
+        return new ExperienceBreakdown
+        {
+            Seats = seats,
+            PerSeat = req.Private ? subtotal : req.Experience.PricePerPerson,
+            Subtotal = subtotal,
+            GuestServiceFee = guestServiceFee,
+            Tax = tax,
+            TaxLines = taxLines,
+            Total = total,
+            HostServiceFee = hostServiceFee,
+            HostPayout = hostPayout,
+            Lines = lines.Where(l => l.Amount > 0).ToList()
+        };
+    }
+
+    /// <summary>
+    /// A session has no nights, so per-night and per-guest-per-night levies do
+    /// not apply to it; percentage and flat ones do.
+    /// </summary>
+    private static List<PriceLine> ExperienceTaxLines(
+        ExperienceRequest req, decimal subtotal, decimal guestServiceFee)
+    {
+        var on = DateOnly.FromDateTime(req.StartsAt);
+
+        var applicable = req.TaxRules
+            .Where(r => r.AppliesOn(on))
+            .Where(r => string.Equals(r.Country, req.Experience.Country, StringComparison.OrdinalIgnoreCase))
+            .Where(r => r.City is null || string.Equals(r.City, req.Experience.City, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(r => r.SortOrder).ThenBy(r => r.Id);
+
+        var lines = new List<PriceLine>();
+        foreach (var rule in applicable)
+        {
+            var amount = rule.Method switch
+            {
+                TaxMethod.Percentage => Round(
+                    (rule.Base == TaxBase.SubtotalPlusGuestFee ? subtotal + guestServiceFee : subtotal) * rule.Value),
+                TaxMethod.PerStay => Round(rule.Value),
+                _ => 0m
+            };
+
+            if (amount > 0) lines.Add(new PriceLine($"tax-{rule.Id}", rule.Name, amount));
+        }
+        return lines;
+    }
+
     /* ------------------------------------------------ convenience overloads */
 
     /// <summary>Shorthand used by search cards, which only know dates and a head count.</summary>

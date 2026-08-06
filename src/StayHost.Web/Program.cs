@@ -29,6 +29,7 @@ builder.Services.AddScoped<PaymentGateway>();
 builder.Services.AddScoped<BalanceCollector>();
 builder.Services.AddScoped<RiskWatch>();
 builder.Services.AddScoped<SplitBillService>();
+builder.Services.AddScoped<ExperienceService>();
 builder.Services.AddScoped<HostAccess>();
 builder.Services.AddScoped<CalendarSyncService>();
 builder.Services.AddHttpClient("ical");
@@ -57,6 +58,7 @@ await using (var scope = app.Services.CreateAsyncScope())
             // docs/01 AT-07 — help articles seed on their own, so adding one
             // later does not need the whole catalogue rebuilt.
             await HelpSeeder.SeedAsync(db);
+            await ExperienceSeeder.SeedAsync(db);
             log.LogInformation("Database ready.");
             break;
         }

@@ -30,7 +30,11 @@ const LEGAL = ['© 2026 StayHost OS, Inc.', 'Quyền riêng tư', 'Điều kho�
 const demo = e => { e.preventDefault(); toast('Bản demo — chức năng này chưa kết nối dịch vụ thật.'); };
 
 /** The few footer links that lead somewhere real (docs/01 AT-07). */
-const ROUTES = { 'Trung tâm trợ giúp': '/help', 'Cho thuê nhà trên StayHost': '/host' };
+const ROUTES = {
+  'Trung tâm trợ giúp': '/help',
+  'Cho thuê nhà trên StayHost': '/host',
+  'Trải nghiệm': '/experiences'
+};
 
 export function Footer() {
   const state = useStore();

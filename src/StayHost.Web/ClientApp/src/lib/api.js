@@ -174,6 +174,17 @@ export const api = {
   deleteQuickReply: id => request(`/api/messages/quick-replies/${id}`, { method: 'DELETE' }),
 
   /* docs/01 QL-19 — people helping run a listing. */
+  /* docs/01 MR-01 → MR-04 — experiences, sold by the seat. */
+  experiences: params => request(`/api/experiences${qs(params ?? {})}`),
+  experience: idOrSlug => request(`/api/experiences/${idOrSlug}`),
+  experienceQuote: (slotId, seats, priv) =>
+    request(`/api/experiences/slots/${slotId}/quote${qs({ seats, priv })}`),
+  bookExperience: (slotId, body) =>
+    request(`/api/experiences/slots/${slotId}/book`, { method: 'POST', body: JSON.stringify(body) }),
+  experienceBookings: () => request('/api/experiences/bookings'),
+  cancelExperienceBooking: id =>
+    request(`/api/experiences/bookings/${id}/cancel`, { method: 'POST' }),
+
   /* docs/01 ĐP-07 — one booking, up to sixteen payers. */
   openSplit: (id, emails) =>
     request(`/api/bookings/${id}/split`, { method: 'POST', body: JSON.stringify({ emails }) }),

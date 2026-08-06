@@ -58,6 +58,10 @@ public class LedgerEntry
     public int? BookingId { get; set; }
     public Booking? Booking { get; set; }
 
+    /// <summary>Set instead of <see cref="BookingId"/> when the money is for a session.</summary>
+    public int? ExperienceBookingId { get; set; }
+    public ExperienceBooking? ExperienceBooking { get; set; }
+
     public LedgerAccount Account { get; set; }
     public LedgerDirection Direction { get; set; }
     /// <summary>Always positive; <see cref="Direction"/> carries the sign.</summary>
@@ -82,7 +86,12 @@ public static class Ledger
 
     private sealed record Leg(LedgerAccount Account, LedgerDirection Direction, decimal Amount, string Memo);
 
-    private static List<LedgerEntry> Post(string kind, int? bookingId, DateTime at, params Leg[] legs)
+    private static List<LedgerEntry> Post(
+        string kind, int? bookingId, DateTime at, params Leg[] legs) =>
+        Post(kind, bookingId, null, at, legs);
+
+    private static List<LedgerEntry> Post(
+        string kind, int? bookingId, int? experienceBookingId, DateTime at, params Leg[] legs)
     {
         var real = legs.Where(l => l.Amount > 0).ToList();
 
@@ -96,6 +105,7 @@ public static class Ledger
             TransactionId = transactionId,
             TransactionKind = kind,
             BookingId = bookingId,
+            ExperienceBookingId = experienceBookingId,
             Account = l.Account,
             Direction = l.Direction,
             Amount = l.Amount,
@@ -127,6 +137,44 @@ public static class Ledger
             new Leg(LedgerAccount.GuestServiceFeeRevenue, LedgerDirection.Credit, price.GuestServiceFee, "Phí dịch vụ khách"),
             new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Credit, price.HostServiceFee, "Phí dịch vụ chủ nhà"),
             new Leg(LedgerAccount.TaxPayable, LedgerDirection.Credit, price.Tax, "Thuế thu hộ"));
+    }
+
+    /// <summary>
+    /// docs/01 MR-03 — a seat at a session. Same accounts as a stay: the money
+    /// engine does not care what was sold, only how it splits.
+    /// </summary>
+    public static List<LedgerEntry> CaptureExperience(
+        ExperienceBooking booking, Pricing.ExperienceBreakdown price, DateTime at) =>
+        Post("experience-captured", null, booking.Id, at,
+            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, price.Total, $"Khách trả vé {booking.Reference}"),
+            new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, price.HostPayout, "Phần chủ trải nghiệm nhận"),
+            new Leg(LedgerAccount.GuestServiceFeeRevenue, LedgerDirection.Credit, price.GuestServiceFee, "Phí dịch vụ khách"),
+            new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Credit, price.HostServiceFee, "Phí dịch vụ chủ nhà"),
+            new Leg(LedgerAccount.TaxPayable, LedgerDirection.Credit, price.Tax, "Thuế thu hộ"));
+
+    /// <summary>
+    /// A ticket refunded, whether the guest pulled out or the session was called
+    /// off. A full refund reverses exactly what the capture recognised.
+    /// </summary>
+    public static List<LedgerEntry> RefundExperience(
+        ExperienceBooking booking, decimal amount, DateTime at)
+    {
+        if (amount <= 0) return [];
+
+        // Everything is returned in the proportion it was taken, so a partial
+        // refund never quietly comes out of the host's share alone.
+        var share = booking.Total == 0 ? 0m : amount / booking.Total;
+        var hostBack = Math.Round(booking.HostPayout * share, 0, MidpointRounding.AwayFromZero);
+        var guestFeeBack = Math.Round(booking.ServiceFee * share, 0, MidpointRounding.AwayFromZero);
+        var hostFeeBack = Math.Round(booking.HostServiceFee * share, 0, MidpointRounding.AwayFromZero);
+        var taxBack = amount - hostBack - guestFeeBack - hostFeeBack;
+
+        return Post("experience-refunded", null, booking.Id, at,
+            new Leg(LedgerAccount.HostPayable, LedgerDirection.Debit, hostBack, "Thu lại phần chủ trải nghiệm"),
+            new Leg(LedgerAccount.GuestServiceFeeRevenue, LedgerDirection.Debit, guestFeeBack, "Hoàn phí dịch vụ khách"),
+            new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Debit, hostFeeBack, "Hoàn phí dịch vụ chủ nhà"),
+            new Leg(LedgerAccount.TaxPayable, LedgerDirection.Debit, taxBack, "Hoàn thuế"),
+            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Credit, amount, $"Hoàn vé {booking.Reference}"));
     }
 
     /// <summary>docs/01 ĐP-07 — one person's share, held until the last one lands.</summary>

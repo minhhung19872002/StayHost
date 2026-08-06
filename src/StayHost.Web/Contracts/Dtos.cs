@@ -894,3 +894,122 @@ public record ShareInviteDto(
     DateTime ExpiresAt);
 
 public record PayShareRequest(string? Name, string? CardLast4);
+
+/* ---- docs/01 MR-01 → MR-04: experiences ---------------------------------- */
+
+public record ExperienceCardDto(
+    int Id,
+    string Slug,
+    string Title,
+    string City,
+    string Summary,
+    int DurationMinutes,
+    int MaxGroup,
+    decimal PricePerPerson,
+    double Rating,
+    int ReviewCount,
+    string HostName,
+    IReadOnlyList<string> Images,
+    /// <summary>Sessions still on sale, so a card can say "còn 3 suất".</summary>
+    int OpenSlots);
+
+public record ExperienceSlotDto(
+    int Id,
+    DateTime StartsAt,
+    int Capacity,
+    int SeatsTaken,
+    int SeatsLeft,
+    bool IsPrivate,
+    string Status,
+    string? CancelReason);
+
+public record ExperienceDetailDto(
+    int Id,
+    string Slug,
+    string Title,
+    string City,
+    string Country,
+    string Summary,
+    string Description,
+    int DurationMinutes,
+    int MaxGroup,
+    int MinGuests,
+    IReadOnlyList<string> Languages,
+    int MinAge,
+    string MeetingPoint,
+    double Latitude,
+    double Longitude,
+    IReadOnlyList<string> Included,
+    decimal PricePerPerson,
+    decimal? PrivateGroupPrice,
+    bool IsPublished,
+    double Rating,
+    int ReviewCount,
+    string HostName,
+    string HostInitials,
+    IReadOnlyList<string> Images,
+    IReadOnlyList<ExperienceSlotDto> Slots);
+
+public record ExperienceQuoteDto(
+    int SlotId,
+    DateTime StartsAt,
+    int Seats,
+    bool Private,
+    decimal PerSeat,
+    decimal Subtotal,
+    decimal ServiceFee,
+    decimal Tax,
+    decimal Total,
+    IReadOnlyList<PriceLineDto> Lines,
+    bool CanBook,
+    string? Reason);
+
+public record ExperienceBookingDto(
+    int Id,
+    string Reference,
+    int ExperienceId,
+    string Title,
+    string City,
+    string Slug,
+    DateTime StartsAt,
+    int DurationMinutes,
+    int Seats,
+    bool Private,
+    decimal Subtotal,
+    decimal ServiceFee,
+    decimal Tax,
+    decimal Total,
+    decimal RefundedAmount,
+    string Status,
+    string StatusLabel,
+    string StatusBadge,
+    string? CancelReason,
+    DateTime CreatedAt);
+
+public record BookExperienceRequest(
+    int Seats,
+    bool Private = false,
+    string? PaymentMethod = null,
+    string? CardLast4 = null);
+
+public record SaveExperienceRequest(
+    int? Id,
+    string? Title,
+    string? City,
+    string? Summary,
+    string? Description,
+    int DurationMinutes,
+    int MaxGroup,
+    int MinGuests,
+    IReadOnlyList<string>? Languages,
+    int MinAge,
+    string? MeetingPoint,
+    double Latitude,
+    double Longitude,
+    IReadOnlyList<string>? Included,
+    decimal PricePerPerson,
+    decimal? PrivateGroupPrice,
+    IReadOnlyList<string>? Images,
+    bool Publish = false);
+
+public record AddSlotsRequest(IReadOnlyList<DateTime>? StartsAt, int? Capacity);
