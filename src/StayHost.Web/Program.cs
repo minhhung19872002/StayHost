@@ -39,6 +39,7 @@ builder.Services.AddHttpClient("ical");
 builder.Services.AddHostedService<CalendarSyncWorker>();
 builder.Services.AddHostedService<BookingLifecycleWorker>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<IdentityService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddControllers();
 builder.Services.AddResponseCompression(o => o.EnableForHttps = true);

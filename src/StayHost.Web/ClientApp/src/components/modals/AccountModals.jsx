@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../../lib/useStore.js';
 import {
   set, login, register, loadMe, saveProfile, submitReview,
@@ -8,6 +8,13 @@ import { api } from '../../lib/api.js';
 import { money, longDate } from '../../lib/format.js';
 import { Modal } from './Modal.jsx';
 
+/**
+ * docs/01 TK-02 — the three the spec names. No glyphs: the Apple mark is a
+ * private-use character that renders as an empty box off Apple devices, and
+ * hand-drawn copies of the other two are trademarks. The words do the work.
+ */
+const PROVIDERS = [['google', 'Google'], ['apple', 'Apple'], ['facebook', 'Facebook']];
+
 export function AuthModal() {
   const state = useStore();
   if (state.authMode === 'forgot') return <ForgotModal />;
@@ -15,15 +22,24 @@ export function AuthModal() {
 
   const isRegister = state.authMode === 'register';
 
+  // docs/01 TK-01 — one field takes either an email or a phone number, so
+  // nobody has to decide which kind of account they are making first.
   const submit = async e => {
     e.preventDefault();
     const f = e.currentTarget;
-    const body = {
-      email: f.email.value.trim(),
-      password: f.password.value,
-      fullName: f.fullName?.value?.trim() ?? '',
-      phone: f.phone?.value?.trim() || null
-    };
+    const typed = f.identifier.value.trim();
+    const looksLikePhone = /^[+\d][\d\s.]{7,}$/.test(typed);
+
+    const body = isRegister
+      ? {
+          email: looksLikePhone ? null : typed,
+          phone: looksLikePhone ? typed : (f.phone?.value?.trim() || null),
+          password: f.password.value,
+          fullName: f.fullName?.value?.trim() ?? '',
+          dateOfBirth: f.dateOfBirth?.value || null
+        }
+      : { email: typed, password: f.password.value };
+
     const ok = await (isRegister ? register(body) : login(body));
     if (ok) { await loadMe(); closeOverlay(); }
   };
@@ -35,6 +51,10 @@ export function AuthModal() {
         {isRegister ? 'Tạo tài khoản để đặt chỗ, lưu yêu thích và cho thuê nhà.' : 'Đăng nhập để tiếp tục.'}
       </p>
 
+      <ProviderButtons />
+
+      <div className="auth-or"><span>hoặc</span></div>
+
       <form onSubmit={submit} noValidate id="auth-form">
         {isRegister && (
           <label className="form-field">
@@ -43,20 +63,28 @@ export function AuthModal() {
           </label>
         )}
         <label className="form-field">
-          <span className="cap">Email</span>
-          <input type="email" name="email" autoComplete="email" placeholder="ban@email.com" required />
+          <span className="cap">Email hoặc số điện thoại</span>
+          <input type="text" name="identifier" autoComplete="username"
+                 placeholder="ban@email.com hoặc 0912 345 678" required />
         </label>
         <label className="form-field">
           <span className="cap">Mật khẩu</span>
           <input type="password" name="password" autoComplete={isRegister ? 'new-password' : 'current-password'}
                  placeholder="Tối thiểu 8 ký tự" required />
         </label>
-        {isRegister && (
+        {isRegister && <>
           <label className="form-field">
-            <span className="cap">Số điện thoại <span style={{ fontWeight: 400 }}>(không bắt buộc)</span></span>
+            <span className="cap">Số điện thoại <span style={{ fontWeight: 400 }}>(nếu đăng ký bằng email)</span></span>
             <input type="tel" name="phone" autoComplete="tel" placeholder="0912 345 678" />
           </label>
-        )}
+          <label className="form-field">
+            <span className="cap">Ngày sinh</span>
+            <input type="date" name="dateOfBirth" required />
+          </label>
+          <p style={{ margin: '-4px 0 12px', fontSize: 12.5, color: 'var(--ink-muted)' }}>
+            Bạn cần đủ 18 tuổi để tạo tài khoản.
+          </p>
+        </>}
 
         {state.authError && <div className="form-error">{state.authError}</div>}
 
@@ -64,7 +92,6 @@ export function AuthModal() {
           {state.authBusy ? 'Đang xử lý…' : isRegister ? 'Tạo tài khoản' : 'Đăng nhập'}
         </button>
       </form>
-
       {!isRegister && (
         <p style={{ textAlign: 'right', margin: '-6px 0 0' }}>
           <button className="link-btn" style={{ fontWeight: 600, fontSize: 13 }}
@@ -196,7 +223,50 @@ function ResetModal() {
   );
 }
 
-const PROFILE_TABS = [['profile', 'Hồ sơ'], ['security', 'Bảo mật'], ['devices', 'Thiết bị']];
+const PROFILE_TABS = [
+  ['profile', 'Hồ sơ'], ['verify', 'Xác thực'], ['security', 'Bảo mật'], ['devices', 'Thiết bị']
+];
+
+/**
+ * docs/01 TK-02. A deployment puts the provider's own SDK here and hands the
+ * verified token to the server; without client secrets this build asks for the
+ * account instead. Everything after the handshake — matching, linking, creating
+ * — is the real thing.
+ */
+function ProviderButtons() {
+  const [busy, setBusy] = useState(null);
+
+  const go = async ([key, label]) => {
+    const email = prompt(`Đăng nhập bằng ${label}\n\nBản demo chưa nối SDK thật, nhập email tài khoản ${label} của bạn:`);
+    if (!email?.trim()) return;
+
+    setBusy(key);
+    try {
+      await api.externalSignIn({
+        provider: key,
+        providerUserId: `${key}:${email.trim().toLowerCase()}`,
+        email: email.trim(),
+        fullName: email.trim().split('@')[0]
+      });
+      await loadMe();
+      closeOverlay();
+      toast(`Đã đăng nhập bằng ${label}.`);
+    } catch (err) {
+      set({ authError: err.message });
+    } finally { setBusy(null); }
+  };
+
+  return (
+    <div className="auth-providers">
+      {PROVIDERS.map(p => (
+        <button key={p[0]} className="auth-provider" disabled={busy !== null} onClick={() => go(p)}>
+          {busy === p[0] ? 'Đang mở…' : `Tiếp tục với ${p[1]}`}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 
 export function ProfileModal() {
   const state = useStore();
@@ -242,12 +312,21 @@ export function ProfileModal() {
           <div style={{ fontSize: 17, fontWeight: 800 }}>{u.fullName}</div>
           <div style={{ fontSize: 13, color: 'var(--ink-muted)' }}>{u.email} · {u.joinedLabel}</div>
           <div style={{ marginTop: 6 }}>
-            {u.emailConfirmed
-              ? <span className="badge confirmed">Email đã xác minh</span>
-              : <>
-                  <span className="badge pending">Chưa xác minh email</span>
-                  <button className="link-btn" style={{ marginLeft: 8, fontSize: 12.5 }} onClick={verify}>Gửi liên kết</button>
-                </>}
+            {/* docs/01 TK-01 — a phone-only account has no address to nag about. */}
+            {!u.email
+              ? (u.phoneConfirmed
+                  ? <span className="badge confirmed">Số điện thoại đã xác thực</span>
+                  : <>
+                      <span className="badge pending">Chưa xác thực số điện thoại</span>
+                      <button className="link-btn" style={{ marginLeft: 8, fontSize: 12.5 }}
+                              onClick={() => pickTab('verify')}>Xác thực ngay</button>
+                    </>)
+              : u.emailConfirmed
+                ? <span className="badge confirmed">Email đã xác minh</span>
+                : <>
+                    <span className="badge pending">Chưa xác minh email</span>
+                    <button className="link-btn" style={{ marginLeft: 8, fontSize: 12.5 }} onClick={verify}>Gửi liên kết</button>
+                  </>}
           </div>
         </div>
       </div>
@@ -278,6 +357,8 @@ export function ProfileModal() {
           <button type="submit" className="btn btn-primary btn-block">Lưu thay đổi</button>
         </form>
       )}
+
+      {tab === 'verify' && <Verification />}
 
       {tab === 'security' && (
         <form onSubmit={changePassword}>
@@ -329,6 +410,92 @@ const BLANK_REVIEW = {
   rating: 5, cleanliness: 5, accuracy: 5, checkIn: 5,
   communication: 5, location: 5, value: 5, text: ''
 };
+
+/**
+ * docs/01 TK-01 — proving the phone or the email with a six-digit code, and
+ * docs/01 TK-02 — what is attached to this account.
+ */
+function Verification() {
+  const [v, setV] = useState(null);
+  const [sending, setSending] = useState(null);
+  const [codes, setCodes] = useState({ email: '', phone: '' });
+
+  const load = () => api.verification().then(setV).catch(e => toast(e.message));
+  useEffect(() => { load(); }, []);
+
+  if (!v) return <div className="stat skeleton" style={{ height: 160, border: 0, marginTop: 16 }} />;
+
+  const send = async kind => {
+    setSending(kind);
+    try {
+      const res = await api.sendCode(kind);
+      // No SMS provider in this build, so development hands the code back
+      // rather than leaving the flow impossible to finish.
+      if (res.devCode) setCodes(c => ({ ...c, [kind]: res.devCode }));
+      toast(res.devCode ? `${res.message} Mã thử nghiệm: ${res.devCode}` : res.message);
+    } catch (err) { toast(err.message); } finally { setSending(null); }
+  };
+
+  const confirm = async kind => {
+    try {
+      await api.confirmCode(kind, codes[kind]);
+      setCodes(c => ({ ...c, [kind]: '' }));
+      await loadMe();
+      load();
+      toast('Đã xác thực.');
+    } catch (err) { toast(err.message); }
+  };
+
+  const unlink = async provider => {
+    try { await api.unlinkProvider(provider); load(); toast('Đã bỏ liên kết.'); }
+    catch (err) { toast(err.message); }
+  };
+
+  const row = (kind, value, confirmed) => !value ? null : (
+    <div className="verify-row" key={kind}>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <b>{value}</b>
+        <div className="meta">
+          {confirmed
+            ? 'Đã xác thực'
+            : `Chưa xác thực · mã gồm ${v.codeLength} chữ số, hiệu lực ${v.codeMinutes} phút`}
+        </div>
+      </div>
+
+      {confirmed
+        ? <span className="badge confirmed">Xong</span>
+        : <>
+            <input className="verify-code" inputMode="numeric" maxLength={v.codeLength}
+                   placeholder="000000" value={codes[kind]}
+                   onChange={e => setCodes(c => ({ ...c, [kind]: e.target.value.replace(/\D/g, '') }))} />
+            <button className="btn btn-outline btn-sm" disabled={sending === kind}
+                    onClick={() => send(kind)}>{sending === kind ? 'Đang gửi…' : 'Gửi mã'}</button>
+            <button className="btn btn-primary btn-sm"
+                    disabled={codes[kind].length !== v.codeLength}
+                    onClick={() => confirm(kind)}>Xác nhận</button>
+          </>}
+    </div>
+  );
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      {row('email', v.email, v.emailConfirmed)}
+      {row('phone', v.phone, v.phoneConfirmed)}
+      {!v.email && !v.phone && <p className="section-sub">Tài khoản chưa có email hay số điện thoại nào.</p>}
+
+      <h4 style={{ margin: '22px 0 4px', fontSize: 14.5, fontWeight: 800 }}>Tài khoản đã liên kết</h4>
+      {v.linked.length ? v.linked.map(l => (
+        <div className="verify-row" key={l.provider}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <b>{l.label}</b>
+            <div className="meta">{l.email ?? 'Không có email'}</div>
+          </div>
+          <button className="btn btn-outline btn-sm" onClick={() => unlink(l.provider)}>Bỏ liên kết</button>
+        </div>
+      )) : <p className="section-sub">Chưa liên kết Google, Apple hay Facebook nào.</p>}
+    </div>
+  );
+}
 
 export function ReviewModal() {
   const state = useStore();

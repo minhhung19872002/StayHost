@@ -90,7 +90,8 @@ record(1, "Tìm Đà Lạt 2 khách 3 đêm, giá giống nhau ở 3 nơi",
 newbie = opener()
 email = f"acceptance{int(time.time())}@stayhost.vn"
 st, user = call(newbie, "/api/account/register",
-                {"email": email, "password": "stayhost123", "fullName": "Khách Nghiệm Thu", "phone": None})
+                {"email": email, "password": "stayhost123", "fullName": "Khách Nghiệm Thu",
+                 "phone": None, "dateOfBirth": "1995-06-15"})   # docs/01 TK-03: đủ 18 tuổi
 st_v, verify = call(newbie, "/api/account/send-verification")
 _, listings = call(newbie, "/api/listings?pageSize=3")
 first = listings['items'][0]

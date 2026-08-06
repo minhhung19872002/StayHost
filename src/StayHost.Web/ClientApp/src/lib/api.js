@@ -185,6 +185,14 @@ export const api = {
   cancelExperienceBooking: id =>
     request(`/api/experiences/bookings/${id}/cancel`, { method: 'POST' }),
 
+  /* docs/01 TK-01 và TK-02 — xác thực bằng mã và đăng nhập qua nhà cung cấp. */
+  verification: () => request('/api/account/verification'),
+  sendCode: kind => request('/api/account/send-code', { method: 'POST', body: JSON.stringify({ kind }) }),
+  confirmCode: (kind, code) =>
+    request('/api/account/confirm-code', { method: 'POST', body: JSON.stringify({ kind, code }) }),
+  externalSignIn: body => request('/api/account/external', { method: 'POST', body: JSON.stringify(body) }),
+  unlinkProvider: provider => request(`/api/account/external/${provider}`, { method: 'DELETE' }),
+
   /* docs/06 — StayShield. */
   shieldTerms: side => request(`/api/shield/terms${qs({ side })}`),
   shieldClaims: () => request('/api/shield'),

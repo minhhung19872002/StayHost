@@ -21,14 +21,27 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
 
     /* ------------------------------------------------------------ register */
 
-    public async Task<AuthResult> RegisterAsync(string email, string password, string fullName, string? phone, CancellationToken ct)
+    /// <summary>
+    /// docs/01 TK-01 — either an email or a phone number is enough, and TK-03
+    /// puts an age gate in front of both.
+    /// </summary>
+    public async Task<AuthResult> RegisterAsync(
+        string? email, string password, string fullName, string? phone, CancellationToken ct,
+        DateOnly? dateOfBirth = null)
     {
-        email = email.Trim().ToLowerInvariant();
+        email = (email ?? "").Trim().ToLowerInvariant();
+        var normalisedPhone = Identity.NormalisePhone(phone);
 
-        if (!email.Contains('@') || email.Length < 5) return new(false, "Email không hợp lệ.");
-        if (password.Length < 8) return new(false, "Mật khẩu cần tối thiểu 8 ký tự.");
-        if (string.IsNullOrWhiteSpace(fullName)) return new(false, "Vui lòng nhập họ tên.");
-        if (await db.Users.AnyAsync(u => u.Email == email, ct)) return new(false, "Email này đã được đăng ký.");
+        var taken =
+            (email.Length > 0 && await db.Users.AnyAsync(u => u.Email == email, ct))
+            || (normalisedPhone is not null && await db.Users.AnyAsync(u => u.Phone == normalisedPhone, ct));
+
+        var check = Identity.CanRegister(
+            email.Length > 0 ? email : null,
+            string.IsNullOrWhiteSpace(phone) ? null : phone,
+            password, fullName, dateOfBirth, DateOnly.FromDateTime(DateTime.UtcNow), taken);
+
+        if (!check.Ok) return new(false, check.Message);
 
         var (hash, salt) = PasswordHasher.Hash(password);
         var user = new User
@@ -36,7 +49,8 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
             Email = email,
             FullName = fullName.Trim(),
             Initials = MakeInitials(fullName),
-            Phone = phone?.Trim(),
+            Phone = normalisedPhone,
+            DateOfBirth = dateOfBirth,
             PasswordHash = hash,
             PasswordSalt = salt,
             Role = UserRole.Guest,
@@ -53,18 +67,57 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
 
     /* --------------------------------------------------------------- login */
 
+    /// <summary>docs/01 TK-01 — people sign in with whichever one they gave us.</summary>
     public async Task<AuthResult> LoginAsync(string email, string password, CancellationToken ct)
     {
-        email = email.Trim().ToLowerInvariant();
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
+        var typed = (email ?? "").Trim();
+        var asEmail = typed.ToLowerInvariant();
+        var asPhone = Identity.NormalisePhone(typed);
 
-        // Same message either way so the endpoint does not leak which emails exist.
-        if (user is null || !PasswordHasher.Verify(password, user.PasswordHash, user.PasswordSalt))
-            return new(false, "Email hoặc mật khẩu không đúng.");
+        var user = asPhone is not null
+            ? await db.Users.FirstOrDefaultAsync(u => u.Phone == asPhone, ct)
+            : await db.Users.FirstOrDefaultAsync(u => u.Email == asEmail, ct);
+
+        // Same message either way so the endpoint does not leak which accounts exist.
+        // An external-only account has no password hash to verify against.
+        if (user is null
+            || string.IsNullOrEmpty(user.PasswordHash)
+            || !PasswordHasher.Verify(password, user.PasswordHash, user.PasswordSalt))
+            return new(false, "Email, số điện thoại hoặc mật khẩu không đúng.");
 
         await AdoptAnonymousDataAsync(user, ct);
         await IssueSessionAsync(user, ct);
         return new(true, null, user);
+    }
+
+    /// <summary>Starts a session for somebody a provider just vouched for (docs/01 TK-02).</summary>
+    public Task SignInAsync(User user, CancellationToken ct) => IssueSessionAsync(user, ct);
+
+    /// <summary>
+    /// docs/01 TK-02 — an account created from a Google, Apple or Facebook
+    /// identity. There is no password: the provider is the way in, and the
+    /// account has to set one before unlinking the last provider.
+    /// </summary>
+    public async Task<User> CreateExternalUserAsync(string email, string fullName, CancellationToken ct)
+    {
+        var user = new User
+        {
+            Email = email,
+            FullName = fullName.Trim(),
+            Initials = MakeInitials(fullName),
+            // The provider already proved the address it handed over.
+            EmailConfirmed = email.Length > 0,
+            PasswordHash = "",
+            PasswordSalt = "",
+            Role = UserRole.Guest,
+            AdoptedSessionId = Ctx.SessionId()
+        };
+
+        db.Users.Add(user);
+        await db.SaveChangesAsync(ct);
+        await AdoptAnonymousDataAsync(user, ct);
+
+        return user;
     }
 
     public async Task LogoutAsync(CancellationToken ct)

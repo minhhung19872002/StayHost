@@ -4,8 +4,9 @@ Nguồn: `docs/00` → `docs/05`. Mã yêu cầu giữ nguyên theo `01-DANH-MUC
 
 Trạng thái: ✅ đúng spec (không còn mục 🟡 sai/thiếu hay ⬜ chưa có)
 
-> **Mọi mục trong lộ trình đã xong, kể cả StayShield.** Khách bổ sung
-> `docs/06-STAYSHIELD.md` và chốt 14 tham số ngày 06/08/2026; xem §8 dưới đây.
+> **Lộ trình 8 giai đoạn đã đi hết.** Nhưng bản plan này trước đây chỉ liệt kê 58
+> trong 201 mã yêu cầu của `docs/01`, nên "hết mục" từng bị hiểu nhầm là "hết
+> việc". §9 dưới đây liệt kê phần còn thiếu đã soát ở mức code, không đoán.
 
 ---
 
@@ -87,6 +88,24 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 ---
 
 ## Lộ trình — đã đi hết A → D
+
+### Giai đoạn 9 — Tài khoản (nhóm `TK`) 🟡 đang làm
+Nhóm này trước đây **không có trong plan**, nên chưa từng được đối chiếu.
+
+- [x] `TK-01` đăng ký bằng **số điện thoại hoặc email**, xác thực bằng **mã OTP 6 số**
+      (hết hạn 10 phút, tối đa 5 lần nhập, chờ 60 giây mới gửi lại được)
+- [x] `TK-02` đăng nhập bằng **Google / Apple / Facebook**, gắn nhiều nhà cung cấp vào
+      một tài khoản, không cho bỏ liên kết cuối khi chưa có mật khẩu
+- [x] `TK-03` bắt buộc **đủ 18 tuổi**, tính theo ngày chứ không theo năm
+- [x] `TK-08` xem và thu hồi phiên đăng nhập trên từng thiết bị
+- [x] `TK-09` cài đặt ngôn ngữ, tiền tệ
+- [ ] `TK-04` hồ sơ đầy đủ: ngôn ngữ nói, nơi ở, nghề nghiệp, sở thích (P0)
+- [ ] `TK-05` trang hồ sơ công khai (P0)
+- [ ] `TK-06` xác minh giấy tờ tuỳ thân + selfie (P1)
+- [ ] `TK-07` xác minh email công ty (P2)
+- [ ] `TK-08` phần **bảo mật 2 lớp** (P1)
+- [ ] `TK-10` ma trận thông báo: loại × kênh (P1)
+- [ ] `TK-11` tải toàn bộ dữ liệu cá nhân (P1)
 
 ### Giai đoạn 0 — Nền ✅
 - [x] Chuyển frontend sang React 19 + Vite + React Router 7
@@ -174,10 +193,31 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 
 ---
 
+## 9. Phần còn thiếu — soát ở mức code, không đoán
+
+Plan cũ chỉ ghi 58/201 mã. Đã dò từng mã đáng ngờ trong mã nguồn; những mục dưới đây
+**thật sự chưa có**. Phần lớn mã còn lại tuy không được liệt kê nhưng đã làm
+(ví dụ `ĐP-01`, `TM-01`, `TĐ-01`, `CĐ-01`, `YT-01`, `ĐG-04`, `TC-01` đều chạy).
+
+| Mã | Việc | Ưu tiên |
+|---|---|---|
+| `TK-04`, `TK-05` | Hồ sơ cá nhân đầy đủ và trang hồ sơ công khai | P0 |
+| `TK-06` | Xác minh giấy tờ tuỳ thân + selfie | P1 |
+| `TK-08` | Bảo mật 2 lớp (phần phiên thiết bị đã có) | P1 |
+| `TK-10`, `TK-11` | Ma trận thông báo · tải dữ liệu cá nhân | P1 |
+| `CĐ-03`, `CĐ-04` | Hướng dẫn nhận phòng · mã cửa chỉ hiện trước 48 giờ | P0/P1 |
+| `TĐ-03`, `TN-06` | Dịch mô tả tin đăng · dịch tin nhắn | P1 |
+| `TC-03` | Đơn từ 28 đêm trở lên thu theo từng tháng | P1 |
+| `ĐG-10` | Báo cáo đánh giá vi phạm | P1 |
+| `QL-09` | Gợi ý giá theo nhu cầu thị trường | P2 |
+| `XH-01`→`XH-03` | Kết bạn, bản đồ hành trình, hỏi bạn bè | P2 |
+
+---
+
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (311 test)
+# Test nghiệp vụ (327 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

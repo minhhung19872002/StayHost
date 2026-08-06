@@ -9,7 +9,9 @@ namespace StayHost.Web.Controllers;
 
 [ApiController]
 [Route("api/account")]
-public class AccountController(AuthService auth, StayHostDbContext db, WalletService wallet) : ControllerBase
+public class AccountController(
+    AuthService auth, StayHostDbContext db, WalletService wallet, IdentityService identity)
+    : ControllerBase
 {
     /// <summary>204 when nobody is signed in, so clients get an unambiguous empty response.</summary>
     [HttpGet("me")]
@@ -22,7 +24,8 @@ public class AccountController(AuthService auth, StayHostDbContext db, WalletSer
     [HttpPost("register")]
     public async Task<ActionResult<CurrentUserDto>> Register([FromBody] RegisterRequest req, CancellationToken ct)
     {
-        var result = await auth.RegisterAsync(req.Email, req.Password, req.FullName, req.Phone, ct);
+        var result = await auth.RegisterAsync(
+            req.Email, req.Password, req.FullName, req.Phone, ct, req.DateOfBirth);
         if (!result.Ok) return BadRequest(new { message = result.Error });
 
         // A referral code typed at signup, or simply the email somebody invited:
@@ -39,6 +42,100 @@ public class AccountController(AuthService auth, StayHostDbContext db, WalletSer
         if (!result.Ok) return Unauthorized(new { message = result.Error });
         return Ok(await ToDtoAsync(result.User!, ct));
     }
+
+    /* ------------------------------------------------- docs/01 TK-01: OTP */
+
+    /// <summary>
+    /// Sends a six-digit code to the account's phone or email. In development
+    /// the code comes back in the response — there is no SMS provider behind
+    /// this build and it is the only way to finish the flow end to end.
+    /// </summary>
+    [HttpPost("send-code")]
+    public async Task<IActionResult> SendCode([FromBody] SendCodeRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var kind = ParseKind(req.Kind);
+        var result = await identity.SendCodeAsync(user, kind, ct);
+
+        return result.Ok
+            ? Ok(new
+            {
+                message = $"Đã gửi mã tới {Identity.KindLabel(kind)} của bạn.",
+                devCode = result.DevCode
+            })
+            : BadRequest(new { message = result.Error });
+    }
+
+    [HttpPost("confirm-code")]
+    public async Task<ActionResult<CurrentUserDto>> ConfirmCode(
+        [FromBody] ConfirmCodeRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var result = await identity.ConfirmCodeAsync(user, ParseKind(req.Kind), req.Code, ct);
+        if (!result.Ok) return BadRequest(new { message = result.Error });
+
+        return Ok(await ToDtoAsync(user, ct));
+    }
+
+    /// <summary>What is confirmed and what is linked, for the account screen.</summary>
+    [HttpGet("verification")]
+    public async Task<ActionResult<VerificationStateDto>> Verification(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var linked = await identity.LinkedAsync(user.Id, ct);
+
+        return Ok(new VerificationStateDto(
+            string.IsNullOrWhiteSpace(user.Email) ? null : user.Email,
+            user.EmailConfirmed,
+            user.Phone,
+            user.PhoneConfirmed,
+            Identity.CodeLength,
+            (int)Identity.CodeLifetime.TotalMinutes,
+            linked.Select(l => new LinkedLoginDto(
+                l.Provider.ToString().ToLower(), Identity.ProviderLabel(l.Provider),
+                l.ProviderEmail, l.LastUsedAt)).ToList()));
+    }
+
+    /* --------------------------------- docs/01 TK-02: Google, Apple, Facebook */
+
+    [HttpPost("external")]
+    public async Task<ActionResult<CurrentUserDto>> External(
+        [FromBody] ExternalSignInRequest req, CancellationToken ct)
+    {
+        if (!Enum.TryParse<ExternalProvider>(req.Provider, true, out var provider))
+            return BadRequest(new { message = "Chỉ hỗ trợ Google, Apple hoặc Facebook." });
+
+        var result = await identity.SignInWithAsync(
+            provider, req.ProviderUserId, req.Email, req.FullName, ct);
+
+        if (!result.Ok) return BadRequest(new { message = result.Error });
+
+        return Ok(await ToDtoAsync(result.User!, ct));
+    }
+
+    [HttpDelete("external/{provider}")]
+    public async Task<IActionResult> Unlink(string provider, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        if (!Enum.TryParse<ExternalProvider>(provider, true, out var parsed))
+            return BadRequest(new { message = "Nhà cung cấp không hợp lệ." });
+
+        var error = await identity.UnlinkAsync(user, parsed, ct);
+        return error is null ? NoContent() : BadRequest(new { message = error });
+    }
+
+    private static IdentifierKind ParseKind(string? kind) =>
+        string.Equals(kind, "phone", StringComparison.OrdinalIgnoreCase)
+            ? IdentifierKind.Phone
+            : IdentifierKind.Email;
 
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(CancellationToken ct)
@@ -194,6 +291,7 @@ public class AccountController(AuthService auth, StayHostDbContext db, WalletSer
             user.Id, user.Email, user.FullName, user.Initials, user.Phone, user.Bio,
             user.Role.ToString(), host is not null, host?.Id, listingCount, unread,
             user.EmailConfirmed,
-            $"Tham gia StayHost tháng {user.CreatedAt.Month}, {user.CreatedAt.Year}");
+            $"Tham gia StayHost tháng {user.CreatedAt.Month}, {user.CreatedAt.Year}",
+            user.PhoneConfirmed);
     }
 }

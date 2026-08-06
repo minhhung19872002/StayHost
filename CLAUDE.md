@@ -36,10 +36,10 @@ thì **code sai**, không phải tài liệu sai.
 
 ---
 
-## 3. Hiện trạng — mọi mục trong `docs/PLAN.md` đã xong
+## 3. Hiện trạng
 
 **10/10 tình huống nghiệm thu** của `docs/04` chạy được trên server thật
-(`scripts/acceptance.py`). **311 test nghiệp vụ** xanh.
+(`scripts/acceptance.py`). **327 test nghiệp vụ** xanh.
 
 ### Nền
 
@@ -60,6 +60,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Thanh toán | Trả đủ, trả một phần (cọc ≥50% + tự thu trước 14 ngày), chia hoá đơn tối đa 16 người |
 | Đánh giá & tin nhắn | Đánh giá mù hai chiều, sửa trong 48h, gửi ảnh, thẻ đơn trong hội thoại, mẫu trả lời nhanh |
 | An toàn | Trung tâm giải quyết, trung tâm trợ giúp 14 bài, phát hiện bất thường, nhật ký quản trị chỉ-thêm |
+| Tài khoản | Đăng ký bằng SĐT hoặc email + OTP 6 số, đăng nhập Google/Apple/Facebook, chặn dưới 18 tuổi |
 | StayShield | Hai nhánh K1–K4 / C1–C4 (kể cả bên thứ ba), cửa sổ khiếu nại, thứ tự thu tiền, quỹ trích từ phí dịch vụ, khiếu nại một lần do người khác xét |
 | Mở rộng | Trải nghiệm (bán theo vé), Dịch vụ (bán theo khung giờ + bán kính), Khách sạn (nhiều loại phòng có tồn kho), thẻ quà tặng, số dư, giới thiệu bạn bè |
 
@@ -114,7 +115,7 @@ duy nhất chạy được nhánh "thu lần hai thất bại" của `docs/03 §
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 311 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 327 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 cd src/StayHost.Web/ClientApp && npm run build && npx oxlint src
 
@@ -135,6 +136,9 @@ docker exec stayhost-db psql -U stayhost -d stayhost -t \
 - Số dư khách cũng là sổ chỉ-thêm: số dư là tổng các dòng, không phải một cột bị ghi đè.
 - **StayShield không bao giờ được gọi là bảo hiểm** (`docs/06 §11`). Mọi chữ hiển thị
   là "chính sách hỗ trợ". Có `Shield.ReadsAsInsurance` và test chặn từ ngữ này.
+- **`docs/PLAN.md` không phải danh sách đầy đủ.** Nó từng chỉ ghi 58/201 mã của
+  `docs/01`, nên "hết mục trong plan" ≠ "hết việc". Xem §9 của plan để biết phần
+  còn thiếu; đối chiếu thẳng với `docs/01` khi cần chắc chắn.
 - Kiểm chứng bằng app đang chạy thật, không chỉ đọc code.
 - Commit theo từng mốc có nghĩa, push lên `origin main`.
 

@@ -3,9 +3,35 @@ namespace StayHost.Web.Contracts;
 /* ------------------------------------------------------------------ account */
 
 public record RegisterRequest(
-    string Email, string Password, string FullName, string? Phone,
+    /// <summary>docs/01 TK-01 — either this or <see cref="Phone"/> is enough.</summary>
+    string? Email, string Password, string FullName, string? Phone,
     /// <summary>Optional: the code a friend sent. Falls back to matching on email.</summary>
-    string? ReferralCode = null);
+    string? ReferralCode = null,
+    /// <summary>docs/01 TK-03 — required, and it has to put them over 18.</summary>
+    DateOnly? DateOfBirth = null);
+
+/* ---- docs/01 TK-01 and TK-02 -------------------------------------------- */
+
+public record SendCodeRequest(string? Kind);
+public record ConfirmCodeRequest(string? Kind, string? Code);
+
+public record ExternalSignInRequest(
+    string? Provider,
+    /// <summary>The provider's own id for this person, from the verified token.</summary>
+    string? ProviderUserId,
+    string? Email,
+    string? FullName);
+
+public record LinkedLoginDto(string Provider, string Label, string? Email, DateTime? LastUsedAt);
+
+public record VerificationStateDto(
+    string? Email,
+    bool EmailConfirmed,
+    string? Phone,
+    bool PhoneConfirmed,
+    int CodeLength,
+    int CodeMinutes,
+    IReadOnlyList<LinkedLoginDto> Linked);
 
 public record LoginRequest(string Email, string Password);
 
@@ -34,7 +60,9 @@ public record CurrentUserDto(
     int ListingCount,
     int UnreadMessages,
     bool EmailConfirmed,
-    string JoinedLabel);
+    string JoinedLabel,
+    /// <summary>docs/01 TK-01 — the phone was proved with a six-digit code.</summary>
+    bool PhoneConfirmed = false);
 
 /* ------------------------------------------------------------------ hosting */
 

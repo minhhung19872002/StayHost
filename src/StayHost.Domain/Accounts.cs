@@ -68,6 +68,15 @@ public class User
     public bool IsIdentityVerified { get; set; }
     public bool EmailConfirmed { get; set; }
 
+    /// <summary>docs/01 TK-01 — the phone was verified with a six-digit code.</summary>
+    public bool PhoneConfirmed { get; set; }
+
+    /// <summary>docs/01 TK-03 — nobody under 18 may hold an account.</summary>
+    public DateOnly? DateOfBirth { get; set; }
+
+    /// <summary>docs/01 TK-02 — Google, Apple or Facebook accounts attached to this one.</summary>
+    public List<ExternalLogin> ExternalLogins { get; set; } = [];
+
     public string? Bio { get; set; }
     public string? AvatarUrl { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

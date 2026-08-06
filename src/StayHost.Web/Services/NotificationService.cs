@@ -30,6 +30,14 @@ public class NotificationService(StayHostDbContext db, ILogger<NotificationServi
 
         Queue(recipient.Id, kind, title, body, link);
 
+        // Somebody who signed up with a phone has no address to write to
+        // (docs/01 TK-01); the in-app notification above is all they get.
+        if (string.IsNullOrWhiteSpace(recipient.Email))
+        {
+            log.LogInformation("No email on file for user {UserId}; in-app only.", recipient.Id);
+            return;
+        }
+
         db.EmailMessages.Add(new EmailMessage
         {
             ToEmail = recipient.Email,

@@ -1580,3 +1580,31 @@ select.field { width: 100%; padding: 10px 12px; }
 }
 .rehouse-head { display: flex; gap: 12px; align-items: start; flex-wrap: wrap; }
 .rehouse-head b { font-size: 15px; }
+
+/* ---- signing in (docs/01 TK-01, TK-02) ---------------------------------- */
+
+.auth-providers { display: grid; gap: 8px; margin-bottom: 4px; }
+.auth-provider {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 12px 16px; border: 1px solid var(--ink); border-radius: var(--r-field);
+  background: #fff; font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer;
+}
+.auth-provider:hover { background: var(--wash); }
+.auth-provider:disabled { opacity: 0.55; cursor: default; }
+
+.auth-or {
+  display: flex; align-items: center; gap: 12px; margin: 16px 0;
+  color: var(--ink-muted); font-size: 12.5px;
+}
+.auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+.verify-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 14px 0; border-bottom: 1px solid var(--line);
+}
+.verify-row b { font-size: 14.5px; }
+.verify-row .meta { font-size: 13px; color: var(--ink-muted); margin-top: 2px; }
+.verify-code {
+  width: 140px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+  font-size: 18px; font-weight: 700; letter-spacing: 4px; text-align: center;
+}

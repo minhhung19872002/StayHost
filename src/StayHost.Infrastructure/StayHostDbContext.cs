@@ -51,6 +51,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<CreditEntry> CreditEntries => Set<CreditEntry>();
     public DbSet<GiftCard> GiftCards => Set<GiftCard>();
     public DbSet<Referral> Referrals => Set<Referral>();
+    public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
+    public DbSet<OneTimeCode> OneTimeCodes => Set<OneTimeCode>();
     public DbSet<ShieldClaim> ShieldClaims => Set<ShieldClaim>();
     public DbSet<ShieldEvidence> ShieldEvidence => Set<ShieldEvidence>();
     public DbSet<ShieldItem> ShieldItems => Set<ShieldItem>();
@@ -74,8 +76,12 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
         b.Entity<User>(e =>
         {
             e.ToTable("users");
-            e.HasIndex(x => x.Email).IsUnique();
+            // docs/01 TK-01 lets somebody sign up with a phone and no email, so
+            // the uniqueness has to skip the blanks rather than collide on them.
+            e.HasIndex(x => x.Email).IsUnique().HasFilter("\"Email\" <> ''");
+            e.HasIndex(x => x.Phone).IsUnique().HasFilter("\"Phone\" IS NOT NULL AND \"Phone\" <> ''");
             e.Property(x => x.Email).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Phone).HasMaxLength(20);
             e.Property(x => x.FullName).HasMaxLength(150).IsRequired();
             e.Property(x => x.Initials).HasMaxLength(4);
             e.Property(x => x.PasswordHash).HasMaxLength(200).IsRequired();
@@ -224,6 +230,29 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.SlotId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.GuestUser).WithMany()
                 .HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ExternalLogin>(e =>
+        {
+            e.ToTable("external_logins");
+            // One account per provider identity, and one link per provider per user.
+            e.HasIndex(x => new { x.Provider, x.ProviderUserId }).IsUnique();
+            e.HasIndex(x => new { x.UserId, x.Provider }).IsUnique();
+            e.Property(x => x.ProviderUserId).HasMaxLength(200).IsRequired();
+            e.Property(x => x.ProviderEmail).HasMaxLength(200);
+            e.HasOne(x => x.User).WithMany(u => u.ExternalLogins)
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<OneTimeCode>(e =>
+        {
+            e.ToTable("one_time_codes");
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
+            e.Property(x => x.SentTo).HasMaxLength(200).IsRequired();
+            e.Property(x => x.CodeHash).HasMaxLength(200).IsRequired();
+            e.Property(x => x.CodeSalt).HasMaxLength(100).IsRequired();
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<ShieldClaim>(e =>
