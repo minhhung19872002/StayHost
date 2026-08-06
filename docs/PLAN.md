@@ -4,9 +4,8 @@ Nguồn: `docs/00` → `docs/05`. Mã yêu cầu giữ nguyên theo `01-DANH-MUC
 
 Trạng thái: ✅ đúng spec · 🟡 có nhưng **sai/thiếu so với spec** · ⬜ chưa có
 
-> **Mọi mục trong lộ trình 7 giai đoạn đã xong.** Còn lại duy nhất chương trình
-> bảo vệ **StayShield** (`docs/00 §4`) — khách chưa đưa yêu cầu chi tiết nên chưa
-> làm được.
+> **Mọi mục trong lộ trình đã xong, kể cả StayShield.** Khách bổ sung
+> `docs/06-STAYSHIELD.md` và chốt 14 tham số ngày 06/08/2026; xem §8 dưới đây.
 
 ---
 
@@ -143,6 +142,20 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 - [x] `AT-07` trung tâm trợ giúp thật: 14 bài, tìm không dấu, tách khách/chủ nhà
 - [x] `AT-11` phát hiện bất thường: tài khoản mới đặt lớn, nhiều thẻ, nhiều huỷ, đặt dồn dập
 
+### Giai đoạn 8 — StayShield ✅
+- [x] `AT-06-01` trang giới thiệu hai nhánh, nêu rõ phạm vi, hạn mức, loại trừ
+- [x] `AT-06-02` nút "Chỗ ở có vấn đề" chỉ hiện trong 72 giờ đầu
+- [x] `AT-06-03`/`AT-06-04` biểu mẫu mở hồ sơ cho khách (K2–K4) và chủ nhà (C1–C3)
+- [x] `AT-06-05` kiểm tra điều kiện tự động: còn hạn, đã nhắn trong sàn, đủ bằng chứng
+- [x] `AT-06-06`/`AT-06-07` màn hình theo dõi và phản hồi (đồng ý / một phần / phản đối)
+- [x] `AT-06-09` màn hình phân xử · `AT-06-10` thi hành và ghi sổ từng khoản
+- [x] `AT-06-11` khiếu nại một lần, người khác xét · `AT-06-14` thông báo từng bước
+- [x] `AT-06-12` bảng theo dõi quỹ, cảnh báo ngưỡng 80% · `AT-06-13` gắn cờ lạm dụng
+- [x] `K1` mở hồ sơ tự động khi chủ nhà huỷ trong 30 ngày trước ngày nhận
+- [x] §11: không có từ ngữ bảo hiểm ở bất kỳ đâu người dùng đọc được — có test chặn
+- [ ] `AT-06-08` công cụ tìm chỗ thay thế cho nhân viên hỗ trợ — hiện dùng tìm kiếm sẵn có
+- [ ] Nhánh `C4` (trách nhiệm bên thứ ba) — khách chốt **để sau**
+
 ### Giai đoạn 7 — Mở rộng ⬜ gần như chưa bắt đầu
 - [x] `ĐP-06` trả một phần: cọc ≥50%, tự thu phần còn lại trước 14 ngày, thử lại 72h rồi huỷ
 - [x] `ĐP-07` chia hoá đơn tối đa 16 người, mỗi người một liên kết, giữ chỗ 24h
@@ -160,7 +173,7 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (266 test)
+# Test nghiệp vụ (303 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

@@ -1539,3 +1539,37 @@ select.field { width: 100%; padding: 10px 12px; }
 }
 .wallet-balance span { font-size: 13px; color: var(--ink-muted); }
 .wallet-balance b { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; }
+
+/* ---- StayShield (docs/06) ----------------------------------------------- */
+
+.shield-mark {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 999px; background: var(--brand-soft); color: var(--brand-dark);
+  font-size: 12.5px; font-weight: 800; letter-spacing: 0.02em;
+}
+
+.shield-intro { margin: 18px 0 0; font-size: 16px; line-height: 1.75; color: var(--ink-body); }
+
+.shield-list { margin: 12px 0 0; padding-left: 22px; }
+.shield-list li { margin-bottom: 10px; font-size: 15px; line-height: 1.65; color: var(--ink-body); }
+.shield-list.is-muted li { color: var(--ink-muted); }
+
+.shield-disclaimer {
+  margin-top: 26px; padding: 18px; border-radius: 14px; background: var(--wash);
+  font-size: 13px; line-height: 1.7; color: var(--ink-muted);
+}
+
+.shield-note {
+  padding: 14px 16px; border-radius: 12px; background: var(--brand-soft);
+  font-size: 13.5px; line-height: 1.6; color: var(--ink-body);
+}
+
+.shield-item-row { display: grid; grid-template-columns: 1fr 130px auto; gap: 8px; align-items: center; }
+.shield-item-row input[type="text"], .shield-item-row input:not([type]) {
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; width: 100%;
+}
+.shield-declared {
+  display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-muted);
+  white-space: nowrap;
+}
+@media (max-width: 620px) { .shield-item-row { grid-template-columns: 1fr; } }

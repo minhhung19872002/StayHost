@@ -32,6 +32,7 @@ builder.Services.AddScoped<SplitBillService>();
 builder.Services.AddScoped<ExperienceService>();
 builder.Services.AddScoped<ServiceMarketService>();
 builder.Services.AddScoped<WalletService>();
+builder.Services.AddScoped<ShieldService>();
 builder.Services.AddScoped<HostAccess>();
 builder.Services.AddScoped<CalendarSyncService>();
 builder.Services.AddHttpClient("ical");

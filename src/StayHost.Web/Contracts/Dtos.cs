@@ -1219,3 +1219,119 @@ public record WalletDto(
 public record BuyGiftCardRequest(decimal Amount, string? RecipientEmail, string? RecipientName, string? Message);
 public record RedeemGiftCardRequest(string? Code);
 public record InviteFriendRequest(string? Email);
+
+/* ---- docs/06 — StayShield ------------------------------------------------ */
+
+public record ShieldEvidenceDto(int Id, string Url, string? Caption, string Kind);
+
+public record ShieldItemDto(
+    int Id,
+    string Name,
+    decimal Value,
+    /// <summary>docs/06 §3.2 C-E — declared on the listing before the guest arrived.</summary>
+    bool DeclaredOnListing,
+    /// <summary>What the per-item ceiling let through.</summary>
+    decimal Allowed);
+
+public record ShieldEventDto(
+    int Id,
+    string? FromStatus,
+    string ToStatus,
+    string ToStatusLabel,
+    string Actor,
+    string Note,
+    DateTime CreatedAt);
+
+public record ShieldClaimDto(
+    int Id,
+    string Reference,
+    int BookingId,
+    string BookingReference,
+    string ListingTitle,
+    string ListingSlug,
+    string Side,
+    string Kind,
+    string KindLabel,
+    string Status,
+    string StatusLabel,
+    string StatusBadge,
+    string Description,
+    decimal Claimed,
+    decimal ExpensesClaimed,
+    decimal RehousingDifference,
+    string Remedy,
+    decimal Approved,
+    decimal Deductible,
+    decimal CreditGranted,
+    decimal PaidFromFund,
+    decimal RecoveredFromCounterparty,
+    decimal RecoveredLater,
+    string? Decision,
+    DateTime? DecidedAt,
+    bool Appealed,
+    /// <summary>docs/06 §7 — a flagged account never settles itself.</summary>
+    bool NeedsManualReview,
+    DateTime RespondBy,
+    DateTime FirstResponseDueAt,
+    DateTime DecisionDueAt,
+    DateTime CreatedAt,
+    string OpenedByName,
+    bool OpenedByMe,
+    IReadOnlyList<ShieldEvidenceDto> Evidence,
+    IReadOnlyList<ShieldItemDto> Items,
+    IReadOnlyList<ShieldEventDto> Events);
+
+public record ShieldCaseTotalDto(string Kind, string Label, int Count, decimal PaidFromFund);
+
+public record ShieldFundDto(
+    decimal Balance,
+    decimal ContributedThisMonth,
+    decimal SpentThisMonth,
+    decimal RecoveredThisMonth,
+    /// <summary>docs/06 §5 — spending has passed the warning threshold for the month.</summary>
+    bool Alarm,
+    decimal ContributionRate,
+    decimal AlarmRate,
+    IReadOnlyList<ShieldCaseTotalDto> ByCase);
+
+public record ShieldEvidenceInput(string? Url, string? Caption, string? Kind);
+
+public record ShieldItemInput(string? Name, decimal Value, bool DeclaredOnListing);
+
+public record OpenShieldClaimRequest(
+    string? Kind,
+    string? Description,
+    /// <summary>docs/06 §2.2 — a safety matter or strangers inside skips the waiting period.</summary>
+    bool Urgent = false,
+    decimal ExpensesClaimed = 0,
+    decimal RehousingDifference = 0,
+    IReadOnlyList<ShieldEvidenceInput>? Evidence = null,
+    IReadOnlyList<ShieldItemInput>? Items = null);
+
+public record RespondShieldRequest(string? Answer, decimal? AgreedAmount, string? Note);
+
+public record DecideShieldRequest(
+    bool Approve,
+    string? Reason,
+    /// <summary>Guest cases: Rehoused · SelfRehoused · Refunded (docs/06 §2.3).</summary>
+    string? Remedy = null,
+    int? NightsUnused = null,
+    /// <summary>Host cases: what the arbitration allows before ceilings and the excess.</summary>
+    decimal? ApprovedAmount = null,
+    decimal? DepositAvailable = null,
+    decimal? RecoverFromGuest = null);
+
+public record RecoverShieldRequest(decimal Amount);
+
+/// <summary>docs/06 §8 AT-06-01 — what the programme covers, in the platform's own words.</summary>
+public record ShieldTermsDto(
+    string Side,
+    string Title,
+    string Intro,
+    IReadOnlyList<ShieldTermsSectionDto> Sections,
+    IReadOnlyList<string> Exclusions,
+    string Disclaimer);
+
+public record ShieldTermsSectionDto(string Heading, IReadOnlyList<string> Points);
+
+public record HostCancelRequest(string? Reason);

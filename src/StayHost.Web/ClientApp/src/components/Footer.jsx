@@ -5,12 +5,12 @@ import { openOverlay, toast } from '../lib/store.js';
 const COLUMNS = [
   {
     title: 'Hỗ trợ',
-    links: ['Trung tâm trợ giúp', 'AirCover cho khách', 'Chống phân biệt đối xử',
+    links: ['Trung tâm trợ giúp', 'StayShield cho khách', 'Chống phân biệt đối xử',
             'Hỗ trợ người khuyết tật', 'Tuỳ chọn huỷ', 'Báo cáo lo ngại khu dân cư']
   },
   {
     title: 'Đón tiếp khách',
-    links: ['Cho thuê nhà trên StayHost', 'AirCover cho Chủ nhà', 'Tài nguyên cho Chủ nhà',
+    links: ['Cho thuê nhà trên StayHost', 'StayShield cho Chủ nhà', 'Tài nguyên cho Chủ nhà',
             'Diễn đàn cộng đồng', 'Đón tiếp khách có trách nhiệm', 'Tham gia khoá học miễn phí']
   },
   {
@@ -35,7 +35,9 @@ const ROUTES = {
   'Cho thuê nhà trên StayHost': '/host',
   'Trải nghiệm': '/experiences',
   'Dịch vụ': '/services',
-  'Thẻ quà tặng': '/wallet'
+  'Thẻ quà tặng': '/wallet',
+  'StayShield cho khách': '/shield/terms',
+  'StayShield cho Chủ nhà': '/shield/terms'
 };
 
 export function Footer() {

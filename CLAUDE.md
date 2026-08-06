@@ -17,24 +17,29 @@ thì **code sai**, không phải tài liệu sai.
 | `docs/03-QUY-TAC-NGHIEP-VU.md` | **Quan trọng nhất** — giá, huỷ/hoàn tiền, vòng đời đơn, xếp hạng |
 | `docs/04-QUY-TRINH.md` | 14 quy trình đầu-cuối + 10 tình huống nghiệm thu |
 | `docs/05-THUC-THE.md` | Sàn cần biết thông tin gì về từng đối tượng |
+| `docs/06-STAYSHIELD.md` | Chương trình bảo vệ hai đầu. **§10 là bảng tham số đã chốt** |
 | `docs/PLAN.md` | **Đối chiếu hiện trạng ↔ spec.** Bắt đầu phiên mới thì đọc file này trước |
 
 ---
 
-## 2. Hai việc khách đã quyết (06/08/2026)
+## 2. Ba việc khách đã quyết (06/08/2026)
 
 1. **Giữ tên StayHost OS**, giữ danh hiệu "Siêu chủ nhà" / "Khách yêu thích".
-   Không đổi sang StayHub. Chương trình **StayShield** (`docs/00 §4`) vẫn chưa có
-   yêu cầu chi tiết nên chưa làm.
+   Không đổi sang StayHub.
 2. **Phí dịch vụ 14% khách / 3% chủ nhà** theo `docs/03 §1`, để trong cấu hình
    `Pricing:` chứ không rải hằng số khắp nơi.
+3. **14 tham số StayShield** của `docs/06 §10` đã chốt: bù đổi chỗ 40%, tặng số dư
+   10%, trần chi phí phát sinh 3 triệu; chủ nhà 75 triệu/đơn, 350 triệu/năm, tự chịu
+   500k, 5 đêm mất thu nhập, 15 triệu mỗi món giá trị cao; quỹ trích 5% phí dịch vụ,
+   cảnh báo ở 80%, gắn cờ từ hồ sơ thứ 4. **Có trực 24/7**, **chưa làm nhánh C4**.
+   Tất cả nằm trong `ShieldSettings`, một nơi duy nhất.
 
 ---
 
 ## 3. Hiện trạng — mọi mục trong `docs/PLAN.md` đã xong
 
 **10/10 tình huống nghiệm thu** của `docs/04` chạy được trên server thật
-(`scripts/acceptance.py`). **266 test nghiệp vụ** xanh.
+(`scripts/acceptance.py`). **303 test nghiệp vụ** xanh.
 
 ### Nền
 
@@ -55,6 +60,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Thanh toán | Trả đủ, trả một phần (cọc ≥50% + tự thu trước 14 ngày), chia hoá đơn tối đa 16 người |
 | Đánh giá & tin nhắn | Đánh giá mù hai chiều, sửa trong 48h, gửi ảnh, thẻ đơn trong hội thoại, mẫu trả lời nhanh |
 | An toàn | Trung tâm giải quyết, trung tâm trợ giúp 14 bài, phát hiện bất thường, nhật ký quản trị chỉ-thêm |
+| StayShield | Hai nhánh K1–K4 / C1–C3, cửa sổ khiếu nại, thứ tự thu tiền, quỹ trích từ phí dịch vụ, khiếu nại một lần do người khác xét |
 | Mở rộng | Trải nghiệm (bán theo vé), Dịch vụ (bán theo khung giờ + bán kính), Khách sạn (nhiều loại phòng có tồn kho), thẻ quà tặng, số dư, giới thiệu bạn bè |
 
 ---
@@ -108,7 +114,7 @@ duy nhất chạy được nhánh "thu lần hai thất bại" của `docs/03 §
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 266 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 303 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 cd src/StayHost.Web/ClientApp && npm run build && npx oxlint src
 
@@ -127,6 +133,8 @@ docker exec stayhost-db psql -U stayhost -d stayhost -t \
   (`docs/00 §6.8`) — tìm kiếm, trang chi tiết và thanh toán phải ra **cùng một con số**.
 - Sổ sách: mọi khoản tiền ghi hai chiều, **bất biến**, không sửa không xoá (`docs/05`).
 - Số dư khách cũng là sổ chỉ-thêm: số dư là tổng các dòng, không phải một cột bị ghi đè.
+- **StayShield không bao giờ được gọi là bảo hiểm** (`docs/06 §11`). Mọi chữ hiển thị
+  là "chính sách hỗ trợ". Có `Shield.ReadsAsInsurance` và test chặn từ ngữ này.
 - Kiểm chứng bằng app đang chạy thật, không chỉ đọc code.
 - Commit theo từng mốc có nghĩa, push lên `origin main`.
 

@@ -42,6 +42,18 @@ public readonly record struct PartySize(int Adults, int Children = 0, int Infant
 /// <summary>One displayed money row. Amounts are already rounded; negatives are reductions.</summary>
 public sealed record PriceLine(string Key, string Label, decimal Amount);
 
+/// <summary>
+/// The one way money is written for a Vietnamese reader: a dot every three
+/// digits and the đồng sign. Invariant formatting puts commas there, which is
+/// wrong in this language and looks like a bug to anyone reading it.
+/// </summary>
+public static class Vnd
+{
+    public static string Format(decimal amount) =>
+        Math.Round(amount, 0, MidpointRounding.AwayFromZero)
+            .ToString("#,##0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN")) + "₫";
+}
+
 public enum TaxMethod
 {
     /// <summary>A percentage of the configured base.</summary>

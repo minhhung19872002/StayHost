@@ -16,8 +16,62 @@ namespace StayHost.Web.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/host")]
-public class HostOperationsController(StayHostDbContext db, AuthService auth, HostAccess access) : ControllerBase
+public class HostOperationsController(
+    StayHostDbContext db, AuthService auth, HostAccess access, ShieldService shield) : ControllerBase
 {
+    /// <summary>
+    /// A host walking away from a confirmed booking. docs/03 §4 gives the guest
+    /// everything back plus a credit, and docs/06 §2.1 K1 opens a StayShield
+    /// case on their behalf when it happens inside 30 days of check-in — the
+    /// guest should not have to notice and file it themselves.
+    /// </summary>
+    [HttpPost("bookings/{id:int}/cancel")]
+    public async Task<IActionResult> CancelBooking(
+        int id, [FromBody] HostCancelRequest? req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var booking = await db.Bookings
+            .Include(b => b.Events)
+            .Include(b => b.Payment)
+            .Include(b => b.Listing)
+            .FirstOrDefaultAsync(b => b.Id == id, ct);
+        if (booking is null) return NotFound();
+
+        if (await access.ListingAsync(user, booking.ListingId, CoHostScope.Bookings, ct) is null)
+            return this.Denied("Bạn không có quyền với đơn này.");
+
+        if (!BookingLifecycle.CanTransition(booking.Status, BookingStatus.CancelledByHost))
+            return BadRequest(new
+            {
+                message = $"Đơn đang ở trạng thái \"{BookingLifecycle.Label(booking.Status)}\" nên không huỷ được."
+            });
+
+        var outcome = Cancellation.Refund(new Cancellation.Context
+        {
+            Booking = booking,
+            Now = DateTime.UtcNow,
+            By = CancelledBy.Host,
+            ServiceFeeRefundsUsed = 0
+        });
+
+        BookingsController.PostCancellation(
+            db, booking, outcome, CancelledBy.Host,
+            (req?.Reason ?? "Chủ nhà huỷ đơn").Trim());
+
+        await db.SaveChangesAsync(ct);
+
+        await shield.OpenHostCancellationAsync(booking, ct);
+
+        return Ok(new
+        {
+            refunded = outcome.Amount,
+            credit = outcome.GoodwillCredit,
+            message = "Đã huỷ đơn và hoàn tiền cho khách."
+        });
+    }
+
     private async Task<(User? User, HostProfile? Profile)> ResolveAsync(CancellationToken ct)
     {
         var user = await auth.CurrentUserAsync(ct);

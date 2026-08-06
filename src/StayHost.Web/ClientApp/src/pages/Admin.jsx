@@ -62,6 +62,8 @@ export function Admin() {
         <Stat label="Email chờ gửi" value={String(d.queuedEmails)} note="Hàng đợi giao dịch" />
       </div>
 
+      <ShieldPanel />
+
       <RiskPanel />
 
       <Arbitration />
@@ -375,6 +377,116 @@ function Gate({ message, showLogin }) {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * docs/06 §8 AT-06-09 and AT-06-12 — the queue of StayShield cases and the fund
+ * behind them. Deciding one pays it in the same step, so nothing sits decided
+ * but unpaid.
+ */
+function ShieldPanel() {
+  const [rows, setRows] = useState(null);
+  const [fund, setFund] = useState(null);
+
+  const reload = () => {
+    api.shieldQueue().then(setRows).catch(e => toast(e.message));
+    api.shieldFund().then(setFund).catch(() => setFund(null));
+  };
+  useEffect(() => { reload(); }, []);
+
+  const decide = async (claim, approve) => {
+    const reason = prompt(approve ? 'Lý do chấp nhận' : 'Lý do từ chối') ?? '';
+    if (!reason.trim()) return;
+
+    const body = { approve, reason: reason.trim() };
+
+    if (approve && claim.side === 'Guest') {
+      body.remedy = 'Refunded';
+      const nights = prompt('Số đêm khách không được ở?', '1');
+      body.nightsUnused = Number(nights) || 1;
+    }
+
+    if (approve && claim.side === 'Host') {
+      const amount = prompt(`Duyệt bao nhiêu trong ${money(claim.claimed)}?`,
+        String(Math.round(claim.claimed)));
+      body.approvedAmount = Number((amount ?? '').replace(/\D/g, '')) || 0;
+      const fromGuest = prompt('Thu được bao nhiêu từ khách?', '0');
+      body.recoverFromGuest = Number((fromGuest ?? '').replace(/\D/g, '')) || 0;
+      body.depositAvailable = 0;
+    }
+
+    try {
+      await api.decideShield(claim.id, body);
+      toast('Đã ra quyết định và chi tiền.');
+      reload();
+    } catch (err) { toast(err.message); }
+  };
+
+  const recover = async claim => {
+    const raw = prompt(`Thu hồi bao nhiêu về quỹ? (đã chi ${money(claim.paidFromFund)})`);
+    const amount = Number((raw ?? '').replace(/\D/g, ''));
+    if (!amount) return;
+    try {
+      await api.recoverShield(claim.id, amount);
+      toast('Đã ghi hoàn lại quỹ.');
+      reload();
+    } catch (err) { toast(err.message); }
+  };
+
+  if (!rows) return null;
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>StayShield</h2>
+      <p className="section-sub">
+        Chính sách hỗ trợ của sàn. Quyết định nào cũng phải nêu lý do và được ghi vào nhật ký.
+      </p>
+
+      {fund && (
+        <div className="stat-grid" style={{ marginTop: 16 }}>
+          <Stat label="Số dư quỹ" value={money(fund.balance)}
+                note={`Trích ${(fund.contributionRate * 100).toFixed(0)}% phí dịch vụ`} />
+          <Stat label="Trích tháng này" value={money(fund.contributedThisMonth)} note="Từ doanh thu phí" />
+          <Stat label="Chi tháng này" value={money(fund.spentThisMonth)}
+                note={fund.alarm
+                  ? `Vượt ngưỡng ${(fund.alarmRate * 100).toFixed(0)}% — báo tài chính`
+                  : 'Trong ngưỡng'} />
+          <Stat label="Thu hồi tháng này" value={money(fund.recoveredThisMonth)} note="Hoàn lại quỹ" />
+        </div>
+      )}
+
+      {rows.length ? (
+        <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+          {rows.map(c => (
+            <article className="host-booking" key={c.id}>
+              <div style={{ minWidth: 0 }}>
+                <h3>{c.kindLabel} · {c.reference}</h3>
+                <div className="meta">{c.listingTitle} · đơn {c.bookingReference} · {c.openedByName}</div>
+                <div className="meta">{c.description}</div>
+                {c.claimed > 0 && <div className="meta">Yêu cầu {money(c.claimed)}</div>}
+                {c.approved > 0 && <div className="meta">Đã duyệt {money(c.approved)}
+                  {c.paidFromFund > 0 ? ` · quỹ chi ${money(c.paidFromFund)}` : ''}</div>}
+                <div className="meta">Hạn ra quyết định {dateTime(c.decisionDueAt)}</div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                  <span className={`badge ${c.statusBadge}`}>{c.statusLabel}</span>
+                  {c.needsManualReview && <span className="badge pending">Duyệt tay</span>}
+                  {c.appealed && <span className="badge pending">Khiếu nại</span>}
+                </div>
+              </div>
+              <div className="host-booking-actions">
+                {(c.status !== 'Settled' && c.status !== 'Rejected') && <>
+                  <button className="btn btn-primary btn-sm" onClick={() => decide(c, true)}>Chấp nhận</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => decide(c, false)}>Từ chối</button>
+                </>}
+                {c.paidFromFund > c.recoveredLater &&
+                  <button className="btn btn-outline btn-sm" onClick={() => recover(c)}>Thu hồi</button>}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : <p className="section-sub" style={{ marginTop: 16 }}>Không có hồ sơ nào đang mở.</p>}
+    </section>
   );
 }
 

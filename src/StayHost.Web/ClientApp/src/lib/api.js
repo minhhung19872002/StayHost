@@ -185,6 +185,25 @@ export const api = {
   cancelExperienceBooking: id =>
     request(`/api/experiences/bookings/${id}/cancel`, { method: 'POST' }),
 
+  /* docs/06 — StayShield. */
+  shieldTerms: side => request(`/api/shield/terms${qs({ side })}`),
+  shieldClaims: () => request('/api/shield'),
+  shieldClaim: id => request(`/api/shield/${id}`),
+  openShieldClaim: (bookingId, body) =>
+    request(`/api/shield/bookings/${bookingId}`, { method: 'POST', body: JSON.stringify(body) }),
+  respondShield: (id, body) =>
+    request(`/api/shield/${id}/respond`, { method: 'POST', body: JSON.stringify(body) }),
+  appealShield: (id, note) =>
+    request(`/api/shield/${id}/appeal`, { method: 'POST', body: JSON.stringify({ note }) }),
+  shieldQueue: () => request('/api/shield/admin/queue'),
+  shieldFund: () => request('/api/shield/admin/fund'),
+  decideShield: (id, body) =>
+    request(`/api/shield/admin/${id}/decide`, { method: 'POST', body: JSON.stringify(body) }),
+  recoverShield: (id, amount) =>
+    request(`/api/shield/admin/${id}/recover`, { method: 'POST', body: JSON.stringify({ amount }) }),
+  hostCancelBooking: (id, reason) =>
+    request(`/api/host/bookings/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) }),
+
   /* Balance, gift cards and referrals. */
   wallet: () => request('/api/wallet'),
   buyGiftCard: body => request('/api/wallet/gift-cards', { method: 'POST', body: JSON.stringify(body) }),

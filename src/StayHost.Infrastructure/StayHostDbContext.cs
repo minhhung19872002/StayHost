@@ -51,6 +51,11 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<CreditEntry> CreditEntries => Set<CreditEntry>();
     public DbSet<GiftCard> GiftCards => Set<GiftCard>();
     public DbSet<Referral> Referrals => Set<Referral>();
+    public DbSet<ShieldClaim> ShieldClaims => Set<ShieldClaim>();
+    public DbSet<ShieldEvidence> ShieldEvidence => Set<ShieldEvidence>();
+    public DbSet<ShieldItem> ShieldItems => Set<ShieldItem>();
+    public DbSet<ShieldEvent> ShieldEvents => Set<ShieldEvent>();
+    public DbSet<ShieldFundMovement> ShieldFundMovements => Set<ShieldFundMovement>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -219,6 +224,68 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.SlotId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.GuestUser).WithMany()
                 .HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ShieldClaim>(e =>
+        {
+            e.ToTable("shield_claims");
+            e.HasIndex(x => x.Reference).IsUnique();
+            e.HasIndex(x => new { x.BookingId, x.Status });
+            e.Property(x => x.Reference).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.Decision).HasMaxLength(1000);
+            foreach (var money in new[]
+                     {
+                         "Claimed", "ExpensesClaimed", "RehousingDifference", "Approved", "Deductible",
+                         "CreditGranted", "PaidFromFund", "RecoveredFromCounterparty", "RecoveredLater"
+                     })
+                e.Property(money).HasColumnType("numeric(14,2)");
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.OpenedByUser).WithMany()
+                .HasForeignKey(x => x.OpenedByUserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.DecidedByUser).WithMany()
+                .HasForeignKey(x => x.DecidedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<ShieldEvidence>(e =>
+        {
+            e.ToTable("shield_evidence");
+            e.Property(x => x.Url).HasMaxLength(600).IsRequired();
+            e.Property(x => x.Caption).HasMaxLength(300);
+            e.Property(x => x.Kind).HasMaxLength(20).IsRequired();
+            e.HasOne(x => x.Claim).WithMany(c => c.Evidence)
+                .HasForeignKey(x => x.ClaimId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ShieldItem>(e =>
+        {
+            e.ToTable("shield_items");
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Value).HasColumnType("numeric(14,2)");
+            e.Property(x => x.Allowed).HasColumnType("numeric(14,2)");
+            e.HasOne(x => x.Claim).WithMany(c => c.Items)
+                .HasForeignKey(x => x.ClaimId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ShieldEvent>(e =>
+        {
+            e.ToTable("shield_events");
+            e.HasIndex(x => new { x.ClaimId, x.CreatedAt });
+            e.Property(x => x.Actor).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Note).HasMaxLength(1000);
+            e.HasOne(x => x.Claim).WithMany(c => c.Events)
+                .HasForeignKey(x => x.ClaimId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ShieldFundMovement>(e =>
+        {
+            e.ToTable("shield_fund_movements");
+            e.HasIndex(x => new { x.Period, x.Kind });
+            e.Property(x => x.Amount).HasColumnType("numeric(14,2)");
+            e.Property(x => x.Memo).HasMaxLength(300);
+            e.HasOne(x => x.Claim).WithMany()
+                .HasForeignKey(x => x.ClaimId).OnDelete(DeleteBehavior.SetNull);
         });
 
         b.Entity<CreditEntry>(e =>
@@ -691,7 +758,10 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
         var rewrittenHistory =
             ChangeTracker.Entries<BookingEvent>().Any(e => e.State is EntityState.Modified or EntityState.Deleted)
             || ChangeTracker.Entries<ResolutionEvent>().Any(e => e.State is EntityState.Modified or EntityState.Deleted)
-            || ChangeTracker.Entries<AdminAuditEntry>().Any(e => e.State is EntityState.Modified or EntityState.Deleted);
+            || ChangeTracker.Entries<AdminAuditEntry>().Any(e => e.State is EntityState.Modified or EntityState.Deleted)
+            || ChangeTracker.Entries<ShieldEvent>().Any(e => e.State is EntityState.Modified or EntityState.Deleted)
+            || ChangeTracker.Entries<ShieldFundMovement>().Any(e => e.State is EntityState.Modified or EntityState.Deleted)
+            || ChangeTracker.Entries<CreditEntry>().Any(e => e.State is EntityState.Modified or EntityState.Deleted);
 
         if (rewrittenHistory)
         {

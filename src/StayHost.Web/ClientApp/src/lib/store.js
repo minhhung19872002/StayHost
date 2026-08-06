@@ -105,6 +105,9 @@ export const state = {
   payMethod: 'card',
   // docs/01 ĐP-06 — take a deposit now instead of the whole amount.
   payDeposit: false,
+  // docs/06 — the booking a StayShield case is being opened for.
+  shieldBooking: null,
+  shieldSide: 'guest',
   // Spend the guest's balance on this booking.
   useCredit: false,
   // docs/01 MR-09 — the room type chosen on a hotel listing.

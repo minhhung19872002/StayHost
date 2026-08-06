@@ -7,6 +7,7 @@ import { AuthModal, ProfileModal, ReviewModal, CancelTripModal } from './Account
 import { PhotosModal, AmenitiesModal, ReviewsModal, CheckoutModal } from './ListingModals.jsx';
 import { HostCalendarModal, GuestReviewModal } from './HostModals.jsx';
 import { ListingWizard } from './ListingWizard.jsx';
+import { ShieldModal } from './ShieldModal.jsx';
 
 const REGISTRY = {
   filters: FiltersModal,
@@ -26,7 +27,8 @@ const REGISTRY = {
   checkout: CheckoutModal,
   'listing-editor': ListingWizard,
   'host-block': HostCalendarModal,
-  'guest-review': GuestReviewModal
+  'guest-review': GuestReviewModal,
+  shield: ShieldModal
 };
 
 export function Overlay() {

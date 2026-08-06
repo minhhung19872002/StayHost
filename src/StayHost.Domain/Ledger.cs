@@ -38,7 +38,13 @@ public enum LedgerAccount
     /// Gift cards sold but not yet moved onto anyone's balance. Somebody paid
     /// real money for these, so they are owed until redeemed.
     /// </summary>
-    GiftCardLiability = 10
+    GiftCardLiability = 10,
+    /// <summary>
+    /// The StayShield fund (docs/06 §5). Money set aside out of service-fee
+    /// revenue, spent on cases, and topped back up when the platform recovers
+    /// what it paid out.
+    /// </summary>
+    ShieldFund = 11
 }
 
 public enum LedgerDirection
@@ -215,6 +221,58 @@ public static class Ledger
             new Leg(LedgerAccount.GuestServiceFeeRevenue, LedgerDirection.Credit, price.GuestServiceFee, "Phí dịch vụ khách"),
             new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Credit, price.PlatformCut, "Phần sàn giữ lại"),
             new Leg(LedgerAccount.TaxPayable, LedgerDirection.Credit, price.Tax, "Thuế thu hộ"));
+
+    /* ------------------------------------------------------- StayShield */
+
+    /// <summary>
+    /// docs/06 §5 - the monthly set-aside. Revenue the platform has already
+    /// earned is moved into a fund it has committed to spending on cases, so it
+    /// stops being profit the moment it is set aside.
+    /// </summary>
+    public static List<LedgerEntry> FundShield(decimal amount, string period, DateTime at) =>
+        amount <= 0
+            ? []
+            : Post("shield-funded", null, at,
+                new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Debit, amount, $"Trích quỹ StayShield {period}"),
+                new Leg(LedgerAccount.ShieldFund, LedgerDirection.Credit, amount, "Quỹ StayShield"));
+
+    /// <summary>
+    /// A case paid out of the fund. Whatever the guest is owed becomes payable
+    /// to them; whatever a host is owed goes onto what the platform owes hosts.
+    /// </summary>
+    public static List<LedgerEntry> PayFromShield(
+        ShieldClaim claim, decimal toGuest, decimal toHost, DateTime at)
+    {
+        var total = Math.Max(0m, toGuest) + Math.Max(0m, toHost);
+        if (total <= 0) return [];
+
+        return Post("shield-paid", claim.BookingId, at,
+            new Leg(LedgerAccount.ShieldFund, LedgerDirection.Debit, total, $"Chi quỹ hồ sơ {claim.Reference}"),
+            new Leg(LedgerAccount.GuestRefundPayable, LedgerDirection.Credit, Math.Max(0m, toGuest), "Trả khách"),
+            new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, Math.Max(0m, toHost), "Trả chủ nhà"));
+    }
+
+    /// <summary>
+    /// docs/06 §3.3 - what the guest is made to pay never touches the fund:
+    /// it moves straight from their money to what the platform owes the host.
+    /// </summary>
+    public static List<LedgerEntry> ChargeCounterparty(ShieldClaim claim, decimal amount, DateTime at) =>
+        amount <= 0
+            ? []
+            : Post("shield-charged", claim.BookingId, at,
+                new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, amount, $"Thu từ khách hồ sơ {claim.Reference}"),
+                new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, amount, "Trả chủ nhà"));
+
+    /// <summary>
+    /// docs/06 §5 - money chased down after the fund had already paid goes
+    /// back into the fund, not into profit.
+    /// </summary>
+    public static List<LedgerEntry> RecoverToShield(ShieldClaim claim, decimal amount, DateTime at) =>
+        amount <= 0
+            ? []
+            : Post("shield-recovered", claim.BookingId, at,
+                new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, amount, $"Thu hồi hồ sơ {claim.Reference}"),
+                new Leg(LedgerAccount.ShieldFund, LedgerDirection.Credit, amount, "Hoàn lại quỹ StayShield"));
 
     /// <summary>A service job refunded, in the proportion each account received it.</summary>
     public static List<LedgerEntry> RefundService(ServiceBooking booking, decimal amount, DateTime at)

@@ -373,6 +373,12 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var rewarded = await wallet.RewardCompletedStaysAsync(stoppingToken);
                 if (rewarded > 0) log.LogInformation("Đã thưởng {Count} lượt giới thiệu.", rewarded);
 
+                // docs/06 §6 — cases nobody answered inside 24 hours, and the
+                // monthly top-up of the StayShield fund.
+                var shield = scope.ServiceProvider.GetRequiredService<ShieldService>();
+                var shieldMoved = await shield.SweepAsync(stoppingToken);
+                if (shieldMoved > 0) log.LogInformation("StayShield: {Count} thay đổi.", shieldMoved);
+
                 // docs/01 TN-09 — milestone lines in the conversation itself.
                 var messenger = scope.ServiceProvider.GetRequiredService<ThreadMessenger>();
                 var posted = await messenger.SweepAsync(stoppingToken);

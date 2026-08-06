@@ -288,7 +288,7 @@ public static class Pricing
     }
 
     private static string FormatVnd(decimal amount) =>
-        Round(amount).ToString("#,##0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN")) + "₫";
+        Vnd.Format(amount);
 
     /* --------------------------------------------------------- experiences */
 

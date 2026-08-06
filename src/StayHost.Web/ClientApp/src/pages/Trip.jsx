@@ -95,6 +95,8 @@ export function Trip() {
             )}
           </section>
 
+          <ShieldPanel booking={b} />
+
           <Balance booking={b} />
 
           <History events={b.history} />
@@ -121,6 +123,66 @@ const ACTOR = { system: 'Hệ thống', guest: 'Bạn', host: 'Chủ nhà', admi
  * docs/00 §6.2 — every state change is a row, never an overwrite. Showing it
  * is what makes that guarantee worth anything to the guest.
  */
+/**
+ * docs/06 AT-06-02 — the way in to StayShield, and only while it can be used:
+ * from check-in until 72 hours after it. Outside that window the guest still
+ * has the resolution centre, so the button says so rather than vanishing.
+ */
+function ShieldPanel({ booking }) {
+  const navigate = useNavigate();
+  const [claims, setClaims] = useState(null);
+
+  useEffect(() => {
+    api.shieldClaims()
+      .then(rows => setClaims(rows.filter(c => c.bookingId === booking.id)))
+      .catch(() => setClaims([]));
+  }, [booking.id]);
+
+  const checkIn = new Date(`${booking.checkIn}T14:00:00Z`);
+  const hoursIn = (Date.now() - checkIn.getTime()) / 3_600_000;
+  const live = booking.status === 'InProgress' || booking.status === 'Completed'
+    || booking.status === 'Confirmed';
+  const open = live && hoursIn >= 0 && hoursIn <= 72;
+
+  if (!live) return null;
+
+  return (
+    <section className="detail-section">
+      <h2>Chỗ ở có vấn đề?</h2>
+
+      {claims?.length ? (
+        <>
+          <p style={{ margin: '0 0 12px', fontSize: 14.5, color: 'var(--ink-body)' }}>
+            Bạn đã mở hồ sơ {claims[0].reference} — {claims[0].statusLabel}.
+          </p>
+          <button className="btn btn-outline btn-sm"
+                  onClick={() => navigate(`/shield/${claims[0].id}`)}>Xem hồ sơ</button>
+        </>
+      ) : open ? (
+        <>
+          <p style={{ margin: '0 0 12px', fontSize: 14.5, lineHeight: 1.7, color: 'var(--ink-body)' }}>
+            Không vào được, chỗ ở khác xa mô tả hoặc không ở được? StayHost tìm chỗ khác
+            hoặc hoàn tiền cho bạn. Báo trong 72 giờ đầu kể từ giờ nhận phòng.
+          </p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button className="btn btn-primary btn-sm"
+                    onClick={() => set({ shieldBooking: booking, shieldSide: 'guest', overlay: 'shield' })}>
+              Báo vấn đề
+            </button>
+            <button className="btn btn-outline btn-sm"
+                    onClick={() => navigate('/shield/terms')}>StayShield là gì</button>
+          </div>
+        </>
+      ) : (
+        <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.7, color: 'var(--ink-muted)' }}>
+          Cửa sổ 72 giờ của StayShield đã khép. Bạn vẫn mở được yêu cầu ở{' '}
+          <button className="text-btn" onClick={() => navigate('/resolutions')}>Trung tâm giải quyết</button>.
+        </p>
+      )}
+    </section>
+  );
+}
+
 /** docs/01 ĐP-06 — what is still owed on a part-paid booking, and when. */
 function Balance({ booking }) {
   const [busy, setBusy] = useState(false);

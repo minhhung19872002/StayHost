@@ -332,6 +332,7 @@ function AccountMenu() {
       <button role="menuitem" onClick={() => goTo('/services/bookings')}>Dịch vụ đã đặt</button>
       <button role="menuitem" onClick={() => goTo('/wallet')}>Số dư &amp; thẻ quà tặng</button>
       <button role="menuitem" onClick={() => goTo('/resolutions')}>Trung tâm giải quyết</button>
+      <button role="menuitem" onClick={() => goTo('/shield')}>StayShield</button>
       <hr />
       {u.isHost
         ? <button className="bold" role="menuitem" onClick={() => goTo('/hosting')}>Trang chủ nhà ({u.listingCount} chỗ nghỉ)</button>
