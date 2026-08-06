@@ -1,8 +1,12 @@
-# PLAN — Đối chiếu hiện trạng với tài liệu & lộ trình hoàn thành
+# PLAN — Đối chiếu hiện trạng với tài liệu
 
 Nguồn: `docs/00` → `docs/05`. Mã yêu cầu giữ nguyên theo `01-DANH-MUC-CHUC-NANG.md`.
 
 Trạng thái: ✅ đúng spec · 🟡 có nhưng **sai/thiếu so với spec** · ⬜ chưa có
+
+> **Mọi mục trong lộ trình 7 giai đoạn đã xong.** Còn lại duy nhất chương trình
+> bảo vệ **StayShield** (`docs/00 §4`) — khách chưa đưa yêu cầu chi tiết nên chưa
+> làm được.
 
 ---
 
