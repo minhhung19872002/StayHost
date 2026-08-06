@@ -51,15 +51,7 @@ export function Detail() {
     return () => document.body.classList.remove('page-detail');
   }, []);
 
-  if (state.detailLoading || !state.detail) {
-    return (
-      <div className="shell" style={{ paddingBlock: '32px 90px' }}>
-        <div className="skeleton" style={{ height: '44vw', maxHeight: 420, borderRadius: 16 }} />
-        <div className="sk-line skeleton" style={{ width: '40%', height: 22, marginTop: 24 }} />
-        <div className="sk-line skeleton" style={{ width: '60%' }} />
-      </div>
-    );
-  }
+  if (state.detailLoading || !state.detail) return <DetailSkeleton />;
 
   const d = state.detail;
   const c = d.card;
@@ -123,6 +115,40 @@ export function Detail() {
 
     <MobileBar nights={nights} card={c} />
   </>;
+}
+
+/*
+ * The stand-in shown while the listing loads. It has to be laid out exactly like
+ * the page it stands in for, or the swap moves everything: the old one put the
+ * photos first and the title underneath, so when the real page arrived — title
+ * first, photos below — the heading jumped 418px up the screen. That jump is
+ * what a click on a card felt like.
+ *
+ * Every measurement below is the real page's, taken off it: 20px above, the back
+ * link, 8px, the title block, 16px, then the same photo mosaic.
+ */
+function DetailSkeleton() {
+  const tile = { borderRadius: 12 };
+
+  return (
+    <div className="shell" style={{ paddingBlock: '20px 110px' }} aria-busy="true" aria-label="Đang tải chỗ nghỉ">
+      <div className="skeleton" style={{ width: 150, height: 30, borderRadius: 8 }} />
+
+      <div style={{ marginTop: 8, height: 61 }}>
+        <div className="sk-line skeleton" style={{ width: 'min(420px, 70%)', height: 30, marginBottom: 9 }} />
+        <div className="sk-line skeleton" style={{ width: 'min(320px, 55%)', height: 16 }} />
+      </div>
+
+      <div className="gallery" style={{
+        marginTop: 16,
+        gridTemplateColumns: '2fr 1fr 1fr',
+        gridTemplateRows: 'repeat(2, clamp(110px, 16vw, 215px))'
+      }}>
+        <div className="skeleton" style={{ ...tile, gridRow: 'span 2' }} />
+        {[1, 2, 3, 4].map(i => <div key={i} className="skeleton" style={tile} />)}
+      </div>
+    </div>
+  );
 }
 
 function Gallery({ card }) {
