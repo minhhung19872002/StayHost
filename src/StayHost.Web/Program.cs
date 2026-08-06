@@ -28,6 +28,7 @@ builder.Services.AddScoped<AdminAudit>();
 builder.Services.AddScoped<PaymentGateway>();
 builder.Services.AddScoped<BalanceCollector>();
 builder.Services.AddScoped<RiskWatch>();
+builder.Services.AddScoped<SplitBillService>();
 builder.Services.AddScoped<HostAccess>();
 builder.Services.AddScoped<CalendarSyncService>();
 builder.Services.AddHttpClient("ical");

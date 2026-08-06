@@ -109,7 +109,8 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 - [x] `TĐ-04` tiện nghi thiếu thì gạch ngang · `TĐ-05` bố trí giường theo phòng
 - [x] `TĐ-09` gợi ý 3 khoảng trống gần nhất · `TĐ-10` phân bố sao
 - [x] `TĐ-11` tìm/lọc/sắp xếp đánh giá · `TĐ-12` phản hồi chủ nhà
-- [ ] `TM-06/07` ngày linh hoạt ±1–7 ngày và chọn theo tháng (P1)
+- [x] `TM-06/07` ngày linh hoạt ±1–7 ngày, cuối tuần/tuần/tháng, chọn theo tháng
+- [x] Ngày là **bộ lọc thật**: chỗ đã có khách không còn lọt vào kết quả
 
 ### Giai đoạn 4 — Nguồn cung ✅ phần P0
 - [x] `ĐP-02` giữ chỗ 15 phút có đếm ngược · `ĐP-12` máy chủ tính lại giá trước khi trừ tiền
@@ -117,9 +118,9 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 - [x] `QL-06` quy tắc lịch đầy đủ · `QL-07` chặn theo thứ
 - [x] `QL-15` xuất báo cáo doanh thu · `QL-17` tiến độ Siêu chủ nhà · `QL-20` tài khoản nhận tiền
 - [x] `CN-11` bật giảm giá tuần/tháng/đặt sớm/phút chót từ trình soạn tin
-- [ ] `CN-01` đăng tin theo bước có lưu nháp (P0) — hiện là một form dài
-- [ ] `CN-03` kéo ghim bản đồ · `CN-07` bắt buộc 5 ảnh, kéo thả sắp xếp (P0)
-- [ ] `QL-04` lịch nhiều tin cùng lúc (P0) · `QL-10` đồng bộ iCal (P1) · `QL-19` co-host (P1)
+- [x] `CN-01` đăng tin theo bước có lưu nháp · `CN-03` kéo ghim bản đồ
+- [x] `CN-07` bắt buộc 5 ảnh, kéo thả sắp xếp
+- [x] `QL-04` lịch nhiều tin cùng lúc · `QL-10` đồng bộ iCal (nhập + xuất) · `QL-19` co-host
 
 ### Giai đoạn 5 — Đánh giá & tin nhắn ✅ phần P0
 - [x] `ĐG-03` đánh giá mù hai chiều, công khai khi cả hai gửi hoặc hết 14 ngày
@@ -127,27 +128,29 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 - [x] `ĐG-09` chặn nội dung có liên hệ hoặc xúc phạm
 - [x] `TN-04` tin nhắn hệ thống theo mốc · `TN-07` che liên hệ trước khi xác nhận
 - [x] `TN-09` tin nhắn tự động trước nhận phòng và ngày trả phòng
-- [ ] `ĐG-08` sửa đánh giá trong 48h (cột đã có, chưa có endpoint)
-- [ ] `TN-02` gửi ảnh · `TN-03` thẻ đơn trong hội thoại · `TN-08` mẫu trả lời nhanh (P0/P1)
+- [x] `ĐG-08` sửa đánh giá trong 48h, chỉ khi còn đang ẩn
+- [x] `TN-02` gửi ảnh · `TN-03` thẻ đơn trong hội thoại · `TN-08` mẫu trả lời nhanh
 
 ### Giai đoạn 6 — An toàn, hỗ trợ, quản trị ✅ phần P0
 - [x] `AT-04` Trung tâm giải quyết: mở hồ sơ, 24h phản hồi, admin phân xử, tiền chia đúng
 - [x] `QT-05` phân xử · `QT-06` cấu hình phí và thuế theo khu vực
 - [x] `QT-09` nhật ký quản trị chỉ-thêm
 - [x] Phân vai admin: Hỗ trợ / Kiểm duyệt / Tài chính / Phân xử / Tối cao
-- [ ] `AT-07` trung tâm trợ giúp thật (hiện là modal FAQ tĩnh) · `AT-11` phát hiện bất thường
+- [x] `AT-07` trung tâm trợ giúp thật: 14 bài, tìm không dấu, tách khách/chủ nhà
+- [x] `AT-11` phát hiện bất thường: tài khoản mới đặt lớn, nhiều thẻ, nhiều huỷ, đặt dồn dập
 
-### Giai đoạn 7 — Mở rộng ⬜ chưa bắt đầu
+### Giai đoạn 7 — Mở rộng ⬜ gần như chưa bắt đầu
+- [x] `ĐP-06` trả một phần: cọc ≥50%, tự thu phần còn lại trước 14 ngày, thử lại 72h rồi huỷ
+- [x] `ĐP-07` chia hoá đơn tối đa 16 người, mỗi người một liên kết, giữ chỗ 24h
 - [ ] Trải nghiệm (`MR-01`→`MR-04`), Dịch vụ (`MR-05`→`MR-07`), Khách sạn (`MR-08`→`MR-10`)
 - [ ] Thẻ quà tặng, số dư khuyến mãi, giới thiệu bạn bè
-- [ ] `ĐP-06` trả một phần · `ĐP-07` chia hoá đơn
 
 ---
 
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (150 test)
+# Test nghiệp vụ (206 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

@@ -174,6 +174,15 @@ export const api = {
   deleteQuickReply: id => request(`/api/messages/quick-replies/${id}`, { method: 'DELETE' }),
 
   /* docs/01 QL-19 — people helping run a listing. */
+  /* docs/01 ĐP-07 — one booking, up to sixteen payers. */
+  openSplit: (id, emails) =>
+    request(`/api/bookings/${id}/split`, { method: 'POST', body: JSON.stringify({ emails }) }),
+  splitOf: id => request(`/api/bookings/${id}/split`),
+  cancelSplit: id => request(`/api/bookings/${id}/split`, { method: 'DELETE' }),
+  splitInvite: token => request(`/api/split/${token}`),
+  paySplitShare: (token, body) =>
+    request(`/api/split/${token}/pay`, { method: 'POST', body: JSON.stringify(body) }),
+
   /* docs/01 AT-07 — the help centre. */
   help: params => request(`/api/help${qs(params ?? {})}`),
   helpArticle: slug => request(`/api/help/${slug}`),

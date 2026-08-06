@@ -847,3 +847,50 @@ public record RiskFlagDto(
     DateTime CreatedAt);
 
 public record ResolveRiskFlagRequest(string? Resolution, bool Acted = false);
+
+/* ---- docs/01 ĐP-07: one booking, up to sixteen payers -------------------- */
+
+public record BillShareDto(
+    int Id,
+    string Email,
+    string? Name,
+    decimal Amount,
+    string Status,
+    string StatusLabel,
+    /// <summary>The link this person follows. Whoever holds it can pay this share and nothing else.</summary>
+    string Link,
+    DateTime? PaidAt);
+
+public record BillSplitDto(
+    int Id,
+    int BookingId,
+    string Reference,
+    decimal Total,
+    string Status,
+    string StatusLabel,
+    DateTime ExpiresAt,
+    IReadOnlyList<BillShareDto> Shares);
+
+public record OpenSplitRequest(IReadOnlyList<string>? Emails);
+
+/// <summary>What someone sees when they open their link, with no account.</summary>
+public record ShareInviteDto(
+    string Token,
+    string Reference,
+    string ListingTitle,
+    string City,
+    DateOnly CheckIn,
+    DateOnly CheckOut,
+    int Nights,
+    int Guests,
+    decimal Total,
+    decimal Amount,
+    string ShareStatus,
+    string ShareStatusLabel,
+    string SplitStatus,
+    string SplitStatusLabel,
+    int PaidCount,
+    int PeopleCount,
+    DateTime ExpiresAt);
+
+public record PayShareRequest(string? Name, string? CardLast4);

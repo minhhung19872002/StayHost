@@ -37,6 +37,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<CalendarFeed> CalendarFeeds => Set<CalendarFeed>();
     public DbSet<HelpArticle> HelpArticles => Set<HelpArticle>();
     public DbSet<RiskFlag> RiskFlags => Set<RiskFlag>();
+    public DbSet<BillSplit> BillSplits => Set<BillSplit>();
+    public DbSet<BillShare> BillShares => Set<BillShare>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -154,6 +156,28 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.LastError).HasMaxLength(400);
             e.HasOne(x => x.Listing).WithMany(l => l.CalendarFeeds)
                 .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<BillSplit>(e =>
+        {
+            e.ToTable("bill_splits");
+            e.HasIndex(x => x.BookingId).IsUnique();
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.OrganiserUser).WithMany()
+                .HasForeignKey(x => x.OrganiserUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<BillShare>(e =>
+        {
+            e.ToTable("bill_shares");
+            e.HasIndex(x => x.Token).IsUnique();
+            e.Property(x => x.Email).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(120);
+            e.Property(x => x.Token).HasMaxLength(64).IsRequired();
+            e.Property(x => x.CardLast4).HasMaxLength(4);
+            e.HasOne(x => x.Split).WithMany(s => s.Shares)
+                .HasForeignKey(x => x.SplitId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<HelpArticle>(e =>

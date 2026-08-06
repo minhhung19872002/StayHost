@@ -27,7 +27,13 @@ public enum LedgerAccount
     /// The stay is recognised whole at booking time, so this stands in for the
     /// cash until the second charge lands.
     /// </summary>
-    GuestReceivable = 8
+    GuestReceivable = 8,
+    /// <summary>
+    /// Shares collected for a split bill (docs/01 ĐP-07) before the booking is
+    /// confirmed. Nothing is recognised while the money sits here — it either
+    /// becomes a booking or goes back to the people who sent it.
+    /// </summary>
+    SplitEscrow = 9
 }
 
 public enum LedgerDirection
@@ -122,6 +128,24 @@ public static class Ledger
             new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Credit, price.HostServiceFee, "Phí dịch vụ chủ nhà"),
             new Leg(LedgerAccount.TaxPayable, LedgerDirection.Credit, price.Tax, "Thuế thu hộ"));
     }
+
+    /// <summary>docs/01 ĐP-07 — one person's share, held until the last one lands.</summary>
+    public static List<LedgerEntry> HoldShare(int bookingId, string reference, decimal amount, DateTime at) =>
+        Post("split-share-held", bookingId, at,
+            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, amount, $"Phần chia đơn {reference}"),
+            new Leg(LedgerAccount.SplitEscrow, LedgerDirection.Credit, amount, "Giữ chờ đủ người"));
+
+    /// <summary>The last share landed: what was held becomes the money for the booking.</summary>
+    public static List<LedgerEntry> ReleaseEscrow(Booking booking, decimal amount, DateTime at) =>
+        Post("split-escrow-released", booking.Id, at,
+            new Leg(LedgerAccount.SplitEscrow, LedgerDirection.Debit, amount, "Giải toả tiền giữ"),
+            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Credit, amount, $"Chuyển vào đơn {booking.Reference}"));
+
+    /// <summary>Nobody finished paying: every share held goes back where it came from.</summary>
+    public static List<LedgerEntry> ReturnShare(int bookingId, string reference, decimal amount, DateTime at) =>
+        Post("split-share-returned", bookingId, at,
+            new Leg(LedgerAccount.SplitEscrow, LedgerDirection.Debit, amount, "Trả lại phần đã giữ"),
+            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Credit, amount, $"Hoàn phần chia đơn {reference}"));
 
     /// <summary>
     /// docs/01 ĐP-06 — the second charge. Nothing is recognised again; the cash

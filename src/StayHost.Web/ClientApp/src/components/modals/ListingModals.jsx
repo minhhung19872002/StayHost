@@ -1,6 +1,6 @@
 import { useStore } from '../../lib/useStore.js';
 import { useEffect, useState } from 'react';
-import { set, holdDates, payHeld, releaseHold, openOverlay, closeOverlay } from '../../lib/store.js';
+import { set, holdDates, payHeld, releaseHold, openSplit, openOverlay, closeOverlay } from '../../lib/store.js';
 import { money, longDate, parseIso, isoOf } from '../../lib/format.js';
 import { AmenityIcon } from '../Icon.jsx';
 import { HostReply, StarDistribution } from '../../pages/Detail.jsx';
@@ -192,6 +192,17 @@ export function CheckoutModal() {
     };
 
     setBusy(true);
+
+    // docs/01 ĐP-07 — a split does not charge anyone here: it holds the dates
+    // for a day and sends everybody, the organiser included, their own link.
+    if (state.splitBill && !isRequest) {
+      const emails = (state.splitEmails ?? '').split(/[,\s]+/).map(e => e.trim()).filter(e => e.includes('@'));
+      const opened = await openSplit(emails);
+      setBusy(false);
+      if (opened) closeOverlay();
+      return;
+    }
+
     // A request to book has nothing to pay for yet — it goes to the host first.
     const result = isRequest
       ? await holdDates({
@@ -342,6 +353,43 @@ function DepositChoice({ q }) {
   );
 }
 
+/**
+ * docs/01 ĐP-07 — invite up to fifteen other people to pay their share. The
+ * booking is only confirmed when the last one does, so this replaces paying
+ * rather than sitting alongside it.
+ */
+function SplitChoice({ q }) {
+  const state = useStore();
+  const [emails, setEmails] = useState('');
+
+  const people = emails.split(/[,\s]+/).map(e => e.trim()).filter(e => e.includes('@'));
+  const each = people.length ? Math.floor(q.total / (people.length + 1)) : 0;
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <button type="button" className={`opt ${state.splitBill ? 'is-on' : ''}`}
+              onClick={() => set({ splitBill: !state.splitBill })}>
+        <b>Chia hoá đơn với người khác</b>
+        <span>Mỗi người nhận một liên kết và trả phần của mình</span>
+      </button>
+
+      {state.splitBill && <div style={{ marginTop: 12 }}>
+        <label className="form-field">
+          <span className="cap">Email những người cùng trả (cách nhau bằng dấu phẩy)</span>
+          <input value={emails} placeholder="an@vidu.vn, binh@vidu.vn"
+                 onChange={e => { setEmails(e.target.value); set({ splitEmails: e.target.value }); }} />
+        </label>
+        <p style={{ fontSize: 13, color: 'var(--ink-muted)', margin: 0, lineHeight: 1.6 }}>
+          {people.length
+            ? `${people.length + 1} người · mỗi người khoảng ${money(each)} · bạn trả phần lẻ`
+            : `Tối đa ${16} người kể cả bạn.`}
+          <br />Đơn chỉ được xác nhận khi tất cả đã trả, trong vòng 24 giờ.
+        </p>
+      </div>}
+    </div>
+  );
+}
+
 function StepPayment({ q }) {
   const state = useStore();
   const method = state.payMethod;
@@ -373,6 +421,7 @@ function StepPayment({ q }) {
       </>}
 
       <DepositChoice q={q} />
+      <SplitChoice q={q} />
 
       {method === 'momo' && (
         <p style={{ marginTop: 18, fontSize: 14, color: 'var(--ink-body)', lineHeight: 1.6 }}>

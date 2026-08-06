@@ -22,6 +22,7 @@ import { Hosting } from './pages/Hosting.jsx';
 import { Messages } from './pages/Messages.jsx';
 import { Admin } from './pages/Admin.jsx';
 import { Help } from './pages/Help.jsx';
+import { Split } from './pages/Split.jsx';
 import { Resolutions } from './pages/Resolutions.jsx';
 
 export function App() {
@@ -88,6 +89,7 @@ export function App() {
             <Route path="/resolutions" element={<Resolutions />} />
             <Route path="/help" element={<Help />} />
             <Route path="/help/:slug" element={<Help />} />
+            <Route path="/split/:token" element={<Split />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<Browse />} />
           </Routes>

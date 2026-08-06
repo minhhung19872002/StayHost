@@ -105,6 +105,9 @@ export const state = {
   payMethod: 'card',
   // docs/01 ĐP-06 — take a deposit now instead of the whole amount.
   payDeposit: false,
+  // docs/01 ĐP-07 — let other people pay their share instead of paying it all.
+  splitBill: false,
+  splitEmails: '',
   checkoutName: '',
   checkoutEmail: '',
   checkoutNote: '',
@@ -535,6 +538,32 @@ export async function payHeld(extra = {}) {
     return state.bookingResult;
   } catch (err) {
     state.bookingError = err.message;
+    return null;
+  } finally {
+    notify();
+  }
+}
+
+/**
+ * docs/01 ĐP-07 — turns the held booking into a split. Nobody is charged here;
+ * everyone gets a link, and the dates are held for a day rather than 15 minutes.
+ */
+export async function openSplit(emails) {
+  if (!state.held) return null;
+  set({ bookingError: null });
+
+  try {
+    const split = await api.openSplit(state.held.id, emails);
+    state.split = split;
+    state.held = null;
+    state.splitBill = false;
+    state.splitEmails = '';
+    toast(`Đã gửi liên kết cho ${split.shares.length - 1} người. Đơn giữ chỗ trong 24 giờ.`);
+    await loadBookings();
+    return split;
+  } catch (err) {
+    state.bookingError = err.message;
+    toast(err.message);
     return null;
   } finally {
     notify();

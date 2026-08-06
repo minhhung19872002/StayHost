@@ -299,6 +299,11 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var balanceResult = await balances.SweepAsync(stoppingToken);
                 if (balanceResult.Any) log.LogInformation("Trả một phần: {Result}.", balanceResult);
 
+                // docs/01 ĐP-07 — splits nobody finished paying.
+                var splits = scope.ServiceProvider.GetRequiredService<SplitBillService>();
+                var unwound = await splits.SweepAsync(stoppingToken);
+                if (unwound > 0) log.LogInformation("Đã hoàn {Count} lượt chia hoá đơn hết hạn.", unwound);
+
                 // docs/01 TN-09 — milestone lines in the conversation itself.
                 var messenger = scope.ServiceProvider.GetRequiredService<ThreadMessenger>();
                 var posted = await messenger.SweepAsync(stoppingToken);
