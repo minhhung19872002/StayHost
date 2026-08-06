@@ -1013,3 +1013,116 @@ public record SaveExperienceRequest(
     bool Publish = false);
 
 public record AddSlotsRequest(IReadOnlyList<DateTime>? StartsAt, int? Capacity);
+
+/* ---- docs/01 MR-05 → MR-07: services ------------------------------------ */
+
+public record ServiceCardDto(
+    int Id,
+    string Slug,
+    string Title,
+    string Category,
+    string City,
+    string Summary,
+    decimal BasePrice,
+    string Pricing,
+    string PricingLabel,
+    string Unit,
+    bool TravelsToGuest,
+    int ServiceRadiusKm,
+    /// <summary>docs/01 MR-07 — run by somebody else, with the platform on commission.</summary>
+    bool IsPartner,
+    string? PartnerName,
+    double Rating,
+    int ReviewCount,
+    string HostName,
+    IReadOnlyList<string> Images);
+
+/// <summary>A stretch of the provider's diary that is already spoken for.</summary>
+public record BusySlotDto(DateTime From, DateTime To);
+
+public record ServiceDetailDto(
+    int Id,
+    string Slug,
+    string Title,
+    string Category,
+    string City,
+    string Country,
+    string Summary,
+    string Description,
+    decimal BasePrice,
+    string Pricing,
+    string PricingLabel,
+    string Unit,
+    int MinQuantity,
+    int MaxQuantity,
+    int DurationMinutes,
+    bool TravelsToGuest,
+    int ServiceRadiusKm,
+    double Latitude,
+    double Longitude,
+    int OpensAtHour,
+    int ClosesAtHour,
+    bool IsPartner,
+    string? PartnerName,
+    bool IsPublished,
+    double Rating,
+    int ReviewCount,
+    string HostName,
+    string HostInitials,
+    IReadOnlyList<string> Images,
+    IReadOnlyList<BusySlotDto> Busy);
+
+public record ServiceQuoteDto(
+    int OfferingId,
+    DateTime StartsAt,
+    int DurationMinutes,
+    int Quantity,
+    decimal Subtotal,
+    decimal ServiceFee,
+    decimal Tax,
+    decimal Total,
+    IReadOnlyList<PriceLineDto> Lines,
+    bool CanBook,
+    string? Reason);
+
+public record ServiceBookingDto(
+    int Id,
+    string Reference,
+    int OfferingId,
+    string Title,
+    string Slug,
+    string Category,
+    string City,
+    DateTime StartsAt,
+    int DurationMinutes,
+    int Quantity,
+    string Unit,
+    string Address,
+    string? Note,
+    decimal Subtotal,
+    decimal ServiceFee,
+    decimal Tax,
+    decimal Total,
+    decimal RefundedAmount,
+    string Status,
+    string StatusLabel,
+    string StatusBadge,
+    string? CancelReason,
+    DateTime CreatedAt);
+
+public record QuoteServiceRequest(
+    DateTime StartsAt,
+    int Quantity,
+    string? Address,
+    double? Latitude,
+    double? Longitude);
+
+public record BookServiceRequest(
+    DateTime StartsAt,
+    int Quantity,
+    string? Address,
+    double? Latitude,
+    double? Longitude,
+    string? Note,
+    string? PaymentMethod,
+    string? CardLast4);

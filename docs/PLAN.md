@@ -144,7 +144,9 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 - [x] `ĐP-07` chia hoá đơn tối đa 16 người, mỗi người một liên kết, giữ chỗ 24h
 - [x] Trải nghiệm (`MR-01`→`MR-04`): đăng, lịch theo suất, đặt theo người, nhóm riêng,
       tự huỷ suất thiếu người và hoàn tiền
-- [ ] Dịch vụ (`MR-05`→`MR-07`), Khách sạn (`MR-08`→`MR-10`)
+- [x] Dịch vụ (`MR-05`→`MR-07`): phạm vi phục vụ theo bán kính, đặt theo khung giờ
+      kèm địa chỉ, dịch vụ đối tác ăn hoa hồng
+- [ ] Khách sạn (`MR-08`→`MR-10`)
 - [ ] Thẻ quà tặng, số dư khuyến mãi, giới thiệu bạn bè
 
 ---
@@ -152,7 +154,7 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (224 test)
+# Test nghiệp vụ (241 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

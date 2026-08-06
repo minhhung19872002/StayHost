@@ -24,6 +24,7 @@ import { Admin } from './pages/Admin.jsx';
 import { Help } from './pages/Help.jsx';
 import { Split } from './pages/Split.jsx';
 import { Experiences, ExperienceBookings } from './pages/Experiences.jsx';
+import { Services, ServiceBookings } from './pages/Services.jsx';
 import { Resolutions } from './pages/Resolutions.jsx';
 
 export function App() {
@@ -93,6 +94,9 @@ export function App() {
             <Route path="/experiences" element={<Experiences />} />
             <Route path="/experiences/bookings" element={<ExperienceBookings />} />
             <Route path="/experiences/:slug" element={<Experiences />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/services/bookings" element={<ServiceBookings />} />
+            <Route path="/services/:slug" element={<Services />} />
             <Route path="/split/:token" element={<Split />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<Browse />} />

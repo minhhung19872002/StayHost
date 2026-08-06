@@ -33,7 +33,8 @@ const demo = e => { e.preventDefault(); toast('Bản demo — chức năng này 
 const ROUTES = {
   'Trung tâm trợ giúp': '/help',
   'Cho thuê nhà trên StayHost': '/host',
-  'Trải nghiệm': '/experiences'
+  'Trải nghiệm': '/experiences',
+  'Dịch vụ': '/services'
 };
 
 export function Footer() {

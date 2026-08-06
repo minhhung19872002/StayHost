@@ -379,6 +379,104 @@ public static class Pricing
         return lines;
     }
 
+    /* ------------------------------------------------------------ services */
+
+    public sealed record ServiceRequest
+    {
+        public required ServiceOffering Offering { get; init; }
+        public required int Quantity { get; init; }
+        public required DateTime StartsAt { get; init; }
+        public IReadOnlyCollection<TaxRule> TaxRules { get; init; } = [];
+    }
+
+    public sealed record ServiceBreakdown
+    {
+        public required int Quantity { get; init; }
+        public required decimal Subtotal { get; init; }
+        public required decimal GuestServiceFee { get; init; }
+        public required decimal Tax { get; init; }
+        public required decimal Total { get; init; }
+        /// <summary>
+        /// What the platform keeps. A partner job (docs/01 MR-07) pays a
+        /// commission instead of the host service fee, never both.
+        /// </summary>
+        public required decimal PlatformCut { get; init; }
+        public required decimal ProviderPayout { get; init; }
+        public required IReadOnlyList<PriceLine> Lines { get; init; }
+    }
+
+    public static ServiceBreakdown QuoteService(ServiceRequest req)
+    {
+        var settings = PricingSettings.Current;
+        var o = req.Offering;
+        var quantity = Math.Max(1, req.Quantity);
+
+        // A flat-rate visit is one price no matter how many hours or people are
+        // named; everything else multiplies.
+        var subtotal = Round(o.Pricing == ServicePricing.PerSession
+            ? o.BasePrice
+            : o.BasePrice * quantity);
+
+        var guestServiceFee = Round(subtotal * settings.GuestServiceFeeRate);
+        var taxLines = ServiceTaxLines(req, subtotal, guestServiceFee);
+        var tax = taxLines.Sum(l => l.Amount);
+        var total = subtotal + guestServiceFee + tax;
+
+        var platformCut = Round(subtotal * (o.IsPartner ? o.CommissionRate : settings.HostServiceFeeRate));
+        var providerPayout = subtotal - platformCut;
+
+        var lines = new List<PriceLine>
+        {
+            new("subtotal",
+                o.Pricing == ServicePricing.PerSession
+                    ? "Trọn buổi"
+                    : $"{FormatVnd(o.BasePrice)} × {quantity} {ServiceRules.UnitLabel(o.Pricing)}",
+                subtotal),
+            new("service-fee", "Phí dịch vụ StayHost", guestServiceFee)
+        };
+        lines.AddRange(taxLines);
+
+        return new ServiceBreakdown
+        {
+            Quantity = quantity,
+            Subtotal = subtotal,
+            GuestServiceFee = guestServiceFee,
+            Tax = tax,
+            Total = total,
+            PlatformCut = platformCut,
+            ProviderPayout = providerPayout,
+            Lines = lines.Where(l => l.Amount > 0).ToList()
+        };
+    }
+
+    /// <summary>A service has no nights either, so only percentage and flat levies apply.</summary>
+    private static List<PriceLine> ServiceTaxLines(
+        ServiceRequest req, decimal subtotal, decimal guestServiceFee)
+    {
+        var on = DateOnly.FromDateTime(req.StartsAt);
+
+        var applicable = req.TaxRules
+            .Where(r => r.AppliesOn(on))
+            .Where(r => string.Equals(r.Country, req.Offering.Country, StringComparison.OrdinalIgnoreCase))
+            .Where(r => r.City is null || string.Equals(r.City, req.Offering.City, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(r => r.SortOrder).ThenBy(r => r.Id);
+
+        var lines = new List<PriceLine>();
+        foreach (var rule in applicable)
+        {
+            var amount = rule.Method switch
+            {
+                TaxMethod.Percentage => Round(
+                    (rule.Base == TaxBase.SubtotalPlusGuestFee ? subtotal + guestServiceFee : subtotal) * rule.Value),
+                TaxMethod.PerStay => Round(rule.Value),
+                _ => 0m
+            };
+
+            if (amount > 0) lines.Add(new PriceLine($"tax-{rule.Id}", rule.Name, amount));
+        }
+        return lines;
+    }
+
     /* ------------------------------------------------ convenience overloads */
 
     /// <summary>Shorthand used by search cards, which only know dates and a head count.</summary>

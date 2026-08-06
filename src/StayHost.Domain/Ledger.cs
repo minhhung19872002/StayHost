@@ -62,6 +62,10 @@ public class LedgerEntry
     public int? ExperienceBookingId { get; set; }
     public ExperienceBooking? ExperienceBooking { get; set; }
 
+    /// <summary>Set when the money is for a service job (docs/01 MR-05 → MR-07).</summary>
+    public int? ServiceBookingId { get; set; }
+    public ServiceBooking? ServiceBooking { get; set; }
+
     public LedgerAccount Account { get; set; }
     public LedgerDirection Direction { get; set; }
     /// <summary>Always positive; <see cref="Direction"/> carries the sign.</summary>
@@ -91,7 +95,12 @@ public static class Ledger
         Post(kind, bookingId, null, at, legs);
 
     private static List<LedgerEntry> Post(
-        string kind, int? bookingId, int? experienceBookingId, DateTime at, params Leg[] legs)
+        string kind, int? bookingId, int? experienceBookingId, DateTime at, params Leg[] legs) =>
+        Post(kind, bookingId, experienceBookingId, null, at, legs);
+
+    private static List<LedgerEntry> Post(
+        string kind, int? bookingId, int? experienceBookingId, int? serviceBookingId,
+        DateTime at, params Leg[] legs)
     {
         var real = legs.Where(l => l.Amount > 0).ToList();
 
@@ -106,6 +115,7 @@ public static class Ledger
             TransactionKind = kind,
             BookingId = bookingId,
             ExperienceBookingId = experienceBookingId,
+            ServiceBookingId = serviceBookingId,
             Account = l.Account,
             Direction = l.Direction,
             Amount = l.Amount,
@@ -175,6 +185,39 @@ public static class Ledger
             new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Debit, hostFeeBack, "Hoàn phí dịch vụ chủ nhà"),
             new Leg(LedgerAccount.TaxPayable, LedgerDirection.Debit, taxBack, "Hoàn thuế"),
             new Leg(LedgerAccount.GuestFunds, LedgerDirection.Credit, amount, $"Hoàn vé {booking.Reference}"));
+    }
+
+    /// <summary>
+    /// docs/01 MR-05 → MR-07 — a service job. A partner job pays the platform a
+    /// commission where a host's own service pays the host service fee; both land
+    /// in the same revenue account because both are what the platform kept.
+    /// </summary>
+    public static List<LedgerEntry> CaptureService(
+        ServiceBooking booking, Pricing.ServiceBreakdown price, DateTime at) =>
+        Post("service-captured", null, null, booking.Id, at,
+            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, price.Total, $"Khách trả dịch vụ {booking.Reference}"),
+            new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, price.ProviderPayout, "Phần bên cung cấp nhận"),
+            new Leg(LedgerAccount.GuestServiceFeeRevenue, LedgerDirection.Credit, price.GuestServiceFee, "Phí dịch vụ khách"),
+            new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Credit, price.PlatformCut, "Phần sàn giữ lại"),
+            new Leg(LedgerAccount.TaxPayable, LedgerDirection.Credit, price.Tax, "Thuế thu hộ"));
+
+    /// <summary>A service job refunded, in the proportion each account received it.</summary>
+    public static List<LedgerEntry> RefundService(ServiceBooking booking, decimal amount, DateTime at)
+    {
+        if (amount <= 0) return [];
+
+        var share = booking.Total == 0 ? 0m : amount / booking.Total;
+        var providerBack = Math.Round(booking.ProviderPayout * share, 0, MidpointRounding.AwayFromZero);
+        var guestFeeBack = Math.Round(booking.ServiceFee * share, 0, MidpointRounding.AwayFromZero);
+        var cutBack = Math.Round(booking.PlatformCut * share, 0, MidpointRounding.AwayFromZero);
+        var taxBack = amount - providerBack - guestFeeBack - cutBack;
+
+        return Post("service-refunded", null, null, booking.Id, at,
+            new Leg(LedgerAccount.HostPayable, LedgerDirection.Debit, providerBack, "Thu lại phần bên cung cấp"),
+            new Leg(LedgerAccount.GuestServiceFeeRevenue, LedgerDirection.Debit, guestFeeBack, "Hoàn phí dịch vụ khách"),
+            new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Debit, cutBack, "Hoàn phần sàn giữ"),
+            new Leg(LedgerAccount.TaxPayable, LedgerDirection.Debit, taxBack, "Hoàn thuế"),
+            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Credit, amount, $"Hoàn dịch vụ {booking.Reference}"));
     }
 
     /// <summary>docs/01 ĐP-07 — one person's share, held until the last one lands.</summary>

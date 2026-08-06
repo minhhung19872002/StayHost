@@ -185,6 +185,16 @@ export const api = {
   cancelExperienceBooking: id =>
     request(`/api/experiences/bookings/${id}/cancel`, { method: 'POST' }),
 
+  /* docs/01 MR-05 → MR-07 — services, booked by the slot. */
+  services: params => request(`/api/services${qs(params ?? {})}`),
+  service: idOrSlug => request(`/api/services/${idOrSlug}`),
+  quoteService: (id, body) =>
+    request(`/api/services/${id}/quote`, { method: 'POST', body: JSON.stringify(body) }),
+  bookService: (id, body) =>
+    request(`/api/services/${id}/book`, { method: 'POST', body: JSON.stringify(body) }),
+  serviceBookings: () => request('/api/services/bookings'),
+  cancelServiceBooking: id => request(`/api/services/bookings/${id}/cancel`, { method: 'POST' }),
+
   /* docs/01 ĐP-07 — one booking, up to sixteen payers. */
   openSplit: (id, emails) =>
     request(`/api/bookings/${id}/split`, { method: 'POST', body: JSON.stringify({ emails }) }),

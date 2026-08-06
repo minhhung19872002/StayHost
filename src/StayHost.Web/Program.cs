@@ -30,6 +30,7 @@ builder.Services.AddScoped<BalanceCollector>();
 builder.Services.AddScoped<RiskWatch>();
 builder.Services.AddScoped<SplitBillService>();
 builder.Services.AddScoped<ExperienceService>();
+builder.Services.AddScoped<ServiceMarketService>();
 builder.Services.AddScoped<HostAccess>();
 builder.Services.AddScoped<CalendarSyncService>();
 builder.Services.AddHttpClient("ical");
@@ -59,6 +60,7 @@ await using (var scope = app.Services.CreateAsyncScope())
             // later does not need the whole catalogue rebuilt.
             await HelpSeeder.SeedAsync(db);
             await ExperienceSeeder.SeedAsync(db);
+            await ServiceSeeder.SeedAsync(db);
             log.LogInformation("Database ready.");
             break;
         }
