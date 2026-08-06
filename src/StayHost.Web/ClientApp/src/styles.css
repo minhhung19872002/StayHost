@@ -561,6 +561,22 @@ select.field { width: 100%; padding: 10px 12px; }
 }
 .gallery-all:hover { background: #f4f4f4; }
 
+/*
+ * On a listing page the site header is let go: it scrolls off the top and the
+ * section nav below it takes the strip of window that was being shared. By the
+ * time somebody is reading about one place, moving around inside that page is
+ * worth more than a search box for a different one.
+ *
+ * --header-h is what everything else on the page hangs off, so redefining it
+ * here moves the booking panel down under the nav without touching its rule.
+ */
+body.page-detail { --header-h: 53px; }        /* the measured height of .detail-nav */
+body.page-detail .site-header { position: static; }
+body.page-detail .detail-nav { top: 0; }
+
+/* Jumping to a section must not park its heading underneath the nav. */
+body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12px); }
+
 /* sticky in-page nav */
 .detail-nav {
   position: sticky; top: var(--header-h); z-index: 20;

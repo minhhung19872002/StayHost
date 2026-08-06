@@ -31,6 +31,15 @@ export function Detail() {
 
   useEffect(() => { loadDetail(slug); }, [slug]);
 
+  // On a listing page the site header scrolls away and the section nav takes the
+  // top of the screen instead. You have already chosen the place by this point;
+  // what is worth a permanent strip of the window is moving around inside it.
+  // The class goes on the body because the header lives outside this page.
+  useEffect(() => {
+    document.body.classList.add('page-detail');
+    return () => document.body.classList.remove('page-detail');
+  }, []);
+
   if (state.detailLoading || !state.detail) {
     return (
       <div className="shell" style={{ paddingBlock: '32px 90px' }}>
