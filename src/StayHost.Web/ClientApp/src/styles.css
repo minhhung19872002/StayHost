@@ -106,7 +106,32 @@ img { max-width: 100%; display: block; }
 .nav-tab .ic { display: flex; color: var(--brand); }
 
 /* segmented search pill */
-.search-row { display: flex; justify-content: center; padding: 0 var(--gutter) 14px; }
+/*
+ * The row keeps one height on every page, and the bar — tall and two-line on the
+ * landing page, compact everywhere else — is centred in it.
+ *
+ * The two used to be 75px and 55px, so opening a listing shortened the header by
+ * 20px and the entire page snapped up to meet it. Animating that only spread the
+ * same movement over more frames; the cure is for nothing to move at all. The
+ * price is 20px of air above the content on inner pages, which nobody notices,
+ * against a jolt on every navigation, which everybody does.
+ */
+/* Aligned to the top, not centred: the two bars are different heights, so
+   centring them in a common row left the bar itself 10px lower on one page than
+   the other — a smaller jump, but the same kind. */
+.search-row {
+  display: flex; justify-content: center; align-items: flex-start;
+  padding: 0 var(--gutter) 14px; height: 75px;
+}
+
+/*
+ * The chip row belongs to results, not to the landing page, so it has to arrive
+ * and leave. It does so in one frame, on the same paint as the rest of the new
+ * page: sliding it open spread the same 52px of movement over a dozen frames,
+ * and the score for that was fifteen times worse than the snap.
+ */
+.quick-slot { height: 52px; overflow: hidden; }
+.quick-slot.is-collapsed { height: 0; }
 .searchbar {
   display: flex; align-items: stretch; width: 100%; max-width: 720px;
   background: #fff; border: 1px solid var(--line); border-radius: var(--r-pill);

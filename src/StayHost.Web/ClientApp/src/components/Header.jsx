@@ -113,7 +113,17 @@ export function Header() {
 
     <SearchBar wide={discovery} onSubmit={submitSearch} onQueryInput={onQueryInput} />
 
-    {onBrowse && !discovery && <QuickBar />}
+    {/*
+      * The chip row stays mounted while browsing and collapses to nothing on the
+      * landing page, rather than appearing out of nowhere. Its 52px arriving in
+      * one frame was half the jolt when a rail heading turned the landing page
+      * into a set of results.
+      */}
+    {onBrowse && (
+      <div className={`quick-slot ${discovery ? 'is-collapsed' : ''}`} aria-hidden={discovery}>
+        <QuickBar />
+      </div>
+    )}
   </>;
 }
 
