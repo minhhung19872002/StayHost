@@ -1300,3 +1300,19 @@ select.field { width: 100%; padding: 10px 12px; }
   .brand-text { display: none; }
   .card-grid { grid-template-columns: 1fr; }
 }
+
+/* TN-04 — a line the platform wrote, centred and visually apart from the two
+   people talking. TN-07 — the banner and footnote explaining masked contacts. */
+.bubble.is-system {
+  align-self: center; max-width: 78%; background: var(--surface-soft);
+  border: 1px dashed var(--line); color: var(--ink-muted); text-align: center;
+}
+.bubble.is-system p { font-size: 13px; }
+.bubble-note {
+  display: block; margin-top: 6px; font-size: 11.5px; font-style: italic;
+  color: var(--ink-faint);
+}
+.inbox-notice {
+  padding: 10px 16px; background: var(--brand-soft); border-bottom: 1px solid var(--brand-soft-border);
+  font-size: 12.5px; line-height: 1.5; color: var(--brand-dark);
+}

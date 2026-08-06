@@ -231,6 +231,9 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.AuthorName).HasMaxLength(120).IsRequired();
             e.Property(x => x.Text).HasMaxLength(2000);
             e.Property(x => x.HostReply).HasMaxLength(2000);
+            e.Property(x => x.PrivateNote).HasMaxLength(2000);
+            // Only published reviews are ever queried for display.
+            e.HasIndex(x => new { x.ListingId, x.PublishedAt });
             e.HasOne(x => x.Listing).WithMany(l => l.Reviews)
                 .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.AuthorUser).WithMany()

@@ -22,6 +22,8 @@ builder.Services.AddDbContext<StayHostDbContext>(o => o
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<BookingService>();
+builder.Services.AddScoped<ReviewService>();
+builder.Services.AddScoped<ThreadMessenger>();
 builder.Services.AddHostedService<BookingLifecycleWorker>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<NotificationService>();

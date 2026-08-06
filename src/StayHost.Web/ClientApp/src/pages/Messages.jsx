@@ -102,13 +102,28 @@ function Conversation({ thread, onOpenListing }) {
       <button className="btn btn-outline btn-sm" onClick={() => onOpenListing(s.listingSlug)}>Xem chỗ nghỉ</button>
     </header>
 
+    {!thread.contactsUnlocked && (
+      <div className="inbox-notice">
+        Số điện thoại, email và đường liên kết được che cho tới khi đơn được xác nhận.
+        Giao dịch ngoài StayHost không được bảo vệ.
+      </div>
+    )}
+
     <div className="inbox-messages" ref={boxRef}>
       {thread.messages.length
         ? thread.messages.map(m => (
-            <div className={`bubble ${m.mine ? 'mine' : ''}`} key={m.id}>
-              <p>{m.body}</p>
-              <time>{TIME.format(new Date(m.sentAt))}</time>
-            </div>
+            m.isSystem
+              ? <div className="bubble is-system" key={m.id}>
+                  <p>{m.body}</p>
+                  <time>{TIME.format(new Date(m.sentAt))}</time>
+                </div>
+              : <div className={`bubble ${m.mine ? 'mine' : ''}`} key={m.id}>
+                  <p>{m.body}</p>
+                  {m.contactsMasked && (
+                    <span className="bubble-note">Đã che thông tin liên hệ cho tới khi đơn được xác nhận.</span>
+                  )}
+                  <time>{TIME.format(new Date(m.sentAt))}</time>
+                </div>
           ))
         : <div className="inbox-empty"><p>Hãy gửi lời chào đầu tiên.</p></div>}
     </div>

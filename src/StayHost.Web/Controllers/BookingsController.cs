@@ -12,7 +12,7 @@ namespace StayHost.Web.Controllers;
 [Route("api/bookings")]
 public class BookingsController(
     StayHostDbContext db, AuthService auth, NotificationService notifications,
-    CatalogService catalog, BookingService rules)
+    CatalogService catalog, BookingService rules, ReviewService reviews, ThreadMessenger messenger)
     : ControllerBase
 {
     /// <summary>
@@ -237,6 +237,12 @@ public class BookingsController(
         await db.SaveChangesAsync(ct);
 
         var listing = booking.Listing!;
+
+        // docs/01 TN-04 — the conversation carries the order's own milestones.
+        await messenger.PostAsync(booking,
+            $"Đơn {booking.Reference} đã được xác nhận: {booking.CheckIn:dd/MM} – {booking.CheckOut:dd/MM}, " +
+            $"{booking.Nights} đêm, {booking.Guests} khách.", ct);
+
         var hostUser = await db.Users.FirstOrDefaultAsync(u => u.HostProfile!.Id == listing.HostId, ct);
 
         await notifications.QueueWithEmailAsync(hostUser, NotificationKind.BookingConfirmed,
@@ -303,6 +309,9 @@ public class BookingsController(
             "Khách đã huỷ đặt chỗ",
             $"Mã {booking.Reference} · {booking.CheckIn:dd/MM}–{booking.CheckOut:dd/MM} đã được huỷ.",
             "/hosting", ct);
+
+        await messenger.PostAsync(booking,
+            $"Đơn {booking.Reference} đã được khách huỷ. Hoàn lại {outcome.Amount:#,##0}₫.", ct);
 
         await db.SaveChangesAsync(ct);
         return Ok(ToPreview(booking, outcome));
@@ -418,6 +427,14 @@ public class BookingsController(
         var text = (req.Text ?? "").Trim();
         if (text.Length < 10) return BadRequest(new { message = "Nội dung đánh giá cần tối thiểu 10 ký tự." });
 
+        // docs/01 ĐG-09 — contact details and abuse are refused, not masked:
+        // a review is permanent and public.
+        var guard = ContentGuard.CheckReview(text);
+        if (!guard.Ok) return BadRequest(new { message = guard.Message });
+
+        if (DateTime.UtcNow > ReviewService.Deadline(booking))
+            return BadRequest(new { message = "Đã quá 14 ngày kể từ ngày trả phòng." });
+
         double Clamp(double v) => Math.Clamp(v, 1, 5);
 
         var review = new Review
@@ -429,6 +446,8 @@ public class BookingsController(
             AuthorInitials = user.Initials,
             When = $"Tháng {DateTime.UtcNow.Month}, {DateTime.UtcNow.Year}",
             Text = text,
+            PrivateNote = string.IsNullOrWhiteSpace(req.PrivateNote) ? null : req.PrivateNote.Trim(),
+            EditableUntil = DateTime.UtcNow + ReviewService.EditWindow,
             Rating = Clamp(req.Rating),
             Cleanliness = Clamp(req.Cleanliness),
             Accuracy = Clamp(req.Accuracy),
@@ -440,15 +459,20 @@ public class BookingsController(
         db.Reviews.Add(review);
         booking.HasReview = true;
 
-        // Keep the denormalised rating on the listing in step with the new review.
-        var listing = booking.Listing!;
-        var existing = await db.Reviews.Where(r => r.ListingId == listing.Id).Select(r => r.Rating).ToListAsync(ct);
-        existing.Add(review.Rating);
-        listing.Rating = Math.Round(existing.Average(), 2);
-        listing.ReviewCount = existing.Count;
-
         await db.SaveChangesAsync(ct);
-        return NoContent();
+
+        // docs/03 §7 — blind both ways: this only becomes visible once the host
+        // has written one too, or the 14-day window closes.
+        var published = await reviews.TryPublishAsync(booking.Id, ct);
+        if (published) await db.SaveChangesAsync(ct);
+
+        return Ok(new
+        {
+            published,
+            message = published
+                ? "Đánh giá của bạn và của chủ nhà đã được công khai."
+                : "Đã gửi. Đánh giá sẽ hiện khi chủ nhà cũng gửi, hoặc sau 14 ngày."
+        });
     }
 
     /// <summary>Single booking, used by the trip detail page and the printable receipt.</summary>

@@ -11,7 +11,8 @@ namespace StayHost.Web.Controllers;
 [ApiController]
 [Route("api/host")]
 public class HostController(
-    StayHostDbContext db, AuthService auth, NotificationService notifications, BookingService rules)
+    StayHostDbContext db, AuthService auth, NotificationService notifications,
+    BookingService rules, ReviewService reviews)
     : ControllerBase
 {
     private async Task<(User? User, HostProfile? Profile)> ResolveAsync(CancellationToken ct)
@@ -295,13 +296,20 @@ public class HostController(
         if (profile is null || booking.Listing!.HostId != profile.Id) return Forbid();
         if (booking.GuestUserId is not int guestId)
             return BadRequest(new { message = "Lượt đặt này không gắn với tài khoản khách." });
-        if (booking.CheckOut > DateOnly.FromDateTime(DateTime.UtcNow))
+        // docs/03 §7 — only a completed stay, inside the 14-day window.
+        if (booking.Status != BookingStatus.Completed)
             return BadRequest(new { message = "Chỉ đánh giá được sau khi khách trả phòng." });
+        if (DateTime.UtcNow > ReviewService.Deadline(booking))
+            return BadRequest(new { message = "Đã quá 14 ngày kể từ ngày trả phòng." });
         if (await db.GuestReviews.AnyAsync(r => r.BookingId == id, ct))
             return Conflict(new { message = "Bạn đã đánh giá khách này rồi." });
 
         var text = (req.Text ?? "").Trim();
         if (text.Length < 10) return BadRequest(new { message = "Nội dung đánh giá cần tối thiểu 10 ký tự." });
+
+        // docs/01 ĐG-09 — the same content rules as a guest's review.
+        var guard = ContentGuard.CheckReview(text);
+        if (!guard.Ok) return BadRequest(new { message = guard.Message });
 
         db.GuestReviews.Add(new GuestReview
         {
@@ -316,12 +324,26 @@ public class HostController(
         var guest = await db.Users.FirstOrDefaultAsync(u => u.Id == guestId, ct);
         await notifications.QueueWithEmailAsync(guest, NotificationKind.ReviewReceived,
             "Chủ nhà đã đánh giá bạn",
-            $"{user.FullName} vừa để lại đánh giá cho chuyến đi {booking.Reference}.",
+            $"{user.FullName} vừa để lại đánh giá cho chuyến đi {booking.Reference}. " +
+            "Đánh giá của hai bên sẽ hiện khi cả hai đã gửi.",
             $"/trips/{booking.Id}", ct);
 
         await db.SaveChangesAsync(ct);
+
+        // Blind both ways: publishing only happens once the guest has written
+        // one too, or the window closes.
+        var published = await reviews.TryPublishAsync(booking.Id, ct);
+        if (published) await db.SaveChangesAsync(ct);
+
         await RecalculateSuperhostAsync(profile.Id, ct);
-        return NoContent();
+
+        return Ok(new
+        {
+            published,
+            message = published
+                ? "Đánh giá của hai bên đã được công khai."
+                : "Đã gửi. Đánh giá sẽ hiện khi khách cũng gửi, hoặc sau 14 ngày."
+        });
     }
 
     /// <summary>

@@ -282,9 +282,22 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
             try
             {
                 await using var scope = services.CreateAsyncScope();
+
                 var bookings = scope.ServiceProvider.GetRequiredService<BookingService>();
                 var result = await bookings.SweepAsync(stoppingToken);
                 if (result.Any) log.LogInformation("Vòng đời đơn: {Result}.", result);
+
+                // docs/03 §7 — the same tick publishes reviews whose 14-day
+                // window has closed and sends the day 1 / 7 / 13 reminders.
+                var reviews = scope.ServiceProvider.GetRequiredService<ReviewService>();
+                var notifications = scope.ServiceProvider.GetRequiredService<NotificationService>();
+                var reviewResult = await reviews.SweepAsync(notifications, stoppingToken);
+                if (reviewResult.Any) log.LogInformation("Đánh giá: {Result}.", reviewResult);
+
+                // docs/01 TN-09 — milestone lines in the conversation itself.
+                var messenger = scope.ServiceProvider.GetRequiredService<ThreadMessenger>();
+                var posted = await messenger.SweepAsync(stoppingToken);
+                if (posted > 0) log.LogInformation("Đã gửi {Count} tin nhắn tự động.", posted);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

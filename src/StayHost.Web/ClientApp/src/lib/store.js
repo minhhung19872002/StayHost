@@ -561,8 +561,10 @@ export async function loadTrip(id) {
 
 export async function submitReview(bookingId, body) {
   try {
-    await api.review(bookingId, body);
-    toast('Cảm ơn bạn đã đánh giá!');
+    // docs/03 §7 — the server says whether it went public straight away or is
+    // waiting on the host, and that is what the guest needs to hear.
+    const result = await api.review(bookingId, body);
+    toast(result?.message ?? 'Cảm ơn bạn đã đánh giá!');
     await loadBookings();
     if (state.trip?.id === bookingId) await loadTrip(bookingId);
     return true;

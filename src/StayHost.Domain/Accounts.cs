@@ -148,9 +148,14 @@ public class Message
     public string Body { get; set; } = "";
     public DateTime SentAt { get; set; } = DateTime.UtcNow;
     public DateTime? ReadAt { get; set; }
+
+    /// <summary>
+    /// docs/01 TN-04 — a line the platform wrote itself (order confirmed,
+    /// cancelled, check-in tomorrow). Rendered differently and never masked.
+    /// </summary>
+    public bool IsSystem { get; set; }
 }
 
-/// <summary>Seasonal override: a date window priced differently from the base rate.</summary>
 /// <summary>
 /// Which tier of docs/03 §1 step 1 a rule belongs to. A day override beats a
 /// season, and both beat the weekend and base rates.
@@ -200,6 +205,12 @@ public class GuestReview
     public string Text { get; set; } = "";
     public bool WouldHostAgain { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// docs/03 §7 — blind until the other side also submits, or the 14-day
+    /// window runs out. Null means written but not yet visible to anyone.
+    /// </summary>
+    public DateTime? PublishedAt { get; set; }
 }
 
 /// <summary>Host-side calendar block that is not backed by a booking (maintenance, own stay).</summary>

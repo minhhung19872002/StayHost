@@ -454,7 +454,9 @@ public static class DbSeeder
                     Communication = Clamp(s.Rating + 0.07),
                     Location = Clamp(s.Rating - 0.03),
                     Value = Clamp(s.Rating - 0.06),
-                    CreatedAt = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(-30 * r)
+                    CreatedAt = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(-30 * r),
+                    // Seeded reviews stand in for history, so they are already public.
+                    PublishedAt = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(-30 * r)
                 });
             }
 

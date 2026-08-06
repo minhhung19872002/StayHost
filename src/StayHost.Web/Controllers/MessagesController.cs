@@ -29,7 +29,9 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
             .AsSplitQuery()
             .ToListAsync(ct);
 
-        return Ok(threads.Select(t => Summarize(t, user.Id)).ToList());
+        // The preview line in the list obeys the same masking as the thread itself.
+        var unlocked = await UnlockedThreadIdsAsync(threads, ct);
+        return Ok(threads.Select(t => Summarize(t, user.Id, unlocked.Contains(t.Id))).ToList());
     }
 
     [HttpGet("threads/{id:int}")]
@@ -50,9 +52,11 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
             await db.SaveChangesAsync(ct);
         }
 
+        var open = await ContactsUnlockedAsync(thread, ct);
         return Ok(new ThreadDetailDto(
-            Summarize(thread, user.Id),
-            thread.Messages.OrderBy(m => m.SentAt).Select(m => ToDto(m, user.Id)).ToList()));
+            Summarize(thread, user.Id, open),
+            thread.Messages.OrderBy(m => m.SentAt).Select(m => ToDto(m, user.Id, open)).ToList(),
+            open));
     }
 
     [HttpPost]
@@ -118,9 +122,48 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
         await db.SaveChangesAsync(ct);
 
         var fresh = await LoadThreadAsync(thread.Id, ct);
+        var open = await ContactsUnlockedAsync(fresh!, ct);
         return Ok(new ThreadDetailDto(
-            Summarize(fresh!, user.Id),
-            fresh!.Messages.OrderBy(m => m.SentAt).Select(m => ToDto(m, user.Id)).ToList()));
+            Summarize(fresh!, user.Id, open),
+            fresh!.Messages.OrderBy(m => m.SentAt).Select(m => ToDto(m, user.Id, open)).ToList(),
+            open));
+    }
+
+    /// <summary>
+    /// docs/03 §10 — contact details stay hidden until this guest has a
+    /// confirmed booking at this listing. Before that, the two sides trade only
+    /// through the platform.
+    /// </summary>
+    private Task<bool> ContactsUnlockedAsync(MessageThread thread, CancellationToken ct) =>
+        db.Bookings.AnyAsync(b =>
+            b.ListingId == thread.ListingId &&
+            b.GuestUserId == thread.GuestUserId &&
+            (b.Status == BookingStatus.Confirmed
+             || b.Status == BookingStatus.InProgress
+             || b.Status == BookingStatus.Completed), ct);
+
+    private async Task<HashSet<int>> UnlockedThreadIdsAsync(
+        IReadOnlyCollection<MessageThread> threads, CancellationToken ct)
+    {
+        if (threads.Count == 0) return [];
+
+        var listingIds = threads.Select(t => t.ListingId).Distinct().ToList();
+        var guestIds = threads.Select(t => t.GuestUserId).Distinct().ToList();
+
+        var confirmed = await db.Bookings
+            .Where(b => listingIds.Contains(b.ListingId)
+                        && b.GuestUserId != null && guestIds.Contains(b.GuestUserId.Value)
+                        && (b.Status == BookingStatus.Confirmed
+                            || b.Status == BookingStatus.InProgress
+                            || b.Status == BookingStatus.Completed))
+            .Select(b => new { b.ListingId, b.GuestUserId })
+            .ToListAsync(ct);
+
+        var pairs = confirmed.Select(c => (c.ListingId, c.GuestUserId)).ToHashSet();
+        return threads
+            .Where(t => pairs.Contains((t.ListingId, t.GuestUserId)))
+            .Select(t => t.Id)
+            .ToHashSet();
     }
 
     private Task<MessageThread?> LoadThreadAsync(int id, CancellationToken ct) =>
@@ -132,7 +175,7 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
             .AsSplitQuery()
             .FirstOrDefaultAsync(t => t.Id == id, ct);
 
-    private static ThreadSummaryDto Summarize(MessageThread t, int viewerId)
+    private static ThreadSummaryDto Summarize(MessageThread t, int viewerId, bool contactsUnlocked)
     {
         var viewerIsHost = t.HostUserId == viewerId;
         var other = viewerIsHost ? t.GuestUser : t.HostUser;
@@ -147,11 +190,23 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
             other?.FullName ?? "Người dùng",
             other?.Initials ?? "??",
             viewerIsHost,
-            last?.Body,
+            last is null ? null : Visible(last, contactsUnlocked),
             t.LastMessageAt,
             t.Messages.Count(m => m.SenderUserId != viewerId && m.ReadAt is null));
     }
 
-    private static MessageDto ToDto(Message m, int viewerId) => new(
-        m.Id, m.SenderUserId, m.SenderUser?.FullName ?? "", m.Body, m.SentAt, m.SenderUserId == viewerId);
+    private static MessageDto ToDto(Message m, int viewerId, bool contactsUnlocked) => new(
+        m.Id, m.SenderUserId, m.SenderUser?.FullName ?? "",
+        Visible(m, contactsUnlocked), m.SentAt, m.SenderUserId == viewerId, m.IsSystem,
+        !contactsUnlocked && !m.IsSystem && ContactGuardHit(m.Body));
+
+    /// <summary>
+    /// What actually goes over the wire. The stored text is never altered — the
+    /// masking happens on the way out, so unlocking a thread reveals the
+    /// original rather than a permanently damaged copy.
+    /// </summary>
+    private static string Visible(Message m, bool contactsUnlocked) =>
+        contactsUnlocked || m.IsSystem ? m.Body : ContentGuard.MaskContacts(m.Body);
+
+    private static bool ContactGuardHit(string body) => ContentGuard.Inspect(body).Any;
 }

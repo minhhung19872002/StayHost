@@ -348,8 +348,10 @@ export function ReviewModal() {
 
   const submit = async e => {
     e.preventDefault();
-    const text = e.currentTarget.text.value.trim();
-    const ok = await submitReview(b.id, { bookingId: b.id, ...draft, text });
+    const form = e.currentTarget;
+    const text = form.text.value.trim();
+    const privateNote = form.privateNote.value.trim() || null;
+    const ok = await submitReview(b.id, { bookingId: b.id, ...draft, text, privateNote });
     if (ok) closeOverlay();
   };
 
@@ -377,11 +379,23 @@ export function ReviewModal() {
         ))}
 
         <label className="form-field" style={{ marginTop: 20 }}>
-          <span className="cap">Cảm nhận của bạn</span>
+          <span className="cap">Cảm nhận của bạn <span style={{ fontWeight: 400 }}>(công khai)</span></span>
           <textarea name="text" rows={5} required minLength={10} defaultValue={draft.text}
                     placeholder="Chỗ nghỉ thế nào? Chủ nhà hỗ trợ ra sao?"
                     style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
         </label>
+
+        <label className="form-field">
+          <span className="cap">Góp ý riêng cho chủ nhà <span style={{ fontWeight: 400 }}>(không công khai)</span></span>
+          <textarea name="privateNote" rows={3}
+                    placeholder="Điều gì có thể tốt hơn cho khách sau?"
+                    style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
+        </label>
+
+        <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.5, margin: '0 0 12px' }}>
+          Đánh giá của bạn và của chủ nhà chỉ hiện khi cả hai đã gửi, hoặc sau 14 ngày.
+          Không được ghi số điện thoại, email hay đường liên kết.
+        </p>
 
         <button type="submit" className="btn btn-primary btn-block">Gửi đánh giá</button>
       </form>

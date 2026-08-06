@@ -564,7 +564,10 @@ public class CatalogService(StayHostDbContext db)
                 g.Select(a => new AmenityDto(a.Key, a.Label, a.Icon, a.Group)).ToList()))
             .ToList();
 
+        // docs/03 §7 — a review that has not been published yet is invisible to
+        // everyone, including the person it is about.
         var reviews = listing.Reviews
+            .Where(r => r.PublishedAt != null)
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => new ReviewDto(
                 r.Id, r.AuthorName, r.AuthorInitials, r.AuthorLocation, r.When, r.Text,
@@ -572,20 +575,21 @@ public class CatalogService(StayHostDbContext db)
             .ToList();
 
         // docs/01 TĐ-10 — the distribution, five stars first.
+        var visible = listing.Reviews.Where(r => r.PublishedAt != null).ToList();
         var stars = Enumerable.Range(1, 5)
-            .Select(n => listing.Reviews.Count(r => (int)Math.Round(r.Rating) == n))
+            .Select(n => visible.Count(r => (int)Math.Round(r.Rating) == n))
             .Reverse()
             .ToList();
 
-        var rb = listing.Reviews.Count == 0
+        var rb = visible.Count == 0
             ? new RatingBreakdownDto(5, 5, 5, 5, 5, 5, stars)
             : new RatingBreakdownDto(
-                Math.Round(listing.Reviews.Average(r => r.Cleanliness), 1),
-                Math.Round(listing.Reviews.Average(r => r.Accuracy), 1),
-                Math.Round(listing.Reviews.Average(r => r.CheckIn), 1),
-                Math.Round(listing.Reviews.Average(r => r.Communication), 1),
-                Math.Round(listing.Reviews.Average(r => r.Location), 1),
-                Math.Round(listing.Reviews.Average(r => r.Value), 1),
+                Math.Round(visible.Average(r => r.Cleanliness), 1),
+                Math.Round(visible.Average(r => r.Accuracy), 1),
+                Math.Round(visible.Average(r => r.CheckIn), 1),
+                Math.Round(visible.Average(r => r.Communication), 1),
+                Math.Round(visible.Average(r => r.Location), 1),
+                Math.Round(visible.Average(r => r.Value), 1),
                 stars);
 
         // docs/01 TĐ-04 — show every filterable amenity, striking through the

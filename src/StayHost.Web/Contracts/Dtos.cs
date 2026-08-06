@@ -281,9 +281,18 @@ public record ThreadSummaryDto(
     DateTime LastMessageAt,
     int UnreadCount);
 
-public record MessageDto(int Id, int SenderUserId, string SenderName, string Body, DateTime SentAt, bool Mine);
+public record MessageDto(
+    int Id, int SenderUserId, string SenderName, string Body, DateTime SentAt, bool Mine,
+    /// <summary>Written by the platform, not a person (docs/01 TN-04).</summary>
+    bool IsSystem,
+    /// <summary>True when contact details in this message are currently masked (TN-07).</summary>
+    bool ContactsMasked);
 
-public record ThreadDetailDto(ThreadSummaryDto Summary, IReadOnlyList<MessageDto> Messages);
+public record ThreadDetailDto(
+    ThreadSummaryDto Summary,
+    IReadOnlyList<MessageDto> Messages,
+    /// <summary>False until the guest has a confirmed booking at this listing.</summary>
+    bool ContactsUnlocked);
 
 public record SendMessageRequest(int? ThreadId, int? ListingId, string Body);
 
@@ -300,7 +309,9 @@ public record SubmitReviewRequest(
     double CheckIn,
     double Communication,
     double Location,
-    double Value);
+    double Value,
+    /// <summary>docs/01 ĐG-05 — feedback for the host alone, never published.</summary>
+    string? PrivateNote = null);
 
 public record CategoryDto(string Key, string Label, string Icon, int Count);
 

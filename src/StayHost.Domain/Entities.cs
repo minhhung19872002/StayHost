@@ -277,6 +277,19 @@ public class Review
     public string? HostReply { get; set; }
     public DateTime? HostRepliedAt { get; set; }
 
+    /// <summary>
+    /// docs/03 §7 — reviews are blind both ways: this stays null until the host
+    /// has also written one, or the 14-day window closes. Seeded reviews are
+    /// published immediately.
+    /// </summary>
+    public DateTime? PublishedAt { get; set; }
+
+    /// <summary>docs/01 ĐG-08 — the writer may correct it inside 48 hours.</summary>
+    public DateTime? EditableUntil { get; set; }
+
+    /// <summary>docs/01 ĐG-05 — feedback for the host alone, never public.</summary>
+    public string? PrivateNote { get; set; }
+
     // Airbnb-style per-category scores, averaged into the ratings breakdown.
     public double Cleanliness { get; set; } = 5;
     public double Accuracy { get; set; } = 5;
