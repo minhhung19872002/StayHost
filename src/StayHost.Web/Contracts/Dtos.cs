@@ -1335,3 +1335,40 @@ public record ShieldTermsDto(
 public record ShieldTermsSectionDto(string Heading, IReadOnlyList<string> Points);
 
 public record HostCancelRequest(string? Reason);
+
+/* ---- docs/06 AT-06-08: finding somewhere else for a guest ---------------- */
+
+public record RehousingOptionDto(
+    int ListingId,
+    string Slug,
+    string Title,
+    string City,
+    string TypeLabel,
+    int MaxGuests,
+    int Bedrooms,
+    double Rating,
+    int ReviewCount,
+    string? Image,
+    /// <summary>All-in price for the nights the guest still has, priced by the usual engine.</summary>
+    decimal Total,
+    /// <summary>How much more than the original booking's share of those nights.</summary>
+    decimal Difference,
+    /// <summary>True when the difference sits inside what the platform will cover.</summary>
+    bool WithinTopUp,
+    /// <summary>Roughly how far from the place they booked.</summary>
+    double DistanceKm);
+
+public record RehousingDto(
+    int ClaimId,
+    string Reference,
+    string OriginalTitle,
+    string City,
+    DateOnly From,
+    DateOnly To,
+    int Nights,
+    int Guests,
+    /// <summary>What the guest paid for the nights being replaced.</summary>
+    decimal AlreadyPaid,
+    /// <summary>The ceiling on the difference the platform will cover (docs/06 K-A).</summary>
+    decimal TopUpCeiling,
+    IReadOnlyList<RehousingOptionDto> Options);

@@ -1573,3 +1573,10 @@ select.field { width: 100%; padding: 10px 12px; }
   white-space: nowrap;
 }
 @media (max-width: 620px) { .shield-item-row { grid-template-columns: 1fr; } }
+
+.rehouse {
+  margin-top: 18px; padding: 18px; border: 1px solid var(--line); border-radius: 16px;
+  background: var(--wash);
+}
+.rehouse-head { display: flex; gap: 12px; align-items: start; flex-wrap: wrap; }
+.rehouse-head b { font-size: 15px; }

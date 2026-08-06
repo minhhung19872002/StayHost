@@ -196,6 +196,7 @@ export const api = {
   appealShield: (id, note) =>
     request(`/api/shield/${id}/appeal`, { method: 'POST', body: JSON.stringify({ note }) }),
   shieldQueue: () => request('/api/shield/admin/queue'),
+  shieldRehousing: id => request(`/api/shield/admin/${id}/rehousing`),
   shieldFund: () => request('/api/shield/admin/fund'),
   decideShield: (id, body) =>
     request(`/api/shield/admin/${id}/decide`, { method: 'POST', body: JSON.stringify(body) }),

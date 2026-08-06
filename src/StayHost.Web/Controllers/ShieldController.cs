@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using StayHost.Domain;
 using StayHost.Infrastructure;
 using StayHost.Web.Contracts;
+using StayHost.Web.Infrastructure;
 using StayHost.Web.Services;
 
 namespace StayHost.Web.Controllers;
@@ -14,7 +15,8 @@ namespace StayHost.Web.Controllers;
 [ApiController]
 [Route("api/shield")]
 public class ShieldController(
-    StayHostDbContext db, AuthService auth, AdminAudit audit, ShieldService shield) : ControllerBase
+    StayHostDbContext db, AuthService auth, AdminAudit audit, ShieldService shield,
+    CatalogService catalog) : ControllerBase
 {
     /* ------------------------------------------------- AT-06-01: the terms */
 
@@ -201,6 +203,21 @@ public class ShieldController(
         if (admin is null) return StatusCode(403, new { message = "Bạn không có quyền xem tài chính." });
 
         return Ok(await shield.FundAsync(ct));
+    }
+
+    /// <summary>
+    /// docs/06 AT-06-08 — what support offers before anybody talks about refunds.
+    /// Level 1 of section 2.3 comes first for a reason: a guest with nowhere to sleep
+    /// wants a bed tonight, not their money back next week.
+    /// </summary>
+    [HttpGet("admin/{id:int}/rehousing")]
+    public async Task<ActionResult<RehousingDto>> Rehousing(int id, CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Support, ct);
+        if (admin is null) return StatusCode(403, new { message = "Bạn không có quyền hỗ trợ." });
+
+        var options = await shield.RehousingAsync(id, catalog, HttpContext.SessionId(), ct);
+        return options is null ? NotFound() : Ok(options);
     }
 
     [HttpPost("admin/{id:int}/decide")]

@@ -153,7 +153,8 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 - [x] `AT-06-12` bảng theo dõi quỹ, cảnh báo ngưỡng 80% · `AT-06-13` gắn cờ lạm dụng
 - [x] `K1` mở hồ sơ tự động khi chủ nhà huỷ trong 30 ngày trước ngày nhận
 - [x] §11: không có từ ngữ bảo hiểm ở bất kỳ đâu người dùng đọc được — có test chặn
-- [ ] `AT-06-08` công cụ tìm chỗ thay thế cho nhân viên hỗ trợ — hiện dùng tìm kiếm sẵn có
+- [x] `AT-06-08` công cụ tìm chỗ thay thế: lọc theo khu vực, số đêm còn lại, sức chứa
+      tương đương; hiện khoảng cách, chênh lệch và đánh dấu phương án nằm trong hạn mức
 - [ ] Nhánh `C4` (trách nhiệm bên thứ ba) — khách chốt **để sau**
 
 ### Giai đoạn 7 — Mở rộng ⬜ gần như chưa bắt đầu

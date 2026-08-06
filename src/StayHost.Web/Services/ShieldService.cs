@@ -442,6 +442,73 @@ public class ShieldService(
         return 1;
     }
 
+    /* ------------------------------------------------------------ AT-06-08 */
+
+    /// <summary>
+    /// docs/06 AT-06-08 and section 2.3 level 1 — somewhere equivalent, in the same
+    /// area, free for the nights the guest still has, big enough for the party
+    /// that booked. The difference is shown against what they already paid for
+    /// those nights, so support can see at a glance which options fall inside
+    /// what the platform will cover.
+    /// </summary>
+    public async Task<RehousingDto?> RehousingAsync(
+        int claimId, CatalogService catalog, string sessionId, CancellationToken ct)
+    {
+        var claim = await db.ShieldClaims
+            .Include(c => c.Booking!).ThenInclude(b => b.Listing)
+            .FirstOrDefaultAsync(c => c.Id == claimId, ct);
+        if (claim?.Booking?.Listing is null) return null;
+
+        var booking = claim.Booking;
+        var original = booking.Listing!;
+
+        // Only the nights still ahead need replacing; a night already slept in
+        // is not something anybody can re-book.
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var from = booking.CheckIn > today ? booking.CheckIn : today;
+        var to = booking.CheckOut;
+        if (to <= from) return null;
+
+        var nights = to.DayNumber - from.DayNumber;
+        var party = new PartySize(booking.Adults, booking.Children, booking.Infants, booking.Pets);
+
+        var settings = ShieldSettings.Current;
+        var paidForThose = booking.Nights > 0
+            ? Math.Round(booking.Total * nights / booking.Nights, 0, MidpointRounding.AwayFromZero)
+            : booking.Total;
+        var ceiling = Math.Round(booking.Total * settings.RehousingTopUpRate, 0, MidpointRounding.AwayFromZero);
+
+        // The ordinary search already knows how to keep taken dates out and how
+        // to price a card exactly as checkout would.
+        var query = new CatalogService.SearchQuery(
+            Q: original.City, Category: null, MinPrice: null, MaxPrice: null,
+            Guests: Math.Max(1, booking.Guests), Amenities: [], Sort: "rating",
+            RoomType: null, Bedrooms: null, Beds: null, Bathrooms: null,
+            SuperhostOnly: false, GuestFavoriteOnly: false, InstantBookOnly: false,
+            FreeCancellationOnly: false, Page: 1, PageSize: 12,
+            CheckIn: from, CheckOut: to);
+
+        var results = await catalog.SearchAsync(query, sessionId, ct);
+
+        var options = results.Items
+            .Where(l => l.Id != original.Id && l.MaxGuests >= booking.Guests)
+            .Select(l => new RehousingOptionDto(
+                l.Id, l.Slug, l.Title, l.City, l.TypeLabel, l.MaxGuests, l.Bedrooms,
+                l.Rating, l.ReviewCount, l.Images.FirstOrDefault(),
+                l.StayTotal ?? 0m,
+                Math.Max(0m, (l.StayTotal ?? 0m) - paidForThose),
+                Math.Max(0m, (l.StayTotal ?? 0m) - paidForThose) <= ceiling,
+                Math.Round(ServiceRules.DistanceKm(
+                    original.Latitude, original.Longitude, l.Latitude, l.Longitude), 1)))
+            .OrderBy(o => o.WithinTopUp ? 0 : 1)
+            .ThenBy(o => o.Difference)
+            .ToList();
+
+        return new RehousingDto(
+            claim.Id, claim.Reference, original.Title, original.City,
+            from, to, nights, booking.Guests, paidForThose, ceiling, options);
+    }
+
     /* ------------------------------------------------------------- reads */
 
     public async Task<ShieldFundDto> FundAsync(CancellationToken ct)

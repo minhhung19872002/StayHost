@@ -388,6 +388,7 @@ function Gate({ message, showLogin }) {
 function ShieldPanel() {
   const [rows, setRows] = useState(null);
   const [fund, setFund] = useState(null);
+  const [rehousing, setRehousing] = useState(null);
 
   const reload = () => {
     api.shieldQueue().then(setRows).catch(e => toast(e.message));
@@ -479,6 +480,12 @@ function ShieldPanel() {
                   <button className="btn btn-primary btn-sm" onClick={() => decide(c, true)}>Chấp nhận</button>
                   <button className="btn btn-outline btn-sm" onClick={() => decide(c, false)}>Từ chối</button>
                 </>}
+                {c.side === 'Guest' && (
+                  <button className="btn btn-outline btn-sm" onClick={async () => {
+                    try { setRehousing(await api.shieldRehousing(c.id)); }
+                    catch (err) { toast(err.message); }
+                  }}>Tìm chỗ thay thế</button>
+                )}
                 {c.paidFromFund > c.recoveredLater &&
                   <button className="btn btn-outline btn-sm" onClick={() => recover(c)}>Thu hồi</button>}
               </div>
@@ -486,7 +493,68 @@ function ShieldPanel() {
           ))}
         </div>
       ) : <p className="section-sub" style={{ marginTop: 16 }}>Không có hồ sơ nào đang mở.</p>}
+
+      <Rehousing data={rehousing} onClose={() => setRehousing(null)} />
     </section>
+  );
+}
+
+/**
+ * docs/06 AT-06-08 — what support offers before anybody mentions a refund.
+ * Level 1 of §2.3 comes first for a reason: a guest with nowhere to sleep wants
+ * a bed tonight, not their money back next week.
+ */
+function Rehousing({ data, onClose }) {
+  if (!data) return null;
+
+  return (
+    <div className="rehouse">
+      <div className="rehouse-head">
+        <div style={{ minWidth: 0 }}>
+          <b>Chỗ thay thế cho hồ sơ {data.reference}</b>
+          <div className="meta">
+            {data.city} · {data.nights} đêm còn lại ({data.from} → {data.to}) · {data.guests} khách ·
+            {' '}khách đã trả {money(data.alreadyPaid)} cho những đêm này
+          </div>
+          <div className="meta">Sàn bù chênh lệch tối đa {money(data.topUpCeiling)}</div>
+        </div>
+        <button className="btn btn-outline btn-sm" onClick={onClose}>Đóng</button>
+      </div>
+
+      {data.options.length ? (
+        <div className="table-wrap" style={{ marginTop: 12 }}>
+          <table className="admin-table">
+            <thead>
+              <tr><th>Chỗ nghỉ</th><th>Sức chứa</th><th>Cách</th>
+                <th style={{ textAlign: 'right' }}>Giá</th>
+                <th style={{ textAlign: 'right' }}>Chênh lệch</th><th /></tr>
+            </thead>
+            <tbody>
+              {data.options.map(o => (
+                <tr key={o.listingId}>
+                  <td><b>{o.title}</b><span>{o.typeLabel} · ★ {o.rating.toFixed(2)} ({o.reviewCount})</span></td>
+                  <td>{o.maxGuests} khách · {o.bedrooms} phòng ngủ</td>
+                  <td>{o.distanceKm} km</td>
+                  <td style={{ textAlign: 'right' }}>{money(o.total)}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    {o.difference > 0 ? `+${money(o.difference)}` : 'Không chênh'}
+                  </td>
+                  <td>
+                    <span className={`badge ${o.withinTopUp ? 'confirmed' : 'pending'}`}>
+                      {o.withinTopUp ? 'Trong hạn mức' : 'Cần duyệt thêm'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="section-sub" style={{ marginTop: 12 }}>
+          Không còn chỗ nào trống ở {data.city} cho những ngày này. Chuyển sang mức 2 hoặc mức 3.
+        </p>
+      )}
+    </div>
   );
 }
 
