@@ -38,8 +38,13 @@ def record(n, title, ok, detail):
     print(f"{'PASS' if ok else 'FAIL'}  {n:>2}. {title}\n        {detail}")
 
 
+# Every run picks a different stretch of the calendar so a second run does not
+# collide with the bookings the first one made.
+RUN_SHIFT = (int(time.time()) // 60) % 90
+
+
 def future(days):
-    return (datetime.date.today() + datetime.timedelta(days=days)).isoformat()
+    return (datetime.date.today() + datetime.timedelta(days=days + RUN_SHIFT)).isoformat()
 
 
 def bookable(op, *, instant=True, nights=3, offset=45):
@@ -165,8 +170,14 @@ st6, created = call(host1, "/api/host/listings", {
     "instantBook": True, "isPublished": True, "cancellationTier": "Moderate",
     "description": "Nhà mới đăng để chạy kịch bản nghiệm thu số sáu của tài liệu.",
     "highlight": None, "latitude": None, "longitude": None,
-    "images": ["https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg"],
-    "amenityKeys": ["wifi", "kitchen"], "pricing": None})
+    # docs/01 CN-07 — five photos is the bar for going public.
+    "images": [f"https://images.pexels.com/photos/{pid}/pexels-photo-{pid}.jpeg"
+               for pid in (271624, 271639, 1571460, 106399, 275484)],
+    "imageCaptions": ["Ảnh bìa", "Phòng khách", "Phòng ngủ", "Bếp", "Phòng tắm"],
+    "amenityKeys": ["wifi", "kitchen"], "pricing": None,
+    "legal": {"licenseNumber": None, "hasSecurityCameras": False, "securityCameraNote": None,
+              "hasWeaponsOnProperty": False, "hasDangerousAnimals": False},
+    "wizardStep": 0, "isComplete": True})
 _, found = call(anon, f"/api/listings?q={urllib.parse.quote('Quy Nhon')}&pageSize=60")
 appears = any(x['title'] == title for x in found['items'])
 record(6, "Chủ nhà đăng tin mới, xuất bản, xuất hiện trong tìm kiếm",

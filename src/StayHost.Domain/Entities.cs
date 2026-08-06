@@ -220,6 +220,23 @@ public class Listing
     /// zone, not the guest's and not the server's.
     /// </summary>
     public string TimeZoneId { get; set; } = "Asia/Ho_Chi_Minh";
+
+    // --- docs/01 CN-12: what the host has to declare before publishing.
+    /// <summary>Business or rental licence number, where the area requires one.</summary>
+    public string? LicenseNumber { get; set; }
+    /// <summary>Recording devices anywhere on the property must be disclosed.</summary>
+    public bool HasSecurityCameras { get; set; }
+    public string? SecurityCameraNote { get; set; }
+    public bool HasWeaponsOnProperty { get; set; }
+    public bool HasDangerousAnimals { get; set; }
+
+    /// <summary>
+    /// docs/01 CN-01 — a listing being built step by step. It is not a draft in
+    /// the publish sense: <see cref="IsPublished"/> covers that. This marks one
+    /// the host has not finished, so the wizard can pick up where it left off.
+    /// </summary>
+    public int WizardStep { get; set; }
+    public bool IsComplete { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

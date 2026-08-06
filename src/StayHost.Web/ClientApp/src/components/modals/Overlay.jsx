@@ -5,7 +5,8 @@ import {
 } from './SearchModals.jsx';
 import { AuthModal, ProfileModal, ReviewModal, CancelTripModal } from './AccountModals.jsx';
 import { PhotosModal, AmenitiesModal, ReviewsModal, CheckoutModal } from './ListingModals.jsx';
-import { ListingEditorModal, HostCalendarModal, GuestReviewModal } from './HostModals.jsx';
+import { HostCalendarModal, GuestReviewModal } from './HostModals.jsx';
+import { ListingWizard } from './ListingWizard.jsx';
 
 const REGISTRY = {
   filters: FiltersModal,
@@ -23,7 +24,7 @@ const REGISTRY = {
   amenities: AmenitiesModal,
   reviews: ReviewsModal,
   checkout: CheckoutModal,
-  'listing-editor': ListingEditorModal,
+  'listing-editor': ListingWizard,
   'host-block': HostCalendarModal,
   'guest-review': GuestReviewModal
 };

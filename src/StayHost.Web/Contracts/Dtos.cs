@@ -62,7 +62,12 @@ public record HostListingDto(
     IReadOnlyList<string> AmenityKeys,
     int UpcomingBookings,
     decimal EarningsToDate,
-    PricingRulesDto Pricing);
+    PricingRulesDto Pricing,
+    IReadOnlyList<BedroomDto> BedLayout,
+    IReadOnlyList<string> ImageCaptions,
+    LegalDeclarationDto Legal,
+    int WizardStep,
+    bool IsComplete);
 
 /// <summary>The host-settable half of docs/03 §1 — discounts and surcharges.</summary>
 public record PricingRulesDto(
@@ -102,7 +107,24 @@ public record SaveListingRequest(
     IReadOnlyList<string> Images,
     IReadOnlyList<string> AmenityKeys,
     /// <summary>Omitted by older clients; the listing keeps its current rules then.</summary>
-    PricingRulesDto? Pricing = null);
+    PricingRulesDto? Pricing = null,
+    /// <summary>docs/01 CN-05 — beds per room, as the host laid them out.</summary>
+    IReadOnlyList<BedroomDto>? BedLayout = null,
+    /// <summary>docs/01 CN-07 — one label per photo, in display order.</summary>
+    IReadOnlyList<string>? ImageCaptions = null,
+    /// <summary>docs/01 CN-12 — licence, cameras, weapons, animals.</summary>
+    LegalDeclarationDto? Legal = null,
+    /// <summary>docs/01 CN-01 — where the host got to; 0 means finished.</summary>
+    int WizardStep = 0,
+    bool IsComplete = true);
+
+/// <summary>docs/01 CN-12 — the declarations a host must make before publishing.</summary>
+public record LegalDeclarationDto(
+    string? LicenseNumber,
+    bool HasSecurityCameras,
+    string? SecurityCameraNote,
+    bool HasWeaponsOnProperty,
+    bool HasDangerousAnimals);
 
 public record CalendarBlockDto(int Id, DateOnly From, DateOnly To, string? Note);
 

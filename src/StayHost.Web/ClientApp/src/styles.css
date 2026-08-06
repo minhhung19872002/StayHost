@@ -1316,3 +1316,34 @@ select.field { width: 100%; padding: 10px 12px; }
   padding: 10px 16px; background: var(--brand-soft); border-bottom: 1px solid var(--brand-soft-border);
   font-size: 12.5px; line-height: 1.5; color: var(--brand-dark);
 }
+
+/* CN-01 — the step rail across the top of the listing wizard. Every step is
+   clickable, so a host can jump back without losing anything. */
+.wizard-steps {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 14px; margin-bottom: 18px;
+  border-bottom: 1px solid var(--divider); scrollbar-width: none;
+}
+.wizard-steps::-webkit-scrollbar { display: none; }
+.wizard-step {
+  display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto;
+  padding: 7px 13px; border: 1px solid var(--line); border-radius: 999px;
+  background: #fff; font: inherit; font-size: 12.5px; color: var(--ink-muted);
+  white-space: nowrap; cursor: pointer;
+}
+.wizard-step .n {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%; background: var(--divider);
+  font-size: 11px; font-weight: 700; color: var(--ink);
+}
+.wizard-step.is-active { border-color: var(--ink); color: var(--ink); font-weight: 700; }
+.wizard-step.is-active .n { background: var(--ink); color: #fff; }
+.wizard-step.is-done { color: var(--ink); }
+.wizard-step.is-done .n { background: var(--brand); color: #fff; }
+
+/* CN-07 — drag to reorder, and a label under each photo. */
+.thumb.is-draggable { cursor: grab; }
+.thumb.is-dragging { opacity: 0.45; }
+.thumb .thumb-caption {
+  width: 100%; margin-top: 6px; padding: 5px 8px; border: 1px solid var(--line);
+  border-radius: 8px; font: inherit; font-size: 12px;
+}

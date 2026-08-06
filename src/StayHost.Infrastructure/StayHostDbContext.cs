@@ -206,6 +206,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.SearchText).HasMaxLength(400);
             e.HasIndex(x => x.SearchText);
             e.Property(x => x.BedLayoutJson).HasColumnType("jsonb");
+            e.Property(x => x.LicenseNumber).HasMaxLength(80);
+            e.Property(x => x.SecurityCameraNote).HasMaxLength(500);
             e.HasOne(x => x.Host).WithMany(h => h.Listings)
                 .HasForeignKey(x => x.HostId).OnDelete(DeleteBehavior.Cascade);
         });

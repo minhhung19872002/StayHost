@@ -520,6 +520,12 @@ public class HostController(
         if (r.Bedrooms < 0 || r.Beds < 1) return "Cần ít nhất 1 giường.";
         if (r.Images.Count == 0) return "Cần ít nhất 1 ảnh.";
         if (r.MinNights is < 1 or > 90) return "Số đêm tối thiểu phải từ 1 đến 90.";
+
+        // docs/01 CN-07 — five photos is the bar for going public. A draft may
+        // have fewer, so the check only applies when publishing.
+        if (r.IsPublished && r.Images.Count(u => !string.IsNullOrWhiteSpace(u)) < 5)
+            return "Cần tối thiểu 5 ảnh trước khi hiển thị công khai.";
+
         return null;
     }
 
@@ -553,6 +559,26 @@ public class HostController(
         // Title and city just changed, so the diacritic-free search column has to follow.
         listing.RefreshSearchText();
 
+        // docs/01 CN-01 — where the wizard got to, so an interrupted host can resume.
+        listing.WizardStep = Math.Clamp(r.WizardStep, 0, 12);
+        listing.IsComplete = r.IsComplete;
+
+        // docs/01 CN-05 — beds per room.
+        if (r.BedLayout is { Count: > 0 })
+            listing.BedLayoutJson = System.Text.Json.JsonSerializer.Serialize(r.BedLayout, LayoutJson);
+
+        // docs/01 CN-12 — the declarations, stored as given.
+        if (r.Legal is { } legal)
+        {
+            listing.LicenseNumber = string.IsNullOrWhiteSpace(legal.LicenseNumber) ? null : legal.LicenseNumber.Trim();
+            listing.HasSecurityCameras = legal.HasSecurityCameras;
+            listing.SecurityCameraNote = string.IsNullOrWhiteSpace(legal.SecurityCameraNote)
+                ? null
+                : legal.SecurityCameraNote.Trim();
+            listing.HasWeaponsOnProperty = legal.HasWeaponsOnProperty;
+            listing.HasDangerousAnimals = legal.HasDangerousAnimals;
+        }
+
         if (r.Pricing is { } p)
         {
             // Percentages are clamped here as well as in the UI: the platform cap of
@@ -576,10 +602,17 @@ public class HostController(
         listing.Latitude = r.Latitude ?? (listing.Latitude != 0 ? listing.Latitude : coords.Lat);
         listing.Longitude = r.Longitude ?? (listing.Longitude != 0 ? listing.Longitude : coords.Lng);
 
+        // docs/01 CN-07 — the order the host dragged them into, and their labels.
         listing.Images.Clear();
-        var order = 0;
-        foreach (var url in r.Images.Where(u => !string.IsNullOrWhiteSpace(u)).Take(20))
-            listing.Images.Add(new ListingImage { Url = url.Trim(), SortOrder = order++, Caption = $"Ảnh {order}" });
+        var urls = r.Images.Where(u => !string.IsNullOrWhiteSpace(u)).Take(20).ToList();
+        for (var i = 0; i < urls.Count; i++)
+        {
+            var caption = r.ImageCaptions is { } captions && i < captions.Count && !string.IsNullOrWhiteSpace(captions[i])
+                ? captions[i].Trim()
+                : i == 0 ? "Ảnh bìa" : $"Ảnh {i + 1}";
+
+            listing.Images.Add(new ListingImage { Url = urls[i].Trim(), SortOrder = i, Caption = caption });
+        }
 
         var wanted = await db.Amenities
             .Where(a => r.AmenityKeys.Contains(a.Key))
@@ -655,7 +688,30 @@ public class HostController(
             l.LastMinuteDays, l.LastMinutePercent,
             l.WeekendSurchargeRate,
             l.FreeGuestThreshold, l.ExtraGuestFee,
-            l.PetsAllowed, l.MaxPets, l.PetFee, l.PetFeePerNight));
+            l.PetsAllowed, l.MaxPets, l.PetFee, l.PetFeePerNight),
+        ReadLayout(l),
+        l.Images.OrderBy(i => i.SortOrder).Select(i => i.Caption).ToList(),
+        new LegalDeclarationDto(
+            l.LicenseNumber, l.HasSecurityCameras, l.SecurityCameraNote,
+            l.HasWeaponsOnProperty, l.HasDangerousAnimals),
+        l.WizardStep,
+        l.IsComplete);
+
+    private static readonly System.Text.Json.JsonSerializerOptions LayoutJson =
+        new(System.Text.Json.JsonSerializerDefaults.Web);
+
+    /// <summary>The stored layout, or an empty list when the host has not set one.</summary>
+    private static List<BedroomDto> ReadLayout(Listing l)
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<List<BedroomDto>>(l.BedLayoutJson, LayoutJson) ?? [];
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return [];
+        }
+    }
 
     /// <summary>
     /// Replays the amounts frozen on the booking as a breakdown, so the ledger
