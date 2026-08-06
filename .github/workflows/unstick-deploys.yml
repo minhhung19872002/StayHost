@@ -1,0 +1,73 @@
+name: Unstick deploys
+
+# When the self-hosted runner drops while a deploy job is being handed to it, that job
+# is orphaned in `queued` and GitHub leaves it sitting there for 24 hours. A later push
+# now clears it (CI/CD cancels in progress), but if nobody pushes, the commit silently
+# never reaches production. This job is the sweeper for that case.
+#
+# It runs on a GitHub-hosted runner on purpose: the VPS runner is the thing that fails,
+# so it cannot be the thing that cleans up after itself.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  unstick:
+    name: Cancel and retry orphaned runs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sweep
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          # A healthy deploy waits seconds for the runner, and build+publish ahead of it
+          # take about two minutes. Still queued after this long means orphaned.
+          STUCK_AFTER_MINUTES: '20'
+        run: |
+          set -euo pipefail
+
+          now=$(date -u +%s)
+          found=0
+
+          # Only CI/CD runs matter here; this workflow's own runs are short-lived.
+          while IFS=$'\t' read -r id created attempt sha; do
+            [ -n "$id" ] || continue
+            age=$(( (now - $(date -u -d "$created" +%s)) / 60 ))
+            if [ "$age" -lt "$STUCK_AFTER_MINUTES" ]; then
+              echo "Run $id queued for ${age}m - under threshold, leaving it."
+              continue
+            fi
+
+            found=1
+            echo "::warning::Run $id (${sha:0:7}) has been queued ${age}m; cancelling."
+            gh api -X POST "repos/$REPO/actions/runs/$id/cancel" >/dev/null || true
+
+            # Wait for the cancel to land, otherwise the rerun below is rejected.
+            for _ in $(seq 1 30); do
+              state=$(gh api "repos/$REPO/actions/runs/$id" --jq .status)
+              [ "$state" = "completed" ] && break
+              sleep 2
+            done
+
+            # Retry once and only once. If attempt 2 orphans too, the runner is genuinely
+            # down and retrying again would just loop every 15 minutes forever - better to
+            # leave it cancelled and visible than to burn minutes hiding a real outage.
+            if [ "$attempt" -ge 2 ]; then
+              echo "::error::Run $id already retried once and stalled again - the runner needs attention."
+              continue
+            fi
+
+            echo "Re-running $id so ${sha:0:7} still reaches production."
+            gh api -X POST "repos/$REPO/actions/runs/$id/rerun" >/dev/null
+          done < <(
+            gh api "repos/$REPO/actions/runs?status=queued&per_page=100" \
+              --jq '.workflow_runs[] | select(.name == "CI/CD")
+                    | [.id, .created_at, .run_attempt, .head_sha] | @tsv'
+          )
+
+          [ "$found" -eq 0 ] && echo "No orphaned runs." || true

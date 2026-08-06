@@ -7,10 +7,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Two deploys must never overlap on the single-CPU VPS.
+# The single self-hosted runner is what actually stops two deploys overlapping: it
+# takes one job at a time, so a second deploy cannot start until the first releases it.
+# This group only sheds superseded work. It must cancel: if the runner drops while a
+# deploy job is being handed to it, that job is orphaned in `queued` and GitHub leaves
+# it there for 24 hours. Holding the group for a run that will never finish blocks
+# every later push behind it, which is exactly how deploys stalled on 2026-08-06.
 concurrency:
   group: ci-cd-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   # github.repository is mixed case; GHCR only accepts lowercase names.
@@ -99,6 +104,10 @@ jobs:
     needs: image
     if: github.ref == 'refs/heads/main'
     runs-on: [self-hosted, stayhost-vps]
+    # A healthy deploy takes about a minute. This only catches one that wedges once it
+    # is already running -- a job still waiting for the runner is not covered, because
+    # GitHub counts queue time against its own 24-hour limit instead.
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: read
