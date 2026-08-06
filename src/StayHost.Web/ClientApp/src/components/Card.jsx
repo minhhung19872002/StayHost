@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { state as store, toggleFavorite } from '../lib/store.js';
@@ -17,6 +17,9 @@ export function Card({ card, variant, lazy = false }) {
   const state = useStore();
   const navigate = useNavigate();
   const [index, setIndex] = useState(0);
+  // The frame being left behind, and which way it is leaving. It keeps its own
+  // class for the length of the transition and is then dropped.
+  const [leaving, setLeaving] = useState(null);
 
   const images = card.images?.length ? card.images : [''];
   const idx = Math.min(index, images.length - 1);
@@ -24,10 +27,40 @@ export function Card({ card, variant, lazy = false }) {
 
   const open = () => navigate(`/rooms/${card.slug}`);
 
+  // Wrapping round is what makes the arrows worth having on a small card: with
+  // three photos you would otherwise hit a dead end after two clicks.
   const step = (event, dir) => {
     event.preventDefault();
     event.stopPropagation();
-    setIndex(i => Math.min(images.length - 1, Math.max(0, i + dir)));
+
+    const next = (idx + dir + images.length) % images.length;
+    if (next === idx) return;
+
+    setLeaving({ index: idx, side: dir > 0 ? 'left' : 'right' });
+    setIndex(next);
+  };
+
+  const goTo = (event, to) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (to === idx) return;
+
+    setLeaving({ index: idx, side: to > idx ? 'left' : 'right' });
+    setIndex(to);
+  };
+
+  // Matches the .35s in the stylesheet; the class has to outlive the animation
+  // or the outgoing frame vanishes instead of sliding away.
+  useEffect(() => {
+    if (!leaving) return;
+    const timer = setTimeout(() => setLeaving(null), 380);
+    return () => clearTimeout(timer);
+  }, [leaving]);
+
+  const frameClass = i => {
+    if (i === idx) return 'is-current';
+    if (leaving?.index === i) return `is-leaving to-${leaving.side}`;
+    return '';
   };
 
   return (
@@ -39,11 +72,12 @@ export function Card({ card, variant, lazy = false }) {
     >
       <div className="card-media" onClick={open} role="link" tabIndex={-1}>
         {images.map((src, i) =>
-          // Only the visible frame and its neighbours carry a real src, so a
-          // grid of cards costs a handful of images rather than hundreds.
-          Math.abs(i - idx) <= 1
+          // Only the visible frame, its neighbours and the one on its way out
+          // carry a real src, so a grid of cards costs a handful of images
+          // rather than hundreds.
+          Math.abs(i - idx) <= 1 || i === leaving?.index || Math.abs(i - idx) === images.length - 1
             ? <img key={i} src={src} alt={`${card.title} — ảnh ${i + 1}`}
-                   className={i === idx ? 'is-current' : ''}
+                   className={frameClass(i)}
                    loading={i === 0 && !lazy ? 'eager' : 'lazy'} decoding="async" />
             : <img key={i} alt="" aria-hidden="true" className="is-deferred" />
         )}
@@ -56,12 +90,13 @@ export function Card({ card, variant, lazy = false }) {
                 aria-pressed={!!card.isFavorite}>♥</button>
 
         {images.length > 1 && <>
-          <button className="carousel-nav prev" onClick={e => step(e, -1)}
-                  aria-label="Ảnh trước" disabled={idx === 0}>‹</button>
-          <button className="carousel-nav next" onClick={e => step(e, 1)}
-                  aria-label="Ảnh tiếp theo" disabled={idx === images.length - 1}>›</button>
-          <div className="carousel-dots" aria-hidden="true">
-            {images.map((_, i) => <i key={i} className={i === idx ? 'is-on' : ''} />)}
+          <button className="carousel-nav prev" onClick={e => step(e, -1)} aria-label="Ảnh trước">‹</button>
+          <button className="carousel-nav next" onClick={e => step(e, 1)} aria-label="Ảnh tiếp theo">›</button>
+          <div className="carousel-dots">
+            {images.map((_, i) => (
+              <button key={i} className={`bullet ${i === idx ? 'is-on' : ''}`}
+                      onClick={e => goTo(e, i)} aria-label={`Xem ảnh ${i + 1}`} />
+            ))}
           </div>
         </>}
       </div>
