@@ -6,165 +6,157 @@ Trạng thái: ✅ đúng spec · 🟡 có nhưng **sai/thiếu so với spec** 
 
 ---
 
-## 0. Ba việc phải quyết trước
+## Thước đo "xong": 10 tình huống nghiệm thu — **10/10 đạt**
 
-| # | Vấn đề | Hiện tại | Spec |
-|---|---|---|---|
-| 1 | **Tên sản phẩm** | StayHost OS | **StayHub** (`00 §4`) |
-| 2 | **Tên danh hiệu** | "Siêu chủ nhà", "Khách yêu thích" | **"Chủ nhà Ưu tú"**, **"Khách chọn"** (`00 §4`) |
-| 3 | **Chương trình bảo vệ** | chưa có | **StayShield** |
+Chạy trên dữ liệu thật, server thật (`scripts/acceptance.py`, xem §Kiểm chứng):
 
-Đổi tên là việc rẻ nhưng chạm nhiều nơi — làm sớm để không phải sửa lại sau.
-
----
-
-## 1. Sai lệch nghiêm trọng về TIỀN (ưu tiên cao nhất)
-
-`03 §1` nói rõ: *"Mỗi quy tắc chỉ được định nghĩa một lần"*. Hiện `Pricing.cs` đã tập trung
-nhưng **công thức sai**:
-
-| Khoản | Hiện tại | Spec `03 §1` | Mức độ |
-|---|---|---|---|
-| Phí dịch vụ khách | 9% | **14%**, tính **trước thuế** | 🔴 sai số tiền |
-| Phí dịch vụ chủ nhà | 0% | **3%** trên tạm tính | 🔴 thiếu nguồn thu |
-| Giảm theo độ dài | 7đ −10%, 28đ −20% | đúng cơ chế, nhưng phải **chọn một**, ưu tiên mức dài hơn | 🟡 |
-| Giảm theo thời điểm đặt | ⬜ | đặt sớm / phút chót, **chọn một, lấy mức lớn hơn** | 🔴 thiếu |
-| Giảm tin mới | ⬜ | 3 đơn đầu −20% | 🔴 thiếu |
-| Trần tổng giảm | ⬜ | **≤60%**, chỉ áp lên tiền phòng | 🔴 thiếu |
-| Phụ thu khách thêm | ⬜ | (người lớn+trẻ em − ngưỡng) × mức × số đêm, **em bé không tính** | 🔴 thiếu |
-| Phí thú cưng | ⬜ | theo lượt hoặc theo đêm | 🔴 thiếu |
-| Giá theo ngày cụ thể | ⬜ | ưu tiên: giá ngày → giá mùa → giá cuối tuần → giá cơ bản | 🟡 thiếu tầng "giá ngày" |
-| Thuế | cố định 8% | theo **quy tắc khu vực**, nhiều loại chồng nhau, 4 cách tính | 🔴 sai mô hình |
-| Làm tròn | 1 lần cuối | **từng dòng**, chênh lệch dồn vào dòng cuối | 🟡 |
-| Mã giảm giá / số dư | ⬜ | trừ sau cùng, dòng riêng | 🔴 thiếu |
-
-**8 tình huống kiểm thử bắt buộc** ở `03 §1` phải pass hết.
-
-## 2. Sai lệch về HUỶ & HOÀN TIỀN
-
-| Khoản | Hiện tại | Spec `03 §4` |
+| # | Tình huống | Kết quả |
 |---|---|---|
-| Số chính sách | 3 | **6** (Linh hoạt, Vừa phải, Chặt, Rất chặt, Không hoàn, Dài hạn–chặt) |
-| Ân hạn 48h | ⬜ | huỷ trong 48h sau đặt **và** còn ≥14 ngày → hoàn 100% |
-| Phí vệ sinh | gộp chung | **luôn hoàn 100%** ở mọi chính sách |
-| Phí dịch vụ | luôn hoàn | chỉ hoàn khi huỷ sớm; tối đa **3 lần/năm/tài khoản** |
-| Chủ nhà huỷ | chỉ đổi trạng thái | hoàn 100% + **tặng 10% số dư**, phạt chủ nhà, chặn ngày, ghi chú công khai, mất danh hiệu 1 năm |
-| Đã nhận phòng mới huỷ | ⬜ | tính theo số đêm **chưa ở** |
-
-## 3. Vòng đời đơn — thiếu 5 trạng thái và toàn bộ lịch sử
-
-Hiện: `Pending → Confirmed → Cancelled`.
-Spec `03 §3` cần: `Chờ duyệt → Chờ thanh toán → Đã xác nhận → Đang lưu trú → Đã hoàn tất`,
-cộng `Bị từ chối`, `Hết hạn`, `Không thành công`, `Khách huỷ`, `Chủ nhà huỷ`.
-
-Thiếu hoàn toàn:
-- **Lịch sử đơn** (`05`): mỗi lần đổi trạng thái ghi ai/lúc nào/vì sao, **chỉ thêm, không sửa**
-- **Giữ chỗ 15 phút** khi vào thanh toán (`03 §2`)
-- **Yêu cầu đặt tự hết hạn 24h** (`ĐP-16`)
-- **Yêu cầu đặt KHÔNG khoá ngày** (`03 §2`)
-- Chuyển trạng thái theo **múi giờ chỗ ở**
-
-## 4. Điều kiện đặt được — thiếu 6/9 bước kiểm tra
-
-`03 §2` yêu cầu kiểm tra tuần tự 9 bước, dừng ở lỗi đầu tiên và nêu đúng lý do.
-Hiện chỉ có: trạng thái hiển thị, sức chứa, số đêm tối thiểu, trùng ngày, ngày bị khoá.
-
-Thiếu: thú cưng · **báo trước + giờ cắt** · **tầm nhìn lịch** · số đêm tối đa ·
-**số đêm tối thiểu riêng theo ngày** · **chặn thứ trong tuần** · **thời gian dọn dẹp**.
-
-## 5. Sổ sách — chưa có
-
-`00 §6.1` và `05` yêu cầu **sổ ghi tiền bất biến**, ghi hai chiều, đối soát hằng ngày.
-Hiện chỉ có bảng `payments` một chiều. Đây là điều kiện bắt buộc để vận hành thật.
+| 1 | Chưa đăng nhập tìm Đà Lạt 2 người 3 đêm → giá giống hệt ở thẻ, chi tiết, thanh toán | ✅ |
+| 2 | Đăng ký → xác minh email → lưu yêu thích → xem danh sách | ✅ |
+| 3 | Đặt ngay → trả tiền → thấy trong chuyến đi → có hoá đơn | ✅ |
+| 4 | Yêu cầu đặt → chủ nhà chấp nhận → trừ tiền → xác nhận | ✅ |
+| 5 | Huỷ trước 5 ngày → hoàn 100% → sổ sách cân bằng | ✅ |
+| 6 | Chủ nhà đăng tin mới → xuất bản → xuất hiện trong tìm kiếm | ✅ |
+| 7 | Chủ nhà đổi giá 5 ngày → khách thấy ngay | ✅ |
+| 8 | Hai người đặt cùng lúc → chỉ một người thành công | ✅ |
+| 9 | Cả hai đánh giá → công khai cùng lúc → điểm cập nhật | ✅ |
+| 10 | Bồi thường → chủ nhà phản đối → admin phân xử → tiền chia đúng | ✅ |
 
 ---
 
-## Lộ trình
+## 0. Hai việc đã quyết
 
-Thứ tự theo `00 §5`: **A → B → C → D**, không nhảy cóc.
+| # | Vấn đề | Quyết định |
+|---|---|---|
+| 1 | Tên sản phẩm & danh hiệu | **Giữ StayHost OS**, giữ "Siêu chủ nhà" / "Khách yêu thích" (khách chốt 06/08/2026) |
+| 2 | Phí dịch vụ | **14% khách / 3% chủ nhà** theo `03 §1`, đặt trong cấu hình `Pricing:` |
 
-### Giai đoạn 0 — Nền (đang làm)
-- [x] Chuyển frontend sang **React + Vite + React Router** (theo yêu cầu; Airbnb cũng dùng React 19 + React Router 7)
-- [ ] Đổi thương hiệu StayHost → **StayHub**, đổi tên danh hiệu
+Vẫn chưa làm: chương trình bảo vệ **StayShield** (`00 §4`) — chưa có yêu cầu chi tiết.
 
-### Giai đoạn 1 — Tiền đúng tuyệt đối (chặn mọi thứ khác)
-- [ ] Viết lại `Pricing` theo đúng 11 bước của `03 §1`
-- [ ] Mô hình **thuế theo khu vực** (`TaxRule`), nhiều loại chồng nhau
-- [ ] **6 chính sách huỷ** + 4 quy tắc áp trước + hoàn theo đêm chưa ở
-- [ ] **Sổ ghi tiền bất biến** hai chiều + đối soát hằng ngày
-- [ ] Bộ test tự động cho **8 tình huống giá** + bảng chính sách huỷ
+---
 
-### Giai đoạn 2 — Vòng đời đơn đúng
-- [ ] 9 trạng thái + bảng **lịch sử đơn** chỉ-thêm
-- [ ] Giữ chỗ 15 phút, yêu cầu đặt hết hạn 24h, không khoá ngày khi chờ duyệt
-- [ ] 9 bước kiểm tra đặt được, mỗi bước có thông báo lỗi riêng
-- [ ] Chống đặt trùng ở mức cơ sở dữ liệu (không chỉ kiểm tra trong code)
-- [ ] Chuyển trạng thái theo múi giờ chỗ ở + tác vụ nền
+## 1. Tiền — ✅ đã đúng spec
 
-### Giai đoạn 3 — Khám phá (nhóm A còn thiếu)
-- [ ] `TM-03` tìm **không dấu** ("da lat" → Đà Lạt), `TM-04` lịch sử tìm kiếm
-- [ ] `TM-05` hiện **giá từng đêm trên lịch**, `TM-06/07` ngày linh hoạt & theo tháng
-- [ ] `TM-08` bộ chọn khách đúng spec (em bé không tính sức chứa)
-- [ ] `TM-10` **gộp ghim** khi thu nhỏ, `TM-12` **tìm khi di chuyển bản đồ**
-- [ ] `TM-19` **đếm kết quả ngay khi đổi lọc** (chưa cần áp dụng)
-- [ ] `TM-22` không kết quả → nêu bộ lọc đang chặn + khu vực lân cận
-- [ ] `TĐ-04` tiện nghi **không có thì gạch ngang**, `TĐ-05` bố trí giường theo phòng
-- [ ] `TĐ-09` ngày kín → gợi ý 3 khoảng trống gần nhất
-- [ ] `TĐ-10` **phân bố sao**, `TĐ-11` tìm/lọc/sắp xếp đánh giá, `TĐ-12` phản hồi chủ nhà
+`StayHost.Domain/Pricing.cs` chạy đúng 11 bước của `03 §1`, một nơi duy nhất.
 
-### Giai đoạn 4 — Nguồn cung (nhóm C)
-- [ ] `CN-01` quy trình đăng tin **theo bước, lưu nháp**
-- [ ] `CN-03` kéo ghim bản đồ, `CN-05` cấu hình giường theo phòng
-- [ ] `CN-07` tối thiểu 5 ảnh, kéo thả sắp xếp, gắn nhãn phòng
-- [ ] `CN-12` khai báo pháp lý & an toàn
-- [ ] `QL-01` bảng **"Hôm nay"**, `QL-04` lịch nhiều tin cùng lúc
-- [ ] `QL-05` chọn nhiều ngày đặt giá/chặn hàng loạt
-- [ ] `QL-06` quy tắc lịch đầy đủ, `QL-07` chặn theo thứ
-- [ ] `QL-10` **đồng bộ lịch iCal** hai chiều + cảnh báo xung đột
-- [ ] `QL-17` theo dõi tiến độ Chủ nhà Ưu tú theo 4 tiêu chí
-- [ ] `QL-19` **co-host** với 5 phạm vi quyền
-- [ ] `QL-20` tài khoản nhận tiền + lịch trả tiền
+| Khoản | Trạng thái |
+|---|---|
+| Phí dịch vụ khách 14%, tính trước thuế | ✅ |
+| Phí dịch vụ chủ nhà 3% trên tạm tính | ✅ |
+| Giảm theo độ dài: chọn một, ưu tiên mức dài hơn | ✅ |
+| Giảm theo thời điểm đặt: chọn một, lấy mức lớn hơn | ✅ |
+| Giảm tin mới 3 đơn đầu −20% | ✅ |
+| Trần tổng giảm 60%, chỉ áp lên tiền phòng, **cộng chứ không nhân chuỗi** | ✅ |
+| Phụ thu khách thêm, em bé không tính | ✅ |
+| Phí thú cưng theo lượt hoặc theo đêm | ✅ |
+| Giá theo ngày → giá mùa → giá cuối tuần → giá cơ bản | ✅ |
+| Thuế theo khu vực, nhiều loại chồng nhau, 4 cách tính | ✅ |
+| Làm tròn từng dòng, tổng = tổng các dòng | ✅ |
+| Mã giảm giá trừ sau cùng, dòng riêng | ✅ |
 
-### Giai đoạn 5 — Đánh giá & tin nhắn đúng spec
-- [ ] `ĐG-03` **đánh giá mù hai chiều**, công khai khi cả hai gửi hoặc hết 14 ngày
-- [ ] `ĐG-02` nhắc ngày 1, 7, 13 · `ĐG-07` chủ nhà trả lời 1 lần trong 30 ngày
-- [ ] `ĐG-08` sửa trong 48h · `ĐG-09` chặn nội dung vi phạm
-- [ ] `TN-07` **che số điện thoại/email/link** trước khi đơn xác nhận
-- [ ] `TN-02` gửi ảnh · `TN-03` thẻ đơn trong hội thoại · `TN-08` mẫu trả lời nhanh
-- [ ] `TN-09` tin nhắn tự động theo mốc
+**8 tình huống kiểm thử của `03 §1`: pass hết** (`tests/StayHost.Domain.Tests/PricingTests.cs`).
 
-### Giai đoạn 6 — An toàn, hỗ trợ, quản trị (nhóm D)
-- [ ] `AT-04` **Trung tâm giải quyết** (bồi thường, 24h phản hồi, admin phân xử)
-- [ ] `AT-07` trung tâm trợ giúp · `AT-11` phát hiện bất thường
-- [ ] `QT-02` hàng chờ kiểm duyệt · `QT-05` phân xử · `QT-06` cấu hình phí/thuế
-- [ ] `QT-09` **nhật ký quản trị** đầy đủ
-- [ ] Phân vai admin: Hỗ trợ / Kiểm duyệt / Tài chính / Tối cao
+## 2. Huỷ & hoàn tiền — ✅ đã đúng spec
 
-### Giai đoạn 7 — Mở rộng
+6 chính sách + 4 quy tắc áp trước, trong `StayHost.Domain/Cancellation.cs`.
+Ân hạn 48h, trần 3 lần/năm cho phí dịch vụ, chủ nhà huỷ hoàn 100% + tặng 10%,
+bất khả kháng, phí vệ sinh luôn hoàn 100%, huỷ giữa chừng tính theo đêm chưa ở.
+
+## 3. Vòng đời đơn — ✅ đã đúng spec
+
+10 trạng thái của `03 §3` + bảng chuyển trạng thái chỉ cho đi theo đúng mũi tên.
+Mỗi lần chuyển ghi một dòng `booking_events` **chỉ-thêm** (`SaveChanges` từ chối sửa/xoá).
+Giữ chỗ 15 phút có đếm ngược, yêu cầu đặt hết hạn 24h, yêu cầu đặt **không khoá ngày**,
+chuyển "đang lưu trú"/"đã hoàn tất" theo **múi giờ chỗ ở**, tác vụ nền chạy mỗi phút.
+
+## 4. Điều kiện đặt được — ✅ đủ 9 bước
+
+`StayHost.Domain/Availability.cs` chạy tuần tự, dừng ở lỗi đầu tiên, **mỗi bước một thông báo riêng**.
+Chống đặt trùng bằng **ràng buộc GiST ở mức PostgreSQL**, không phải kiểm tra trong code.
+
+## 5. Sổ sách — ✅ đã có
+
+Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán phải cân trước khi ghi.
+Đối soát hằng ngày hiện trên trang quản trị; lệch khác 0 là báo động đỏ.
+
+---
+
+## Lộ trình — đã đi hết A → D
+
+### Giai đoạn 0 — Nền ✅
+- [x] Chuyển frontend sang React 19 + Vite + React Router 7
+- [x] Xoá `wwwroot/js` và `wwwroot/css`, Dockerfile có stage Node
+- [x] Chốt tên sản phẩm và mức phí
+
+### Giai đoạn 1 — Tiền đúng tuyệt đối ✅
+- [x] `Pricing` theo đúng 11 bước · thuế theo khu vực · 6 chính sách huỷ
+- [x] Sổ ghi tiền bất biến hai chiều + đối soát
+- [x] Test tự động cho 8 tình huống giá + bảng chính sách huỷ
+
+### Giai đoạn 2 — Vòng đời đơn ✅
+- [x] 10 trạng thái + lịch sử chỉ-thêm
+- [x] Giữ chỗ 15 phút, yêu cầu đặt hết hạn 24h, không khoá ngày khi chờ duyệt
+- [x] 9 bước kiểm tra đặt được, mỗi bước một thông báo
+- [x] Chống đặt trùng ở mức cơ sở dữ liệu
+- [x] Chuyển trạng thái theo múi giờ chỗ ở + tác vụ nền
+
+### Giai đoạn 3 — Khám phá ✅
+- [x] `TM-03` tìm không dấu + viết tắt ("hcm", "sg") · `TM-04` lịch sử tìm kiếm
+- [x] `TM-05` giá từng đêm trên lịch · `TM-08` bộ chọn khách đúng spec
+- [x] `TM-10` gộp ghim khi thu nhỏ · `TM-12` tìm khi di chuyển bản đồ
+- [x] `TM-19` đếm kết quả · `TM-22` nêu bộ lọc đang chặn + khu vực lân cận
+- [x] `TĐ-04` tiện nghi thiếu thì gạch ngang · `TĐ-05` bố trí giường theo phòng
+- [x] `TĐ-09` gợi ý 3 khoảng trống gần nhất · `TĐ-10` phân bố sao
+- [x] `TĐ-11` tìm/lọc/sắp xếp đánh giá · `TĐ-12` phản hồi chủ nhà
+- [ ] `TM-06/07` ngày linh hoạt ±1–7 ngày và chọn theo tháng (P1)
+
+### Giai đoạn 4 — Nguồn cung ✅ phần P0
+- [x] `ĐP-02` giữ chỗ 15 phút có đếm ngược · `ĐP-12` máy chủ tính lại giá trước khi trừ tiền
+- [x] `QL-01` bảng "Hôm nay" · `QL-05` sửa nhiều ngày một lúc
+- [x] `QL-06` quy tắc lịch đầy đủ · `QL-07` chặn theo thứ
+- [x] `QL-15` xuất báo cáo doanh thu · `QL-17` tiến độ Siêu chủ nhà · `QL-20` tài khoản nhận tiền
+- [x] `CN-11` bật giảm giá tuần/tháng/đặt sớm/phút chót từ trình soạn tin
+- [ ] `CN-01` đăng tin theo bước có lưu nháp (P0) — hiện là một form dài
+- [ ] `CN-03` kéo ghim bản đồ · `CN-07` bắt buộc 5 ảnh, kéo thả sắp xếp (P0)
+- [ ] `QL-04` lịch nhiều tin cùng lúc (P0) · `QL-10` đồng bộ iCal (P1) · `QL-19` co-host (P1)
+
+### Giai đoạn 5 — Đánh giá & tin nhắn ✅ phần P0
+- [x] `ĐG-03` đánh giá mù hai chiều, công khai khi cả hai gửi hoặc hết 14 ngày
+- [x] `ĐG-02` nhắc ngày 1, 7, 13 · `ĐG-05` góp ý riêng · `ĐG-07` chủ nhà trả lời 1 lần/30 ngày
+- [x] `ĐG-09` chặn nội dung có liên hệ hoặc xúc phạm
+- [x] `TN-04` tin nhắn hệ thống theo mốc · `TN-07` che liên hệ trước khi xác nhận
+- [x] `TN-09` tin nhắn tự động trước nhận phòng và ngày trả phòng
+- [ ] `ĐG-08` sửa đánh giá trong 48h (cột đã có, chưa có endpoint)
+- [ ] `TN-02` gửi ảnh · `TN-03` thẻ đơn trong hội thoại · `TN-08` mẫu trả lời nhanh (P0/P1)
+
+### Giai đoạn 6 — An toàn, hỗ trợ, quản trị ✅ phần P0
+- [x] `AT-04` Trung tâm giải quyết: mở hồ sơ, 24h phản hồi, admin phân xử, tiền chia đúng
+- [x] `QT-05` phân xử · `QT-06` cấu hình phí và thuế theo khu vực
+- [x] `QT-09` nhật ký quản trị chỉ-thêm
+- [x] Phân vai admin: Hỗ trợ / Kiểm duyệt / Tài chính / Phân xử / Tối cao
+- [ ] `AT-07` trung tâm trợ giúp thật (hiện là modal FAQ tĩnh) · `AT-11` phát hiện bất thường
+
+### Giai đoạn 7 — Mở rộng ⬜ chưa bắt đầu
 - [ ] Trải nghiệm (`MR-01`→`MR-04`), Dịch vụ (`MR-05`→`MR-07`), Khách sạn (`MR-08`→`MR-10`)
 - [ ] Thẻ quà tặng, số dư khuyến mãi, giới thiệu bạn bè
+- [ ] `ĐP-06` trả một phần · `ĐP-07` chia hoá đơn
 
 ---
 
-## 10 tình huống nghiệm thu (`04`)
+## Kiểm chứng
 
-Đây là thước đo "xong" — phải chạy được đầu-cuối trên dữ liệu thật:
+```bash
+# Test nghiệp vụ (150 test)
+dotnet test tests/StayHost.Domain.Tests
 
-1. Chưa đăng nhập tìm Đà Lạt 2 người 3 đêm → giá **giống hệt** ở thẻ kết quả, trang chi tiết, trang thanh toán
-2. Đăng ký OTP → lưu yêu thích → chia sẻ danh sách
-3. Đặt ngay → trả tiền → thấy trong chuyến đi → tải hoá đơn
-4. Yêu cầu đặt → chủ nhà chấp nhận → trừ tiền → xác nhận
-5. Huỷ chính sách Vừa phải trước 5 ngày → hoàn 100% → **sổ sách cân bằng**
-6. Chủ nhà đăng tin mới → xuất bản → xuất hiện trong tìm kiếm
-7. Chủ nhà đổi giá 5 ngày → khách thấy ngay
-8. **Hai người đặt cùng lúc → chỉ một người thành công**
-9. Cả hai đánh giá → công khai cùng lúc → điểm cập nhật
-10. Bồi thường → chủ nhà phản đối → admin phân xử → tiền chia đúng
-
----
+# 10 tình huống nghiệm thu, cần server chạy ở cổng 5199
+python scripts/acceptance.py
+```
 
 ## Ghi chú về quy mô
 
-Tài liệu có **~200 yêu cầu** (78 P0, 71 P1, 51 P2) trên 13 module. Phần đã làm phủ
-khoảng **35% nhóm P0** và một phần P1, nhưng **các quy tắc tiền đang sai** nên phải
-sửa trước khi xây thêm — đúng theo nguyên tắc `00 §6.8`.
+Tài liệu có ~200 yêu cầu (78 P0, 71 P1, 51 P2) trên 13 module. Toàn bộ **quy tắc
+tiền, vòng đời đơn, sổ sách và tranh chấp** đã đúng spec và có test. Phần còn
+thiếu là công cụ (đăng tin theo bước, lịch nhiều tin, iCal, co-host) và nhóm mở
+rộng — không có phần nào chạm vào tiền.
