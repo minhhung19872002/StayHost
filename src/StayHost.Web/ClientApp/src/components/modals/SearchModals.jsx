@@ -141,7 +141,12 @@ export function FiltersModal() {
   );
 }
 
-export function DatesModal() {
+/**
+ * Everything inside the date picker, without the box around it: the header bar
+ * drops it under the search field, a narrow screen gets it in a modal. Keeping
+ * one copy is what stops the two going their separate ways.
+ */
+export function DateFields() {
   const state = useStore();
   const nights = nightsBetween(state.checkIn, state.checkOut);
   const flexible = state.stay !== 'exact' || state.flexDays > 0;
@@ -154,34 +159,40 @@ export function DatesModal() {
     applySearch();
   };
 
+  return <>
+    <div className="date-tabs">
+      {[['exact', 'Ngày cụ thể'], ['flex', 'Linh hoạt'], ['months', 'Theo tháng']].map(([key, label]) => (
+        <button key={key} className={`date-tab ${tab === key ? 'is-on' : ''}`} onClick={() => pick(key)}>{label}</button>
+      ))}
+    </div>
+
+    {tab === 'months' ? <MonthPicker state={state} /> : <>
+      <div style={{ margin: '18px 0' }}>
+        <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>{nights} đêm</h3>
+        <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--ink-muted)' }}>
+          {longDate(state.checkIn)} – {longDate(state.checkOut)}
+        </p>
+      </div>
+      <Calendar months={2} />
+
+      {tab === 'flex' && <FlexRow state={state} />}
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
+        {[['Cuối tuần này', 'weekend'], ['1 tuần', 'week'], ['2 tuần', 'fortnight'], ['1 tháng', 'month']].map(([label, key]) => (
+          <button className="pill" key={key} onClick={() => { applyDatePreset(key); applySearch(); }}>{label}</button>
+        ))}
+      </div>
+    </>}
+  </>;
+}
+
+export function DatesModal() {
   return (
     <Modal title="Chọn ngày" foot={<>
       <button className="text-btn" onClick={() => { clearDates(); applySearch(); }}>Xoá ngày</button>
       <button className="btn btn-dark btn-sm" onClick={closeOverlay}>Xong</button>
     </>}>
-      <div className="date-tabs">
-        {[['exact', 'Ngày cụ thể'], ['flex', 'Linh hoạt'], ['months', 'Theo tháng']].map(([key, label]) => (
-          <button key={key} className={`date-tab ${tab === key ? 'is-on' : ''}`} onClick={() => pick(key)}>{label}</button>
-        ))}
-      </div>
-
-      {tab === 'months' ? <MonthPicker state={state} /> : <>
-        <div style={{ margin: '18px 0' }}>
-          <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>{nights} đêm</h3>
-          <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--ink-muted)' }}>
-            {longDate(state.checkIn)} – {longDate(state.checkOut)}
-          </p>
-        </div>
-        <Calendar months={2} />
-
-        {tab === 'flex' && <FlexRow state={state} />}
-
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
-          {[['Cuối tuần này', 'weekend'], ['1 tuần', 'week'], ['2 tuần', 'fortnight'], ['1 tháng', 'month']].map(([label, key]) => (
-            <button className="pill" key={key} onClick={() => { applyDatePreset(key); applySearch(); }}>{label}</button>
-          ))}
-        </div>
-      </>}
+      <DateFields />
     </Modal>
   );
 }
@@ -254,20 +265,25 @@ const GUEST_ROWS = [
   ['pets', 'Thú cưng', 'Bạn mang theo thú hỗ trợ?']
 ];
 
-export function GuestsModal() {
+/** The guest counters on their own, for the header dropdown and the modal alike. */
+export function GuestFields() {
   const state = useStore();
 
+  return GUEST_ROWS.map(([key, label, hint]) => (
+    <CountRow key={key} label={label} hint={hint} value={state.guests[key]}
+              decDisabled={state.guests[key] <= (key === 'adults' ? 1 : 0)}
+              onDec={() => { bumpGuest(key, -1); applySearch(); }}
+              onInc={() => { bumpGuest(key, 1); applySearch(); }} />
+  ));
+}
+
+export function GuestsModal() {
   return (
     <Modal title="Khách" size="narrow" foot={<>
       <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>Tổng {totalGuests()} khách</span>
       <button className="btn btn-dark btn-sm" onClick={closeOverlay}>Xong</button>
     </>}>
-      {GUEST_ROWS.map(([key, label, hint]) => (
-        <CountRow key={key} label={label} hint={hint} value={state.guests[key]}
-                  decDisabled={state.guests[key] <= (key === 'adults' ? 1 : 0)}
-                  onDec={() => { bumpGuest(key, -1); applySearch(); }}
-                  onInc={() => { bumpGuest(key, 1); applySearch(); }} />
-      ))}
+      <GuestFields />
     </Modal>
   );
 }

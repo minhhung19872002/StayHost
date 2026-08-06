@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
-  set, state as store, isDiscovery, activeFilterCount, guestLabel,
-  loadSuggestions, loadNotifications, loadMe, logout, toast, openOverlay, openMenu, toggleAmenity
+  set, state as store, isDiscovery, activeFilterCount, guestLabel, totalGuests,
+  loadSuggestions, loadNotifications, loadMe, logout, toast, openOverlay, openMenu, toggleAmenity,
+  clearDates, resetCalendarView
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { applySearch } from '../lib/nav.js';
 import { recentSearches, clearSearchHistory } from '../lib/history.js';
 import { dateRangeLabel, debounce } from '../lib/format.js';
 import { Icon } from './Icon.jsx';
+import { DateFields, GuestFields } from './modals/SearchModals.jsx';
 
 const TABS = [
   { key: 'homes', label: 'Chỗ ở', icon: 'house' },
@@ -127,8 +129,51 @@ function UnreadBadge() {
  * The landing page keeps the tall "Địa điểm · Ngày · Khách" pill; every other
  * route gets the compact summary bar, the same way airbnb.com collapses it.
  */
+/**
+ * Below this the calendar has nowhere to hang: two months need more room than a
+ * phone has, so those screens keep the modal.
+ */
+const DROPDOWN_FROM = '(min-width: 900px)';
+
 function SearchBar({ wide, onSubmit, onQueryInput }) {
   const state = useStore();
+
+  // Which segment is open, the way airbnb.com does it: the bar goes grey and the
+  // one you are filling in lifts out of it in white.
+  const [openSeg, setOpenSeg] = useState(null);
+  const barRef = useRef(null);
+  const [roomy, setRoomy] = useState(() => window.matchMedia(DROPDOWN_FROM).matches);
+
+  useEffect(() => {
+    const mq = window.matchMedia(DROPDOWN_FROM);
+    const onChange = e => { setRoomy(e.matches); if (!e.matches) setOpenSeg(null); };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  // A click anywhere else, or Escape, puts the bar back. Pointerdown rather than
+  // click so the bar closes before whatever was clicked does its own work.
+  useEffect(() => {
+    if (!openSeg) return undefined;
+
+    const away = e => { if (!barRef.current?.contains(e.target)) setOpenSeg(null); };
+    const key = e => { if (e.key === 'Escape') setOpenSeg(null); };
+
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', key);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', key);
+    };
+  }, [openSeg]);
+
+  // Opening the date panel should show the dates it is about, wherever the
+  // calendar was last paged to.
+  const toggle = seg => {
+    if (!roomy) { openOverlay(seg === 'when' ? 'dates' : 'guests'); return; }
+    if (seg === 'when' && openSeg !== 'when') resetCalendarView();
+    setOpenSeg(current => (current === seg ? null : seg));
+  };
 
   const placeholder = wide
     ? 'Tìm điểm đến'
@@ -149,18 +194,27 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
     </label>
   );
 
+  const segClass = (seg, extra) =>
+    `seg ${wide ? extra : ''} ${openSeg === seg ? 'is-active' : ''}`;
+
   return (
-    <div className={`search-row ${wide ? 'is-wide' : ''}`}>
-      <form className={`searchbar ${wide ? '' : 'is-compact'}`} onSubmit={onSubmit} role="search">
+    <div className={`search-row ${wide ? 'is-wide' : ''}`} ref={barRef}>
+      {/* The panels hang off this rather than off the row, so they line up with
+          the bar's edges instead of the window's. */}
+      <div className="search-anchor">
+      <form className={`searchbar ${wide ? '' : 'is-compact'} ${openSeg ? 'is-open' : ''}`}
+            onSubmit={onSubmit} role="search">
         {!wide && <span className="seg-lead" aria-hidden="true"><Icon name="house" size={20} /></span>}
         {field}
         <span className="seg-div" />
-        <button type="button" className={wide ? 'seg seg-when' : 'seg'} onClick={() => openOverlay('dates')}>
+        <button type="button" className={segClass('when', 'seg-when')} onClick={() => toggle('when')}
+                aria-expanded={openSeg === 'when'}>
           {wide && <span className="seg-cap">Ngày</span>}
           <span className="seg-val">{dateRangeLabel(state.checkIn, state.checkOut)}</span>
         </button>
         <span className="seg-div" />
-        <button type="button" className={wide ? 'seg seg-who' : 'seg'} onClick={() => openOverlay('guests')}>
+        <button type="button" className={segClass('who', 'seg-who')} onClick={() => toggle('who')}
+                aria-expanded={openSeg === 'who'}>
           {wide && <span className="seg-cap">Khách</span>}
           <span className="seg-val">{guestLabel()}</span>
         </button>
@@ -168,6 +222,28 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
           <Icon name="search" size={wide ? 17 : 15} />
         </button>
       </form>
+
+      {openSeg === 'when' && (
+        <div className="search-pop is-when">
+          <DateFields />
+          <div className="search-pop-foot">
+            <button type="button" className="text-btn"
+                    onClick={() => { clearDates(); applySearch(); }}>Xoá ngày</button>
+            <button type="button" className="btn btn-dark btn-sm" onClick={() => setOpenSeg(null)}>Xong</button>
+          </div>
+        </div>
+      )}
+
+      {openSeg === 'who' && (
+        <div className="search-pop is-who">
+          <GuestFields />
+          <div className="search-pop-foot">
+            <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>Tổng {totalGuests()} khách</span>
+            <button type="button" className="btn btn-dark btn-sm" onClick={() => setOpenSeg(null)}>Xong</button>
+          </div>
+        </div>
+      )}
+      </div>
     </div>
   );
 }

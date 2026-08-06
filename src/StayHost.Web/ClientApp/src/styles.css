@@ -121,6 +121,55 @@ img { max-width: 100%; display: block; }
   padding: 9px 20px; border-radius: var(--r-pill);
 }
 .seg:hover { background: #f4f4f4; }
+
+/*
+ * airbnb.com's trick, and the reason its search bar reads so clearly: while a
+ * segment is being filled in, the bar itself goes grey and that one segment is
+ * lifted out of it in white. There is never a question about which field you
+ * are in, and it costs no extra chrome to say so.
+ */
+.searchbar.is-open { background: #ebebeb; border-color: #ebebeb; box-shadow: var(--shadow-md); }
+.searchbar.is-open .seg-div { background: #dcdcdc; }
+.searchbar.is-open .seg:hover { background: #e0e0e0; }
+.searchbar.is-open .seg.is-active,
+.searchbar.is-open .seg.is-active:hover {
+  background: #fff; box-shadow: var(--shadow-md);
+}
+/* The typing field never dims — it is where the caret is. */
+.searchbar.is-open .seg-where { background: #fff; box-shadow: var(--shadow-sm); }
+
+/* Exactly as wide as the bar, so a panel's edges are the bar's edges. */
+.search-anchor { position: relative; width: 100%; max-width: 620px; }
+.search-row.is-wide .search-anchor { max-width: 860px; }
+.search-anchor .searchbar { max-width: none; }
+
+.search-pop {
+  position: absolute; top: calc(100% + 10px); z-index: 80;
+  background: #fff; border: 1px solid var(--divider); border-radius: 26px;
+  box-shadow: var(--shadow-lg); padding: 22px 24px;
+  max-height: min(72vh, 680px); overflow-y: auto;
+  animation: search-pop-in .16s ease-out;
+}
+/* The slide uses `translate`, not `transform`: the centred panel already holds a
+   translateX(-50%) there, and a keyframe on transform would throw it away. */
+@keyframes search-pop-in {
+  from { opacity: 0; translate: 0 -6px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+/* The calendar is centred on the bar; the counters sit under the segment they
+   belong to, at the bar's right edge. */
+.search-pop.is-when { left: 50%; transform: translateX(-50%); width: 700px; max-width: 92vw; }
+.search-pop.is-who { right: 0; width: 400px; max-width: 92vw; }
+
+.search-pop-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--divider);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-pop { animation: none; }
+}
 .seg-cap { font-size: 11.5px; font-weight: 700; color: var(--ink); letter-spacing: .1px; }
 .seg-val { font-size: 13.5px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .seg-where { flex: 1.4 1 0; }
