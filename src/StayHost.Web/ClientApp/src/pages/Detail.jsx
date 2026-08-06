@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
   loadDetail, toggleFavorite, totalGuests, guestLabel, bumpTotalGuests,
-  clearDates, openOverlay, requireAuth, toast, set, setRoom
+  clearDates, openOverlay, requireAuth, toast, set, setRoom, shareListing
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate, nightsBetween } from '../lib/format.js';
@@ -45,14 +45,7 @@ export function Detail() {
   const c = d.card;
   const nights = nightsBetween(state.checkIn, state.checkOut);
 
-  const share = async () => {
-    const url = location.href;
-    if (navigator.share) {
-      try { await navigator.share({ title: c.title, url }); return; } catch { /* dismissed */ }
-    }
-    try { await navigator.clipboard.writeText(url); toast('Đã sao chép liên kết chỗ nghỉ'); }
-    catch { toast(url); }
-  };
+  const share = () => shareListing(c);
 
   return <>
     <div className="shell" style={{ paddingBlock: '20px 110px' }}>
@@ -114,18 +107,29 @@ export function Detail() {
 
 function Gallery({ card }) {
   const imgs = card.images.slice(0, 5);
+  // A place with fewer than five photos still gets the five-tile mosaic; the
+  // padding repeats the last one, so a click on it means that photo.
   while (imgs.length < 5) imgs.push(imgs[imgs.length - 1] ?? '');
+
+  // Clicking a photo goes straight to it in the viewer. The grid is what the
+  // button is for — nobody who clicked a particular picture wanted a contact
+  // sheet of all of them first.
+  const openAt = i => {
+    set({ photoIndex: Math.min(i, card.images.length - 1) });
+    openOverlay('photos');
+  };
 
   return (
     <div className="gallery" id="section-photos"
          style={{ gridTemplateColumns: '2fr 1fr 1fr', gridTemplateRows: 'repeat(2,clamp(110px,16vw,215px))' }}>
       {imgs.map((src, i) => (
-        <figure className="gallery-tile" key={i} onClick={() => openOverlay('photos')}
+        <figure className="gallery-tile" key={i} onClick={() => openAt(i)}
                 style={{ margin: 0, ...(i === 0 ? { gridRow: 'span 2' } : {}) }}>
           <img src={src} alt={`${card.title} — ảnh ${i + 1}`} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
         </figure>
       ))}
-      <button className="gallery-all" onClick={() => openOverlay('photos')}>⊞ Hiện tất cả ảnh</button>
+      <button className="gallery-all"
+              onClick={() => { set({ photoIndex: null }); openOverlay('photos'); }}>⊞ Hiện tất cả ảnh</button>
     </div>
   );
 }

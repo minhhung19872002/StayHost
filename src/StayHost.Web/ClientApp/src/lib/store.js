@@ -234,6 +234,23 @@ export function toast(message) {
   }, 2800);
 }
 
+/**
+ * Sharing a listing, from the page header and from the photo viewer. Both offer
+ * it, so both had better do the same thing.
+ */
+export async function shareListing(card) {
+  const url = location.href;
+
+  // The share sheet is the better offer where there is one; a dismissal is not
+  // a failure, so it falls through to the clipboard either way.
+  if (navigator.share) {
+    try { await navigator.share({ title: card.title, url }); return; } catch { /* dismissed */ }
+  }
+
+  try { await navigator.clipboard.writeText(url); toast('Đã sao chép liên kết chỗ nghỉ'); }
+  catch { toast(url); }
+}
+
 /* --------------------------------------------------------------- bootstrap */
 
 export async function loadMeta() {

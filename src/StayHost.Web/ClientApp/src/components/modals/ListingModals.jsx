@@ -1,6 +1,9 @@
 import { useStore } from '../../lib/useStore.js';
 import { useEffect, useState } from 'react';
-import { set, holdDates, payHeld, releaseHold, openSplit, openOverlay, closeOverlay } from '../../lib/store.js';
+import {
+  set, holdDates, payHeld, releaseHold, openSplit, openOverlay, closeOverlay,
+  shareListing, toggleFavorite
+} from '../../lib/store.js';
 import { money, longDate, parseIso, isoOf } from '../../lib/format.js';
 import { AmenityIcon } from '../Icon.jsx';
 import { HostReply, StarDistribution } from '../../pages/Detail.jsx';
@@ -37,32 +40,55 @@ export function PhotosModal() {
 }
 
 /**
- * The photo viewer. Moving between photos uses the slide-and-zoom of
- * codepen.io/daniesy/pen/JoWOpR: the one arriving grows from half size while the
- * one being replaced slides out the side you came from.
+ * The photo viewer: the whole screen, black, with the photo and nothing else
+ * competing for attention. Moving between photos uses the slide-and-zoom of
+ * codepen.io/daniesy/pen/JoWOpR — the one arriving grows from half size while
+ * the one being replaced slides out the side you came from.
+ *
+ * This one does not use Modal: a white card with a header around a photograph
+ * is exactly what a viewer is meant to get out of the way of.
  */
 function PhotoLightbox({ card, index }) {
   const total = card.images.length;
   const slides = useSlideshow(index, i => set({ photoIndex: i }), total);
   const { idx } = slides;
 
-  // Arrow keys are how anybody looks through photos at this size.
+  // Arrow keys are how anybody looks through photos full screen, and Escape is
+  // how they leave. Re-bound every render so the handler sees the current index.
   useEffect(() => {
     const onKey = e => {
       if (e.key === 'ArrowLeft') slides.step(-1);
       else if (e.key === 'ArrowRight') slides.step(1);
+      else if (e.key === 'Escape') closeOverlay();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   });
 
+  // The page behind must not scroll while the viewer has the screen.
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
   return (
-    <Modal title={`${idx + 1} / ${total}`} size="wide" foot={<>
-      <button className="text-btn" onClick={() => set({ photoIndex: null })}>← Xem dạng lưới</button>
-      <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>{idx + 1} trong {total} ảnh</span>
-    </>}>
-      <div className="lightbox-stage">
-        <button className="lightbox-nav prev" onClick={() => slides.step(-1)} aria-label="Ảnh trước">‹</button>
+    <div className="viewer" role="dialog" aria-modal="true" aria-label={`${card.title} — ảnh`}>
+      <header className="viewer-bar">
+        <button className="viewer-btn" onClick={closeOverlay}>✕ <span>Đóng</span></button>
+        <span className="viewer-count">{idx + 1} / {total}</span>
+        <div className="viewer-actions">
+          <button className="viewer-btn" onClick={() => shareListing(card)} aria-label="Chia sẻ">⤴</button>
+          <button className={`viewer-btn ${card.isFavorite ? 'is-on' : ''}`}
+                  onClick={() => toggleFavorite(card.id)}
+                  aria-label={card.isFavorite ? 'Bỏ lưu' : 'Lưu chỗ nghỉ'}
+                  aria-pressed={!!card.isFavorite}>♥</button>
+        </div>
+      </header>
+
+      <div className="viewer-stage">
+        {total > 1 && (
+          <button className="viewer-nav prev" onClick={() => slides.step(-1)} aria-label="Ảnh trước">‹</button>
+        )}
 
         {card.images.map((src, i) =>
           // Only the photo on screen, its two neighbours and the one still
@@ -73,20 +99,18 @@ function PhotoLightbox({ card, index }) {
             : <img key={i} alt="" aria-hidden="true" className="is-deferred" />
         )}
 
-        <button className="lightbox-nav next" onClick={() => slides.step(1)} aria-label="Ảnh tiếp theo">›</button>
+        {total > 1 && (
+          <button className="viewer-nav next" onClick={() => slides.step(1)} aria-label="Ảnh tiếp theo">›</button>
+        )}
       </div>
 
-      <p className="lightbox-caption">{PHOTO_CAPTIONS[idx] ?? `Ảnh ${idx + 1}`}</p>
-
-      <div className="lightbox-strip">
-        {card.images.map((src, i) => (
-          <button key={i} className={`strip-thumb ${i === idx ? 'is-on' : ''}`}
-                  onClick={() => slides.goTo(i)} aria-label={`Xem ảnh ${i + 1}`}>
-            <img src={src} alt="" loading="lazy" />
-          </button>
-        ))}
-      </div>
-    </Modal>
+      <footer className="viewer-foot">
+        <p className="viewer-caption">{PHOTO_CAPTIONS[idx] ?? `Ảnh ${idx + 1}`}</p>
+        <button className="viewer-grid-link" onClick={() => set({ photoIndex: null })}>
+          ⊞ Xem tất cả {total} ảnh
+        </button>
+      </footer>
+    </div>
   );
 }
 
