@@ -7,6 +7,49 @@ public enum UserRole
     Admin = 2
 }
 
+/// <summary>
+/// docs/00 §3.4 — what an admin is allowed to touch. Anything above the role
+/// they hold is refused, and every action is written to the audit log.
+/// </summary>
+[Flags]
+public enum AdminScope
+{
+    None = 0,
+    /// <summary>Read everything, answer tickets.</summary>
+    Support = 1,
+    /// <summary>Approve or take down listings and reviews.</summary>
+    Moderation = 2,
+    /// <summary>Refunds, reconciliation, payouts, fee and tax configuration.</summary>
+    Finance = 4,
+    /// <summary>Rule on disputes.</summary>
+    Arbitration = 8,
+    /// <summary>Everything, including granting scopes.</summary>
+    Super = Support | Moderation | Finance | Arbitration | 16
+}
+
+/// <summary>
+/// docs/00 §3.4 and docs/01 QT-09 — "mọi hành động của admin phải để lại dấu
+/// vết ai làm, lúc nào, trước/sau ra sao". Append-only, like the ledger.
+/// </summary>
+public class AdminAuditEntry
+{
+    public long Id { get; set; }
+
+    public int ActorUserId { get; set; }
+    public User? ActorUser { get; set; }
+
+    /// <summary>What was done: "listing.publish", "case.decide", "fees.update".</summary>
+    public string Action { get; set; } = "";
+    /// <summary>What it was done to: "listing:12", "case:4".</summary>
+    public string Target { get; set; } = "";
+
+    public string? Before { get; set; }
+    public string? After { get; set; }
+    public string? Note { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
 /// <summary>A real account. Guests become hosts by publishing their first listing.</summary>
 public class User
 {
@@ -20,6 +63,8 @@ public class User
     public string PasswordSalt { get; set; } = "";
 
     public UserRole Role { get; set; } = UserRole.Guest;
+    /// <summary>Meaningful only when <see cref="Role"/> is Admin (docs/00 §3.4).</summary>
+    public AdminScope AdminScope { get; set; } = AdminScope.None;
     public bool IsIdentityVerified { get; set; }
     public bool EmailConfirmed { get; set; }
 

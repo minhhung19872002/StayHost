@@ -145,6 +145,31 @@ public static class Ledger
             new Leg(LedgerAccount.GuestFunds, LedgerDirection.Credit, amount, $"Chuyển cho chủ nhà đơn {booking.Reference}"));
 
     /// <summary>
+    /// docs/01 AT-04 — an admin's ruling on a claim. Money moves between the
+    /// two sides of the booking, never out of thin air: whatever the guest gets
+    /// back comes out of what the host was owed, and the reverse for damages.
+    /// </summary>
+    public static List<LedgerEntry> SettleClaim(
+        Booking booking, decimal toGuest, decimal toHost, DateTime at)
+    {
+        if (toGuest > 0)
+        {
+            return Post("claim-to-guest", booking.Id, at,
+                new Leg(LedgerAccount.HostPayable, LedgerDirection.Debit, toGuest, $"Bồi thường khách, hồ sơ đơn {booking.Reference}"),
+                new Leg(LedgerAccount.GuestRefundPayable, LedgerDirection.Credit, toGuest, "Phải trả khách theo phân xử"));
+        }
+
+        if (toHost > 0)
+        {
+            return Post("claim-to-host", booking.Id, at,
+                new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, toHost, $"Khách bồi thường, hồ sơ đơn {booking.Reference}"),
+                new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, toHost, "Phải trả chủ nhà theo phân xử"));
+        }
+
+        return [];
+    }
+
+    /// <summary>
     /// Daily reconciliation (docs/03 §5). A non-zero result is the alarm the
     /// spec asks for — one đồng out and something is wrong.
     /// </summary>

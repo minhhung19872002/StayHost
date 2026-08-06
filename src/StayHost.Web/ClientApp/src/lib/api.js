@@ -139,6 +139,18 @@ export const api = {
   readAllNotifications: () => request('/api/notifications/read-all', { method: 'POST' }),
   readNotification: id => request(`/api/notifications/${id}/read`, { method: 'POST' }),
 
+  /* -------------------------------------------------- resolution centre */
+  resolutions: () => request('/api/resolutions'),
+  openResolution: body => request('/api/resolutions', { method: 'POST', body: JSON.stringify(body) }),
+  respondResolution: (id, body) =>
+    request(`/api/resolutions/${id}/respond`, { method: 'POST', body: JSON.stringify(body) }),
+  withdrawResolution: id => request(`/api/resolutions/${id}/withdraw`, { method: 'POST' }),
+  adminResolutions: () => request('/api/resolutions/admin'),
+  decideResolution: (id, body) =>
+    request(`/api/resolutions/${id}/decide`, { method: 'POST', body: JSON.stringify(body) }),
+  saveTaxRule: (id, body) =>
+    request(`/api/admin/tax-rules/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+
   /* ------------------------------------------------------- reports / admin */
   report: body => request('/api/reports', { method: 'POST', body: JSON.stringify(body) }),
   adminOverview: () => request('/api/admin/overview'),

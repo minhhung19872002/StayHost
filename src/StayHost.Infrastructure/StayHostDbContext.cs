@@ -29,6 +29,9 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<TaxRule> TaxRules => Set<TaxRule>();
     public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
     public DbSet<BookingEvent> BookingEvents => Set<BookingEvent>();
+    public DbSet<ResolutionCase> ResolutionCases => Set<ResolutionCase>();
+    public DbSet<ResolutionEvent> ResolutionEvents => Set<ResolutionEvent>();
+    public DbSet<AdminAuditEntry> AdminAudit => Set<AdminAuditEntry>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -314,6 +317,45 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        b.Entity<ResolutionCase>(e =>
+        {
+            e.ToTable("resolution_cases");
+            e.HasIndex(x => x.Reference).IsUnique();
+            e.HasIndex(x => x.Status);
+            e.Property(x => x.Reference).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(4000).IsRequired();
+            e.Property(x => x.EvidenceUrls).HasMaxLength(2000);
+            e.Property(x => x.Response).HasMaxLength(4000);
+            e.Property(x => x.Decision).HasMaxLength(2000);
+            e.Property(x => x.AmountClaimed).HasPrecision(12, 2);
+            e.Property(x => x.AmountAwarded).HasPrecision(12, 2);
+            e.HasOne(x => x.Booking).WithMany().HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.OpenedByUser).WithMany().HasForeignKey(x => x.OpenedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.DecidedByUser).WithMany().HasForeignKey(x => x.DecidedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<ResolutionEvent>(e =>
+        {
+            e.ToTable("resolution_events");
+            e.HasIndex(x => new { x.CaseId, x.CreatedAt });
+            e.Property(x => x.Actor).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Note).HasMaxLength(1000);
+            e.HasOne(x => x.Case).WithMany(c => c.Events).HasForeignKey(x => x.CaseId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<AdminAuditEntry>(e =>
+        {
+            e.ToTable("admin_audit");
+            e.HasIndex(x => x.CreatedAt);
+            e.HasIndex(x => x.Target);
+            e.Property(x => x.Action).HasMaxLength(60).IsRequired();
+            e.Property(x => x.Target).HasMaxLength(60).IsRequired();
+            e.Property(x => x.Before).HasMaxLength(2000);
+            e.Property(x => x.After).HasMaxLength(2000);
+            e.Property(x => x.Note).HasMaxLength(1000);
+            e.HasOne(x => x.ActorUser).WithMany().HasForeignKey(x => x.ActorUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         b.Entity<TaxRule>(e =>
         {
             e.ToTable("tax_rules");
@@ -367,13 +409,15 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 "Sổ ghi tiền là bất biến: chỉ được thêm bút toán mới, không sửa hay xoá bút toán cũ.");
         }
 
-        var rewrittenHistory = ChangeTracker.Entries<BookingEvent>()
-            .Any(e => e.State is EntityState.Modified or EntityState.Deleted);
+        var rewrittenHistory =
+            ChangeTracker.Entries<BookingEvent>().Any(e => e.State is EntityState.Modified or EntityState.Deleted)
+            || ChangeTracker.Entries<ResolutionEvent>().Any(e => e.State is EntityState.Modified or EntityState.Deleted)
+            || ChangeTracker.Entries<AdminAuditEntry>().Any(e => e.State is EntityState.Modified or EntityState.Deleted);
 
         if (rewrittenHistory)
         {
             throw new InvalidOperationException(
-                "Lịch sử đơn chỉ được thêm, không sửa hay xoá (docs/00 §6.2).");
+                "Lịch sử đơn, hồ sơ và nhật ký quản trị chỉ được thêm, không sửa hay xoá (docs/00 §6.2).");
         }
     }
 }

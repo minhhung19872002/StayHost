@@ -11,7 +11,8 @@ namespace StayHost.Web.Controllers;
 /// <summary>Reports are open to any visitor; everything else requires an admin account.</summary>
 [ApiController]
 [Route("api")]
-public class AdminController(StayHostDbContext db, AuthService auth, NotificationService notifications)
+public class AdminController(
+    StayHostDbContext db, AuthService auth, NotificationService notifications, AdminAudit audit)
     : ControllerBase
 {
     /* ------------------------------------------------------------- reports */
@@ -42,11 +43,10 @@ public class AdminController(StayHostDbContext db, AuthService auth, Notificatio
 
     /* --------------------------------------------------------------- admin */
 
-    private async Task<User?> RequireAdminAsync(CancellationToken ct)
-    {
-        var user = await auth.CurrentUserAsync(ct);
-        return user?.Role == UserRole.Admin ? user : null;
-    }
+    // docs/00 §3.4 — reading the console needs the Support scope; each action
+    // below asks for the narrower scope it actually requires.
+    private Task<User?> RequireAdminAsync(CancellationToken ct) =>
+        audit.RequireAsync(AdminScope.Support, ct);
 
     [HttpGet("admin/overview")]
     public async Task<ActionResult<AdminOverviewDto>> Overview(CancellationToken ct)
@@ -85,8 +85,86 @@ public class AdminController(StayHostDbContext db, AuthService auth, Notificatio
                 l.Id, l.Slug, l.Title, l.City, l.Host?.Name ?? "",
                 l.IsPublished, Math.Round(l.Rating, 2), l.ReviewCount, l.PricePerNight, l.CreatedAt)).ToList(),
             reports,
-            await ReconcileAsync(ct)));
+            await ReconcileAsync(ct),
+            await audit.RecentAsync(30, ct),
+            await LoadSettingsAsync(ct)));
     }
+
+    /* --------------------------------------------------------------- QT-06 */
+
+    /// <summary>
+    /// docs/01 QT-06 — the fee rates and the regional tax rules, the two things
+    /// an operator has to be able to change without a deploy.
+    /// </summary>
+    private async Task<PlatformSettingsDto> LoadSettingsAsync(CancellationToken ct)
+    {
+        var taxes = await db.TaxRules
+            .OrderBy(r => r.Country).ThenBy(r => r.City).ThenBy(r => r.SortOrder)
+            .Select(r => new TaxRuleDto(
+                r.Id, r.Country, r.City, r.Name, r.Method.ToString(), r.Base.ToString(),
+                r.Value, r.SortOrder, r.IsActive))
+            .ToListAsync(ct);
+
+        var settings = PricingSettings.Current;
+        return new PlatformSettingsDto(
+            settings.GuestServiceFeeRate, settings.HostServiceFeeRate,
+            settings.MaxDiscountPercent, settings.DefaultCleaningFee, taxes);
+    }
+
+    [HttpPut("admin/tax-rules/{id:int}")]
+    public async Task<IActionResult> SaveTaxRule(int id, [FromBody] TaxRuleDto req, CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Finance, ct);
+        if (admin is null) return StatusCode(403, new { message = "Bạn không có quyền cấu hình thuế." });
+
+        var rule = await db.TaxRules.FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (rule is null) return NotFound();
+
+        var before = Describe(rule);
+
+        rule.Name = string.IsNullOrWhiteSpace(req.Name) ? rule.Name : req.Name.Trim();
+        rule.Value = Math.Max(0m, req.Value);
+        rule.IsActive = req.IsActive;
+        rule.SortOrder = req.SortOrder;
+        if (Enum.TryParse<TaxMethod>(req.Method, true, out var method)) rule.Method = method;
+        if (Enum.TryParse<TaxBase>(req.Base, true, out var basis)) rule.Base = basis;
+
+        audit.Record(admin, "tax.update", $"tax:{rule.Id}", before, Describe(rule));
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    [HttpPost("admin/tax-rules")]
+    public async Task<ActionResult<TaxRuleDto>> CreateTaxRule([FromBody] TaxRuleDto req, CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Finance, ct);
+        if (admin is null) return StatusCode(403, new { message = "Bạn không có quyền cấu hình thuế." });
+
+        var rule = new TaxRule
+        {
+            Country = string.IsNullOrWhiteSpace(req.Country) ? "Việt Nam" : req.Country.Trim(),
+            City = string.IsNullOrWhiteSpace(req.City) ? null : req.City.Trim(),
+            Name = string.IsNullOrWhiteSpace(req.Name) ? "Thuế mới" : req.Name.Trim(),
+            Value = Math.Max(0m, req.Value),
+            SortOrder = req.SortOrder,
+            IsActive = req.IsActive
+        };
+        if (Enum.TryParse<TaxMethod>(req.Method, true, out var method)) rule.Method = method;
+        if (Enum.TryParse<TaxBase>(req.Base, true, out var basis)) rule.Base = basis;
+
+        db.TaxRules.Add(rule);
+        await db.SaveChangesAsync(ct);
+
+        audit.Record(admin, "tax.create", $"tax:{rule.Id}", null, Describe(rule));
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new TaxRuleDto(rule.Id, rule.Country, rule.City, rule.Name,
+            rule.Method.ToString(), rule.Base.ToString(), rule.Value, rule.SortOrder, rule.IsActive));
+    }
+
+    private static string Describe(TaxRule r) =>
+        $"{r.Name}: {r.Method} {r.Value} ({(r.IsActive ? "bật" : "tắt")})";
 
     private static readonly Dictionary<LedgerAccount, string> AccountLabels = new()
     {
@@ -134,12 +212,17 @@ public class AdminController(StayHostDbContext db, AuthService auth, Notificatio
     [HttpPost("admin/listings/{id:int}/publish")]
     public async Task<IActionResult> SetPublished(int id, [FromQuery] bool published, CancellationToken ct)
     {
-        if (await RequireAdminAsync(ct) is null)
-            return StatusCode(403, new { message = "Chỉ quản trị viên mới thao tác được." });
+        var admin = await audit.RequireAsync(AdminScope.Moderation, ct);
+        if (admin is null)
+            return StatusCode(403, new { message = "Bạn không có quyền kiểm duyệt." });
 
         var listing = await db.Listings.Include(l => l.Host!).ThenInclude(h => h.User)
             .FirstOrDefaultAsync(l => l.Id == id, ct);
         if (listing is null) return NotFound();
+
+        audit.Record(admin, "listing.publish", $"listing:{listing.Id}",
+            listing.IsPublished ? "Đang hiển thị" : "Bản nháp",
+            published ? "Đang hiển thị" : "Đã gỡ hiển thị");
 
         listing.IsPublished = published;
 
@@ -159,11 +242,15 @@ public class AdminController(StayHostDbContext db, AuthService auth, Notificatio
     [HttpPost("admin/reports/{id:int}/resolve")]
     public async Task<IActionResult> ResolveReport(int id, [FromBody] ResolveReportRequest req, CancellationToken ct)
     {
-        if (await RequireAdminAsync(ct) is null)
-            return StatusCode(403, new { message = "Chỉ quản trị viên mới thao tác được." });
+        var admin = await audit.RequireAsync(AdminScope.Moderation, ct);
+        if (admin is null)
+            return StatusCode(403, new { message = "Bạn không có quyền kiểm duyệt." });
 
         var report = await db.ListingReports.FirstOrDefaultAsync(r => r.Id == id, ct);
         if (report is null) return NotFound();
+
+        audit.Record(admin, "report.resolve", $"report:{report.Id}",
+            report.Status.ToString(), req.Status, req.Resolution);
 
         report.Status = Enum.TryParse<ReportStatus>(req.Status, true, out var status) ? status : ReportStatus.Resolved;
         report.Resolution = req.Resolution?.Trim();

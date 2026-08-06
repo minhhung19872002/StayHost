@@ -328,6 +328,7 @@ function AccountMenu() {
       </button>
       <button role="menuitem" onClick={() => goTo('/trips')}>Chuyến đi của tôi</button>
       <button role="menuitem" onClick={() => goTo('/wishlists')}>Danh sách yêu thích ({state.favCount})</button>
+      <button role="menuitem" onClick={() => goTo('/resolutions')}>Trung tâm giải quyết</button>
       <hr />
       {u.isHost
         ? <button className="bold" role="menuitem" onClick={() => goTo('/hosting')}>Trang chủ nhà ({u.listingCount} chỗ nghỉ)</button>

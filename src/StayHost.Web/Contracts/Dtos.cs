@@ -227,6 +227,47 @@ public record ReportDto(
 
 public record ResolveReportRequest(string Status, string? Resolution);
 
+/* -------------------------------------------------------- resolution centre */
+
+public record OpenResolutionRequest(
+    int BookingId, string Kind, decimal AmountClaimed, string Description, IReadOnlyList<string>? EvidenceUrls);
+
+public record RespondResolutionRequest(bool Accept, string? Note);
+
+public record DecideResolutionRequest(decimal AmountAwarded, string Decision);
+
+/// <summary>docs/01 AT-04 — one claim, everything both sides and an admin need to see.</summary>
+public record ResolutionCaseDto(
+    int Id,
+    string Reference,
+    int BookingId,
+    string BookingReference,
+    string ListingTitle,
+    string Kind,
+    string KindLabel,
+    string Status,
+    string StatusLabel,
+    string StatusBadge,
+    decimal AmountClaimed,
+    decimal AmountAwarded,
+    string Description,
+    IReadOnlyList<string> EvidenceUrls,
+    string OpenedByName,
+    bool OpenedByHost,
+    DateTime ResponseDueAt,
+    string? Response,
+    DateTime? RespondedAt,
+    string? Decision,
+    string? DecidedByName,
+    DateTime? DecidedAt,
+    /// <summary>The viewer is the one who owes an answer right now.</summary>
+    bool NeedsMyResponse,
+    bool CanWithdraw,
+    IReadOnlyList<ResolutionEventDto> History,
+    DateTime CreatedAt);
+
+public record ResolutionEventDto(string FromLabel, string ToLabel, string Actor, string Note, DateTime At);
+
 /* -------------------------------------------------------------------- admin */
 
 public record AdminOverviewDto(
@@ -235,7 +276,22 @@ public record AdminOverviewDto(
     int OpenReports, int QueuedEmails,
     IReadOnlyList<AdminListingDto> RecentListings,
     IReadOnlyList<ReportDto> Reports,
-    LedgerReportDto Ledger);
+    LedgerReportDto Ledger,
+    /// <summary>docs/01 QT-09 — who did what, newest first.</summary>
+    IReadOnlyList<StayHost.Web.Services.AdminAudit.AdminAuditRow> AuditLog,
+    /// <summary>docs/01 QT-06 — fee rates and the regional tax rules.</summary>
+    PlatformSettingsDto Settings);
+
+public record PlatformSettingsDto(
+    decimal GuestServiceFeeRate,
+    decimal HostServiceFeeRate,
+    int MaxDiscountPercent,
+    decimal DefaultCleaningFee,
+    IReadOnlyList<TaxRuleDto> TaxRules);
+
+public record TaxRuleDto(
+    int Id, string Country, string? City, string Name,
+    string Method, string Base, decimal Value, int SortOrder, bool IsActive);
 
 /// <summary>
 /// The daily reconciliation docs/03 §5 asks for. <c>Imbalance</c> must be zero;
