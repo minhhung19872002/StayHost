@@ -11,6 +11,15 @@ var builder = WebApplication.CreateBuilder(args);
 var pricing = builder.Configuration.GetSection("Pricing").Get<PricingSettings>();
 if (pricing is not null) PricingSettings.Current = pricing;
 
+// docs/01 TK-02 — the provider client ids live in configuration so one build can
+// run against a test project on a laptop and the real one on the server. Nothing
+// here is a secret except the Facebook app secret, which comes from the
+// environment file rather than appsettings.json.
+var externalLogin = builder.Configuration.GetSection("ExternalLogin").Get<ExternalLoginSettings>() ?? new();
+builder.Services.AddSingleton(externalLogin);
+builder.Services.AddHttpClient("external-login");
+builder.Services.AddScoped<ExternalTokenVerifier>();
+
 var connectionString =
     builder.Configuration.GetConnectionString("Postgres")
     ?? Environment.GetEnvironmentVariable("DATABASE_URL")

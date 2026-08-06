@@ -1629,6 +1629,10 @@ select.field { width: 100%; padding: 10px 12px; }
 .auth-provider:hover { background: var(--wash); }
 .auth-provider:disabled { opacity: 0.55; cursor: default; }
 
+/* Google draws its own button into here; its height is theirs, not ours. */
+.auth-provider-slot { display: flex; justify-content: center; min-height: 44px; }
+.auth-provider-slot > div { width: 100%; }
+
 .auth-or {
   display: flex; align-items: center; gap: 12px; margin: 16px 0;
   color: var(--ink-muted); font-size: 12.5px;

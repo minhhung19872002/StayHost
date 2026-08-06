@@ -190,7 +190,9 @@ export const api = {
   sendCode: kind => request('/api/account/send-code', { method: 'POST', body: JSON.stringify({ kind }) }),
   confirmCode: (kind, code) =>
     request('/api/account/confirm-code', { method: 'POST', body: JSON.stringify({ kind, code }) }),
-  externalSignIn: body => request('/api/account/external', { method: 'POST', body: JSON.stringify(body) }),
+  externalConfig: () => request('/api/account/external/config'),
+  externalSignIn: (provider, credential) =>
+    request('/api/account/external', { method: 'POST', body: JSON.stringify({ provider, credential }) }),
   unlinkProvider: provider => request(`/api/account/external/${provider}`, { method: 'DELETE' }),
 
   /* docs/06 — StayShield. */

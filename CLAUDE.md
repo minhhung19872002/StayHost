@@ -110,6 +110,23 @@ docker exec stayhost-db psql -U stayhost -d stayhost -c "DROP SCHEMA public CASC
 Mọi thẻ đều thành công, **trừ thẻ kết thúc `0000`** — thẻ đó luôn bị từ chối. Đó là cách
 duy nhất chạy được nhánh "thu lần hai thất bại" của `docs/03 §1`.
 
+### Đăng nhập Google / Apple / Facebook (`docs/01 TK-02`)
+
+Nút của nhà cung cấp nào **chưa có mã thì không hiện** trên hộp đăng nhập — thà thiếu nút
+còn hơn có nút bấm vào không chạy. Điền vào `ExternalLogin:` trong `appsettings.json`,
+riêng `FacebookAppSecret` đặt qua biến môi trường `ExternalLogin__FacebookAppSecret`.
+
+| Khoá | Lấy ở đâu |
+|---|---|
+| `GoogleClientId` | console.cloud.google.com → Credentials → OAuth client ID (Web). Khai **Authorised JavaScript origins**: `https://staylio.bluestar.com.vn` và `http://localhost:5199` |
+| `AppleServicesId` + `AppleRedirectUri` | developer.apple.com → Services ID. Return URL phải **trùng từng ký tự** với `AppleRedirectUri`. Cần tài khoản Apple Developer trả phí |
+| `FacebookAppId` + `FacebookAppSecret` | developers.facebook.com → App → Facebook Login for Web |
+
+Máy chủ **không tin gì trình duyệt gửi lên**: token của Google/Apple được kiểm chữ ký
+RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), token Facebook được
+đem hỏi lại Graph `debug_token`. Email chưa được nhà cung cấp xác thực thì **không**
+được phép ghép vào tài khoản sẵn có.
+
 ---
 
 ## 6. Kiểm chứng trước khi commit

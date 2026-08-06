@@ -17,10 +17,16 @@ public record ConfirmCodeRequest(string? Kind, string? Code);
 
 public record ExternalSignInRequest(
     string? Provider,
-    /// <summary>The provider's own id for this person, from the verified token.</summary>
-    string? ProviderUserId,
-    string? Email,
-    string? FullName);
+    /// <summary>
+    /// What the provider handed the browser: an identity token from Google or
+    /// Apple, an access token from Facebook. The server takes who somebody is
+    /// from this and from nothing else.
+    /// </summary>
+    string? Credential);
+
+/// <summary>The public ids a browser needs to raise each provider's own sign-in window.</summary>
+public record ExternalLoginConfigDto(
+    string? GoogleClientId, string? AppleServicesId, string? AppleRedirectUri, string? FacebookAppId);
 
 public record LinkedLoginDto(string Provider, string Label, string? Email, DateTime? LastUsedAt);
 

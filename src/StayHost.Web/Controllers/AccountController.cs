@@ -10,7 +10,8 @@ namespace StayHost.Web.Controllers;
 [ApiController]
 [Route("api/account")]
 public class AccountController(
-    AuthService auth, StayHostDbContext db, WalletService wallet, IdentityService identity)
+    AuthService auth, StayHostDbContext db, WalletService wallet, IdentityService identity,
+    ExternalTokenVerifier verifier, ExternalLoginSettings externalLogin)
     : ControllerBase
 {
     /// <summary>204 when nobody is signed in, so clients get an unambiguous empty response.</summary>
@@ -104,6 +105,18 @@ public class AccountController(
 
     /* --------------------------------- docs/01 TK-02: Google, Apple, Facebook */
 
+    /// <summary>
+    /// What the browser needs before it can put a provider's own button on screen.
+    /// The ids are public by design — they end up in the page either way.
+    /// </summary>
+    [HttpGet("external/config")]
+    public ActionResult<ExternalLoginConfigDto> ExternalConfig() =>
+        Ok(new ExternalLoginConfigDto(
+            externalLogin.HasGoogle ? externalLogin.GoogleClientId : null,
+            externalLogin.HasApple ? externalLogin.AppleServicesId : null,
+            externalLogin.HasApple ? externalLogin.AppleRedirectUri : null,
+            externalLogin.HasFacebook ? externalLogin.FacebookAppId : null));
+
     [HttpPost("external")]
     public async Task<ActionResult<CurrentUserDto>> External(
         [FromBody] ExternalSignInRequest req, CancellationToken ct)
@@ -111,8 +124,19 @@ public class AccountController(
         if (!Enum.TryParse<ExternalProvider>(req.Provider, true, out var provider))
             return BadRequest(new { message = "Chỉ hỗ trợ Google, Apple hoặc Facebook." });
 
+        // Who somebody is comes out of the provider's signed token, never out of
+        // the request body. Anything the browser claims about itself is ignored.
+        var checkResult = await verifier.VerifyAsync(provider, req.Credential, ct);
+        if (!checkResult.Ok) return BadRequest(new { message = checkResult.Error });
+
+        var who = checkResult.Identity!;
+
         var result = await identity.SignInWithAsync(
-            provider, req.ProviderUserId, req.Email, req.FullName, ct);
+            provider, who.Subject,
+            // An unconfirmed address must not be allowed to attach itself to an
+            // existing account; it is kept as a display detail only.
+            who.EmailVerified ? who.Email : null,
+            who.FullName, ct);
 
         if (!result.Ok) return BadRequest(new { message = result.Error });
 

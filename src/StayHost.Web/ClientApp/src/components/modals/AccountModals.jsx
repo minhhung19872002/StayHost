@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../lib/useStore.js';
 import {
   set, login, register, loadMe, saveProfile, submitReview,
@@ -8,12 +8,7 @@ import { api } from '../../lib/api.js';
 import { money, longDate } from '../../lib/format.js';
 import { Modal } from './Modal.jsx';
 
-/**
- * docs/01 TK-02 — the three the spec names. No glyphs: the Apple mark is a
- * private-use character that renders as an empty box off Apple devices, and
- * hand-drawn copies of the other two are trademarks. The words do the work.
- */
-const PROVIDERS = [['google', 'Google'], ['apple', 'Apple'], ['facebook', 'Facebook']];
+import { externalConfig, mountGoogleButton, signInWithApple, signInWithFacebook } from '../../lib/externalLogin.js';
 
 export function AuthModal() {
   const state = useStore();
@@ -52,8 +47,6 @@ export function AuthModal() {
       </p>
 
       <ProviderButtons />
-
-      <div className="auth-or"><span>hoặc</span></div>
 
       <form onSubmit={submit} noValidate id="auth-form">
         {isRegister && (
@@ -228,26 +221,25 @@ const PROFILE_TABS = [
 ];
 
 /**
- * docs/01 TK-02. A deployment puts the provider's own SDK here and hands the
- * verified token to the server; without client secrets this build asks for the
- * account instead. Everything after the handshake — matching, linking, creating
- * — is the real thing.
+ * docs/01 TK-02. Each provider opens its own window — the Google account chooser,
+ * the Apple sheet, the Facebook dialog — and hands back a signed token that only
+ * the server is allowed to believe. A provider with no credentials configured is
+ * left off the modal entirely rather than shown as a button that cannot work.
  */
 function ProviderButtons() {
+  const [config, setConfig] = useState(null);
   const [busy, setBusy] = useState(null);
+  const googleSlot = useRef(null);
 
-  const go = async ([key, label]) => {
-    const email = prompt(`Đăng nhập bằng ${label}\n\nBản demo chưa nối SDK thật, nhập email tài khoản ${label} của bạn:`);
-    if (!email?.trim()) return;
+  useEffect(() => { externalConfig().then(setConfig); }, []);
 
-    setBusy(key);
+  // Signing in is the same three steps whichever button was pressed; only the
+  // way the token is obtained differs.
+  const finish = async (provider, credential, label) => {
+    if (!credential) return;                       // the window was closed
+    setBusy(provider);
     try {
-      await api.externalSignIn({
-        provider: key,
-        providerUserId: `${key}:${email.trim().toLowerCase()}`,
-        email: email.trim(),
-        fullName: email.trim().split('@')[0]
-      });
+      await api.externalSignIn(provider, credential);
       await loadMe();
       closeOverlay();
       toast(`Đã đăng nhập bằng ${label}.`);
@@ -256,14 +248,57 @@ function ProviderButtons() {
     } finally { setBusy(null); }
   };
 
+  useEffect(() => {
+    if (!config?.googleClientId || !googleSlot.current) return;
+
+    mountGoogleButton(
+      googleSlot.current, config.googleClientId,
+      credential => finish('google', credential, 'Google'),
+      err => set({ authError: err.message })
+    ).catch(err => set({ authError: err.message }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config?.googleClientId]);
+
+  const run = async (provider, label, start) => {
+    setBusy(provider);
+    try {
+      const credential = await start();
+      setBusy(null);
+      await finish(provider, credential, label);
+    } catch (err) {
+      setBusy(null);
+      set({ authError: err.message });
+    }
+  };
+
+  if (!config) return null;
+  if (!config.googleClientId && !config.appleServicesId && !config.facebookAppId) return null;
+
   return (
+    <>
     <div className="auth-providers">
-      {PROVIDERS.map(p => (
-        <button key={p[0]} className="auth-provider" disabled={busy !== null} onClick={() => go(p)}>
-          {busy === p[0] ? 'Đang mở…' : `Tiếp tục với ${p[1]}`}
+      {config.googleClientId && <div className="auth-provider-slot" ref={googleSlot} />}
+
+      {config.appleServicesId && (
+        <button className="auth-provider" disabled={busy !== null}
+                onClick={() => run('apple', 'Apple', () => signInWithApple({
+                  servicesId: config.appleServicesId, redirectUri: config.appleRedirectUri
+                }))}>
+          {busy === 'apple' ? 'Đang mở…' : 'Tiếp tục với Apple'}
         </button>
-      ))}
+      )}
+
+      {config.facebookAppId && (
+        <button className="auth-provider" disabled={busy !== null}
+                onClick={() => run('facebook', 'Facebook',
+                  () => signInWithFacebook({ appId: config.facebookAppId }))}>
+          {busy === 'facebook' ? 'Đang mở…' : 'Tiếp tục với Facebook'}
+        </button>
+      )}
     </div>
+    {/* The divider belongs to the buttons: with none on screen it says nothing. */}
+    <div className="auth-or"><span>hoặc</span></div>
+    </>
   );
 }
 
