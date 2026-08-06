@@ -2,7 +2,7 @@
 
 Nguồn: `docs/00` → `docs/05`. Mã yêu cầu giữ nguyên theo `01-DANH-MUC-CHUC-NANG.md`.
 
-Trạng thái: ✅ đúng spec · 🟡 có nhưng **sai/thiếu so với spec** · ⬜ chưa có
+Trạng thái: ✅ đúng spec (không còn mục 🟡 sai/thiếu hay ⬜ chưa có)
 
 > **Mọi mục trong lộ trình đã xong, kể cả StayShield.** Khách bổ sung
 > `docs/06-STAYSHIELD.md` và chốt 14 tham số ngày 06/08/2026; xem §8 dưới đây.
@@ -35,7 +35,8 @@ Chạy trên dữ liệu thật, server thật (`scripts/acceptance.py`, xem §K
 | 1 | Tên sản phẩm & danh hiệu | **Giữ StayHost OS**, giữ "Siêu chủ nhà" / "Khách yêu thích" (khách chốt 06/08/2026) |
 | 2 | Phí dịch vụ | **14% khách / 3% chủ nhà** theo `03 §1`, đặt trong cấu hình `Pricing:` |
 
-Vẫn chưa làm: chương trình bảo vệ **StayShield** (`00 §4`) — chưa có yêu cầu chi tiết.
+Chương trình bảo vệ **StayShield** (`00 §4`) đã có yêu cầu chi tiết ở `docs/06`,
+14 tham số chốt ngày 06/08/2026, và đã làm xong — xem giai đoạn 8.
 
 ---
 
@@ -115,7 +116,7 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 - [x] `TM-06/07` ngày linh hoạt ±1–7 ngày, cuối tuần/tuần/tháng, chọn theo tháng
 - [x] Ngày là **bộ lọc thật**: chỗ đã có khách không còn lọt vào kết quả
 
-### Giai đoạn 4 — Nguồn cung ✅ phần P0
+### Giai đoạn 4 — Nguồn cung ✅
 - [x] `ĐP-02` giữ chỗ 15 phút có đếm ngược · `ĐP-12` máy chủ tính lại giá trước khi trừ tiền
 - [x] `QL-01` bảng "Hôm nay" · `QL-05` sửa nhiều ngày một lúc
 - [x] `QL-06` quy tắc lịch đầy đủ · `QL-07` chặn theo thứ
@@ -125,7 +126,7 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 - [x] `CN-07` bắt buộc 5 ảnh, kéo thả sắp xếp
 - [x] `QL-04` lịch nhiều tin cùng lúc · `QL-10` đồng bộ iCal (nhập + xuất) · `QL-19` co-host
 
-### Giai đoạn 5 — Đánh giá & tin nhắn ✅ phần P0
+### Giai đoạn 5 — Đánh giá & tin nhắn ✅
 - [x] `ĐG-03` đánh giá mù hai chiều, công khai khi cả hai gửi hoặc hết 14 ngày
 - [x] `ĐG-02` nhắc ngày 1, 7, 13 · `ĐG-05` góp ý riêng · `ĐG-07` chủ nhà trả lời 1 lần/30 ngày
 - [x] `ĐG-09` chặn nội dung có liên hệ hoặc xúc phạm
@@ -134,13 +135,25 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 - [x] `ĐG-08` sửa đánh giá trong 48h, chỉ khi còn đang ẩn
 - [x] `TN-02` gửi ảnh · `TN-03` thẻ đơn trong hội thoại · `TN-08` mẫu trả lời nhanh
 
-### Giai đoạn 6 — An toàn, hỗ trợ, quản trị ✅ phần P0
+### Giai đoạn 6 — An toàn, hỗ trợ, quản trị ✅
 - [x] `AT-04` Trung tâm giải quyết: mở hồ sơ, 24h phản hồi, admin phân xử, tiền chia đúng
 - [x] `QT-05` phân xử · `QT-06` cấu hình phí và thuế theo khu vực
 - [x] `QT-09` nhật ký quản trị chỉ-thêm
 - [x] Phân vai admin: Hỗ trợ / Kiểm duyệt / Tài chính / Phân xử / Tối cao
 - [x] `AT-07` trung tâm trợ giúp thật: 14 bài, tìm không dấu, tách khách/chủ nhà
 - [x] `AT-11` phát hiện bất thường: tài khoản mới đặt lớn, nhiều thẻ, nhiều huỷ, đặt dồn dập
+
+### Giai đoạn 7 — Mở rộng ✅
+- [x] `ĐP-06` trả một phần: cọc ≥50%, tự thu phần còn lại trước 14 ngày, thử lại 72h rồi huỷ
+- [x] `ĐP-07` chia hoá đơn tối đa 16 người, mỗi người một liên kết, giữ chỗ 24h
+- [x] Trải nghiệm (`MR-01`→`MR-04`): đăng, lịch theo suất, đặt theo người, nhóm riêng,
+      tự huỷ suất thiếu người và hoàn tiền
+- [x] Dịch vụ (`MR-05`→`MR-07`): phạm vi phục vụ theo bán kính, đặt theo khung giờ
+      kèm địa chỉ, dịch vụ đối tác ăn hoa hồng
+- [x] Khách sạn (`MR-08`→`MR-10`): nhiều loại phòng có tồn kho, chọn phòng rồi mới
+      thanh toán, cam kết giá tốt bù chênh lệch bằng số dư
+- [x] Thẻ quà tặng, số dư khuyến mãi, giới thiệu bạn bè: số dư là sổ chỉ-thêm,
+      chỉ trừ vào tiền phòng, huỷ đơn thì trả lại bằng số dư
 
 ### Giai đoạn 8 — StayShield ✅
 - [x] `AT-06-01` trang giới thiệu hai nhánh, nêu rõ phạm vi, hạn mức, loại trừ
@@ -158,17 +171,6 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 - [x] Nhánh `C4` trách nhiệm bên thứ ba: chủ nhà mở hồ sơ, tiền trả thẳng cho bên bị
       thiệt hại, không trừ mức tự chịu, không vướng mốc "khách tiếp theo đã nhận phòng"
 
-### Giai đoạn 7 — Mở rộng ⬜ gần như chưa bắt đầu
-- [x] `ĐP-06` trả một phần: cọc ≥50%, tự thu phần còn lại trước 14 ngày, thử lại 72h rồi huỷ
-- [x] `ĐP-07` chia hoá đơn tối đa 16 người, mỗi người một liên kết, giữ chỗ 24h
-- [x] Trải nghiệm (`MR-01`→`MR-04`): đăng, lịch theo suất, đặt theo người, nhóm riêng,
-      tự huỷ suất thiếu người và hoàn tiền
-- [x] Dịch vụ (`MR-05`→`MR-07`): phạm vi phục vụ theo bán kính, đặt theo khung giờ
-      kèm địa chỉ, dịch vụ đối tác ăn hoa hồng
-- [x] Khách sạn (`MR-08`→`MR-10`): nhiều loại phòng có tồn kho, chọn phòng rồi mới
-      thanh toán, cam kết giá tốt bù chênh lệch bằng số dư
-- [x] Thẻ quà tặng, số dư khuyến mãi, giới thiệu bạn bè: số dư là sổ chỉ-thêm,
-      chỉ trừ vào tiền phòng, huỷ đơn thì trả lại bằng số dư
 
 ---
 
