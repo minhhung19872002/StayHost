@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
@@ -43,7 +43,10 @@ export function Detail() {
   // top of the screen instead. You have already chosen the place by this point;
   // what is worth a permanent strip of the window is moving around inside it.
   // The class goes on the body because the header lives outside this page.
-  useEffect(() => {
+  //
+  // Before paint, or the first frame of the page is drawn with the header still
+  // sticky and everything below it 99px lower, and you watch it jump.
+  useLayoutEffect(() => {
     document.body.classList.add('page-detail');
     return () => document.body.classList.remove('page-detail');
   }, []);

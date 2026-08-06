@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { useStore } from './lib/useStore.js';
 import {
   loadMeta, loadMe, loadFavorites, loadNotifications, set, state as store
@@ -50,11 +50,36 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // A route change closes whatever chrome was open and returns to the top.
+  // A route change closes whatever chrome was open.
   useEffect(() => {
     set({ overlay: null, menu: null, suggestOpen: false, photoIndex: null });
-    window.scrollTo({ top: 0, behavior: 'instant' });
   }, [location.pathname]);
+
+  /*
+   * Going somewhere new starts at the top of it.
+   *
+   * This used to watch the pathname alone, so the rail headings — which only
+   * change the query string — left you a thousand pixels down a page whose
+   * contents had just been replaced underneath you.
+   *
+   * It watches the whole location now, but only acts on a push. Typing in the
+   * search box rewrites the query string on every keystroke with replace, and
+   * yanking the page to the top each time would be far worse than the bug. A
+   * pop is the back button, where the browser restores the old position itself.
+   *
+   * Layout effect, not effect: after paint the browser has already shown one
+   * frame of the new page at the old scroll position, and that frame is the
+   * flicker.
+   */
+  const navigationType = useNavigationType();
+
+  useLayoutEffect(() => {
+    if (navigationType !== 'PUSH') return;
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    // navigationType is deliberately not a dependency: it describes how we
+    // arrived at this location, not a value that changes on its own.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, location.search]);
 
   // Leaving the room page drops its detail so a stale quote can't leak into
   // the next screen's totals.
