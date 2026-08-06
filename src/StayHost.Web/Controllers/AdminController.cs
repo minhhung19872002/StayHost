@@ -84,7 +84,51 @@ public class AdminController(StayHostDbContext db, AuthService auth, Notificatio
             recent.Select(l => new AdminListingDto(
                 l.Id, l.Slug, l.Title, l.City, l.Host?.Name ?? "",
                 l.IsPublished, Math.Round(l.Rating, 2), l.ReviewCount, l.PricePerNight, l.CreatedAt)).ToList(),
-            reports));
+            reports,
+            await ReconcileAsync(ct)));
+    }
+
+    private static readonly Dictionary<LedgerAccount, string> AccountLabels = new()
+    {
+        [LedgerAccount.GuestFunds] = "Tiền khách đang giữ",
+        [LedgerAccount.HostPayable] = "Phải trả chủ nhà",
+        [LedgerAccount.GuestServiceFeeRevenue] = "Doanh thu phí dịch vụ khách",
+        [LedgerAccount.HostServiceFeeRevenue] = "Doanh thu phí dịch vụ chủ nhà",
+        [LedgerAccount.TaxPayable] = "Thuế phải nộp",
+        [LedgerAccount.GuestRefundPayable] = "Phải hoàn cho khách",
+        [LedgerAccount.PromotionalCredit] = "Số dư khuyến mãi đã cấp",
+        [LedgerAccount.PlatformExpense] = "Chi phí sàn"
+    };
+
+    /// <summary>
+    /// docs/03 §5: total in must equal total out, checked every day. Anything
+    /// other than zero here is the alarm the spec calls for.
+    /// </summary>
+    private async Task<LedgerReportDto> ReconcileAsync(CancellationToken ct)
+    {
+        var rows = await db.LedgerEntries
+            .GroupBy(e => new { e.Account, e.Direction })
+            .Select(g => new { g.Key.Account, g.Key.Direction, Total = g.Sum(x => x.Amount), Count = g.Count() })
+            .ToListAsync(ct);
+
+        var accounts = rows
+            .GroupBy(r => r.Account)
+            .OrderBy(g => g.Key)
+            .Select(g =>
+            {
+                var debits = g.Where(r => r.Direction == LedgerDirection.Debit).Sum(r => r.Total);
+                var credits = g.Where(r => r.Direction == LedgerDirection.Credit).Sum(r => r.Total);
+                return new LedgerAccountDto(
+                    g.Key.ToString(), AccountLabels.GetValueOrDefault(g.Key, g.Key.ToString()),
+                    debits, credits, debits - credits);
+            })
+            .ToList();
+
+        return new LedgerReportDto(
+            accounts.Sum(a => a.Balance),
+            rows.Sum(r => r.Count),
+            await db.LedgerEntries.Select(e => e.TransactionId).Distinct().CountAsync(ct),
+            accounts);
     }
 
     [HttpPost("admin/listings/{id:int}/publish")]

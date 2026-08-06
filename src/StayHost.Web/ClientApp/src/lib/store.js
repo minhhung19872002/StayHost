@@ -236,6 +236,10 @@ export async function loadMeta() {
 export function searchParams(page = 1) {
   const meta = state.meta;
   return {
+    // Dates go to the server so it can price every card with the same engine
+    // checkout uses (docs/00 §6.8).
+    checkIn: state.checkIn,
+    checkOut: state.checkOut,
     q: state.q.trim() || undefined,
     category: state.category !== 'all' ? state.category : undefined,
     minPrice: meta && state.minPrice > meta.minPrice ? state.minPrice : undefined,
@@ -279,12 +283,22 @@ export async function runSearch({ page = 1 } = {}) {
   }
 }
 
+/** Cached per date range, since the rails carry a priced total for those nights. */
+let homeKey = '';
+
 export async function loadHome() {
-  if (state.home) { notify(); return; }
+  const key = `${state.checkIn}|${state.checkOut}|${totalGuests()}`;
+  if (state.home && key === homeKey) { notify(); return; }
+
   state.homeLoading = true;
   notify();
   try {
-    state.home = await api.home();
+    state.home = await api.home({
+      checkIn: state.checkIn,
+      checkOut: state.checkOut,
+      guests: totalGuests()
+    });
+    homeKey = key;
   } catch (err) {
     toast(err.message);
   } finally {
@@ -426,7 +440,11 @@ export async function loadDetail(idOrSlug) {
   notify();
 
   try {
-    state.detail = await api.listing(idOrSlug);
+    state.detail = await api.listing(idOrSlug, {
+      checkIn: state.checkIn,
+      checkOut: state.checkOut,
+      guests: totalGuests()
+    });
     await refreshQuote();
   } catch (err) {
     state.detail = null;
@@ -444,7 +462,10 @@ export async function refreshQuote() {
       listingId: state.detail.card.id,
       checkIn: state.checkIn,
       checkOut: state.checkOut,
-      guests: totalGuests()
+      adults: state.guests.adults,
+      children: state.guests.children,
+      infants: state.guests.infants,
+      pets: state.guests.pets
     });
   } catch {
     state.quote = null;
@@ -463,6 +484,10 @@ export async function book(extra = {}) {
       checkIn: state.checkIn,
       checkOut: state.checkOut,
       guests: totalGuests(),
+      adults: state.guests.adults,
+      children: state.guests.children,
+      infants: state.guests.infants,
+      pets: state.guests.pets,
       ...extra
     });
     toast(`Đặt chỗ thành công — mã ${state.bookingResult.reference}`);

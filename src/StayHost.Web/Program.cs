@@ -1,9 +1,15 @@
 using Microsoft.EntityFrameworkCore;
+using StayHost.Domain;
 using StayHost.Infrastructure;
 using StayHost.Web.Infrastructure;
 using StayHost.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// docs/03 §1 fixes the fee rates; the admin console (QT-06) needs to change them
+// without a deploy, so they are bound from configuration with the spec as default.
+var pricing = builder.Configuration.GetSection("Pricing").Get<PricingSettings>();
+if (pricing is not null) PricingSettings.Current = pricing;
 
 var connectionString =
     builder.Configuration.GetConnectionString("Postgres")

@@ -26,6 +26,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
     public DbSet<PriceRule> PriceRules => Set<PriceRule>();
     public DbSet<GuestReview> GuestReviews => Set<GuestReview>();
+    public DbSet<TaxRule> TaxRules => Set<TaxRule>();
+    public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -189,8 +191,9 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.City).HasMaxLength(100).IsRequired();
             e.Property(x => x.PricePerNight).HasPrecision(12, 2);
             e.Property(x => x.CleaningFee).HasPrecision(12, 2);
-            e.Property(x => x.ServiceFeeRate).HasPrecision(5, 4);
             e.Property(x => x.WeekendSurchargeRate).HasPrecision(5, 4);
+            e.Property(x => x.ExtraGuestFee).HasPrecision(12, 2);
+            e.Property(x => x.PetFee).HasPrecision(12, 2);
             e.HasOne(x => x.Host).WithMany(h => h.Listings)
                 .HasForeignKey(x => x.HostId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -258,12 +261,20 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.HasIndex(x => x.Reference).IsUnique();
             e.Property(x => x.Reference).HasMaxLength(20).IsRequired();
             e.Property(x => x.SessionId).HasMaxLength(64).IsRequired();
-            e.Property(x => x.Subtotal).HasPrecision(12, 2);
-            e.Property(x => x.CleaningFee).HasPrecision(12, 2);
-            e.Property(x => x.ServiceFee).HasPrecision(12, 2);
-            e.Property(x => x.Tax).HasPrecision(12, 2);
-            e.Property(x => x.Total).HasPrecision(12, 2);
-            e.Property(x => x.RefundedAmount).HasPrecision(12, 2);
+            foreach (var money in new[]
+                     {
+                         nameof(Booking.RoomBeforeDiscount), nameof(Booking.RoomDiscount),
+                         nameof(Booking.ExtraGuestFee), nameof(Booking.PetFee), nameof(Booking.CleaningFee),
+                         nameof(Booking.Subtotal), nameof(Booking.ServiceFee), nameof(Booking.Tax),
+                         nameof(Booking.Promotion), nameof(Booking.Total),
+                         nameof(Booking.HostServiceFee), nameof(Booking.HostPayout),
+                         nameof(Booking.RefundedAmount), nameof(Booking.GoodwillCredit)
+                     })
+            {
+                e.Property(money).HasPrecision(12, 2);
+            }
+
+            e.Property(x => x.PriceLinesJson).HasColumnType("jsonb");
             e.Property(x => x.GuestNote).HasMaxLength(1000);
             e.Property(x => x.CancellationReason).HasMaxLength(300);
             e.HasIndex(x => x.GuestUserId);
@@ -272,5 +283,58 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.HasOne(x => x.GuestUser).WithMany()
                 .HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.SetNull);
         });
+
+        b.Entity<TaxRule>(e =>
+        {
+            e.ToTable("tax_rules");
+            e.HasIndex(x => new { x.Country, x.City });
+            e.Property(x => x.Country).HasMaxLength(100).IsRequired();
+            e.Property(x => x.City).HasMaxLength(100);
+            e.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Value).HasPrecision(12, 4);
+        });
+
+        b.Entity<LedgerEntry>(e =>
+        {
+            e.ToTable("ledger_entries");
+            e.HasIndex(x => x.TransactionId);
+            e.HasIndex(x => new { x.Account, x.CreatedAt });
+            e.Property(x => x.TransactionKind).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Currency).HasMaxLength(3);
+            e.Property(x => x.Memo).HasMaxLength(200);
+            e.Property(x => x.Amount).HasPrecision(14, 2);
+            e.Ignore(x => x.Signed);
+            e.HasOne(x => x.Booking).WithMany(bk => bk.LedgerEntries)
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.SetNull);
+        });
+    }
+
+    /// <summary>
+    /// docs/00 §6.1 and §6.2: ledger rows are append-only. Anything that tries to
+    /// update or delete one is a bug, so it fails loudly rather than silently
+    /// rewriting history.
+    /// </summary>
+    public override int SaveChanges()
+    {
+        GuardLedger();
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        GuardLedger();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void GuardLedger()
+    {
+        var tampered = ChangeTracker.Entries<LedgerEntry>()
+            .Any(e => e.State is EntityState.Modified or EntityState.Deleted);
+
+        if (tampered)
+        {
+            throw new InvalidOperationException(
+                "Sổ ghi tiền là bất biến: chỉ được thêm bút toán mới, không sửa hay xoá bút toán cũ.");
+        }
     }
 }

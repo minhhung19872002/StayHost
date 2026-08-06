@@ -10,12 +10,10 @@ namespace StayHost.Web.Controllers;
 
 [ApiController]
 [Route("api/bookings")]
-public class BookingsController(StayHostDbContext db, AuthService auth, NotificationService notifications)
+public class BookingsController(
+    StayHostDbContext db, AuthService auth, NotificationService notifications, CatalogService catalog)
     : ControllerBase
 {
-    /// <summary>Share of the guest total the platform keeps (the StayHost service fee).</summary>
-    private const decimal PlatformCut = 1.0m;
-
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<BookingDto>>> List(CancellationToken ct)
     {
@@ -50,8 +48,19 @@ public class BookingsController(StayHostDbContext db, AuthService auth, Notifica
         if (nights < listing.MinNights)
             return BadRequest(new { message = $"Chỗ nghỉ này yêu cầu tối thiểu {listing.MinNights} đêm." });
 
-        if (req.Guests < 1 || req.Guests > listing.MaxGuests)
+        // docs/03 §2 rule 2: infants do not count towards capacity.
+        var party = req.Adults is null
+            ? PartySize.Of(req.Guests) with { Infants = req.Infants, Pets = req.Pets }
+            : new PartySize(Math.Max(1, req.Adults.Value), req.Children, req.Infants, req.Pets);
+
+        if (party.Counted < 1 || party.Counted > listing.MaxGuests)
             return BadRequest(new { message = $"Chỗ nghỉ này nhận tối đa {listing.MaxGuests} khách." });
+
+        if (party.Pets > 0 && !listing.PetsAllowed)
+            return BadRequest(new { message = "Chỗ nghỉ này không nhận thú cưng." });
+
+        if (party.Pets > listing.MaxPets)
+            return BadRequest(new { message = $"Chỗ nghỉ này nhận tối đa {listing.MaxPets} thú cưng." });
 
         if (req.CheckIn < DateOnly.FromDateTime(DateTime.UtcNow))
             return BadRequest(new { message = "Không thể đặt ngày trong quá khứ." });
@@ -73,11 +82,10 @@ public class BookingsController(StayHostDbContext db, AuthService auth, Notifica
         if (user is null)
             return Unauthorized(new { message = "Bạn cần đăng nhập để đặt chỗ." });
 
-        var priceRules = await db.PriceRules
-            .Where(r => r.ListingId == listing.Id && r.From <= req.CheckOut && req.CheckIn <= r.To)
-            .ToListAsync(ct);
-
-        var price = Pricing.Quote(listing, req.CheckIn, req.CheckOut, priceRules);
+        // Quoting and booking go through the same builder so the guest is charged
+        // exactly what the room page showed them (docs/00 §6.8).
+        var quoteRequest = await catalog.BuildQuoteRequestAsync(listing.Id, req.CheckIn, req.CheckOut, party, ct);
+        var price = Pricing.Quote(quoteRequest!);
 
         var booking = new Booking
         {
@@ -88,13 +96,26 @@ public class BookingsController(StayHostDbContext db, AuthService auth, Notifica
             Listing = listing,
             CheckIn = req.CheckIn,
             CheckOut = req.CheckOut,
-            Guests = req.Guests,
+            Guests = party.Counted,
+            Adults = party.Adults,
+            Children = party.Children,
+            Infants = party.Infants,
+            Pets = party.Pets,
             Nights = price.Nights,
-            Subtotal = price.Subtotal,
+            RoomBeforeDiscount = price.RoomBeforeDiscount,
+            RoomDiscount = price.RoomDiscount,
+            DiscountPercent = price.DiscountPercent,
+            ExtraGuestFee = price.ExtraGuestFee,
+            PetFee = price.PetFee,
             CleaningFee = price.CleaningFee,
-            ServiceFee = price.ServiceFee,
+            Subtotal = price.Subtotal,
+            ServiceFee = price.GuestServiceFee,
             Tax = price.Tax,
+            Promotion = price.Promotion,
             Total = price.Total,
+            HostServiceFee = price.HostServiceFee,
+            HostPayout = price.HostPayout,
+            PriceLinesJson = SerializeLines(price.Lines),
             CancellationTier = listing.CancellationTier,
             GuestName = req.GuestName ?? user.FullName,
             GuestEmail = req.GuestEmail ?? user.Email,
@@ -103,8 +124,6 @@ public class BookingsController(StayHostDbContext db, AuthService auth, Notifica
             Status = listing.InstantBook ? BookingStatus.Confirmed : BookingStatus.Pending
         };
 
-        // The platform keeps the service fee; tax is remitted, the rest goes to the host.
-        var platformFee = Math.Round(price.ServiceFee * PlatformCut, 0, MidpointRounding.AwayFromZero);
         booking.Payment = new Payment
         {
             Reference = "PAY" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant(),
@@ -114,13 +133,21 @@ public class BookingsController(StayHostDbContext db, AuthService auth, Notifica
             CardLast4 = req.CardLast4 ?? "4242",
             Status = listing.InstantBook ? PaymentStatus.Captured : PaymentStatus.Authorized,
             CapturedAt = listing.InstantBook ? DateTime.UtcNow : null,
-            PlatformFee = platformFee,
-            HostPayout = price.Total - platformFee - price.Tax,
+            PlatformFee = price.GuestServiceFee + price.HostServiceFee,
+            HostPayout = price.HostPayout,
             PayoutDueOn = req.CheckIn.AddDays(1)
         };
 
         db.Bookings.Add(booking);
         await db.SaveChangesAsync(ct);
+
+        // docs/03 §5: money only enters the books once it has actually been taken.
+        // A request-to-book is not charged until the host accepts.
+        if (listing.InstantBook)
+        {
+            db.LedgerEntries.AddRange(Ledger.CaptureBooking(booking, price, DateTime.UtcNow));
+            await db.SaveChangesAsync(ct);
+        }
 
         var hostUser = await db.Users.FirstOrDefaultAsync(u => u.HostProfile!.Id == listing.HostId, ct);
         await notifications.QueueWithEmailAsync(hostUser, NotificationKind.BookingCreated,
@@ -146,8 +173,8 @@ public class BookingsController(StayHostDbContext db, AuthService auth, Notifica
         var booking = await FindOwnedAsync(id, ct);
         if (booking is null) return NotFound();
 
-        var outcome = Pricing.Refund(booking, DateOnly.FromDateTime(DateTime.UtcNow));
-        return Ok(new RefundPreviewDto(outcome.Amount, outcome.Penalty, booking.Total, outcome.Explanation));
+        var outcome = Cancellation.Refund(await BuildCancelContextAsync(booking, CancelledBy.Guest, ct));
+        return Ok(ToPreview(booking, outcome));
     }
 
     [HttpPost("{id:int}/cancel")]
@@ -158,21 +185,8 @@ public class BookingsController(StayHostDbContext db, AuthService auth, Notifica
         if (booking.Status == BookingStatus.Cancelled)
             return BadRequest(new { message = "Chuyến đi này đã được huỷ." });
 
-        var outcome = Pricing.Refund(booking, DateOnly.FromDateTime(DateTime.UtcNow));
-
-        booking.Status = BookingStatus.Cancelled;
-        booking.CancellationReason = "Khách huỷ";
-        booking.RefundedAmount = outcome.Amount;
-
-        if (booking.Payment is not null)
-        {
-            booking.Payment.Status = outcome.Amount >= booking.Total
-                ? PaymentStatus.Refunded
-                : PaymentStatus.Captured;
-            // The host keeps whatever the policy does not refund, minus the platform cut.
-            booking.Payment.HostPayout = Math.Max(0m, outcome.Penalty - booking.Payment.PlatformFee);
-            booking.Payment.PayoutStatus = PayoutStatus.OnHold;
-        }
+        var outcome = Cancellation.Refund(await BuildCancelContextAsync(booking, CancelledBy.Guest, ct));
+        await ApplyCancellationAsync(booking, outcome, CancelledBy.Guest, "Khách huỷ", ct);
 
         var listing = await db.Listings.Include(l => l.Host!).ThenInclude(h => h.User)
             .FirstOrDefaultAsync(l => l.Id == booking.ListingId, ct);
@@ -183,7 +197,79 @@ public class BookingsController(StayHostDbContext db, AuthService auth, Notifica
             "/hosting", ct);
 
         await db.SaveChangesAsync(ct);
-        return Ok(new RefundPreviewDto(outcome.Amount, outcome.Penalty, booking.Total, outcome.Explanation));
+        return Ok(ToPreview(booking, outcome));
+    }
+
+    private static RefundPreviewDto ToPreview(Booking b, Cancellation.Outcome o) => new(
+        o.Amount, b.Total - o.Amount, b.Total, o.Explanation,
+        o.RoomRefund, o.CleaningRefund, o.ServiceFeeRefund, o.TaxRefund, o.GoodwillCredit);
+
+    /// <summary>
+    /// docs/03 §4 pre-rule 2 caps service-fee refunds at three a year, so the
+    /// guest's recent history is part of the calculation.
+    /// </summary>
+    private async Task<Cancellation.Context> BuildCancelContextAsync(Booking booking, CancelledBy by, CancellationToken ct)
+    {
+        var yearAgo = DateTime.UtcNow.AddYears(-1);
+        var used = booking.GuestUserId is null
+            ? 0
+            : await db.Bookings.CountAsync(b =>
+                b.GuestUserId == booking.GuestUserId &&
+                b.Status == BookingStatus.Cancelled &&
+                b.RefundedAmount > 0 &&
+                b.CreatedAt >= yearAgo, ct);
+
+        return new Cancellation.Context
+        {
+            Booking = booking,
+            Now = DateTime.UtcNow,
+            By = by,
+            ServiceFeeRefundsUsed = used
+        };
+    }
+
+    /// <summary>
+    /// Cancels the booking and books the matching double-entry transaction, so
+    /// the ledger still balances afterwards (docs/00 §6.1).
+    /// </summary>
+    internal static void PostCancellation(
+        StayHostDbContext db, Booking booking, Cancellation.Outcome outcome, CancelledBy by, string reason)
+    {
+        booking.Status = BookingStatus.Cancelled;
+        booking.CancellationReason = reason;
+        booking.CancelledBy = by;
+        booking.RefundedAmount = outcome.Amount;
+        booking.GoodwillCredit = outcome.GoodwillCredit;
+
+        if (booking.Payment is not null)
+        {
+            booking.Payment.Status = outcome.Amount >= booking.Total ? PaymentStatus.Refunded : PaymentStatus.Captured;
+            booking.Payment.HostPayout = Math.Max(0m, booking.HostPayout - (outcome.RoomRefund + outcome.CleaningRefund));
+            booking.Payment.PayoutStatus = PayoutStatus.OnHold;
+        }
+
+        // Nothing was ever captured for a pending request, so there is nothing to reverse.
+        var captured = db.LedgerEntries.Local.Any(e => e.BookingId == booking.Id)
+                       || db.LedgerEntries.Any(e => e.BookingId == booking.Id && e.TransactionKind == "booking-captured");
+        if (!captured) return;
+
+        // The host's fee is returned in proportion to the money leaving their side.
+        var hostSideRefund = outcome.RoomRefund + outcome.CleaningRefund;
+        var hostFeeReturned = booking.Subtotal > 0
+            ? Math.Round(booking.HostServiceFee * hostSideRefund / booking.Subtotal, 0, MidpointRounding.AwayFromZero)
+            : 0m;
+        hostFeeReturned = Math.Min(hostFeeReturned, hostSideRefund);
+
+        db.LedgerEntries.AddRange(Ledger.RefundBooking(booking, outcome, hostFeeReturned, DateTime.UtcNow));
+        if (outcome.Amount > 0)
+            db.LedgerEntries.AddRange(Ledger.SettleRefund(booking, outcome.Amount, DateTime.UtcNow));
+    }
+
+    private async Task ApplyCancellationAsync(
+        Booking booking, Cancellation.Outcome outcome, CancelledBy by, string reason, CancellationToken ct)
+    {
+        PostCancellation(db, booking, outcome, by, reason);
+        await db.SaveChangesAsync(ct);
     }
 
     /// <summary>A guest may review a stay once, after checkout.</summary>
@@ -264,6 +350,24 @@ public class BookingsController(StayHostDbContext db, AuthService auth, Notifica
             b.Id == id && (user != null ? b.GuestUserId == user.Id : b.SessionId == sid), ct);
     }
 
+    private static readonly System.Text.Json.JsonSerializerOptions LineJson = new(System.Text.Json.JsonSerializerDefaults.Web);
+
+    private static string SerializeLines(IReadOnlyList<PriceLine> lines) =>
+        System.Text.Json.JsonSerializer.Serialize(
+            lines.Select(l => new PriceLineDto(l.Key, l.Label, l.Amount)), LineJson);
+
+    private static IReadOnlyList<PriceLineDto> DeserializeLines(string json)
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<List<PriceLineDto>>(json, LineJson) ?? [];
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return [];
+        }
+    }
+
     private static BookingDto ToDto(Booking b)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -286,8 +390,10 @@ public class BookingsController(StayHostDbContext db, AuthService auth, Notifica
             b.Tax,
             b.Total,
             b.RefundedAmount,
-            Pricing.TierLabel(b.CancellationTier),
-            Pricing.TierSummary(b.CancellationTier),
+            b.GoodwillCredit,
+            DeserializeLines(b.PriceLinesJson),
+            Cancellation.Label(b.CancellationTier),
+            Cancellation.Summary(b.CancellationTier),
             b.Status.ToString(),
             b.Payment?.Status.ToString() ?? "Pending",
             b.Payment?.Reference,

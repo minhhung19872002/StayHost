@@ -8,18 +8,40 @@ import { money, shortMoney, longDate, isoOf } from '../../lib/format.js';
 import { AmenityIcon } from '../Icon.jsx';
 import { Modal } from './Modal.jsx';
 
+const BLANK_PRICING = {
+  weeklyDiscountPercent: 10,
+  monthlyDiscountPercent: 20,
+  earlyBirdDays: 0,
+  earlyBirdPercent: 0,
+  lastMinuteDays: 0,
+  lastMinutePercent: 0,
+  weekendSurchargeRate: 0.15,
+  freeGuestThreshold: 2,
+  extraGuestFee: 0,
+  petsAllowed: false,
+  maxPets: 2,
+  petFee: 0,
+  petFeePerNight: false
+};
+
 const BLANK_LISTING = {
   id: 0, title: '', city: '', typeKey: 'house', roomTypeKey: 'entire',
   bedrooms: 1, beds: 1, bathrooms: 1, maxGuests: 2,
   pricePerNight: 800000, cleaningFee: 200000, minNights: 1,
   instantBook: true, isPublished: true, cancellationTier: 'Moderate',
-  description: '', highlight: '', images: [], amenityKeys: []
+  description: '', highlight: '', images: [], amenityKeys: [],
+  pricing: BLANK_PRICING
 };
 
+// The six policies of docs/03 §4. The wording matches Cancellation.Summary on
+// the server so the host and the guest read the same sentence.
 const TIERS = [
-  ['Flexible', 'Linh hoạt', 'Hoàn 100% tiền phòng nếu huỷ trước 24 giờ.'],
-  ['Moderate', 'Trung bình', 'Hoàn 100% nếu huỷ trước 5 ngày, sau đó 50%.'],
-  ['Strict', 'Nghiêm ngặt', 'Hoàn 50% nếu huỷ trước 7 ngày, sau đó không hoàn.']
+  ['Flexible', 'Linh hoạt', 'Hoàn 100% nếu huỷ trước 24 giờ; sau đó mất đêm đầu.'],
+  ['Moderate', 'Vừa phải', 'Hoàn 100% nếu huỷ trước 5 ngày, sau đó 50%.'],
+  ['Strict', 'Chặt', 'Hoàn 100% trước 30 ngày, 50% trước 7 ngày, sau đó không hoàn.'],
+  ['SuperStrict', 'Rất chặt', 'Hoàn 50% nếu huỷ trước 7 ngày, sau đó không hoàn.'],
+  ['NonRefundable', 'Không hoàn', 'Không hoàn tiền phòng; đổi lại khách được giảm 10%.'],
+  ['LongTermStrict', 'Dài hạn – chặt', 'Cho kỳ ở từ 28 đêm: sau 30 ngày, khách trả 30 đêm đầu.']
 ];
 
 const ROOM_TYPES = [['entire', 'Nguyên căn'], ['private', 'Phòng riêng'], ['shared', 'Phòng chung']];
@@ -28,13 +50,18 @@ export function ListingEditorModal() {
   const state = useStore();
   const meta = state.meta;
   // The whole form is one controlled object so a pill toggle never loses typed text.
-  const [form, setForm] = useState(() => ({ ...BLANK_LISTING, ...(state.editingListing ?? {}) }));
+  const [form, setForm] = useState(() => {
+    const editing = state.editingListing ?? {};
+    return { ...BLANK_LISTING, ...editing, pricing: { ...BLANK_PRICING, ...(editing.pricing ?? {}) } };
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   const isNew = !form.id;
   const field = (key, value) => setForm(f => ({ ...f, [key]: value }));
   const num = (key, value) => field(key, Number(value) || 0);
+  const rule = (key, value) => setForm(f => ({ ...f, pricing: { ...f.pricing, [key]: value } }));
+  const ruleNum = (key, value) => rule(key, Number(value) || 0);
 
   const save = async () => {
     setSaving(true);
@@ -148,6 +175,66 @@ export function ListingEditorModal() {
           <button type="button" className={`pill ${form.isPublished ? 'is-on' : ''}`}
                   onClick={() => field('isPublished', !form.isPublished)}>
             {form.isPublished ? 'Đang hiển thị công khai' : 'Đang là bản nháp'}
+          </button>
+        </div>
+      </section>
+
+      <section className="modal-section">
+        <h3>Giảm giá</h3>
+        <span className="hint">
+          Chỉ một mức theo độ dài và một mức theo thời điểm đặt được áp dụng; tổng mọi mức
+          giảm không vượt quá {state.meta?.fees?.maxDiscountPercent ?? 60}%.
+        </span>
+        <div className="field-grid">
+          <label className="form-field"><span className="cap">Ở từ 7 đêm (%)</span>
+            <input type="number" min={0} max={60} value={form.pricing.weeklyDiscountPercent}
+                   onChange={e => ruleNum('weeklyDiscountPercent', e.target.value)} /></label>
+          <label className="form-field"><span className="cap">Ở từ 28 đêm (%)</span>
+            <input type="number" min={0} max={60} value={form.pricing.monthlyDiscountPercent}
+                   onChange={e => ruleNum('monthlyDiscountPercent', e.target.value)} /></label>
+          <label className="form-field"><span className="cap">Đặt sớm: trước bao nhiêu ngày</span>
+            <input type="number" min={0} max={365} value={form.pricing.earlyBirdDays}
+                   onChange={e => ruleNum('earlyBirdDays', e.target.value)} /></label>
+          <label className="form-field"><span className="cap">Đặt sớm (%)</span>
+            <input type="number" min={0} max={60} value={form.pricing.earlyBirdPercent}
+                   onChange={e => ruleNum('earlyBirdPercent', e.target.value)} /></label>
+          <label className="form-field"><span className="cap">Phút chót: trong bao nhiêu ngày</span>
+            <input type="number" min={0} max={60} value={form.pricing.lastMinuteDays}
+                   onChange={e => ruleNum('lastMinuteDays', e.target.value)} /></label>
+          <label className="form-field"><span className="cap">Phút chót (%)</span>
+            <input type="number" min={0} max={60} value={form.pricing.lastMinutePercent}
+                   onChange={e => ruleNum('lastMinutePercent', e.target.value)} /></label>
+        </div>
+      </section>
+
+      <section className="modal-section">
+        <h3>Phụ thu</h3>
+        <span className="hint">Em bé không bao giờ bị tính phụ thu khách thêm.</span>
+        <div className="field-grid">
+          <label className="form-field"><span className="cap">Phụ thu cuối tuần (%)</span>
+            <input type="number" min={0} max={200} value={Math.round(form.pricing.weekendSurchargeRate * 100)}
+                   onChange={e => rule('weekendSurchargeRate', (Number(e.target.value) || 0) / 100)} /></label>
+          <label className="form-field"><span className="cap">Số khách đã gồm trong giá</span>
+            <input type="number" min={1} max={form.maxGuests} value={form.pricing.freeGuestThreshold}
+                   onChange={e => ruleNum('freeGuestThreshold', e.target.value)} /></label>
+          <label className="form-field"><span className="cap">Phụ thu mỗi khách thêm / đêm (₫)</span>
+            <input type="number" min={0} step={10000} value={form.pricing.extraGuestFee}
+                   onChange={e => ruleNum('extraGuestFee', e.target.value)} /></label>
+          <label className="form-field"><span className="cap">Phí thú cưng (₫)</span>
+            <input type="number" min={0} step={10000} value={form.pricing.petFee}
+                   onChange={e => ruleNum('petFee', e.target.value)} /></label>
+          <label className="form-field"><span className="cap">Số thú cưng tối đa</span>
+            <input type="number" min={0} max={10} value={form.pricing.maxPets}
+                   onChange={e => ruleNum('maxPets', e.target.value)} /></label>
+        </div>
+        <div className="pill-row" style={{ marginTop: 14 }}>
+          <button type="button" className={`pill ${form.pricing.petsAllowed ? 'is-on' : ''}`}
+                  onClick={() => rule('petsAllowed', !form.pricing.petsAllowed)}>
+            {form.pricing.petsAllowed ? 'Nhận thú cưng' : 'Không nhận thú cưng'}
+          </button>
+          <button type="button" className={`pill ${form.pricing.petFeePerNight ? 'is-on' : ''}`}
+                  onClick={() => rule('petFeePerNight', !form.pricing.petFeePerNight)}>
+            {form.pricing.petFeePerNight ? 'Phí thú cưng theo đêm' : 'Phí thú cưng theo lượt ở'}
           </button>
         </div>
       </section>

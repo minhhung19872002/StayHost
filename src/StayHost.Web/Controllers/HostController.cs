@@ -54,7 +54,9 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
         var past = live.Where(b => b.CheckOut <= today).ToList();
         var upcoming = live.Where(b => b.CheckOut > today).ToList();
 
-        decimal PayoutOf(Booking b) => b.Payment?.HostPayout ?? b.Subtotal + b.CleaningFee;
+        // Subtotal already includes the cleaning fee (docs/03 section 1 step 6),
+        // so the fallback is subtotal minus the host service fee, not a sum of the two.
+        decimal PayoutOf(Booking b) => b.Payment?.HostPayout ?? b.HostPayout;
 
         var byMonth = live
             .GroupBy(b => new { b.CheckIn.Year, b.CheckIn.Month })
@@ -381,11 +383,19 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
                     booking.Payment.CapturedAt = DateTime.UtcNow;
                     booking.Payment.PayoutDueOn = booking.CheckIn.AddDays(1);
                 }
+
+                // docs/03 §5: a request-to-book is only charged once the host accepts,
+                // so this is the moment the money enters the books.
+                if (!await db.LedgerEntries.AnyAsync(e => e.BookingId == booking.Id, ct))
+                    db.LedgerEntries.AddRange(Ledger.CaptureBooking(booking, BookedPrice(booking), DateTime.UtcNow));
                 break;
 
             case "decline":
+                // Declining a request that was never charged simply drops it; there
+                // is nothing to reverse and nothing to refund.
                 booking.Status = BookingStatus.Cancelled;
                 booking.CancellationReason = body?.Reason ?? "Chủ nhà từ chối";
+                booking.CancelledBy = CancelledBy.Host;
                 if (booking.Payment is not null) booking.Payment.Status = PaymentStatus.Refunded;
                 break;
 
@@ -458,6 +468,25 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
         listing.Description = r.Description.Trim();
         listing.SpaceHighlight = string.IsNullOrWhiteSpace(r.Highlight) ? null : r.Highlight.Trim();
         listing.UpdatedAt = DateTime.UtcNow;
+
+        if (r.Pricing is { } p)
+        {
+            // Percentages are clamped here as well as in the UI: the platform cap of
+            // docs/03 §1 is meaningless if a host can store 500% in the first place.
+            listing.WeeklyDiscountPercent = Math.Clamp(p.WeeklyDiscountPercent, 0, 60);
+            listing.MonthlyDiscountPercent = Math.Clamp(p.MonthlyDiscountPercent, 0, 60);
+            listing.EarlyBirdDays = Math.Clamp(p.EarlyBirdDays, 0, 365);
+            listing.EarlyBirdPercent = Math.Clamp(p.EarlyBirdPercent, 0, 60);
+            listing.LastMinuteDays = Math.Clamp(p.LastMinuteDays, 0, 60);
+            listing.LastMinutePercent = Math.Clamp(p.LastMinutePercent, 0, 60);
+            listing.WeekendSurchargeRate = Math.Clamp(p.WeekendSurchargeRate, 0m, 2m);
+            listing.FreeGuestThreshold = Math.Clamp(p.FreeGuestThreshold, 1, Math.Max(1, r.MaxGuests));
+            listing.ExtraGuestFee = Math.Max(0m, p.ExtraGuestFee);
+            listing.PetsAllowed = p.PetsAllowed;
+            listing.MaxPets = Math.Clamp(p.MaxPets, 0, 10);
+            listing.PetFee = Math.Max(0m, p.PetFee);
+            listing.PetFeePerNight = p.PetFeePerNight;
+        }
 
         var coords = CityCoordinates(listing.City);
         listing.Latitude = r.Latitude ?? (listing.Latitude != 0 ? listing.Latitude : coords.Lat);
@@ -535,7 +564,41 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
         l.Description, l.SpaceHighlight, l.Latitude, l.Longitude,
         l.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).ToList(),
         l.Amenities.Where(a => a.Amenity is not null).Select(a => a.Amenity!.Key).ToList(),
-        upcoming, earnings);
+        upcoming, earnings,
+        new PricingRulesDto(
+            l.WeeklyDiscountPercent, l.MonthlyDiscountPercent,
+            l.EarlyBirdDays, l.EarlyBirdPercent,
+            l.LastMinuteDays, l.LastMinutePercent,
+            l.WeekendSurchargeRate,
+            l.FreeGuestThreshold, l.ExtraGuestFee,
+            l.PetsAllowed, l.MaxPets, l.PetFee, l.PetFeePerNight));
+
+    /// <summary>
+    /// Replays the amounts frozen on the booking as a breakdown, so the ledger
+    /// posts the numbers the guest actually agreed to rather than re-pricing.
+    /// </summary>
+    private static Pricing.Breakdown BookedPrice(Booking b) => new()
+    {
+        Nights = b.Nights,
+        NightlyRate = b.Nights > 0 ? b.RoomBeforeDiscount / b.Nights : b.RoomBeforeDiscount,
+        RoomBeforeDiscount = b.RoomBeforeDiscount,
+        RoomDiscount = b.RoomDiscount,
+        DiscountPercent = b.DiscountPercent,
+        DiscountParts = [],
+        ExtraGuestFee = b.ExtraGuestFee,
+        PetFee = b.PetFee,
+        CleaningFee = b.CleaningFee,
+        Subtotal = b.Subtotal,
+        GuestServiceFee = b.ServiceFee,
+        Tax = b.Tax,
+        TaxLines = [],
+        Promotion = b.Promotion,
+        Total = b.Total,
+        HostServiceFee = b.HostServiceFee,
+        HostPayout = b.HostPayout,
+        Lines = [],
+        Nightly = []
+    };
 
     private static HostBookingDto ToHostBooking(Booking b) => new(
         b.Id, b.Reference, b.ListingId, b.Listing?.Title ?? "",
@@ -543,7 +606,7 @@ public class HostController(StayHostDbContext db, AuthService auth, Notification
         b.GuestEmail ?? b.GuestUser?.Email,
         b.GuestNote,
         b.CheckIn, b.CheckOut, b.Nights, b.Guests, b.Total,
-        b.Payment?.HostPayout ?? b.Subtotal + b.CleaningFee,
+        b.Payment?.HostPayout ?? b.HostPayout,
         b.Status.ToString(),
         b.Payment?.Status.ToString() ?? "Pending",
         b.CreatedAt);

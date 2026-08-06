@@ -386,8 +386,21 @@ public static class DbSeeder
                 // Roughly a third of the catalogue carries a promotion, so the search
                 // results show struck-through pricing the way airbnb.com does.
                 DiscountPercent = i % 3 == 1 ? 10 + (i % 4) * 5 : 0,
-                // Spread the three policies across the catalogue so the filter has teeth.
-                CancellationTier = (CancellationTier)(i % 3),
+                // Spread all six policies across the catalogue so the filter has teeth.
+                CancellationTier = (CancellationTier)(i % 6),
+                // Length-of-stay and booking-time discounts (docs/03 §1 steps 2–3).
+                WeeklyDiscountPercent = 10,
+                MonthlyDiscountPercent = 20,
+                EarlyBirdDays = i % 2 == 0 ? 60 : 0,
+                EarlyBirdPercent = i % 2 == 0 ? 5 : 0,
+                LastMinuteDays = i % 4 == 3 ? 3 : 0,
+                LastMinutePercent = i % 4 == 3 ? 8 : 0,
+                // Extra-guest and pet surcharges (step 5).
+                FreeGuestThreshold = Math.Max(1, s.MaxGuests / 2),
+                ExtraGuestFee = 150_000m + (i % 3) * 50_000m,
+                PetsAllowed = s.Amenities.Contains("pet"),
+                PetFee = s.Amenities.Contains("pet") ? 200_000m : 0m,
+                CleaningFee = 200_000m + (i % 5) * 50_000m,
                 Latitude = s.Lat,
                 Longitude = s.Lng,
                 Description = s.Desc,
@@ -437,8 +450,55 @@ public static class DbSeeder
             db.Listings.Add(listing);
         }
 
+        db.TaxRules.AddRange(TaxRuleSeeds());
+
         await db.SaveChangesAsync(ct);
     }
+
+    /// <summary>
+    /// docs/03 §1 step 8 wants tax modelled per region, stacking, and in more
+    /// shapes than a percentage. These are plausible Vietnamese levies rather
+    /// than legal advice — an admin edits them in production.
+    /// </summary>
+    private static IEnumerable<TaxRule> TaxRuleSeeds() =>
+    [
+        new TaxRule
+        {
+            Country = "Việt Nam",
+            Name = "Thuế GTGT 8%",
+            Method = TaxMethod.Percentage,
+            Base = TaxBase.SubtotalPlusGuestFee,
+            Value = 0.08m,
+            SortOrder = 1
+        },
+        new TaxRule
+        {
+            Country = "Việt Nam",
+            City = "Đà Lạt",
+            Name = "Phí môi trường Đà Lạt",
+            Method = TaxMethod.PerGuestPerNight,
+            Value = 5_000m,
+            SortOrder = 2
+        },
+        new TaxRule
+        {
+            Country = "Việt Nam",
+            City = "Hội An",
+            Name = "Phí tham quan phố cổ",
+            Method = TaxMethod.PerStay,
+            Value = 80_000m,
+            SortOrder = 2
+        },
+        new TaxRule
+        {
+            Country = "Việt Nam",
+            City = "Phú Quốc",
+            Name = "Phí hạ tầng du lịch",
+            Method = TaxMethod.PerNight,
+            Value = 20_000m,
+            SortOrder = 2
+        }
+    ];
 
     /// <summary>Demo accounts all share the password <c>stayhost123</c>.</summary>
     public const string DemoPassword = "stayhost123";

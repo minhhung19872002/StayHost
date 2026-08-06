@@ -62,6 +62,8 @@ export function Admin() {
         <Stat label="Email chờ gửi" value={String(d.queuedEmails)} note="Hàng đợi giao dịch" />
       </div>
 
+      <LedgerPanel ledger={d.ledger} />
+
       <section style={{ marginTop: 40 }}>
         <h2 className="section-title" style={{ fontSize: 20 }}>Báo cáo chỗ nghỉ</h2>
         {d.reports.length ? (
@@ -124,6 +126,56 @@ export function Admin() {
         </div>
       </section>
     </div>
+  );
+}
+
+/**
+ * The daily reconciliation of docs/03 §5. A non-zero imbalance means a
+ * transaction was written without its other half — the spec calls that an
+ * alarm, so it is styled as one rather than buried in a table.
+ */
+function LedgerPanel({ ledger }) {
+  if (!ledger) return null;
+  const balanced = ledger.imbalance === 0;
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>Sổ ghi tiền</h2>
+      <p className="section-sub">
+        {ledger.transactions} giao dịch · {ledger.entries} bút toán ·{' '}
+        <span className={`badge ${balanced ? 'confirmed' : 'cancelled'}`}>
+          {balanced ? 'Cân bằng' : `LỆCH ${money(ledger.imbalance)}`}
+        </span>
+      </p>
+
+      {!balanced && (
+        <div className="book-alert is-error" style={{ marginTop: 12 }}>
+          <b>Sổ sách không cân</b>
+          <span>Tổng tiền vào không bằng tổng tiền ra. Dừng mọi thao tác tài chính và kiểm tra ngay.</span>
+        </div>
+      )}
+
+      <div className="table-wrap" style={{ marginTop: 16 }}>
+        <table className="admin-table">
+          <thead>
+            <tr><th>Tài khoản</th><th>Nợ</th><th>Có</th><th>Số dư</th></tr>
+          </thead>
+          <tbody>
+            {ledger.accounts.map(a => (
+              <tr key={a.account}>
+                <td><b>{a.label}</b><span>{a.account}</span></td>
+                <td>{money(a.debits)}</td>
+                <td>{money(a.credits)}</td>
+                <td>{money(a.balance)}</td>
+              </tr>
+            ))}
+            {!ledger.accounts.length && (
+              <tr><td colSpan={4}>Chưa có giao dịch nào được ghi sổ.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 

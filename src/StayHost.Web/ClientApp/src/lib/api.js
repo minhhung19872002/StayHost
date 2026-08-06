@@ -40,13 +40,14 @@ function qs(params) {
 export const api = {
   meta: () => request('/api/meta'),
 
-  home: () => request('/api/home'),
+  home: params => request(`/api/home${qs(params ?? {})}`),
 
   suggest: q => request(`/api/suggest${q ? `?q=${encodeURIComponent(q)}` : ''}`),
 
   search: params => request(`/api/listings${qs(params)}`),
 
-  listing: idOrSlug => request(`/api/listings/${encodeURIComponent(idOrSlug)}`),
+  listing: (idOrSlug, params) =>
+    request(`/api/listings/${encodeURIComponent(idOrSlug)}${qs(params ?? {})}`),
 
   quote: params => request(`/api/quote${qs(params)}`),
 

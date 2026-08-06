@@ -61,7 +61,24 @@ public record HostListingDto(
     IReadOnlyList<string> Images,
     IReadOnlyList<string> AmenityKeys,
     int UpcomingBookings,
-    decimal EarningsToDate);
+    decimal EarningsToDate,
+    PricingRulesDto Pricing);
+
+/// <summary>The host-settable half of docs/03 §1 — discounts and surcharges.</summary>
+public record PricingRulesDto(
+    int WeeklyDiscountPercent,
+    int MonthlyDiscountPercent,
+    int EarlyBirdDays,
+    int EarlyBirdPercent,
+    int LastMinuteDays,
+    int LastMinutePercent,
+    decimal WeekendSurchargeRate,
+    int FreeGuestThreshold,
+    decimal ExtraGuestFee,
+    bool PetsAllowed,
+    int MaxPets,
+    decimal PetFee,
+    bool PetFeePerNight);
 
 public record SaveListingRequest(
     string Title,
@@ -83,7 +100,9 @@ public record SaveListingRequest(
     double? Latitude,
     double? Longitude,
     IReadOnlyList<string> Images,
-    IReadOnlyList<string> AmenityKeys);
+    IReadOnlyList<string> AmenityKeys,
+    /// <summary>Omitted by older clients; the listing keeps its current rules then.</summary>
+    PricingRulesDto? Pricing = null);
 
 public record CalendarBlockDto(int Id, DateOnly From, DateOnly To, string? Note);
 
@@ -152,7 +171,20 @@ public record AdminOverviewDto(
     int Bookings, int ActiveBookings, decimal GrossVolume, decimal PlatformRevenue,
     int OpenReports, int QueuedEmails,
     IReadOnlyList<AdminListingDto> RecentListings,
-    IReadOnlyList<ReportDto> Reports);
+    IReadOnlyList<ReportDto> Reports,
+    LedgerReportDto Ledger);
+
+/// <summary>
+/// The daily reconciliation docs/03 §5 asks for. <c>Imbalance</c> must be zero;
+/// anything else means a transaction was written without its other half.
+/// </summary>
+public record LedgerReportDto(
+    decimal Imbalance,
+    int Entries,
+    int Transactions,
+    IReadOnlyList<LedgerAccountDto> Accounts);
+
+public record LedgerAccountDto(string Account, string Label, decimal Debits, decimal Credits, decimal Balance);
 
 public record AdminListingDto(
     int Id, string Slug, string Title, string City, string HostName,
@@ -219,7 +251,19 @@ public record MetaDto(
     decimal MaxPrice,
     IReadOnlyList<int> PriceHistogram,
     IReadOnlyList<CurrencyDto> Currencies,
-    IReadOnlyList<LanguageDto> Languages);
+    IReadOnlyList<LanguageDto> Languages,
+    FeesDto Fees);
+
+/// <summary>
+/// The fee constants the client needs to explain a price. The authoritative
+/// numbers still live in <c>Pricing</c>; these are published so the UI never
+/// hard-codes a rate of its own (docs/00 §6.8).
+/// </summary>
+public record FeesDto(
+    decimal GuestServiceFeeRate,
+    decimal HostServiceFeeRate,
+    int MaxDiscountPercent,
+    decimal DefaultCleaningFee);
 
 public record RoomTypeDto(string Key, string Label, string Hint);
 
@@ -254,7 +298,14 @@ public record ListingCardDto(
     string? Highlight,
     IReadOnlyList<string> Images,
     IReadOnlyList<string> AmenityKeys,
-    bool IsFavorite);
+    bool IsFavorite,
+    /// <summary>Cleaning fee, so a card can show the same all-in figure as checkout.</summary>
+    decimal CleaningFee,
+    /// <summary>
+    /// All-in total for the searched dates, priced by the same engine as the
+    /// room page and checkout. Null when the search carried no dates.
+    /// </summary>
+    decimal? StayTotal);
 
 public record HomeSectionDto(
     string Key,
@@ -328,19 +379,28 @@ public record ListingDetailDto(
 
 public record QuoteRequest(int ListingId, DateOnly CheckIn, DateOnly CheckOut, int Guests);
 
+/// <summary>One row of the price breakdown, already rounded. Negative means a reduction.</summary>
+public record PriceLineDto(string Key, string Label, decimal Amount);
+
 public record QuoteDto(
     int ListingId,
     int Nights,
     int Guests,
     decimal PricePerNight,
-    decimal Subtotal,
+    decimal RoomBeforeDiscount,
+    decimal RoomDiscount,
+    int DiscountPercent,
+    decimal ExtraGuestFee,
+    decimal PetFee,
     decimal CleaningFee,
+    decimal Subtotal,
     decimal ServiceFee,
     decimal Tax,
     decimal Total,
-    decimal WeekendSurcharge,
-    decimal LengthDiscount,
-    int LengthDiscountPercent,
+    decimal HostServiceFee,
+    decimal HostPayout,
+    /// <summary>Exactly what to render; the total is the sum of these.</summary>
+    IReadOnlyList<PriceLineDto> Lines,
     bool GuestsExceeded,
     int MaxGuests,
     int MinNights,
@@ -352,7 +412,12 @@ public record RefundPreviewDto(
     decimal Refund,
     decimal Penalty,
     decimal Total,
-    string Explanation);
+    string Explanation,
+    decimal RoomRefund,
+    decimal CleaningRefund,
+    decimal ServiceFeeRefund,
+    decimal TaxRefund,
+    decimal GoodwillCredit);
 
 public record CreateBookingRequest(
     int ListingId,
@@ -363,7 +428,11 @@ public record CreateBookingRequest(
     string? GuestEmail,
     string? GuestNote,
     string? PaymentMethod,
-    string? CardLast4);
+    string? CardLast4,
+    int? Adults = null,
+    int Children = 0,
+    int Infants = 0,
+    int Pets = 0);
 
 public record BookingDto(
     int Id,
@@ -383,6 +452,9 @@ public record BookingDto(
     decimal Tax,
     decimal Total,
     decimal RefundedAmount,
+    decimal GoodwillCredit,
+    /// <summary>The rows exactly as they were quoted, so an old receipt still adds up.</summary>
+    IReadOnlyList<PriceLineDto> Lines,
     string CancellationTier,
     string CancellationSummary,
     string Status,

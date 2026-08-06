@@ -27,15 +27,24 @@ public enum BookingStatus
     Completed = 3
 }
 
-/// <summary>How much a guest gets back, and how close to check-in they can still cancel.</summary>
+/// <summary>
+/// The six policies of docs/03 §4. <see cref="Cancellation"/> owns the refund
+/// maths; this enum only names the choice a host makes per listing.
+/// </summary>
 public enum CancellationTier
 {
-    /// <summary>Full refund up to 24h before check-in.</summary>
+    /// <summary>Full refund up to 24h before check-in, then the first night is lost.</summary>
     Flexible = 0,
     /// <summary>Full refund up to 5 days before check-in, then 50% of the room rate.</summary>
     Moderate = 1,
-    /// <summary>50% of the room rate up to 7 days before; nothing after.</summary>
-    Strict = 2
+    /// <summary>100% before 30 days, 50% before 7 days, nothing after.</summary>
+    Strict = 2,
+    /// <summary>50% up to 7 days before; nothing after.</summary>
+    SuperStrict = 3,
+    /// <summary>No room refund at any point, in exchange for a lower price.</summary>
+    NonRefundable = 4,
+    /// <summary>For stays of 28 nights or more: after 30 days out, the guest pays the first 30 nights.</summary>
+    LongTermStrict = 5
 }
 
 /// <summary>Public-facing host identity. The login account itself is <see cref="User"/>.</summary>
@@ -93,10 +102,32 @@ public class Listing
     /// <summary>0–60. When set, the card shows the pre-discount price struck through.</summary>
     public int DiscountPercent { get; set; }
     public decimal CleaningFee { get; set; } = 350_000m;
-    /// <summary>Fraction of the nightly subtotal charged as the StayHost service fee.</summary>
-    public decimal ServiceFeeRate { get; set; } = 0.09m;
-    /// <summary>Uplift applied to Friday and Saturday nights.</summary>
+    /// <summary>Uplift applied to Friday and Saturday nights (docs/03 §1 step 1, weekend tier).</summary>
     public decimal WeekendSurchargeRate { get; set; } = 0.15m;
+
+    // --- docs/03 §1 step 2: length-of-stay discounts. One tier applies, longer wins.
+    public int WeeklyDiscountPercent { get; set; }
+    public int MonthlyDiscountPercent { get; set; }
+
+    // --- step 3: booking-time discounts. One applies, whichever is larger.
+    /// <summary>Book at least this many days ahead to earn <see cref="EarlyBirdPercent"/>.</summary>
+    public int EarlyBirdDays { get; set; }
+    public int EarlyBirdPercent { get; set; }
+    /// <summary>Book within this many days of check-in to earn <see cref="LastMinutePercent"/>.</summary>
+    public int LastMinuteDays { get; set; }
+    public int LastMinutePercent { get; set; }
+
+    // --- step 5: surcharges.
+    /// <summary>Guests included in the nightly rate; infants never count (docs/03 §1 step 5).</summary>
+    public int FreeGuestThreshold { get; set; } = 2;
+    /// <summary>Charged per extra guest, per night.</summary>
+    public decimal ExtraGuestFee { get; set; }
+
+    public bool PetsAllowed { get; set; }
+    public int MaxPets { get; set; } = 2;
+    public decimal PetFee { get; set; }
+    /// <summary>False charges the pet fee once for the stay, true charges it nightly.</summary>
+    public bool PetFeePerNight { get; set; }
 
     public double Rating { get; set; }
     public int ReviewCount { get; set; }
@@ -221,15 +252,39 @@ public class Booking
 
     public DateOnly CheckIn { get; set; }
     public DateOnly CheckOut { get; set; }
+    /// <summary>Adults plus children — what capacity and surcharges were priced on.</summary>
     public int Guests { get; set; }
+    public int Adults { get; set; } = 1;
+    public int Children { get; set; }
+    public int Infants { get; set; }
+    public int Pets { get; set; }
     public int Nights { get; set; }
 
-    public decimal Subtotal { get; set; }
+    // The priced stay, frozen at booking time. docs/00 §6.2: a receipt must still
+    // add up years later, even after the host has changed their rates.
+    public decimal RoomBeforeDiscount { get; set; }
+    public decimal RoomDiscount { get; set; }
+    public int DiscountPercent { get; set; }
+    public decimal ExtraGuestFee { get; set; }
+    public decimal PetFee { get; set; }
     public decimal CleaningFee { get; set; }
+    /// <summary>Room after discount plus every surcharge — the base of both service fees.</summary>
+    public decimal Subtotal { get; set; }
+    /// <summary>The guest service fee (docs/03 §1 step 7).</summary>
     public decimal ServiceFee { get; set; }
     public decimal Tax { get; set; }
+    public decimal Promotion { get; set; }
     public decimal Total { get; set; }
+
+    public decimal HostServiceFee { get; set; }
+    public decimal HostPayout { get; set; }
+
+    /// <summary>The displayed rows, as JSON, so a receipt renders exactly as quoted.</summary>
+    public string PriceLinesJson { get; set; } = "[]";
+
     public decimal RefundedAmount { get; set; }
+    /// <summary>Promotional balance granted on cancellation, e.g. when the host walked away.</summary>
+    public decimal GoodwillCredit { get; set; }
     public CancellationTier CancellationTier { get; set; } = CancellationTier.Moderate;
 
     public string? GuestName { get; set; }
@@ -239,8 +294,10 @@ public class Booking
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? RespondedAt { get; set; }
     public string? CancellationReason { get; set; }
+    public CancelledBy? CancelledBy { get; set; }
 
     public Payment? Payment { get; set; }
+    public List<LedgerEntry> LedgerEntries { get; set; } = [];
     /// <summary>Guarded so a stay can only be reviewed once.</summary>
     public bool HasReview { get; set; }
 }

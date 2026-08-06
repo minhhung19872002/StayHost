@@ -1,129 +1,296 @@
 namespace StayHost.Domain;
 
 /// <summary>
-/// One place that knows how a stay turns into money. Quotes, bookings and refunds all
-/// route through here so the guest never sees two different totals for the same stay.
+/// The eleven steps of docs/03 §1, in order, and nothing else. Search results,
+/// the room page and checkout all call <see cref="Quote"/>, which is what makes
+/// them agree on the number (docs/00 §6.8).
 /// </summary>
 public static class Pricing
 {
-    /// <summary>VAT applied to the room rate and fees.</summary>
-    public const decimal TaxRate = 0.08m;
+    /// <summary>
+    /// Everything a stay needs to be priced. Only <c>Listing</c>, <c>CheckIn</c>
+    /// and <c>CheckOut</c> are required; the rest default to "nothing applies".
+    /// </summary>
+    public sealed record Request
+    {
+        public required Listing Listing { get; init; }
+        public required DateOnly CheckIn { get; init; }
+        public required DateOnly CheckOut { get; init; }
+        public PartySize Party { get; init; } = new(1);
 
-    public readonly record struct Breakdown(
-        int Nights,
-        decimal NightlyRate,
-        decimal Subtotal,
-        decimal CleaningFee,
-        decimal ServiceFee,
-        decimal Tax,
-        decimal Total,
-        decimal WeekendSurcharge,
-        decimal LengthDiscount,
-        int LengthDiscountPercent);
+        public IReadOnlyCollection<PriceRule> PriceRules { get; init; } = [];
+        public IReadOnlyCollection<TaxRule> TaxRules { get; init; } = [];
 
+        /// <summary>When the guest is booking — drives early-bird and last-minute.</summary>
+        public DateOnly BookedOn { get; init; } = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        /// <summary>Stays already sold for this listing, for the new-listing discount.</summary>
+        public int ListingBookingCount { get; init; } = int.MaxValue;
+
+        /// <summary>Promo code or credit applied last, on its own line (step 9).</summary>
+        public decimal PromotionAmount { get; init; }
+        public string PromotionLabel { get; init; } = "Mã giảm giá";
+
+        public PricingSettings Settings { get; init; } = PricingSettings.Current;
+    }
+
+    /// <summary>
+    /// A priced stay. <see cref="Lines"/> is exactly what the UI renders, and
+    /// <see cref="Total"/> is the sum of those lines — no separate rounding pass.
+    /// </summary>
+    public sealed record Breakdown
+    {
+        public required int Nights { get; init; }
+        /// <summary>Average nightly rate before discounts, for "x ₫ × n đêm".</summary>
+        public required decimal NightlyRate { get; init; }
+        public required decimal RoomBeforeDiscount { get; init; }
+        public required decimal RoomDiscount { get; init; }
+        public required int DiscountPercent { get; init; }
+        public required IReadOnlyList<DiscountPart> DiscountParts { get; init; }
+
+        public required decimal ExtraGuestFee { get; init; }
+        public required decimal PetFee { get; init; }
+        public required decimal CleaningFee { get; init; }
+
+        /// <summary>Step 6 — what both service fees are calculated from.</summary>
+        public required decimal Subtotal { get; init; }
+        public required decimal GuestServiceFee { get; init; }
+        public required decimal Tax { get; init; }
+        public required IReadOnlyList<PriceLine> TaxLines { get; init; }
+        public required decimal Promotion { get; init; }
+        public required decimal Total { get; init; }
+
+        public required decimal HostServiceFee { get; init; }
+        public required decimal HostPayout { get; init; }
+
+        public required IReadOnlyList<PriceLine> Lines { get; init; }
+        public required IReadOnlyList<NightRate> Nightly { get; init; }
+
+        /// <summary>Room charges after discount — the tax base that excludes cleaning.</summary>
+        public decimal RoomAfterDiscount => RoomBeforeDiscount - RoomDiscount;
+    }
+
+    public readonly record struct DiscountPart(string Key, string Label, int Percent);
+
+    public readonly record struct NightRate(DateOnly Night, decimal Rate, string Source);
+
+    /// <summary>Round every displayed line, never the total (docs/03 §1, rounding rule).</summary>
     private static decimal Round(decimal v) => Math.Round(v, 0, MidpointRounding.AwayFromZero);
 
-    /// <summary>Friday and Saturday nights carry a surcharge, as most hosts price them.</summary>
-    private static bool IsWeekendNight(DateOnly d) =>
-        d.DayOfWeek is DayOfWeek.Friday or DayOfWeek.Saturday;
-
-    /// <summary>Stays get cheaper per night the longer they run.</summary>
-    private static int LengthDiscountPercentFor(int nights) => nights switch
-    {
-        >= 28 => 20,
-        >= 7 => 10,
-        _ => 0
-    };
+    /* --------------------------------------------------------------- step 1 */
 
     /// <summary>
-    /// Prices a stay night by night. A seasonal rule replaces the base rate inside its
-    /// window; the weekend uplift then applies on top of whichever rate won.
+    /// Rate for one night, taking the first tier that applies:
+    /// host's price for that exact day → seasonal rule → weekend rate → base.
+    /// The weekend uplift is its own tier, not an addition on top of a season.
     /// </summary>
-    public static Breakdown Quote(
-        Listing listing, DateOnly checkIn, DateOnly checkOut, IReadOnlyCollection<PriceRule>? rules = null)
+    public static NightRate RateFor(Listing listing, DateOnly night, IReadOnlyCollection<PriceRule> rules)
     {
-        var nights = Math.Max(1, checkOut.DayNumber - checkIn.DayNumber);
+        var day = rules.FirstOrDefault(r => r.Kind == PriceRuleKind.DayOverride && r.From <= night && night <= r.To);
+        if (day is not null) return new(night, day.NightlyRate, "day");
 
-        var baseTotal = 0m;
-        var weekendSurcharge = 0m;
-        for (var i = 0; i < nights; i++)
+        var season = rules.FirstOrDefault(r => r.Kind == PriceRuleKind.Season && r.From <= night && night <= r.To);
+        if (season is not null) return new(night, season.NightlyRate, "season");
+
+        if (night.DayOfWeek is DayOfWeek.Friday or DayOfWeek.Saturday && listing.WeekendSurchargeRate > 0)
+            return new(night, Round(listing.PricePerNight * (1 + listing.WeekendSurchargeRate)), "weekend");
+
+        return new(night, listing.PricePerNight, "base");
+    }
+
+    /* ------------------------------------------------------------ steps 2–4 */
+
+    /// <summary>
+    /// The discount percentages that apply, already de-duplicated by the
+    /// "pick one" rules and capped at the platform maximum. Percentages add,
+    /// they do not compound: 10% + 15% is 25%, not 23.5%.
+    /// </summary>
+    private static (int Percent, List<DiscountPart> Parts) DiscountsFor(Request req, int nights)
+    {
+        var l = req.Listing;
+        var parts = new List<DiscountPart>();
+
+        // Step 2 — length of stay. One tier only; the longer one wins.
+        if (nights >= 28 && l.MonthlyDiscountPercent > 0)
+            parts.Add(new("length-month", $"Giảm giá ở theo tháng ({l.MonthlyDiscountPercent}%)", l.MonthlyDiscountPercent));
+        else if (nights >= 7 && l.WeeklyDiscountPercent > 0)
+            parts.Add(new("length-week", $"Giảm giá ở theo tuần ({l.WeeklyDiscountPercent}%)", l.WeeklyDiscountPercent));
+
+        // Step 3 — how far ahead they booked. One only; the bigger one wins.
+        var leadDays = req.CheckIn.DayNumber - req.BookedOn.DayNumber;
+        var early = leadDays >= l.EarlyBirdDays && l.EarlyBirdDays > 0 ? l.EarlyBirdPercent : 0;
+        var lastMinute = leadDays <= l.LastMinuteDays && l.LastMinuteDays > 0 ? l.LastMinutePercent : 0;
+
+        if (early > 0 || lastMinute > 0)
         {
-            var night = checkIn.AddDays(i);
-
-            var seasonal = rules?.FirstOrDefault(r => r.From <= night && night <= r.To);
-            var rate = seasonal?.NightlyRate ?? listing.PricePerNight;
-
-            if (IsWeekendNight(night))
-            {
-                var extra = Round(rate * listing.WeekendSurchargeRate);
-                weekendSurcharge += extra;
-                rate += extra;
-            }
-            baseTotal += rate;
+            parts.Add(early >= lastMinute
+                ? new DiscountPart("early-bird", $"Giảm giá đặt sớm ({early}%)", early)
+                : new DiscountPart("last-minute", $"Giảm giá phút chót ({lastMinute}%)", lastMinute));
         }
 
-        var discountPercent = LengthDiscountPercentFor(nights);
-        var lengthDiscount = Round(baseTotal * discountPercent / 100m);
-        var subtotal = baseTotal - lengthDiscount;
+        // Step 4 — a brand-new listing's first few stays.
+        if (req.ListingBookingCount < req.Settings.NewListingBookingCount)
+        {
+            parts.Add(new("new-listing",
+                $"Ưu đãi tin mới ({req.Settings.NewListingDiscountPercent}%)",
+                req.Settings.NewListingDiscountPercent));
+        }
 
-        var serviceFee = Round(subtotal * listing.ServiceFeeRate);
-        var tax = Round((subtotal + listing.CleaningFee + serviceFee) * TaxRate);
-        var total = subtotal + listing.CleaningFee + serviceFee + tax;
+        var total = parts.Sum(p => p.Percent);
+        if (total <= req.Settings.MaxDiscountPercent) return (total, parts);
 
-        return new Breakdown(
-            nights, listing.PricePerNight, subtotal, listing.CleaningFee,
-            serviceFee, tax, total, weekendSurcharge, lengthDiscount, discountPercent);
+        // Over the cap: keep the parts for display but state the capped figure.
+        parts.Add(new("cap", $"Giới hạn tổng giảm còn {req.Settings.MaxDiscountPercent}%", 0));
+        return (req.Settings.MaxDiscountPercent, parts);
     }
 
-    public readonly record struct RefundOutcome(decimal Amount, decimal Penalty, string Explanation);
+    /* ------------------------------------------------------------- the quote */
 
-    /// <summary>
-    /// What a guest gets back if they cancel <paramref name="now"/>. Fees follow the
-    /// listing's tier; the StayHost service fee is always returned in full.
-    /// </summary>
-    public static RefundOutcome Refund(Booking booking, DateOnly now)
+    public static Breakdown Quote(Request req)
     {
-        var daysToCheckIn = booking.CheckIn.DayNumber - now.DayNumber;
-        var room = booking.Subtotal;
-        var refundableFees = booking.CleaningFee + booking.ServiceFee + booking.Tax;
+        var l = req.Listing;
+        var s = req.Settings;
+        var nights = Math.Max(1, req.CheckOut.DayNumber - req.CheckIn.DayNumber);
 
-        // Already checked in: nothing left to refund beyond untouched fees.
-        if (daysToCheckIn < 0)
-            return new(0m, booking.Total, "Kỳ nghỉ đã bắt đầu nên không hoàn tiền.");
+        // Step 1 — room charge, night by night.
+        var nightly = new List<NightRate>(nights);
+        for (var i = 0; i < nights; i++) nightly.Add(RateFor(l, req.CheckIn.AddDays(i), req.PriceRules));
+        var roomBeforeDiscount = nightly.Sum(n => n.Rate);
 
-        var (roomShare, note) = booking.CancellationTier switch
+        // Steps 2–4 — discounts, applied to the room charge only.
+        var (discountPercent, discountParts) = DiscountsFor(req, nights);
+        var roomDiscount = Round(roomBeforeDiscount * discountPercent / 100m);
+        var roomAfterDiscount = roomBeforeDiscount - roomDiscount;
+
+        // Step 5 — surcharges. Infants are free; the cleaning fee is once per stay.
+        var extraGuests = Math.Max(0, req.Party.Counted - l.FreeGuestThreshold);
+        var extraGuestFee = Round(extraGuests * l.ExtraGuestFee * nights);
+        var petFee = req.Party.Pets > 0
+            ? Round(l.PetFeePerNight ? l.PetFee * nights : l.PetFee)
+            : 0m;
+        var cleaningFee = Round(l.CleaningFee);
+
+        // Step 6.
+        var subtotal = roomAfterDiscount + extraGuestFee + petFee + cleaningFee;
+
+        // Step 7 — guest service fee, before tax.
+        var guestServiceFee = Round(subtotal * s.GuestServiceFeeRate);
+
+        // Step 8 — regional taxes, which may stack.
+        var taxLines = TaxLinesFor(req, nights, roomAfterDiscount, subtotal, guestServiceFee);
+        var tax = taxLines.Sum(t => t.Amount);
+
+        // Step 9 — reductions, never below zero overall.
+        var gross = subtotal + guestServiceFee + tax;
+        var promotion = Math.Min(Round(req.PromotionAmount), gross);
+
+        // Step 10.
+        var total = gross - promotion;
+
+        // Step 11 — the host's side of the same subtotal.
+        var hostServiceFee = Round(subtotal * s.HostServiceFeeRate);
+        var hostPayout = subtotal - hostServiceFee;
+
+        var lines = new List<PriceLine>
         {
-            CancellationTier.Flexible => daysToCheckIn >= 1
-                ? (1m, "Huỷ trước 24 giờ: hoàn 100% tiền phòng.")
-                : (0m, "Huỷ trong vòng 24 giờ trước nhận phòng: không hoàn tiền phòng."),
-
-            CancellationTier.Moderate => daysToCheckIn >= 5
-                ? (1m, "Huỷ trước 5 ngày: hoàn 100% tiền phòng.")
-                : (0.5m, "Huỷ trong vòng 5 ngày trước nhận phòng: hoàn 50% tiền phòng."),
-
-            _ => daysToCheckIn >= 7
-                ? (0.5m, "Chính sách nghiêm ngặt: hoàn 50% tiền phòng khi huỷ trước 7 ngày.")
-                : (0m, "Chính sách nghiêm ngặt: không hoàn tiền phòng khi huỷ trong vòng 7 ngày.")
+            new("room", $"{FormatVnd(roomBeforeDiscount / nights)} × {nights} đêm", roomBeforeDiscount)
         };
 
-        var amount = Math.Round(room * roomShare, 0, MidpointRounding.AwayFromZero) + refundableFees;
-        return new(amount, booking.Total - amount, note + " Phí dịch vụ và thuế luôn được hoàn đủ.");
+        // The named parts explain the percentage; one row carries the money.
+        if (roomDiscount > 0)
+        {
+            var named = discountParts.Where(p => p.Percent > 0).Select(p => p.Label).ToList();
+            lines.Add(new PriceLine("discount",
+                named.Count == 1 ? named[0] : $"Giảm giá {discountPercent}% ({string.Join(" + ", named)})",
+                -roomDiscount));
+        }
+
+        if (extraGuestFee > 0) lines.Add(new("extra-guests", $"Phụ thu {extraGuests} khách thêm × {nights} đêm", extraGuestFee));
+        if (petFee > 0) lines.Add(new("pet", l.PetFeePerNight ? $"Phí thú cưng × {nights} đêm" : "Phí thú cưng", petFee));
+        if (cleaningFee > 0) lines.Add(new("cleaning", "Phí dọn dẹp", cleaningFee));
+
+        lines.Add(new("guest-service-fee", "Phí dịch vụ StayHost", guestServiceFee));
+        lines.AddRange(taxLines);
+        if (promotion > 0) lines.Add(new("promotion", req.PromotionLabel, -promotion));
+
+        return new Breakdown
+        {
+            Nights = nights,
+            NightlyRate = Round(roomBeforeDiscount / nights),
+            RoomBeforeDiscount = roomBeforeDiscount,
+            RoomDiscount = roomDiscount,
+            DiscountPercent = discountPercent,
+            DiscountParts = discountParts,
+            ExtraGuestFee = extraGuestFee,
+            PetFee = petFee,
+            CleaningFee = cleaningFee,
+            Subtotal = subtotal,
+            GuestServiceFee = guestServiceFee,
+            Tax = tax,
+            TaxLines = taxLines,
+            Promotion = promotion,
+            Total = total,
+            HostServiceFee = hostServiceFee,
+            HostPayout = hostPayout,
+            Lines = lines,
+            Nightly = nightly
+        };
     }
 
-    public static string TierLabel(CancellationTier tier) => tier switch
+    /// <summary>
+    /// Step 8. Rules for the exact city come first, then country-wide ones; a
+    /// region with no configured rule is simply untaxed.
+    /// </summary>
+    private static List<PriceLine> TaxLinesFor(
+        Request req, int nights, decimal roomAfterDiscount, decimal subtotal, decimal guestServiceFee)
     {
-        CancellationTier.Flexible => "Linh hoạt",
-        CancellationTier.Moderate => "Trung bình",
-        _ => "Nghiêm ngặt"
-    };
+        var applicable = req.TaxRules
+            .Where(r => r.AppliesOn(req.CheckIn))
+            .Where(r => string.Equals(r.Country, req.Listing.Country, StringComparison.OrdinalIgnoreCase))
+            .Where(r => r.City is null || string.Equals(r.City, req.Listing.City, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(r => r.SortOrder)
+            .ThenBy(r => r.Id)
+            .ToList();
 
-    public static string TierSummary(CancellationTier tier) => tier switch
-    {
-        CancellationTier.Flexible => "Huỷ miễn phí đến 24 giờ trước khi nhận phòng.",
-        CancellationTier.Moderate => "Huỷ miễn phí đến 5 ngày trước khi nhận phòng, sau đó hoàn 50% tiền phòng.",
-        _ => "Hoàn 50% tiền phòng nếu huỷ trước 7 ngày; sau đó không hoàn tiền phòng."
-    };
+        var lines = new List<PriceLine>();
+        foreach (var rule in applicable)
+        {
+            var amount = rule.Method switch
+            {
+                TaxMethod.Percentage => Round(rule.Base switch
+                {
+                    TaxBase.RoomOnly => roomAfterDiscount,
+                    TaxBase.Subtotal => subtotal,
+                    _ => subtotal + guestServiceFee
+                } * rule.Value),
+                TaxMethod.PerNight => Round(rule.Value * nights),
+                TaxMethod.PerGuestPerNight => Round(rule.Value * Math.Max(1, req.Party.Counted) * nights),
+                _ => Round(rule.Value)
+            };
 
-    /// <summary>Flexible and moderate listings are the ones marketed as "free cancellation".</summary>
-    public static bool HasFreeCancellation(CancellationTier tier) => tier != CancellationTier.Strict;
+            if (amount > 0) lines.Add(new PriceLine($"tax-{rule.Id}", rule.Name, amount));
+        }
+        return lines;
+    }
+
+    private static string FormatVnd(decimal amount) =>
+        Round(amount).ToString("#,##0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN")) + "₫";
+
+    /* ------------------------------------------------ convenience overloads */
+
+    /// <summary>Shorthand used by search cards, which only know dates and a head count.</summary>
+    public static Breakdown Quote(
+        Listing listing, DateOnly checkIn, DateOnly checkOut,
+        IReadOnlyCollection<PriceRule>? rules = null,
+        IReadOnlyCollection<TaxRule>? taxRules = null,
+        int guests = 1) =>
+        Quote(new Request
+        {
+            Listing = listing,
+            CheckIn = checkIn,
+            CheckOut = checkOut,
+            Party = PartySize.Of(guests),
+            PriceRules = rules ?? [],
+            TaxRules = taxRules ?? []
+        });
 }

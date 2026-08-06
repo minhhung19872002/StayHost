@@ -151,6 +151,18 @@ public class Message
 }
 
 /// <summary>Seasonal override: a date window priced differently from the base rate.</summary>
+/// <summary>
+/// Which tier of docs/03 §1 step 1 a rule belongs to. A day override beats a
+/// season, and both beat the weekend and base rates.
+/// </summary>
+public enum PriceRuleKind
+{
+    /// <summary>A season the host named, e.g. "Tết Nguyên đán".</summary>
+    Season = 0,
+    /// <summary>A price the host set on specific days from the calendar grid.</summary>
+    DayOverride = 1
+}
+
 public class PriceRule
 {
     public int Id { get; set; }
@@ -158,6 +170,7 @@ public class PriceRule
     public Listing? Listing { get; set; }
 
     public string Name { get; set; } = "";
+    public PriceRuleKind Kind { get; set; } = PriceRuleKind.Season;
     public DateOnly From { get; set; }
     public DateOnly To { get; set; }
     /// <summary>Flat nightly rate that replaces the base price inside the window.</summary>

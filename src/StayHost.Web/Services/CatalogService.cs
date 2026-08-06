@@ -99,7 +99,12 @@ public class CatalogService(StayHostDbContext db)
             Math.Ceiling(max / 100_000m) * 100_000m,
             histogram,
             Currencies,
-            Languages);
+            Languages,
+            new FeesDto(
+                PricingSettings.Current.GuestServiceFeeRate,
+                PricingSettings.Current.HostServiceFeeRate,
+                PricingSettings.Current.MaxDiscountPercent,
+                PricingSettings.Current.DefaultCleaningFee));
     }
 
     private static List<int> BuildHistogram(List<decimal> prices, decimal min, decimal max, int buckets)
@@ -118,7 +123,8 @@ public class CatalogService(StayHostDbContext db)
     /// The landing page mirrors Airbnb's discovery layout: horizontal carousels grouped by
     /// destination, then a few themed rows, then an inspiration link grid.
     /// </summary>
-    public async Task<HomeDto> GetHomeAsync(string sessionId, CancellationToken ct)
+    public async Task<HomeDto> GetHomeAsync(
+        string sessionId, DateOnly? checkIn, DateOnly? checkOut, int guests, CancellationToken ct)
     {
         var all = await db.Listings
             .Where(l => l.IsPublished)
@@ -127,7 +133,8 @@ public class CatalogService(StayHostDbContext db)
             .ToListAsync(ct);
 
         var favIds = await FavoriteIdsAsync(sessionId, ct);
-        var cards = all.Select(l => ToCard(l, favIds)).ToList();
+        var pricer = await BuildPricerAsync(all, checkIn, checkOut, PartySize.Of(Math.Max(1, guests)), ct);
+        var cards = all.Select(l => ToCard(l, favIds, pricer)).ToList();
 
         var sections = new List<HomeSectionDto>();
 
@@ -238,7 +245,9 @@ public class CatalogService(StayHostDbContext db)
         bool InstantBookOnly,
         bool FreeCancellationOnly,
         int Page,
-        int PageSize);
+        int PageSize,
+        DateOnly? CheckIn = null,
+        DateOnly? CheckOut = null);
 
     public async Task<SearchResultDto> SearchAsync(SearchQuery q, string sessionId, CancellationToken ct)
     {
@@ -272,7 +281,10 @@ public class CatalogService(StayHostDbContext db)
         if (q.SuperhostOnly) query = query.Where(l => l.IsSuperhost);
         if (q.GuestFavoriteOnly) query = query.Where(l => l.IsGuestFavorite);
         if (q.InstantBookOnly) query = query.Where(l => l.InstantBook);
-        if (q.FreeCancellationOnly) query = query.Where(l => l.CancellationTier != CancellationTier.Strict);
+        // Only Flexible and Moderate may be advertised as free cancellation (docs/03 §4).
+        if (q.FreeCancellationOnly)
+            query = query.Where(l =>
+                l.CancellationTier == CancellationTier.Flexible || l.CancellationTier == CancellationTier.Moderate);
 
         if (!string.IsNullOrWhiteSpace(q.RoomType) && q.RoomType != "any")
         {
@@ -309,14 +321,81 @@ public class CatalogService(StayHostDbContext db)
 
         var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
         var favIds = await FavoriteIdsAsync(sessionId, ct);
+        var pricer = await BuildPricerAsync(items, q.CheckIn, q.CheckOut, PartySize.Of(Math.Max(1, q.Guests)), ct);
 
-        return new SearchResultDto(total, page, pageSize, items.Select(l => ToCard(l, favIds)).ToList());
+        return new SearchResultDto(total, page, pageSize, items.Select(l => ToCard(l, favIds, pricer)).ToList());
     }
 
     public async Task<HashSet<int>> FavoriteIdsAsync(string sessionId, CancellationToken ct) =>
         (await db.Favorites.Where(f => f.SessionId == sessionId).Select(f => f.ListingId).ToListAsync(ct)).ToHashSet();
 
-    public static ListingCardDto ToCard(Listing l, HashSet<int> favIds) => new(
+    /// <summary>
+    /// Prices a page of cards with the same engine checkout uses, so acceptance
+    /// scenario 1 of docs/04 holds: the number on the card, the room page and the
+    /// payment page are the same number.
+    /// </summary>
+    public sealed class StayPricer
+    {
+        private readonly Dictionary<int, List<PriceRule>> _rulesByListing;
+        private readonly Dictionary<int, int> _soldStaysByListing;
+        private readonly IReadOnlyCollection<TaxRule> _taxRules;
+        private readonly DateOnly _checkIn;
+        private readonly DateOnly _checkOut;
+        private readonly PartySize _party;
+
+        public StayPricer(
+            DateOnly checkIn, DateOnly checkOut, PartySize party,
+            IEnumerable<PriceRule> rules, IReadOnlyCollection<TaxRule> taxRules,
+            Dictionary<int, int> soldStaysByListing)
+        {
+            _checkIn = checkIn;
+            _checkOut = checkOut;
+            _party = party;
+            _taxRules = taxRules;
+            _soldStaysByListing = soldStaysByListing;
+            _rulesByListing = rules.GroupBy(r => r.ListingId).ToDictionary(g => g.Key, g => g.ToList());
+        }
+
+        public decimal Total(Listing l) => Pricing.Quote(new Pricing.Request
+        {
+            Listing = l,
+            CheckIn = _checkIn,
+            CheckOut = _checkOut,
+            Party = _party,
+            PriceRules = _rulesByListing.GetValueOrDefault(l.Id, []),
+            TaxRules = _taxRules,
+            ListingBookingCount = _soldStaysByListing.GetValueOrDefault(l.Id, 0)
+        }).Total;
+    }
+
+    /// <summary>Builds a pricer for the listings on one page; null dates mean no stay total.</summary>
+    public async Task<StayPricer?> BuildPricerAsync(
+        IReadOnlyCollection<Listing> listings, DateOnly? checkIn, DateOnly? checkOut, PartySize party, CancellationToken ct)
+    {
+        if (checkIn is null || checkOut is null || checkOut <= checkIn || listings.Count == 0) return null;
+
+        var ids = listings.Select(l => l.Id).ToList();
+        var rules = await db.PriceRules
+            .Where(r => ids.Contains(r.ListingId) && r.From <= checkOut && checkIn <= r.To)
+            .ToListAsync(ct);
+        var taxRules = await ActiveTaxRulesAsync(ct);
+
+        // The new-listing discount is part of the price, so a card that ignored it
+        // would quote a different number to the room page (docs/00 §6.8).
+        var soldStays = await db.Bookings
+            .Where(b => ids.Contains(b.ListingId) && b.Status != BookingStatus.Cancelled)
+            .GroupBy(b => b.ListingId)
+            .Select(g => new { ListingId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ListingId, x => x.Count, ct);
+
+        return new StayPricer(checkIn.Value, checkOut.Value, party, rules, taxRules, soldStays);
+    }
+
+    /// <summary>Every live tax rule; the set is tiny and shared by every quote on a page.</summary>
+    public async Task<List<TaxRule>> ActiveTaxRulesAsync(CancellationToken ct) =>
+        await db.TaxRules.Where(r => r.IsActive).OrderBy(r => r.SortOrder).ToListAsync(ct);
+
+    public static ListingCardDto ToCard(Listing l, HashSet<int> favIds, StayPricer? pricer = null) => new(
         l.Id,
         l.Slug,
         l.Title,
@@ -344,9 +423,12 @@ public class CatalogService(StayHostDbContext db)
         l.SpaceHighlight,
         l.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).ToList(),
         l.Amenities.Select(a => a.Amenity!.Key).ToList(),
-        favIds.Contains(l.Id));
+        favIds.Contains(l.Id),
+        l.CleaningFee,
+        pricer?.Total(l));
 
-    public async Task<ListingDetailDto?> GetDetailAsync(string idOrSlug, string sessionId, CancellationToken ct)
+    public async Task<ListingDetailDto?> GetDetailAsync(
+        string idOrSlug, string sessionId, DateOnly? checkIn, DateOnly? checkOut, int guests, CancellationToken ct)
     {
         var query = db.Listings
             .Include(l => l.Images)
@@ -431,24 +513,32 @@ public class CatalogService(StayHostDbContext db)
             .OrderBy(d => d)
             .ToList();
 
+        var pricer = await BuildPricerAsync(
+            [listing, .. similar], checkIn, checkOut, PartySize.Of(Math.Max(1, guests)), ct);
+
         return new ListingDetailDto(
-            ToCard(listing, favIds),
+            ToCard(listing, favIds, pricer),
             listing.Description,
-            Pricing.TierSummary(listing.CancellationTier),
+            Cancellation.Summary(listing.CancellationTier),
             Split(listing.HouseRules),
             Split(listing.SafetyInfo),
             groups,
             reviews,
             rb,
             hostDto,
-            similar.Select(l => ToCard(l, favIds)).ToList(),
+            similar.Select(l => ToCard(l, favIds, pricer)).ToList(),
             unavailable);
     }
 
     private static string[] Split(string s) =>
         s.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    public async Task<QuoteDto?> QuoteAsync(int listingId, DateOnly checkIn, DateOnly checkOut, int guests, CancellationToken ct)
+    /// <summary>
+    /// Builds the priced request for a stay. Booking and quoting share this so a
+    /// guest is never charged something other than what they were shown.
+    /// </summary>
+    public async Task<Pricing.Request?> BuildQuoteRequestAsync(
+        int listingId, DateOnly checkIn, DateOnly checkOut, PartySize party, CancellationToken ct)
     {
         var l = await db.Listings.FirstOrDefaultAsync(x => x.Id == listingId, ct);
         if (l is null) return null;
@@ -457,15 +547,41 @@ public class CatalogService(StayHostDbContext db)
             .Where(r => r.ListingId == listingId && r.From <= checkOut && checkIn <= r.To)
             .ToListAsync(ct);
 
-        var b = Pricing.Quote(l, checkIn, checkOut, rules);
+        // The new-listing discount only looks at stays that actually went ahead.
+        var soldStays = await db.Bookings
+            .CountAsync(b => b.ListingId == listingId && b.Status != BookingStatus.Cancelled, ct);
+
+        return new Pricing.Request
+        {
+            Listing = l,
+            CheckIn = checkIn,
+            CheckOut = checkOut,
+            Party = party,
+            PriceRules = rules,
+            TaxRules = await ActiveTaxRulesAsync(ct),
+            ListingBookingCount = soldStays
+        };
+    }
+
+    public async Task<QuoteDto?> QuoteAsync(
+        int listingId, DateOnly checkIn, DateOnly checkOut, PartySize party, CancellationToken ct)
+    {
+        var request = await BuildQuoteRequestAsync(listingId, checkIn, checkOut, party, ct);
+        if (request is null) return null;
+
+        var l = request.Listing;
+        var b = Pricing.Quote(request);
 
         return new QuoteDto(
-            l.Id, b.Nights, guests, b.NightlyRate,
-            b.Subtotal, b.CleaningFee, b.ServiceFee, b.Tax, b.Total,
-            b.WeekendSurcharge, b.LengthDiscount, b.LengthDiscountPercent,
-            guests > l.MaxGuests, l.MaxGuests,
+            l.Id, b.Nights, party.Counted, b.NightlyRate,
+            b.RoomBeforeDiscount, b.RoomDiscount, b.DiscountPercent,
+            b.ExtraGuestFee, b.PetFee, b.CleaningFee,
+            b.Subtotal, b.GuestServiceFee, b.Tax, b.Total,
+            b.HostServiceFee, b.HostPayout,
+            b.Lines.Select(x => new PriceLineDto(x.Key, x.Label, x.Amount)).ToList(),
+            party.Counted > l.MaxGuests, l.MaxGuests,
             l.MinNights, b.Nights < l.MinNights,
-            Pricing.TierLabel(l.CancellationTier),
-            Pricing.TierSummary(l.CancellationTier));
+            Cancellation.Label(l.CancellationTier),
+            Cancellation.Summary(l.CancellationTier));
     }
 }
