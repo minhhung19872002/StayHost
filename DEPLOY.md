@@ -80,8 +80,10 @@ Claude Code không có TTY để nhập mật khẩu).
 1. `sudo bash deploy/setup-packages.sh` — Docker, Nginx, Certbot, mở firewall 80/443.
 2. Tạo `~/deploy/stayhost.env` theo mẫu `deploy/stayhost.env.example`, rồi `chmod 600`.
 3. `bash deploy/install-runner.sh <REGISTRATION_TOKEN>` — lấy token tại
-   *Settings → Actions → Runners → New self-hosted runner* của repo.
-   Runner phải có nhãn **`stayhost-vps`**.
+   *Settings → Actions → Runners → New self-hosted runner* của repo, hoặc
+   `gh api -X POST /repos/minhhung19872002/StayHost/actions/runners/registration-token --jq .token`.
+   Runner phải có nhãn **`stayhost-vps`**. Rồi `sudo bash deploy/setup-runner-service.sh`
+   để nó chạy như systemd service và sống qua reboot.
 4. Push lên `main` (hoặc bấm *Run workflow*) để CI/CD chạy lần đầu và dựng stack.
 5. `sudo bash deploy/setup-nginx.sh <tên miền> <email>` — reverse proxy + TLS.
    Chạy sau bước 4 vì Certbot cần site trả lời được trên cổng 80.
