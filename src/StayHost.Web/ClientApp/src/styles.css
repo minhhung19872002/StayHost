@@ -34,7 +34,13 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+/*
+ * The gutter is reserved whether or not a scrollbar is in it. Every overlay
+ * locks scrolling on the way in, and without this the scrollbar vanishes, the
+ * viewport gains its 15px back and the whole page snaps sideways underneath the
+ * overlay — the jolt you see at the moment a photo opens.
+ */
+html { scroll-behavior: smooth; scrollbar-gutter: stable; }
 
 body {
   margin: 0;
@@ -1149,7 +1155,11 @@ select.field { width: 100%; padding: 10px 12px; }
 .viewer {
   position: fixed; inset: 0; z-index: 1200; background: #000; color: #fff;
   display: grid; grid-template-rows: auto 1fr auto;
+  /* Fading in beats appearing: the photo is already decoded, so this costs a
+     compositor layer and nothing else. */
+  animation: viewer-in .18s ease-out;
 }
+@keyframes viewer-in { from { opacity: 0; } to { opacity: 1; } }
 .viewer-bar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 20px; gap: 16px;
@@ -1210,6 +1220,7 @@ select.field { width: 100%; padding: 10px 12px; }
 
 @media (prefers-reduced-motion: reduce) {
   /* Photographs flying across the screen is what this setting is asking us not to do. */
+  .viewer { animation: none; }
   .viewer-stage img { transition: opacity .2s ease; transform: none; }
   .viewer-stage img.is-current { transform: none; }
   .viewer-stage img.is-leaving { opacity: 0; transform: none; }
