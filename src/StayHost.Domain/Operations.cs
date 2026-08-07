@@ -18,7 +18,9 @@ public enum NotificationKind
     /// <summary>docs/03 §11 — 7 days out, 24 hours out, and check-out morning.</summary>
     StayReminder = 10,
     /// <summary>docs/03 §11 — a saved listing got cheaper. The one kind that is marketing.</summary>
-    PriceDrop = 11
+    PriceDrop = 11,
+    /// <summary>docs/07 §10 — money went back to the guest. Never silenceable.</summary>
+    RefundIssued = 12
 }
 
 /// <summary>In-app notification. The same row is what an email job would send.</summary>

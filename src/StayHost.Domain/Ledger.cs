@@ -390,6 +390,20 @@ public static class Ledger
     }
 
     /// <summary>
+    /// docs/07 §15 TC-A-02 — a refund a person decided on, outside the
+    /// cancellation rules. Nobody is taking it off the host: an admin overruling
+    /// the policy is the platform choosing to pay, so it lands on the platform's
+    /// own expense line where the finance report will show it as a loss.
+    /// </summary>
+    public static List<LedgerEntry> ManualRefund(Booking booking, decimal amount, DateTime at) =>
+        amount <= 0
+            ? []
+            : Post("manual-refund", booking.Id, at,
+                new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Debit, amount,
+                    $"Hoàn tiền thủ công đơn {booking.Reference}"),
+                new Leg(LedgerAccount.GuestRefundPayable, LedgerDirection.Credit, amount, "Phải trả khách"));
+
+    /// <summary>
     /// Balance handed to a guest out of the platform's own pocket — a price
     /// match (docs/01 MR-10), a goodwill gesture, a referral. No host is out of
     /// anything, so it lands on the platform's expense line.

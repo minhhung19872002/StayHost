@@ -57,6 +57,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<ListingView> ListingViews => Set<ListingView>();
     public DbSet<PaymentAttempt> PaymentAttempts => Set<PaymentAttempt>();
     public DbSet<SavedCard> SavedCards => Set<SavedCard>();
+    public DbSet<GatewayCharge> GatewayCharges => Set<GatewayCharge>();
     public DbSet<CardAuthentication> CardAuthentications => Set<CardAuthentication>();
     public DbSet<Chargeback> Chargebacks => Set<Chargeback>();
     public DbSet<ShieldClaim> ShieldClaims => Set<ShieldClaim>();
@@ -154,6 +155,18 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Message).HasMaxLength(300);
             e.HasOne(x => x.Booking).WithMany()
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/07 §7 — the gateway's side of the daily reconciliation. Written
+        // by PaymentGateway only, so the two records stay independent.
+        b.Entity<GatewayCharge>(e =>
+        {
+            e.ToTable("gateway_charges");
+            e.HasIndex(x => x.Reference).IsUnique();
+            e.HasIndex(x => x.ChargedAt);
+            e.Property(x => x.Reference).HasMaxLength(160).IsRequired();
+            e.Property(x => x.Amount).HasPrecision(12, 2);
+            e.Property(x => x.Method).HasMaxLength(30);
         });
 
         // docs/07 §4 — a card the guest kept. The number is not here.

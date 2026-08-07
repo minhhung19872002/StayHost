@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using StayHost.Domain;
+using StayHost.Infrastructure;
 
 namespace StayHost.Web.Services;
 
@@ -7,7 +9,7 @@ namespace StayHost.Web.Services;
 /// so a charge succeeds unless the card was set up to be refused — which is the
 /// only way to exercise the failed-second-charge path of docs/03 §1 end to end.
 /// </summary>
-public class PaymentGateway(ILogger<PaymentGateway> log)
+public class PaymentGateway(ILogger<PaymentGateway> log, StayHostDbContext db)
 {
     /// <summary>A card ending in these four digits always declines.</summary>
     public const string DecliningCard = "0000";
@@ -54,7 +56,8 @@ public class PaymentGateway(ILogger<PaymentGateway> log)
         // authorisation: the bank moved the money on its own page, and this call
         // is the platform catching up. Charging again would be the exact fault
         // docs/07 §7 calls the worst one in the module.
-        if (key is not null && _charged.ContainsKey(key)) return new Result(true);
+        if (key is not null && (_charged.ContainsKey(key) || db.GatewayCharges.Any(c => c.Reference == key)))
+            return new Result(true);
 
         if (cardLast4 == DecliningCard)
         {
@@ -62,7 +65,15 @@ public class PaymentGateway(ILogger<PaymentGateway> log)
             return new Result(false, DeclineReason.BankRefused);
         }
 
-        if (key is not null) _charged[key] = amount;
+        if (key is not null)
+        {
+            _charged[key] = amount;
+
+            // The gateway's own book. Business code never writes here — that is
+            // what makes the daily reconciliation of docs/07 §7 mean something.
+            db.GatewayCharges.Add(new GatewayCharge { Reference = key, Amount = amount, Method = method });
+            db.SaveChanges();
+        }
 
         log.LogInformation("Charged {Amount} via {Method}.", amount, method);
         return new Result(true);
@@ -78,7 +89,24 @@ public class PaymentGateway(ILogger<PaymentGateway> log)
     /// never heard of it.
     /// </summary>
     public AuthOutcome? Lookup(string key) =>
-        _charged.ContainsKey(key) ? AuthOutcome.Succeeded : null;
+        _charged.ContainsKey(key) || db.GatewayCharges.Any(c => c.Reference == key)
+            ? AuthOutcome.Succeeded
+            : null;
+
+    /// <summary>
+    /// docs/07 §7 — the gateway's list of a day's transactions, which is one half
+    /// of the daily reconciliation. The other half is the platform's own.
+    /// </summary>
+    public async Task<IReadOnlyList<Reconciliation.Record>> StatementAsync(DateOnly day, CancellationToken ct)
+    {
+        var from = day.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var to = from.AddDays(1);
+
+        return await db.GatewayCharges
+            .Where(c => c.ChargedAt >= from && c.ChargedAt < to)
+            .Select(c => new Reconciliation.Record(c.Reference, c.Amount))
+            .ToListAsync(ct);
+    }
 
     /// <summary>The stand-in's OTP check. A real one happens on the bank's own page.</summary>
     public bool CodeAccepted(string? code) => code?.Trim() == TestOtp;

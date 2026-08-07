@@ -160,6 +160,21 @@ export const api = {
     request(`/api/host/listings/${id}/rules`, { method: 'PUT', body: JSON.stringify(body) }),
   editDays: (id, body) =>
     request(`/api/host/listings/${id}/days`, { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/07 §7, §11 and §15 — the finance desk. */
+  financeReport: () => request('/api/admin/finance'),
+  reconciliation: day => request(`/api/admin/finance/reconciliation${day ? `?day=${day}` : ''}`),
+  adminTransactions: q => request(`/api/admin/finance/transactions${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  adminRefund: (bookingId, body) =>
+    request(`/api/admin/finance/transactions/${bookingId}/refund`, { method: 'POST', body: JSON.stringify(body) }),
+  adminAdjustPayout: (bookingId, body) =>
+    request(`/api/admin/finance/payouts/${bookingId}/adjust`, { method: 'POST', body: JSON.stringify(body) }),
+  chargebacks: () => request('/api/admin/finance/chargebacks'),
+  openChargeback: body => request('/api/admin/finance/chargebacks', { method: 'POST', body: JSON.stringify(body) }),
+  chargebackEvidence: (id, body) =>
+    request(`/api/admin/finance/chargebacks/${id}/evidence`, { method: 'POST', body: JSON.stringify(body) }),
+  decideChargeback: (id, body) =>
+    request(`/api/admin/finance/chargebacks/${id}/decide`, { method: 'POST', body: JSON.stringify(body) }),
+
   /* docs/07 §2 and §4 — the catalogue, and the cards a guest has kept. */
   paymentCatalogue: () => request('/api/payment-methods/catalogue'),
   savedCards: () => request('/api/payment-methods'),

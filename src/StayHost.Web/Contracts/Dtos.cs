@@ -1760,3 +1760,79 @@ public record SaveCardRequest(
     string Number, int ExpiryMonth, int ExpiryYear, string? Nickname, bool MakeDefault = false);
 
 public record RenameCardRequest(string? Nickname);
+
+/* --------------------------------------------- docs/07 §7, §11 and §15 A-* */
+
+/// <summary>docs/07 TC-A-04 — the four numbers, plus the lines behind them.</summary>
+public record FinanceReportDto(
+    DateOnly From,
+    DateOnly To,
+    decimal FeeRevenue,
+    decimal HeldForOthers,
+    decimal TaxPayable,
+    decimal Losses,
+    /// <summary>Must be zero. Anything else means the books do not balance.</summary>
+    decimal LedgerDifference,
+    IReadOnlyList<FinanceLineDto> Lines);
+
+public record FinanceLineDto(string Key, string Label, decimal Amount, string Group);
+
+/// <summary>docs/07 §7 — the daily comparison with the gateway.</summary>
+public record ReconciliationDto(
+    DateOnly Day,
+    bool Balanced,
+    int OursCount,
+    int TheirsCount,
+    decimal OursTotal,
+    decimal TheirsTotal,
+    decimal Difference,
+    string Summary,
+    IReadOnlyList<DiscrepancyDto> Discrepancies);
+
+public record DiscrepancyDto(
+    string Kind, string KindLabel, string Reference, decimal Ours, decimal Theirs, decimal Difference);
+
+/// <summary>docs/07 TC-A-02 — one transaction, as the finance desk needs to see it.</summary>
+public record TransactionDto(
+    int BookingId,
+    string BookingReference,
+    string PaymentReference,
+    string? GuestEmail,
+    string ListingTitle,
+    decimal Amount,
+    decimal Refunded,
+    string Method,
+    string? CardLast4,
+    string PaymentStatus,
+    string BookingStatus,
+    string BookingStatusLabel,
+    string PayoutStatus,
+    string? PayoutHoldReason,
+    string? PayoutReference,
+    DateTime CreatedAt);
+
+public record ManualRefundRequest(decimal Amount, string? Reason);
+
+public record AdjustPayoutRequest(bool Release, string? Reason);
+
+/// <summary>docs/07 §11 — a guest has gone to their bank about a charge.</summary>
+public record ChargebackDto(
+    int Id,
+    string BookingReference,
+    string ListingTitle,
+    decimal Amount,
+    string Reason,
+    string Status,
+    string StatusLabel,
+    DateTime ReceivedAt,
+    DateTime EvidenceDueBy,
+    bool EvidenceOverdue,
+    string? Evidence,
+    bool HostAtFault,
+    IReadOnlyList<string> Checklist);
+
+public record OpenChargebackRequest(string BookingReference, decimal Amount, string? Reason);
+
+public record ChargebackEvidenceRequest(string? Evidence);
+
+public record DecideChargebackRequest(bool Won, bool HostAtFault);

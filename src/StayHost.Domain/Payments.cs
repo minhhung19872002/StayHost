@@ -132,3 +132,23 @@ public static class Payments
         return safe.Length == 0 ? KeyFor(bookingId, amount, method) : $"booking:{bookingId}:{safe}";
     }
 }
+
+/// <summary>
+/// docs/07 §7 — the gateway's own record of a charge, as the platform sees it.
+///
+/// It is written by <c>PaymentGateway</c> and by nothing else, the way a mirror
+/// of a PSP's webhook feed would be. Keeping it apart from <see cref="Payment"/>
+/// is the whole point: the daily reconciliation compares two independent
+/// records, and two records that are the same row cannot disagree.
+/// </summary>
+public class GatewayCharge
+{
+    public long Id { get; set; }
+
+    /// <summary>The attempt key, which is what both sides know the charge by.</summary>
+    public string Reference { get; set; } = "";
+
+    public decimal Amount { get; set; }
+    public string Method { get; set; } = "card";
+    public DateTime ChargedAt { get; set; } = DateTime.UtcNow;
+}

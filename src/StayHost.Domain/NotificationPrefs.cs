@@ -105,7 +105,7 @@ public static class NotificationPrefs
         NotificationKind.MessageReceived => NotificationTopic.Message,
         NotificationKind.ReviewReceived => NotificationTopic.Review,
         NotificationKind.ListingApproved or NotificationKind.ListingRejected => NotificationTopic.Reminder,
-        NotificationKind.PayoutSent => NotificationTopic.Payment,
+        NotificationKind.PayoutSent or NotificationKind.RefundIssued => NotificationTopic.Payment,
         NotificationKind.StayReminder => NotificationTopic.Reminder,
         NotificationKind.PriceDrop => NotificationTopic.Marketing,
         _ => NotificationTopic.Booking
