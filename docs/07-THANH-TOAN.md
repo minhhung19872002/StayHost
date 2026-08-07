@@ -282,13 +282,13 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
 |---|---|
 | TC-P-01 | Chọn phương thức thanh toán ở bước thanh toán, hiện đủ nhóm ở §2 — **đã làm** (`PaymentMethods.cs`; đã bỏ "chuyển khoản ngân hàng" vì §2.4 từ chối) |
 | TC-P-02 | Thêm, sửa, xoá, đặt mặc định phương thức thanh toán trong cài đặt tài khoản — **đã làm** (`SavedCards.cs`, tab Thanh toán) |
-| TC-P-03 | Kết hợp nhiều nguồn tiền theo thứ tự §3, hiển thị từng dòng |
+| TC-P-03 | Kết hợp nhiều nguồn tiền theo thứ tự §3, hiển thị từng dòng — **đã làm**, xem ghi chú §15.1 |
 | TC-P-04 | Luồng xác thực OTP ngân hàng, gia hạn giữ chỗ trong lúc xác thực — **đã làm** (`CardAuth.cs`, thẻ thử `0002`) |
 | TC-P-05 | Tự đối chiếu kết quả với cổng thanh toán, không tin vào trang khách quay về — **đã làm** (`CardAuthSweeper`, chạy trước vòng quét vòng đời) |
 | TC-P-06 | Chống trừ tiền hai lần cho cùng một yêu cầu — **đã làm** (`Payments.cs`, bảng `payment_attempts`) |
 | TC-P-07 | Bảng thông điệp lỗi theo §8, giới hạn số lần thử — **đã làm** |
-| TC-P-08 | Trả một phần: tính lịch, thu tự động, nhắc trước, xử lý thất bại |
-| TC-P-09 | Chia hoá đơn: tạo đường dẫn từng người, theo dõi, nhắc, hoàn khi không đủ |
+| TC-P-08 | Trả một phần: tính lịch, thu tự động, nhắc trước, xử lý thất bại — **đã làm** (`PartialPayment.cs`, `BalanceCollector`) |
+| TC-P-09 | Chia hoá đơn: tạo đường dẫn từng người, theo dõi, nhắc, hoàn khi không đủ — **đã làm** (`SplitBillService`) |
 | TC-P-10 | Hoàn tiền về đúng nguồn, hoàn một phần, xử lý thẻ đã đóng — **đã làm** (`Refunds.cs`) |
 | TC-P-11 | Quy đổi và hiển thị nhiều tiền tệ, ghi lại tỉ giá theo đơn — **đã làm** |
 | TC-P-12 | Xử lý khiếu nại ngân hàng: tạm giữ, thu thập bằng chứng, theo dõi kết quả — **đã làm** (`Chargebacks.cs` + màn hình quản trị) |
@@ -300,8 +300,21 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
 | TC-O-06 | Màn hình chủ nhà xem lịch sử và lịch chuyển tiền sắp tới — **đã làm** (tab Nhận tiền, gom theo mã chuyển) |
 | TC-A-01 | Đối soát hằng ngày với cổng thanh toán, báo động khi lệch — **đã làm** (`gateway_charges` là sổ riêng của cổng, chỉ `PaymentGateway` ghi) |
 | TC-A-02 | Màn hình quản trị: tra cứu giao dịch, hoàn tiền thủ công, điều chỉnh khoản chuyển — **đã làm** (`FinanceController`, cần quyền `Finance`, mọi thao tác có nhật ký) |
-| TC-A-03 | Bảng theo dõi gian lận theo §14.5 |
+| TC-A-03 | Bảng theo dõi gian lận theo §14.5 — **đã làm** (`RiskWatch`, bảng Cảnh báo bất thường) |
 | TC-A-04 | Báo cáo tài chính: doanh thu phí, tiền đang giữ hộ, thuế phải nộp, thất thoát — **đã làm** (đọc thẳng từ sổ ghi tiền) |
+
+### 15.1. Hai chỗ của §3 cần khách xác nhận
+
+1. **"Ưu tiên khoản sắp hết hạn trước"** — số dư StayHost hiện **không có hạn sử dụng**:
+   nó là tổng của một sổ chỉ-thêm, không phải nhiều gói riêng lẻ. Không có gì để xếp thứ
+   tự nên quy tắc này đang rỗng. Nếu khách muốn số dư có hạn thì đó là một thay đổi về
+   thực thể, không phải về thanh toán.
+
+2. **"Số dư đủ trả toàn bộ thì vẫn bắt buộc gắn phương thức dự phòng"** — luật đã cài
+   (`PaymentMethods.NeedsFallbackMethod`, có test, máy chủ chặn thật). Nhưng theo
+   `docs/03 §1` số dư **chỉ trừ vào tiền phòng**, không trừ phí dịch vụ và thuế, nên
+   một đơn ở bình thường không bao giờ về 0₫. Luật đúng nhưng chưa có đường chạm tới.
+   Nếu khách muốn số dư trừ được cả phí thì phải sửa `docs/03 §1` trước.
 
 ---
 

@@ -64,6 +64,34 @@ public static class PaymentMethods
     /// <summary>The card family, which is the only thing §4's rules are about.</summary>
     public static bool IsCard(string? key) => key is "card" or "napas";
 
+    /* ------------------------------------------------------- §3, the fallback */
+
+    /// <summary>
+    /// docs/07 §3 — "Nếu số dư đủ trả toàn bộ thì vẫn bắt buộc gắn một phương
+    /// thức dự phòng, dùng khi có phát sinh (đổi lịch, bồi thường)."
+    ///
+    /// A booking that costs the guest nothing today can still cost them
+    /// something later, and docs/06 §3.3 collects damages through exactly this
+    /// stored method. Without one the platform has a claim and nowhere to send
+    /// it.
+    /// </summary>
+    public static bool NeedsFallbackMethod(decimal charged, string? method, string? cardLast4) =>
+        charged <= 0 && !HasFallback(method, cardLast4);
+
+    /// <summary>
+    /// A card counts only once it has a number behind it; a wallet counts on its
+    /// own, because it is authorised in its own app rather than stored here.
+    /// The balance never counts — it is the thing that ran out.
+    /// </summary>
+    private static bool HasFallback(string? method, string? cardLast4) =>
+        IsCard(method)
+            ? !string.IsNullOrWhiteSpace(cardLast4)
+            : IsAccepted(method) && method != "balance";
+
+    public static string FallbackNotice() =>
+        "Số dư của bạn đủ trả toàn bộ đơn này, nhưng vẫn cần một phương thức dự phòng " +
+        "để dùng khi có phát sinh như đổi lịch hoặc bồi thường. Bạn sẽ không bị trừ tiền bây giờ.";
+
     /* -------------------------------------------------------------- §2.4 */
 
     /// <summary>

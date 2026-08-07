@@ -343,6 +343,12 @@ public class BookingsController(
 
         var method = req?.PaymentMethod ?? "card";
 
+        // docs/07 §3 — the balance covering everything does not end the question
+        // of where later money comes from. docs/06 §3.3 collects damages through
+        // this stored method, so it has to exist before the booking does.
+        if (PaymentMethods.NeedsFallbackMethod(charged, method, req?.CardLast4))
+            return BadRequest(new { message = PaymentMethods.FallbackNotice(), needsFallbackMethod = true });
+
         // docs/07 §8 — a card tester gets five goes an hour on one booking.
         var since = DateTime.UtcNow - Payments.FailureWindow;
         var failures = await db.PaymentAttempts.CountAsync(

@@ -61,6 +61,32 @@ public class PaymentMethodsTests
         Assert.False(PaymentMethods.IsSavable("balance"));
     }
 
+    /* ---- §3, the fallback nobody charges today ---- */
+
+    [Fact]
+    public void A_booking_paid_entirely_from_the_balance_still_needs_somewhere_to_charge_later()
+    {
+        // docs/06 §3.3 collects damages through the stored method. Without one
+        // the platform has a claim and nowhere to send it.
+        Assert.True(PaymentMethods.NeedsFallbackMethod(0m, "balance", null));
+        Assert.True(PaymentMethods.NeedsFallbackMethod(0m, "card", null));
+        Assert.True(PaymentMethods.NeedsFallbackMethod(0m, null, null));
+    }
+
+    [Fact]
+    public void A_card_on_file_is_a_fallback_even_when_nothing_is_charged_today()
+    {
+        Assert.False(PaymentMethods.NeedsFallbackMethod(0m, "card", "4242"));
+        Assert.False(PaymentMethods.NeedsFallbackMethod(0m, "momo", null));
+    }
+
+    [Fact]
+    public void A_booking_with_something_to_pay_needs_no_extra_promise()
+    {
+        // The method being used is the fallback.
+        Assert.False(PaymentMethods.NeedsFallbackMethod(1_000_000m, "balance", null));
+    }
+
     [Fact]
     public void An_unknown_key_is_neither_accepted_nor_explained_away()
     {

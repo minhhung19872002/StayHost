@@ -409,11 +409,22 @@ function CreditChoice({ q }) {
   const usable = Math.min(balance, room);
 
   return (
-    <button type="button" className={`opt ${state.useCredit ? 'is-on' : ''}`} style={{ marginTop: 18 }}
-            onClick={() => set({ useCredit: !state.useCredit })}>
-      <b>Dùng số dư {money(usable)}</b>
-      <span>Bạn đang có {money(balance)}. Số dư chỉ trừ vào tiền phòng.</span>
-    </button>
+    <>
+      <button type="button" className={`opt ${state.useCredit ? 'is-on' : ''}`} style={{ marginTop: 18 }}
+              onClick={() => set({ useCredit: !state.useCredit })}>
+        <b>Dùng số dư {money(usable)}</b>
+        <span>Bạn đang có {money(balance)}. Số dư chỉ trừ vào tiền phòng.</span>
+      </button>
+
+      {/* docs/07 §3 — nothing to charge today is not the same as nothing to
+          charge later; the method on file is how docs/06 §3.3 collects. */}
+      {state.useCredit && usable >= q.total && (
+        <p className="notice notice-warn">
+          Số dư của bạn đủ trả toàn bộ đơn này. Vẫn cần một phương thức dự phòng cho các phát sinh về sau
+          như đổi lịch hoặc bồi thường — bạn sẽ không bị trừ tiền bây giờ.
+        </p>
+      )}
+    </>
   );
 }
 
