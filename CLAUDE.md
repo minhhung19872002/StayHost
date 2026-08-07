@@ -115,6 +115,12 @@ docker exec stayhost-db psql -U stayhost -d stayhost -c "DROP SCHEMA public CASC
 Mọi thẻ đều thành công, **trừ thẻ kết thúc `0000`** — thẻ đó luôn bị từ chối. Đó là cách
 duy nhất chạy được nhánh "thu lần hai thất bại" của `docs/03 §1`.
 
+Thẻ kết thúc **`0002`** luôn đòi OTP (`docs/07 §5`), mã đúng là **`123456`**. Trang ngân
+hàng là một chặng riêng — `POST /api/bookings/{id}/bank-otp` — vì ngoài đời nó là một
+trang khác: ngân hàng trừ tiền ở đó rồi sàn mới biết. Gọi chặng đó xong mà **không** quay
+lại `/pay` chính là kịch bản 3 của `docs/07 §18`; `CardAuthSweeper` hỏi lại cổng thanh
+toán rồi tự xác nhận đơn.
+
 ### Đăng nhập Google / Apple / Facebook (`docs/01 TK-02`)
 
 Nút của nhà cung cấp nào **chưa có mã thì không hiện** trên hộp đăng nhập — thà thiếu nút
