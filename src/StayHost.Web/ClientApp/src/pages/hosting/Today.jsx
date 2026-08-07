@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api.js';
-import { respondBooking, toast } from '../../lib/store.js';
+import { set, respondBooking, toast } from '../../lib/store.js';
 import { longDate } from '../../lib/format.js';
 
 /**
@@ -40,6 +40,15 @@ export function Today() {
         <div className="empty-state">
           <h3>Hôm nay không có việc gì cần làm</h3>
           <p>Khi có khách đến, đang ở hoặc sắp đi, họ sẽ hiện ở đây.</p>
+          {/*
+            * This is the tab a host lands on, and an empty one reads as an empty
+            * account: a host came here looking for the listing they had just
+            * published and concluded it was gone. It says where the listings are.
+            */}
+          <button className="btn btn-outline btn-sm" style={{ marginTop: 16 }}
+                  onClick={() => set({ hostingTab: 'listings' })}>
+            Xem chỗ nghỉ của tôi
+          </button>
         </div>
       )}
 
