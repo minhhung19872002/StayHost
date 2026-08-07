@@ -9,6 +9,25 @@ def opener():
     return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
 
+def admin_login():
+    """docs/08 §3 - an admin account cannot sign in without the second factor,
+    so the demo admin goes through the code step like everybody else."""
+    st, res = call(admin, "/api/account/login",
+                   {"email": "admin@stayhost.vn", "password": "stayhost123"})
+
+    if not (res and res.get("challenge")):
+        return st
+
+    if not res.get("devCode"):
+        raise SystemExit(
+            "Khong lay duoc ma 2 lop cua admin. Chay server voi "
+            "ASPNETCORE_ENVIRONMENT=Development de kich ban chay duoc (docs/08 §3).")
+
+    st, _ = call(admin, "/api/account/two-factor",
+                 {"challenge": res["challenge"], "code": res["devCode"]})
+    return st
+
+
 def call(op, p, b=None, m=None):
     d = json.dumps(b).encode() if b is not None else None
     r = urllib.request.Request(B + p, data=d,
@@ -154,7 +173,7 @@ st5, booked5 = book_and_pay(guest, mod, 80)
 st5b, refund = call(guest, f"/api/bookings/{booked5['id']}/cancel", {}, m="POST")
 
 admin = opener()
-call(admin, "/api/account/login", {"email": "admin@stayhost.vn", "password": "stayhost123"})
+admin_login()
 _, ov5 = call(admin, "/api/admin/overview")
 record(5, "Huỷ trước 5 ngày, hoàn 100%, sổ sách cân bằng",
        st5b == 200 and refund['refund'] == booked5['total'] and ov5['ledger']['imbalance'] == 0,

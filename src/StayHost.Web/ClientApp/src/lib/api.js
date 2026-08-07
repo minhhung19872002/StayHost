@@ -160,6 +160,36 @@ export const api = {
     request(`/api/host/listings/${id}/rules`, { method: 'PUT', body: JSON.stringify(body) }),
   editDays: (id, body) =>
     request(`/api/host/listings/${id}/days`, { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/08 — quản trị người dùng. */
+  adminSearchUsers: q => request(`/api/admin/users?q=${encodeURIComponent(q ?? '')}`),
+  adminUser: id => request(`/api/admin/users/${id}`),
+  adminLockPreview: (id, refundInFull) =>
+    request(`/api/admin/users/${id}/lock-preview?refundInFull=${refundInFull ? 'true' : 'false'}`),
+  adminSanction: (id, body) =>
+    request(`/api/admin/users/${id}/sanction`, { method: 'POST', body: JSON.stringify(body) }),
+  adminRestore: (id, body) =>
+    request(`/api/admin/users/${id}/restore`, { method: 'POST', body: JSON.stringify(body) }),
+  adminForcePasswordReset: (id, body) =>
+    request(`/api/admin/users/${id}/force-password-reset`, { method: 'POST', body: JSON.stringify(body) }),
+  adminForceIdentityRecheck: (id, body) =>
+    request(`/api/admin/users/${id}/force-identity-recheck`, { method: 'POST', body: JSON.stringify(body) }),
+  adminIdentity: (id, body) =>
+    request(`/api/admin/users/${id}/identity`, { method: 'POST', body: JSON.stringify(body) }),
+  adminAppeals: () => request('/api/admin/appeals'),
+  adminDecideAppeal: (id, body) =>
+    request(`/api/admin/appeals/${id}/decide`, { method: 'POST', body: JSON.stringify(body) }),
+  adminDataRequests: () => request('/api/admin/data-requests'),
+  adminErase: (id, body) =>
+    request(`/api/admin/data-requests/${id}/erase`, { method: 'POST', body: JSON.stringify(body) }),
+  adminOversight: () => request('/api/admin/oversight'),
+  adminDecideApproval: (id, body) =>
+    request(`/api/admin/approvals/${id}/decide`, { method: 'POST', body: JSON.stringify(body) }),
+  adminImpersonate: body => request('/api/admin/impersonate', { method: 'POST', body: JSON.stringify(body) }),
+  adminImpersonationCurrent: () => request('/api/admin/impersonate/current'),
+  adminEndImpersonation: () => request('/api/admin/impersonate/end', { method: 'POST' }),
+  adminGrantScopes: body => request('/api/admin/admins', { method: 'POST', body: JSON.stringify(body) }),
+  adminMergeUsers: body => request('/api/admin/users/merge', { method: 'POST', body: JSON.stringify(body) }),
+
   /* docs/07 §7, §11 and §15 — the finance desk. */
   financeReport: () => request('/api/admin/finance'),
   reconciliation: day => request(`/api/admin/finance/reconciliation${day ? `?day=${day}` : ''}`),

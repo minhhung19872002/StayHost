@@ -103,6 +103,10 @@ public class HostController(
         var user = await auth.CurrentUserAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
 
+        // docs/08 §5.2 — the old listings stay up; only a new one is blocked.
+        if (Restrictions.Has(user.RestrictionMask, RestrictionKind.NoNewListings))
+            return StatusCode(403, new { message = Restrictions.Message(RestrictionKind.NoNewListings) });
+
         var error = Validate(req);
         if (error is not null) return BadRequest(new { message = error });
 

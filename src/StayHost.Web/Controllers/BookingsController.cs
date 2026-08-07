@@ -71,6 +71,10 @@ public class BookingsController(
         if (user is null)
             return Unauthorized(new { message = "Bạn cần đăng nhập để đặt chỗ." });
 
+        // docs/08 §5.2 — the restriction blocks the behaviour, not the account.
+        if (Restrictions.Has(user.RestrictionMask, RestrictionKind.NoNewBookings))
+            return StatusCode(403, new { message = Restrictions.Message(RestrictionKind.NoNewBookings) });
+
         // Quoting and booking go through the same builder so the guest is charged
         // exactly what the room page showed them (docs/00 §6.8).
         var quoteRequest = await catalog.BuildQuoteRequestAsync(
@@ -682,6 +686,10 @@ public class BookingsController(
     {
         var user = await auth.CurrentUserAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập để đánh giá." });
+
+        // docs/08 §5.2 — a review ban stops the writing, not the staying.
+        if (Restrictions.Has(user.RestrictionMask, RestrictionKind.NoReviews))
+            return StatusCode(403, new { message = Restrictions.Message(RestrictionKind.NoReviews) });
 
         var booking = await db.Bookings.Include(b => b.Listing)
             .FirstOrDefaultAsync(b => b.Id == id && b.GuestUserId == user.Id, ct);

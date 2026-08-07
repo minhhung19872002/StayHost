@@ -75,6 +75,31 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
     /* --------------------------------------------------------------- login */
 
     /// <summary>docs/01 TK-01 — people sign in with whichever one they gave us.</summary>
+    /// <summary>
+    /// docs/08 §5.3 and §6 — the message a locked-out account gets. Somebody with
+    /// an open dispute keeps a way in, because §6 refuses to let a lock decide a
+    /// case by silencing one side of it.
+    /// </summary>
+    private static string? LockedOut(User user)
+    {
+        if (user.IsBanned)
+        {
+            return "Tài khoản này đã bị khoá vĩnh viễn. " +
+                   "Nếu bạn cho rằng đây là nhầm lẫn, hãy liên hệ hỗ trợ StayHost.";
+        }
+
+        if (!user.IsSuspended) return null;
+
+        if (user.MayStillRespondToDisputes) return null;
+
+        var until = user.SuspendedUntil is { } at
+            ? $" tới {at:HH:mm dd/MM/yyyy}"
+            : "";
+
+        return $"Tài khoản này đang tạm khoá{until}. " +
+               "Bạn có thể khiếu nại quyết định này — hãy kiểm tra email chúng tôi đã gửi.";
+    }
+
     public async Task<AuthResult> LoginAsync(string email, string password, CancellationToken ct)
     {
         var typed = (email ?? "").Trim();
@@ -91,6 +116,16 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
             || string.IsNullOrEmpty(user.PasswordHash)
             || !PasswordHasher.Verify(password, user.PasswordHash, user.PasswordSalt))
             return new(false, "Email, số điện thoại hoặc mật khẩu không đúng.");
+
+        // docs/08 §5.3 — a locked account does not sign in. Checked after the
+        // password so a wrong password still reads as a wrong password: telling a
+        // stranger that an account is suspended is telling them it exists.
+        if (LockedOut(user) is { } locked) return new(false, locked);
+
+        // docs/08 §3 — an admin without two-factor cannot hold a session at all,
+        // and this is the only place that can be enforced.
+        if (user.Role == UserRole.Admin && !AdminActions.MayHoldAdminSession(user.TwoFactorEnabled))
+            return new(false, AdminActions.TwoFactorRequiredMessage());
 
         // docs/01 TK-08 — the password alone does not open the door. Nothing is
         // adopted and no session is issued until the code comes back.

@@ -57,6 +57,12 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<ListingView> ListingViews => Set<ListingView>();
     public DbSet<PaymentAttempt> PaymentAttempts => Set<PaymentAttempt>();
     public DbSet<SavedCard> SavedCards => Set<SavedCard>();
+    public DbSet<Sanction> Sanctions => Set<Sanction>();
+    public DbSet<Appeal> Appeals => Set<Appeal>();
+    public DbSet<ImpersonationSession> ImpersonationSessions => Set<ImpersonationSession>();
+    public DbSet<DataRequest> DataRequests => Set<DataRequest>();
+    public DbSet<AdminProfileView> AdminProfileViews => Set<AdminProfileView>();
+    public DbSet<MoneyApproval> MoneyApprovals => Set<MoneyApproval>();
     public DbSet<GatewayCharge> GatewayCharges => Set<GatewayCharge>();
     public DbSet<CardAuthentication> CardAuthentications => Set<CardAuthentication>();
     public DbSet<Chargeback> Chargebacks => Set<Chargeback>();
@@ -167,6 +173,90 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Reference).HasMaxLength(160).IsRequired();
             e.Property(x => x.Amount).HasPrecision(12, 2);
             e.Property(x => x.Method).HasMaxLength(30);
+        });
+
+        /* ------------------------------------------------------- docs/08 */
+
+        // docs/08 §5 — what was done to an account, and why. Never edited after
+        // the fact: an entry that turned out to be wrong is lifted or overturned,
+        // both of which are new information rather than a rewrite.
+        b.Entity<Sanction>(e =>
+        {
+            e.ToTable("sanctions");
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
+            e.Property(x => x.Policy).HasMaxLength(200);
+            e.Property(x => x.Reason).HasMaxLength(1000).IsRequired();
+            e.Property(x => x.LiftedWhen).HasMaxLength(500);
+            e.Property(x => x.LiftedReason).HasMaxLength(1000);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.DecidedByUser).WithMany()
+                .HasForeignKey(x => x.DecidedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // docs/08 §8 — one appeal per decision, read by somebody else.
+        b.Entity<Appeal>(e =>
+        {
+            e.ToTable("appeals");
+            e.HasIndex(x => x.SanctionId).IsUnique();
+            e.Property(x => x.Argument).HasMaxLength(4000).IsRequired();
+            e.Property(x => x.Outcome).HasMaxLength(4000);
+            e.HasOne(x => x.Sanction).WithMany().HasForeignKey(x => x.SanctionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.ReviewedByUser).WithMany()
+                .HasForeignKey(x => x.ReviewedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // docs/08 §7 — time spent inside somebody else's account.
+        b.Entity<ImpersonationSession>(e =>
+        {
+            e.ToTable("impersonation_sessions");
+            e.HasIndex(x => new { x.AdminUserId, x.StartedAt });
+            e.HasIndex(x => x.TargetUserId);
+            e.Property(x => x.Reason).HasMaxLength(1000).IsRequired();
+            e.HasOne(x => x.AdminUser).WithMany()
+                .HasForeignKey(x => x.AdminUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.TargetUser).WithMany()
+                .HasForeignKey(x => x.TargetUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/08 §9 — asking for your data out, or gone.
+        b.Entity<DataRequest>(e =>
+        {
+            e.ToTable("data_requests");
+            e.HasIndex(x => new { x.UserId, x.Status });
+            e.Property(x => x.Note).HasMaxLength(1000);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.HandledByUser).WithMany()
+                .HasForeignKey(x => x.HandledByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // docs/08 §10 — a log of decisions alone would miss the admin who only
+        // ever looks, which is exactly the pattern §3 wants caught.
+        b.Entity<AdminProfileView>(e =>
+        {
+            e.ToTable("admin_profile_views");
+            e.HasIndex(x => new { x.AdminUserId, x.CreatedAt });
+            e.HasIndex(x => new { x.TargetUserId, x.CreatedAt });
+            e.HasOne(x => x.AdminUser).WithMany()
+                .HasForeignKey(x => x.AdminUserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.TargetUser).WithMany()
+                .HasForeignKey(x => x.TargetUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/08 §10 — the request and the approval are two acts by two people.
+        b.Entity<MoneyApproval>(e =>
+        {
+            e.ToTable("money_approvals");
+            e.HasIndex(x => new { x.RequestedByUserId, x.RequestedAt });
+            e.Property(x => x.Action).HasMaxLength(60).IsRequired();
+            e.Property(x => x.Target).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Amount).HasPrecision(12, 2);
+            e.Property(x => x.Reason).HasMaxLength(1000).IsRequired();
+            e.Property(x => x.RejectedReason).HasMaxLength(1000);
+            e.HasOne(x => x.RequestedByUser).WithMany()
+                .HasForeignKey(x => x.RequestedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.ApprovedByUser).WithMany()
+                .HasForeignKey(x => x.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
         });
 
         // docs/07 §4 — a card the guest kept. The number is not here.

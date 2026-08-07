@@ -200,29 +200,29 @@ Ngoài nhật ký, cần theo dõi chủ động:
 
 | Mã | Chức năng |
 |---|---|
-| QT-U-01 | Tìm người dùng theo email, điện thoại, tên, mã đơn, mã tin đăng, mã giao dịch |
-| QT-U-02 | Trang hồ sơ người dùng tổng hợp theo §4 |
-| QT-U-03 | Bảng tài khoản có liên quan (trùng thiết bị, số điện thoại, tài khoản nhận tiền) |
-| QT-U-04 | Gửi cảnh cáo kèm dẫn chiếu chính sách |
-| QT-U-05 | Áp và gỡ hạn chế một phần theo §5.2 |
-| QT-U-06 | Tạm khoá, khoá vĩnh viễn, khôi phục |
-| QT-U-07 | **Màn hình xem trước hậu quả** trước khi khoá: bao nhiêu đơn, bao nhiêu tiền, bao nhiêu khách bị ảnh hưởng |
-| QT-U-08 | Tự động xử lý đơn đang có theo §6, cho admin chọn phương án và ghi lý do |
-| QT-U-09 | Buộc đổi mật khẩu, huỷ mọi phiên đăng nhập |
-| QT-U-10 | Buộc xác minh lại danh tính |
-| QT-U-11 | Xem ảnh giấy tờ có kiểm soát: nhập lý do, đóng dấu mờ, ghi nhật ký riêng |
-| QT-U-12 | Đăng nhập thay mặt theo đúng ràng buộc §7 |
-| QT-U-13 | Hợp nhất hai tài khoản trùng của cùng một người |
-| QT-U-14 | Xử lý yêu cầu xuất và xoá dữ liệu cá nhân |
-| QT-U-15 | Hồ sơ vi phạm: lịch sử đầy đủ các lần bị xử lý và kết quả khiếu nại |
-| QT-U-16 | Luồng khiếu nại: tiếp nhận, phân cho người khác, ra kết quả |
-| QT-A-01 | Tạo, phân quyền, thu hồi tài khoản admin |
-| QT-A-02 | Bắt buộc bảo mật 2 lớp cho admin |
-| QT-A-03 | Nhật ký thao tác admin, tìm kiếm và lọc được, không xoá được |
-| QT-A-04 | Rà soát quyền định kỳ mỗi quý |
-| QT-A-05 | Bảng cảnh báo lạm quyền theo §10 |
-| QT-A-06 | Duyệt hai người cho thao tác vượt ngưỡng tiền |
-| QT-A-07 | Chặn admin thao tác lên tài khoản có liên quan tới chính mình |
+| QT-U-01 | Tìm người dùng theo email, điện thoại, tên, mã đơn, mã tin đăng, mã giao dịch — **đã làm** |
+| QT-U-02 | Trang hồ sơ người dùng tổng hợp theo §4 — **đã làm** |
+| QT-U-03 | Bảng tài khoản có liên quan (trùng thiết bị, số điện thoại, tài khoản nhận tiền) — **đã làm** |
+| QT-U-04 | Gửi cảnh cáo kèm dẫn chiếu chính sách — **đã làm** |
+| QT-U-05 | Áp và gỡ hạn chế một phần theo §5.2 — **đã làm**, chặn thật ở đặt đơn, đăng tin, đánh giá, nhắn tin, chuyển tiền |
+| QT-U-06 | Tạm khoá, khoá vĩnh viễn, khôi phục — **đã làm** (`Sanctions.cs`, thang bậc bắt buộc tuần tự) |
+| QT-U-07 | **Màn hình xem trước hậu quả** trước khi khoá — **đã làm** (`SuspensionImpact.cs`) |
+| QT-U-08 | Tự động xử lý đơn đang có theo §6, cho admin chọn phương án và ghi lý do — **đã làm** |
+| QT-U-09 | Buộc đổi mật khẩu, huỷ mọi phiên đăng nhập — **đã làm** |
+| QT-U-10 | Buộc xác minh lại danh tính — **đã làm** |
+| QT-U-11 | Xem ảnh giấy tờ có kiểm soát: nhập lý do, đóng dấu mờ, ghi nhật ký riêng — **đã làm** |
+| QT-U-12 | Đăng nhập thay mặt theo đúng ràng buộc §7 — **đã làm** (`Impersonation.cs` + middleware chặn 9 thao tác cấm) |
+| QT-U-13 | Hợp nhất hai tài khoản trùng của cùng một người — **đã làm**, chuyển đơn/số dư/thẻ/tin đăng rồi ẩn danh tài khoản cũ |
+| QT-U-14 | Xử lý yêu cầu xuất và xoá dữ liệu cá nhân — **đã làm** (`DataRequests.cs`, ẩn danh tại chỗ) |
+| QT-U-15 | Hồ sơ vi phạm: lịch sử đầy đủ các lần bị xử lý và kết quả khiếu nại — **đã làm** |
+| QT-U-16 | Luồng khiếu nại: tiếp nhận, phân cho người khác, ra kết quả — **đã làm** (`Appeals.cs`) |
+| QT-A-01 | Tạo, phân quyền, thu hồi tài khoản admin — **đã làm**, thu hồi hết quyền thì huỷ mọi phiên và giữ lại tài khoản để giữ nhật ký |
+| QT-A-02 | Bắt buộc bảo mật 2 lớp cho admin — **đã làm**, chặn ngay ở bước đăng nhập |
+| QT-A-03 | Nhật ký thao tác admin, không xoá được — **đã làm**, có trigger PostgreSQL nên psql cũng không xoá được |
+| QT-A-04 | Rà soát quyền định kỳ mỗi quý — **đã làm** (cột trong bảng giám sát: quyền chưa dùng 90 ngày, tới hạn rà soát) |
+| QT-A-05 | Bảng cảnh báo lạm quyền theo §10 — **đã làm** (`AdminOversight.cs`) |
+| QT-A-06 | Duyệt hai người cho thao tác vượt ngưỡng tiền — **đã làm**, hoàn tiền ≥ 10 triệu bị chặn lại chờ người thứ hai |
+| QT-A-07 | Chặn admin thao tác lên tài khoản có liên quan tới chính mình — **đã làm** (`AdminConflict.cs`) |
 
 ---
 
@@ -230,12 +230,12 @@ Ngoài nhật ký, cần theo dõi chủ động:
 
 | Mã | Tham số | Gợi ý | Giá trị chốt |
 |---|---|---|---|
-| QT-A | Phiên admin hết hạn sau bao lâu không hoạt động | 30 phút | |
-| QT-B | Phiên đăng nhập thay mặt tối đa | 30 phút | |
-| QT-C | Hạn khiếu nại quyết định | 30 ngày | |
-| QT-D | Hạn hoàn thành yêu cầu xuất dữ liệu | 30 ngày | |
-| QT-E | Ngưỡng tiền phải duyệt hai người | 10 triệu ₫ | |
-| QT-F | Tỉ lệ quyết định bị rà soát ngẫu nhiên | 5% | |
+| QT-A | Phiên admin hết hạn sau bao lâu không hoạt động | 30 phút | 30 phút *(đang chạy theo gợi ý)* |
+| QT-B | Phiên đăng nhập thay mặt tối đa | 30 phút | 30 phút *(đang chạy theo gợi ý)* |
+| QT-C | Hạn khiếu nại quyết định | 30 ngày | 30 ngày *(đang chạy theo gợi ý)* |
+| QT-D | Hạn hoàn thành yêu cầu xuất dữ liệu | 30 ngày | 30 ngày *(đang chạy theo gợi ý)* |
+| QT-E | Ngưỡng tiền phải duyệt hai người | 10 triệu ₫ | 10 triệu ₫ *(đang chạy theo gợi ý)* |
+| QT-F | Tỉ lệ quyết định bị rà soát ngẫu nhiên | 5% | 5% *(đang chạy theo gợi ý)* |
 | — | Vai Hỗ trợ có được đăng nhập thay mặt không? | có, nhưng phải từ ticket | |
 | — | Cần duyệt cấp trên trước khi tạm khoá không? | không, nhưng rà soát sau | |
 
@@ -253,3 +253,30 @@ Ngoài nhật ký, cần theo dõi chủ động:
 8. Xem ảnh giấy tờ → bắt nhập lý do → ghi nhật ký riêng → ảnh có dấu mờ tên admin
 9. Xoá tài khoản có đơn đã hoàn tất → hồ sơ bị ẩn danh nhưng đơn và ghi sổ tiền vẫn còn nguyên
 10. Thử xoá một dòng nhật ký admin → không có cách nào xoá được, kể cả bằng vai Tối cao
+
+---
+
+## 14. Ghi chú khi làm
+
+**Kịch bản §13 chạy bằng `scripts/admin_acceptance.py`** — cần server chạy với
+`ASPNETCORE_ENVIRONMENT=Development` vì §3 bắt admin có 2 lớp, mà chỉ bản dev mới
+trả mã về qua API.
+
+**Tham số §12 chưa có giá trị chốt.** Sáu tham số đang chạy đúng theo cột "gợi ý"
+của chính tài liệu này. Đổi ở một nơi: `AdminActions`, `Impersonation`, `Appeals`,
+`DataRequests`, `AdminOversight`.
+
+**Hai chỗ tự quyết, cần khách xác nhận:**
+
+1. **"Ticket hỗ trợ đang mở" của §7.1** hiện ánh xạ sang **hồ sơ ở Trung tâm giải
+   quyết** (`ResolutionCase`) — sàn chưa có hệ thống ticket riêng. Hồ sơ phải đang
+   mở *và* liên quan tới đúng người thì mới vào chế độ thay mặt được. Nếu sau này
+   có ticket riêng thì đổi một chỗ trong `AdminOversightController.Impersonate`.
+
+2. **§1.3 chặn *quyết định*, không chặn *đọc*.** Chặn cả việc mở hồ sơ khi trùng
+   dấu vân tay thiết bị sẽ làm nhân viên hỗ trợ không làm việc được; lượt đọc vẫn
+   bị ghi và vẫn vào bảng cảnh báo §10.
+
+**Nhật ký quản trị được khoá ở tầng cơ sở dữ liệu**, không chỉ ở ứng dụng: có
+trigger PostgreSQL chặn `update`/`delete`/`truncate` trên bảng `admin_audit`, nên
+"kể cả Quản trị tối cao" (§1.2) đúng cả khi có người vào thẳng psql.

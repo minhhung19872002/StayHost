@@ -18,6 +18,8 @@ thì **code sai**, không phải tài liệu sai.
 | `docs/04-QUY-TRINH.md` | 14 quy trình đầu-cuối + 10 tình huống nghiệm thu |
 | `docs/05-THUC-THE.md` | Sàn cần biết thông tin gì về từng đối tượng |
 | `docs/06-STAYSHIELD.md` | Chương trình bảo vệ hai đầu. **§10 là bảng tham số đã chốt** |
+| `docs/07-THANH-TOAN.md` | Thanh toán đầu-cuối. §15 là danh sách chức năng, §18 là 11 kịch bản |
+| `docs/08-QUAN-TRI-NGUOI-DUNG.md` | Quyền admin, thang xử lý tài khoản, khiếu nại, chống lạm quyền |
 | `docs/PLAN.md` | **Đối chiếu hiện trạng ↔ spec.** Bắt đầu phiên mới thì đọc file này trước |
 
 ---
@@ -39,7 +41,8 @@ thì **code sai**, không phải tài liệu sai.
 ## 3. Hiện trạng
 
 **10/10 tình huống nghiệm thu** của `docs/04` chạy được trên server thật
-(`scripts/acceptance.py`). **437 test nghiệp vụ** xanh.
+(`scripts/acceptance.py`). **644 test nghiệp vụ** xanh, cộng **10/10 kịch bản quản trị** của `docs/08 §13`
+(`scripts/admin_acceptance.py`).
 
 ### Nền
 
@@ -111,6 +114,11 @@ docker exec stayhost-db psql -U stayhost -d stayhost -c "DROP SCHEMA public CASC
 ### Tài khoản demo (mật khẩu `stayhost123`)
 `guest@stayhost.vn` · `host1@stayhost.vn` … `host10@stayhost.vn` · `admin@stayhost.vn`
 
+**Tài khoản admin bắt buộc có bảo mật 2 lớp** (`docs/08 §3`, không có ngoại lệ), nên
+đăng nhập admin đi qua hai bước. Chạy server với `ASPNETCORE_ENVIRONMENT=Development`
+thì API trả luôn mã trong `devCode`; đó cũng là điều kiện để
+`scripts/admin_acceptance.py` chạy được.
+
 ### Thẻ thử nghiệm
 Mọi thẻ đều thành công, **trừ thẻ kết thúc `0000`** — thẻ đó luôn bị từ chối. Đó là cách
 duy nhất chạy được nhánh "thu lần hai thất bại" của `docs/03 §1`.
@@ -143,8 +151,9 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 437 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 644 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
+python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 cd src/StayHost.Web/ClientApp && npm run build && npx oxlint src
 
 # Sổ sách phải luôn cân bằng: kết quả duy nhất chấp nhận được là 0

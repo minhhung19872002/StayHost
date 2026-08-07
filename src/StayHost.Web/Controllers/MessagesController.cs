@@ -77,6 +77,11 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
         }
         else
         {
+            // docs/08 §5.2 — starting a new conversation is what is blocked;
+            // the ones already open keep working, which is the branch above.
+            if (Restrictions.Has(user.RestrictionMask, RestrictionKind.NoNewConversations))
+                return StatusCode(403, new { message = Restrictions.Message(RestrictionKind.NoNewConversations) });
+
             if (req.ListingId is not int listingId)
                 return BadRequest(new { message = "Thiếu chỗ nghỉ để bắt đầu hội thoại." });
 

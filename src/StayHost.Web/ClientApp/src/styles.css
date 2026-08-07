@@ -1085,6 +1085,16 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
 }
 .notice-warn { background: #fff7e6; color: #96690a; }
 
+/* docs/08 §4 — an identity document, under the name of whoever asked to see it.
+   A screenshot that leaves this building carries that name with it. */
+.id-shot { position: relative; width: 200px; }
+.id-shot img { width: 100%; border-radius: var(--r-field); display: block; }
+.id-shot span {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 12px; font-weight: 700; color: rgba(0, 0, 0, 0.45);
+  transform: rotate(-18deg); text-align: center; padding: 0 8px; pointer-events: none;
+}
+
 /* ----------------------------------------------------------- account menu */
 /* Pinned, so a scrolled menu still says whose account it belongs to. */
 .menu-user {

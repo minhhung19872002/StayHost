@@ -343,6 +343,11 @@ public static class DbSeeder
         var admin = NewUser("admin@stayhost.vn", "Quản trị viên", UserRole.Admin,
             "Đội vận hành StayHost.");
         admin.AdminScope = AdminScope.Super;
+        // docs/08 §3 — "Bắt buộc bảo mật 2 lớp. Không bật thì không đăng nhập
+        // được, không có ngoại lệ." The demo account is not an exception, so
+        // signing in as admin goes through the code step like anyone else.
+        admin.TwoFactorEnabled = true;
+        admin.AdminAccessReviewedOn = DateOnly.FromDateTime(DateTime.UtcNow);
         db.Users.Add(admin);
 
         await db.SaveChangesAsync(ct);

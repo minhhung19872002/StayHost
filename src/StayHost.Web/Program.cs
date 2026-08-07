@@ -36,6 +36,7 @@ builder.Services.AddScoped<BadgeService>();
 builder.Services.AddScoped<PayoutService>();
 builder.Services.AddScoped<PaymentCompletion>();
 builder.Services.AddScoped<CardAuthSweeper>();
+builder.Services.AddScoped<AdminGate>();
 builder.Services.AddScoped<ThreadMessenger>();
 builder.Services.AddScoped<AdminAudit>();
 builder.Services.AddScoped<PaymentGateway>();
@@ -116,6 +117,10 @@ app.Use(async (ctx, next) =>
     ctx.SessionId();
     await next();
 });
+
+// docs/08 §7.6 — the nine things a support session inside somebody's account
+// must never do, refused before any controller sees the request.
+app.UseMiddleware<StayHost.Web.Infrastructure.ImpersonationGuard>();
 
 app.MapControllers();
 app.MapHealthChecks("/health");

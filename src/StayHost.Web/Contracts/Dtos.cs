@@ -1836,3 +1836,177 @@ public record OpenChargebackRequest(string BookingReference, decimal Amount, str
 public record ChargebackEvidenceRequest(string? Evidence);
 
 public record DecideChargebackRequest(bool Won, bool HostAtFault);
+
+/* ------------------------------------------------------------- docs/08 */
+
+public record AdminUserRowDto(
+    int Id, string FullName, string Email, string? Phone, string Role,
+    string StatusLabel, bool IdentityVerified, DateTime JoinedAt);
+
+public record AdminListingRowDto(int Id, string Title, string City, bool Published, double Rating, int ReviewCount);
+
+public record AdminSessionRowDto(string Device, DateTime At, bool Active);
+
+/// <summary>docs/08 §5 — one entry on somebody's record.</summary>
+public record SanctionRowDto(
+    int Id, string Level, string LevelLabel, string? RestrictionLabel,
+    string Policy, string Reason, string? LiftedWhen,
+    string DecidedBy, DateTime CreatedAt, DateTime? ExpiresAt,
+    DateTime? LiftedAt, string? LiftedReason, bool OverturnedOnAppeal, bool Severe);
+
+/// <summary>docs/08 §4 — everything the console may show about one person.</summary>
+public record AdminUserDto(
+    int Id,
+    string FullName,
+    string? DisplayName,
+    string Email,
+    string? Phone,
+    string Role,
+    string StatusLabel,
+    bool IsLocked,
+    DateTime? SuspendedUntil,
+    bool EmailConfirmed,
+    bool PhoneConfirmed,
+    bool IdentityVerified,
+    DateTime JoinedAt,
+    DateTime? LastSeenAt,
+    bool IsHost,
+    bool IsSuperhost,
+    IReadOnlyList<AdminListingRowDto> Listings,
+    int Bookings,
+    int Cancellations,
+    double CancellationRate,
+    int ReviewsWritten,
+    int ReportsAgainst,
+    IReadOnlyList<SanctionRowDto> Sanctions,
+    decimal Balance,
+    /// <summary>Null unless the reader holds the Finance role (docs/08 §2).</summary>
+    string? PayoutAccountLast4,
+    string? PayoutBankName,
+    IReadOnlyList<string> Cards,
+    IReadOnlyList<AdminSessionRowDto> Sessions,
+    IReadOnlyList<AdminUserRowDto> RelatedAccounts,
+    /// <summary>Which actions this particular admin may take, so the console offers only those.</summary>
+    IReadOnlyList<string> Allowed);
+
+/// <summary>docs/08 §6 and QT-U-07 — the cost of a lock, before it happens.</summary>
+public record LockPreviewDto(
+    IReadOnlyList<LockLineDto> Lines,
+    int GuestsStaying,
+    int BookingsCancelled,
+    decimal MoneyRefunded,
+    decimal PayoutHeld,
+    string Warning,
+    string? OpenDisputeNotice,
+    string SafetyNotice,
+    bool IsHost);
+
+public record LockLineDto(
+    int BookingId, string Reference, string Action, decimal Money, string Counterparty, string Note);
+
+public record SanctionRequest(
+    string Level,
+    string? Restriction,
+    string? Policy,
+    string? Reason,
+    string? LiftedWhen,
+    int? Days,
+    /// <summary>docs/08 §5.6 and §5.4 — which listed ground, when jumping or banning.</summary>
+    string? SevereGround,
+    /// <summary>docs/08 §6 — the one choice the guest table leaves to the admin.</summary>
+    bool RefundInFull = false);
+
+public record RestoreRequest(string? Reason);
+
+/// <summary>docs/08 §7 — a live session inside somebody else's account.</summary>
+public record ImpersonationDto(
+    int Id, int TargetUserId, string TargetName, string AdminName,
+    int TicketId, string Reason,
+    DateTime ExpiresAt, int SecondsLeft,
+    string Banner,
+    IReadOnlyList<string> Forbidden,
+    bool TargetNotified);
+
+public record ImpersonateRequest(
+    int UserId, int TicketId, string? Reason,
+    /// <summary>docs/08 §7.4 — the only case where the person is not told. Super only.</summary>
+    bool SilentFraudInvestigation = false);
+
+/// <summary>docs/08 §8 — somebody says a decision about them was wrong.</summary>
+public record AppealDto(
+    int Id, int UserId, string UserName,
+    int SanctionId, string SanctionLevel, string SanctionReason,
+    string Argument,
+    string Status, string StatusLabel,
+    DateTime CreatedAt, DateTime DueBy, bool Overdue,
+    string? ReviewedBy, DateTime? ReviewedAt, string? Outcome,
+    /// <summary>False when the reader is the one who made the original call.</summary>
+    bool MayReview);
+
+public record DecideAppealRequest(string Result, string? ReducedTo, string? Outcome);
+
+/// <summary>docs/08 §9 — a request to be exported or erased.</summary>
+public record DataRequestDto(
+    int Id, int UserId, string UserName, string Email,
+    string Kind, string KindLabel,
+    string Status, string StatusLabel,
+    DateTime CreatedAt, DateTime DueBy, bool Overdue,
+    string? Note,
+    IReadOnlyList<string> Blockers,
+    bool MayErase);
+
+/* ---- docs/08 §10, watching the watchers ---- */
+
+public record ScorecardDto(
+    int AdminUserId, string Name,
+    int ProfilesViewed, int Decisions, int AppealsAgainst, int AppealsUpheld,
+    double OverturnRatePercent, bool LooksUnreliable,
+    string Scopes, DateTime? LastActiveAt, bool ScopeLooksUnused, bool AccessReviewDue,
+    bool TwoFactorEnabled);
+
+public record OversightFlagDto(string AdminName, string Flag, string Label, string Detail, DateTime At);
+
+public record MoneyApprovalDto(
+    int Id, string Action, string Target, decimal Amount, string Reason,
+    string RequestedBy, int RequestedByUserId, DateTime RequestedAt,
+    bool MayApprove);
+
+public record SampledDecisionDto(
+    int Id, string UserName, string Level, string Reason, string DecidedBy, DateTime At);
+
+public record OversightDto(
+    IReadOnlyList<ScorecardDto> Admins,
+    IReadOnlyList<OversightFlagDto> Flags,
+    IReadOnlyList<MoneyApprovalDto> PendingApprovals,
+    IReadOnlyList<SampledDecisionDto> RandomSample,
+    decimal TwoPersonThreshold,
+    int RandomReviewPercent);
+
+public record DecideApprovalRequest(bool Approve, string? Reason);
+
+/// <summary>
+/// docs/08 §4 and QT-U-11 — an identity document, shown under a watermark that
+/// names whoever asked to see it.
+/// </summary>
+public record IdentityViewDto(
+    string DocumentLabel,
+    string? DocumentLast4,
+    string FrontImageUrl,
+    string? BackImageUrl,
+    string SelfieImageUrl,
+    /// <summary>Drawn across the images: the admin's name and the moment they looked.</summary>
+    string Watermark,
+    string Status,
+    DateTime SubmittedAt);
+
+/// <summary>
+/// docs/08 §3 — granting or withdrawing admin roles. An empty list withdraws
+/// everything, which is the leaver case: the account stays so the log still has
+/// a name attached to it.
+/// </summary>
+public record GrantAdminRequest(int UserId, IReadOnlyList<string>? Scopes, string? Reason);
+
+/// <summary>docs/08 QT-U-13 — two accounts, one person.</summary>
+public record MergeAccountsRequest(int FromUserId, int IntoUserId, string? Reason);
+
+public record MergeResultDto(int FromUserId, int IntoUserId, IReadOnlyList<string> Moved);

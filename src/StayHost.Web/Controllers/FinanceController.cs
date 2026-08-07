@@ -215,6 +215,45 @@ public class FinanceController(
         if (req.Amount <= 0 || req.Amount > left)
             return BadRequest(new { message = $"Số tiền hoàn phải trong khoảng 1₫ – {left:#,##0}₫." });
 
+        // docs/08 §10 — above the threshold, one signature is not enough. The
+        // request is parked as a row rather than refused, so the second person
+        // has something to act on instead of the first having to ask around.
+        if (AdminOversight.NeedsSecondApproval(req.Amount))
+        {
+            var already = await db.MoneyApprovals.FirstOrDefaultAsync(
+                m => m.Target == $"booking:{booking.Reference}"
+                     && m.Action == "finance.refund"
+                     && m.Amount == req.Amount
+                     && m.ExecutedAt == null, ct);
+
+            if (already is null)
+            {
+                db.MoneyApprovals.Add(new MoneyApproval
+                {
+                    Action = "finance.refund",
+                    Target = $"booking:{booking.Reference}",
+                    Amount = req.Amount,
+                    Reason = reason,
+                    RequestedByUserId = admin.Id
+                });
+                await db.SaveChangesAsync(ct);
+
+                return StatusCode(202, new
+                {
+                    message = AdminOversight.SecondApprovalMessage(req.Amount),
+                    needsSecondApproval = true
+                });
+            }
+
+            if (already.IsOpen)
+                return StatusCode(202, new { message = "Khoản này đang chờ người thứ hai duyệt.", needsSecondApproval = true });
+
+            if (already.RejectedAt is not null)
+                return BadRequest(new { message = $"Khoản này đã bị từ chối: {already.RejectedReason}" });
+
+            already.ExecutedAt = DateTime.UtcNow;
+        }
+
         // docs/07 §10 — back the way it came, card before balance.
         var split = Refunds.Allocate(
             new Refunds.Sources(taken - booking.CreditUsed, booking.CreditUsed),

@@ -5,6 +5,7 @@ import { set, loadAdmin, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate, dateTime } from '../lib/format.js';
 import { FinancePanel, ReconciliationPanel, TransactionsPanel, ChargebackPanel } from './admin/Finance.jsx';
+import { UserAdminPanel, AppealsPanel, OversightPanel, DataRequestsPanel } from './admin/Users.jsx';
 
 const REPORT_STATUS = {
   Open: ['pending', 'Mới'],
@@ -73,6 +74,10 @@ export function Admin() {
       <ReconciliationPanel />
       <TransactionsPanel />
       <ChargebackPanel />
+      <UserAdminPanel />
+      <AppealsPanel />
+      <DataRequestsPanel />
+      <OversightPanel />
       <TaxRules settings={d.settings} />
       <AuditLog rows={d.auditLog} />
 

@@ -120,6 +120,38 @@ public class User
     public HostProfile? HostProfile { get; set; }
 
     public List<AuthSession> Sessions { get; set; } = [];
+
+    /* ------------------------------------------------------- docs/08 §5 */
+
+    /// <summary>
+    /// docs/08 §5.3 and §5.4 — set while the account is locked out. The reason
+    /// and the paperwork live on the <see cref="Sanction"/> row; this is the flag
+    /// the sign-in path reads, so a lock is one field and not a search.
+    /// </summary>
+    public bool IsSuspended { get; set; }
+
+    /// <summary>Null on a permanent ban: it does not end.</summary>
+    public DateTime? SuspendedUntil { get; set; }
+
+    public bool IsBanned { get; set; }
+
+    /// <summary>
+    /// docs/08 §6 — "giữ tài khoản mở đủ để họ phản hồi, không được cắt quyền tự
+    /// vệ". A suspended account with this set can still reach its own disputes.
+    /// </summary>
+    public bool MayStillRespondToDisputes { get; set; }
+
+    /// <summary>docs/08 §5.2 — the active restrictions, as one bitmask.</summary>
+    public int RestrictionMask { get; set; }
+
+    /// <summary>docs/08 §9 — set once the account has been anonymised.</summary>
+    public DateTime? ErasedAt { get; set; }
+
+    /// <summary>docs/08 §3 — last time this admin did anything, for the quarterly review.</summary>
+    public DateTime? AdminLastActiveAt { get; set; }
+
+    /// <summary>docs/08 §3 — when their permissions were last looked over.</summary>
+    public DateOnly? AdminAccessReviewedOn { get; set; }
 }
 
 public enum TokenPurpose
