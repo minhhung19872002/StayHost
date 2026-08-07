@@ -228,6 +228,7 @@ const PROFILE_TABS = [
   ['profile', 'Hồ sơ'],
   ['verify', 'Xác thực'],
   ['identity', 'Danh tính'],
+  ['payments', 'Thanh toán'],
   ['security', 'Bảo mật'],
   ['devices', 'Thiết bị'],
   ['alerts', 'Thông báo'],
@@ -440,6 +441,8 @@ export function ProfileModal() {
       {tab === 'verify' && <Verification />}
 
       {tab === 'identity' && <IdentityPanel />}
+
+      {tab === 'payments' && <SavedCardsPanel />}
 
       {tab === 'alerts' && <NotificationMatrix />}
 
@@ -868,6 +871,112 @@ function Shot({ label, url, onPick }) {
  * docs/01 TK-10 — the matrix. docs/03 §11 locks the transactional rows, and the
  * server is what enforces that; a locked switch here just says so out loud.
  */
+/**
+ * docs/07 §4 — the cards a guest has kept. The number is typed once and never
+ * comes back: everything on this screen is brand, last four and expiry, which is
+ * all §4 allows to exist.
+ */
+function SavedCardsPanel() {
+  const [cards, setCards] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => { api.savedCards().then(setCards).catch(e => toast(e.message)); }, []);
+
+  if (!cards) return <div className="stat skeleton" style={{ height: 140, border: 0 }} />;
+
+  const run = async (fn) => {
+    setBusy(true);
+    setError(null);
+    try { setCards(await fn()); }
+    catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  };
+
+  const add = async e => {
+    e.preventDefault();
+    const f = e.currentTarget;
+    const body = {
+      number: f.number.value,
+      expiryMonth: Number(f.expiryMonth.value),
+      expiryYear: Number(f.expiryYear.value),
+      nickname: f.nickname.value || null,
+      makeDefault: cards.length === 0
+    };
+    setBusy(true);
+    setError(null);
+    try {
+      setCards(await api.addCard(body));
+      setAdding(false);
+      toast('Đã lưu thẻ.');
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div>
+      <p className="section-sub" style={{ marginTop: 0 }}>
+        StayHost chỉ lưu thương hiệu, 4 số cuối và tháng/năm hết hạn. Số thẻ đầy đủ và mã CVV không bao giờ được lưu.
+      </p>
+
+      {!!error && <p className="notice notice-warn">{error}</p>}
+
+      <div style={{ display: 'grid', gap: 10, margin: '16px 0' }}>
+        {cards.map(c => (
+          <div className="cal-row" key={c.id}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <b style={{ fontSize: 14 }}>{c.brandLabel} •••• {c.last4}</b>
+              <span style={{ color: 'var(--ink-muted)', fontSize: 13 }}> · {c.expiry}</span>
+              {!!c.nickname && <span style={{ color: 'var(--ink-muted)', fontSize: 13 }}> · {c.nickname}</span>}
+              <div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {c.isDefault && <span className="badge confirmed">Mặc định</span>}
+                {c.isExpired && <span className="badge cancelled">Đã hết hạn</span>}
+                {c.expiringSoon && !c.isExpired && <span className="badge pending">Sắp hết hạn</span>}
+                {c.hasScheduledCharge && <span className="badge pending">Còn lịch thu tự động</span>}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {!c.isDefault && (
+                <button className="link-btn" disabled={busy}
+                        onClick={() => run(() => api.makeCardDefault(c.id))}>Đặt mặc định</button>
+              )}
+              <button className="link-btn" disabled={busy}
+                      onClick={() => run(() => api.removeCard(c.id))}>Xoá</button>
+            </div>
+          </div>
+        ))}
+        {!cards.length && (
+          <p style={{ fontSize: 13.5, color: 'var(--ink-muted)' }}>Chưa có thẻ nào được lưu.</p>
+        )}
+      </div>
+
+      {adding ? (
+        <form onSubmit={add}>
+          <label className="form-field"><span className="cap">Số thẻ</span>
+            <input name="number" inputMode="numeric" placeholder="4111 1111 1111 1111" required /></label>
+          <div className="field-grid">
+            <label className="form-field"><span className="cap">Tháng hết hạn</span>
+              <input name="expiryMonth" inputMode="numeric" placeholder="08" required /></label>
+            <label className="form-field"><span className="cap">Năm hết hạn</span>
+              <input name="expiryYear" inputMode="numeric" placeholder="2029" required /></label>
+          </div>
+          <label className="form-field"><span className="cap">Tên gọi (không bắt buộc)</span>
+            <input name="nickname" placeholder="Thẻ công ty" /></label>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              {busy ? 'Đang lưu…' : 'Lưu thẻ'}
+            </button>
+            <button type="button" className="btn" onClick={() => { setAdding(false); setError(null); }}>Huỷ</button>
+          </div>
+        </form>
+      ) : (
+        <button className="btn btn-primary" onClick={() => setAdding(true)}>+ Thêm thẻ</button>
+      )}
+    </div>
+  );
+}
+
 function NotificationMatrix() {
   const [prefs, setPrefs] = useState(null);
   const [busy, setBusy] = useState(false);

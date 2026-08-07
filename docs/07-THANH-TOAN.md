@@ -280,11 +280,11 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
 
 | Mã | Chức năng |
 |---|---|
-| TC-P-01 | Chọn phương thức thanh toán ở bước thanh toán, hiện đủ nhóm ở §2 |
-| TC-P-02 | Thêm, sửa, xoá, đặt mặc định phương thức thanh toán trong cài đặt tài khoản |
+| TC-P-01 | Chọn phương thức thanh toán ở bước thanh toán, hiện đủ nhóm ở §2 — **đã làm** (`PaymentMethods.cs`; đã bỏ "chuyển khoản ngân hàng" vì §2.4 từ chối) |
+| TC-P-02 | Thêm, sửa, xoá, đặt mặc định phương thức thanh toán trong cài đặt tài khoản — **đã làm** (`SavedCards.cs`, tab Thanh toán) |
 | TC-P-03 | Kết hợp nhiều nguồn tiền theo thứ tự §3, hiển thị từng dòng |
-| TC-P-04 | Luồng xác thực OTP ngân hàng, gia hạn giữ chỗ trong lúc xác thực |
-| TC-P-05 | Tự đối chiếu kết quả với cổng thanh toán, không tin vào trang khách quay về |
+| TC-P-04 | Luồng xác thực OTP ngân hàng, gia hạn giữ chỗ trong lúc xác thực — **đã làm** (`CardAuth.cs`, thẻ thử `0002`) |
+| TC-P-05 | Tự đối chiếu kết quả với cổng thanh toán, không tin vào trang khách quay về — **đã làm** (`CardAuthSweeper`, chạy trước vòng quét vòng đời) |
 | TC-P-06 | Chống trừ tiền hai lần cho cùng một yêu cầu — **đã làm** (`Payments.cs`, bảng `payment_attempts`) |
 | TC-P-07 | Bảng thông điệp lỗi theo §8, giới hạn số lần thử — **đã làm** |
 | TC-P-08 | Trả một phần: tính lịch, thu tự động, nhắc trước, xử lý thất bại |

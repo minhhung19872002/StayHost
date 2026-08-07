@@ -123,6 +123,9 @@ export const state = {
   // checkout
   checkoutStep: 0,
   payMethod: 'card',
+  /* docs/07 §4 — which saved card, when the guest picked one. */
+  payCardId: null,
+  payCardLast4: null,
   // docs/01 ĐP-06 — take a deposit now instead of the whole amount.
   payDeposit: false,
   // docs/06 — the booking a StayShield case is being opened for.

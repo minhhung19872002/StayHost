@@ -200,10 +200,17 @@ export function ReviewsModal() {
 
 const CHECKOUT_STEPS = ['Chuyến đi', 'Thanh toán', 'Xác nhận'];
 
-const PAY_METHODS = [
-  ['card', 'Thẻ tín dụng / ghi nợ', 'Visa, Mastercard, JCB'],
-  ['momo', 'Ví MoMo', 'Thanh toán qua ứng dụng MoMo'],
-  ['bank', 'Chuyển khoản ngân hàng', 'Chuyển khoản nhanh 24/7']
+/**
+ * docs/07 §2 — the list comes from the server so the payment page and the
+ * saved-methods screen cannot disagree about what StayHost takes. The fallback
+ * is the §2.1 group, which is what has to be there for the platform to work at
+ * all. Manual bank transfer used to be offered here; §2.4 refuses it.
+ */
+const FALLBACK_METHODS = [
+  { key: 'card', label: 'Thẻ tín dụng / ghi nợ', hint: 'Visa, Mastercard, JCB, American Express' },
+  { key: 'napas', label: 'Thẻ ATM nội địa', hint: 'Qua NAPAS, cần đăng ký thanh toán trực tuyến' },
+  { key: 'momo', label: 'Ví MoMo', hint: 'Mở ứng dụng MoMo để xác nhận' },
+  { key: 'zalopay', label: 'ZaloPay', hint: 'Mở ứng dụng ZaloPay để xác nhận' }
 ];
 
 export function CheckoutModal() {
@@ -243,7 +250,8 @@ export function CheckoutModal() {
     attemptKey.current ??= `pay-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const payment = {
       paymentMethod: state.payMethod,
-      cardLast4: card.length >= 4 ? card.slice(-4) : null,
+      // docs/07 §4 — a saved card is picked, not retyped.
+      cardLast4: state.payCardLast4 ?? (card.length >= 4 ? card.slice(-4) : null),
       // docs/01 ĐP-06 — a deposit now, the rest taken 14 days before check-in.
       payDeposit: state.payDeposit,
       depositAmount: state.payDeposit ? Math.ceil(q.total / 2) : null,
@@ -478,20 +486,55 @@ function SplitChoice({ q }) {
 function StepPayment({ q }) {
   const state = useStore();
   const method = state.payMethod;
+  const [offered, setOffered] = useState(FALLBACK_METHODS);
+  const [refused, setRefused] = useState(null);
+  const [cards, setCards] = useState([]);
+
+  useEffect(() => {
+    // The balance has its own control below, so it is not a method to pick here.
+    api.paymentCatalogue()
+      .then(d => {
+        setOffered(d.methods.filter(m => m.key !== 'balance'));
+        setRefused(d);
+      })
+      .catch(() => { /* the fallback list is the §2.1 group either way */ });
+
+    api.savedCards().then(setCards).catch(() => setCards([]));
+  }, []);
+
+  const usable = cards.filter(c => !c.isExpired);
 
   return (
     <section className="modal-section">
       <h3>Chọn cách thanh toán</h3>
       <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-        {PAY_METHODS.map(([key, label, hint]) => (
-          <button type="button" key={key} className={`opt ${method === key ? 'is-on' : ''}`}
-                  onClick={() => set({ payMethod: key })}>
-            <b>{label}</b><span>{hint}</span>
+        {offered.map(m => (
+          <button type="button" key={m.key} className={`opt ${method === m.key ? 'is-on' : ''}`}
+                  onClick={() => set({ payMethod: m.key })}>
+            <b>{m.label}</b><span>{m.hint}</span>
           </button>
         ))}
       </div>
 
-      {method === 'card' && <>
+      {/* docs/07 §4 — a guest who has saved a card should not retype it. */}
+      {method === 'card' && !!usable.length && (
+        <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
+          <span className="cap">Thẻ đã lưu</span>
+          {usable.map(c => (
+            <button type="button" key={c.id}
+                    className={`opt ${state.payCardId === c.id ? 'is-on' : ''}`}
+                    onClick={() => set({ payCardId: c.id, payCardLast4: c.last4 })}>
+              <b>{c.brandLabel} •••• {c.last4}</b><span>Hết hạn {c.expiry}</span>
+            </button>
+          ))}
+          <button type="button" className={`opt ${state.payCardId ? '' : 'is-on'}`}
+                  onClick={() => set({ payCardId: null, payCardLast4: null })}>
+            <b>Dùng thẻ khác</b><span>Nhập số thẻ bên dưới</span>
+          </button>
+        </div>
+      )}
+
+      {method === 'card' && !state.payCardId && <>
         <div className="field-grid" style={{ marginTop: 18 }}>
           <label className="form-field" style={{ gridColumn: '1/-1' }}><span className="cap">Số thẻ</span>
             <input id="card-number" inputMode="numeric" placeholder="4242 4242 4242 4242" defaultValue="4242 4242 4242 4242" /></label>
@@ -515,13 +558,17 @@ function StepPayment({ q }) {
         </p>
       )}
 
-      {method === 'bank' && (
-        <div style={{ marginTop: 18, padding: 16, background: 'var(--surface-soft)', borderRadius: 12, fontSize: 14, lineHeight: 1.7 }}>
-          <div>Ngân hàng: <b>Vietcombank</b></div>
-          <div>Số tài khoản: <b>0071 0009 8765</b></div>
-          <div>Chủ tài khoản: <b>CONG TY STAYHOST</b></div>
-          <div>Nội dung: <b>{state.user?.initials ?? 'SH'} {q.listingId}</b></div>
-        </div>
+      {method === 'zalopay' && (
+        <p style={{ marginTop: 18, fontSize: 14, color: 'var(--ink-body)', lineHeight: 1.6 }}>
+          Sau khi xác nhận, bạn sẽ được chuyển sang ứng dụng ZaloPay để hoàn tất thanh toán {money(q.total)}.
+        </p>
+      )}
+
+      {/* docs/07 §2.4 — the ways StayHost does not take, with the one reason. */}
+      {!!refused?.notAccepted?.length && (
+        <p style={{ marginTop: 18, fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.6 }}>
+          StayHost không nhận {refused.notAccepted.join(', ').toLowerCase()}. {refused.refusalReason}
+        </p>
       )}
     </section>
   );
@@ -529,7 +576,7 @@ function StepPayment({ q }) {
 
 function StepReview({ q }) {
   const state = useStore();
-  const method = PAY_METHODS.find(m => m[0] === state.payMethod);
+  const method = FALLBACK_METHODS.find(m => m.key === state.payMethod);
 
   return <>
     <section className="modal-section">
@@ -537,7 +584,7 @@ function StepReview({ q }) {
       <div style={{ display: 'grid', gap: 12, marginTop: 14, fontSize: 14.5 }}>
         <div className="book-line"><span>Ngày</span><span>{longDate(state.checkIn)} – {longDate(state.checkOut)}</span></div>
         <div className="book-line"><span>Khách</span><span>{q.guests} khách</span></div>
-        <div className="book-line"><span>Thanh toán bằng</span><span>{method?.[1] ?? 'Thẻ'}</span></div>
+        <div className="book-line"><span>Thanh toán bằng</span><span>{method?.label ?? 'Thẻ'}</span></div>
       </div>
     </section>
 

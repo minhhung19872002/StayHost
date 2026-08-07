@@ -930,7 +930,26 @@ public record PayBookingRequest(
     /// docs/07 §7 — sent by the client so a retried request is recognised as the
     /// same attempt. Omitted, the server derives one from the booking and amount.
     /// </summary>
-    string? IdempotencyKey = null);
+    string? IdempotencyKey = null,
+    /// <summary>
+    /// docs/07 §5 — the OTP the guest read off their bank's page. Absent on the
+    /// first request: that one is what sends them there.
+    /// </summary>
+    string? AuthenticationCode = null);
+
+/// <summary>
+/// docs/07 §5 — what the guest gets back when their bank wants a code. Carries
+/// the attempt key so coming back to a closed tab resumes the same attempt.
+/// </summary>
+/// <summary>What the guest types on the bank's page (docs/07 §5).</summary>
+public record BankOtpRequest(string AttemptKey, string? Code);
+
+public record CardAuthChallengeDto(
+    string AttemptKey,
+    DateTime? HoldExpiresAt,
+    int Attempts,
+    int AttemptsLeft,
+    string Message);
 
 public record RefundPreviewDto(
     decimal Refund,
@@ -1709,3 +1728,35 @@ public record HostCancelPreviewDto(
     /// <summary>docs/03 §8 — what this does to the self-cancellation criterion.</summary>
     string CancelRateNote,
     IReadOnlyList<string> Consequences);
+
+/* -------------------------------------------------------- docs/07 §2 and §4 */
+
+/// <summary>docs/07 §2 — what is offered, and what is refused with a reason.</summary>
+public record PaymentCatalogueDto(
+    IReadOnlyList<PaymentMethodDto> Methods,
+    IReadOnlyList<string> NotAccepted,
+    string RefusalReason);
+
+public record PaymentMethodDto(string Key, string Group, string Label, string Hint, bool Savable);
+
+/// <summary>
+/// docs/07 §4 — everything the platform is allowed to show about a saved card.
+/// There is no field for the number because there is no number.
+/// </summary>
+public record SavedCardDto(
+    int Id,
+    string Brand,
+    string BrandLabel,
+    string Last4,
+    string Expiry,
+    string? Nickname,
+    bool IsDefault,
+    bool IsExpired,
+    bool ExpiringSoon,
+    bool HasScheduledCharge,
+    bool HasOpenBooking);
+
+public record SaveCardRequest(
+    string Number, int ExpiryMonth, int ExpiryYear, string? Nickname, bool MakeDefault = false);
+
+public record RenameCardRequest(string? Nickname);

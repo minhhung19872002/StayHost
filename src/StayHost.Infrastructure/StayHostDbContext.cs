@@ -56,6 +56,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<IdentityCheck> IdentityChecks => Set<IdentityCheck>();
     public DbSet<ListingView> ListingViews => Set<ListingView>();
     public DbSet<PaymentAttempt> PaymentAttempts => Set<PaymentAttempt>();
+    public DbSet<SavedCard> SavedCards => Set<SavedCard>();
+    public DbSet<CardAuthentication> CardAuthentications => Set<CardAuthentication>();
     public DbSet<Chargeback> Chargebacks => Set<Chargeback>();
     public DbSet<ShieldClaim> ShieldClaims => Set<ShieldClaim>();
     public DbSet<ShieldEvidence> ShieldEvidence => Set<ShieldEvidence>();
@@ -73,6 +75,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.PayoutBankName).HasMaxLength(120);
             e.Property(x => x.PayoutAccountName).HasMaxLength(120);
             e.Property(x => x.PayoutAccountLast4).HasMaxLength(4);
+            e.Property(x => x.OwedToPlatform).HasPrecision(12, 2);
             e.HasOne(x => x.User).WithOne(u => u.HostProfile)
                 .HasForeignKey<HostProfile>(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
         });
@@ -153,6 +156,32 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        // docs/07 §4 — a card the guest kept. The number is not here.
+        b.Entity<SavedCard>(e =>
+        {
+            e.ToTable("saved_cards");
+            e.HasIndex(x => new { x.UserId, x.IsDefault });
+            e.Property(x => x.Last4).HasMaxLength(4).IsRequired();
+            e.Property(x => x.Nickname).HasMaxLength(60);
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/07 §5 — one trip to the bank's OTP page, kept so a guest who
+        // closed the tab can be picked up where they were.
+        b.Entity<CardAuthentication>(e =>
+        {
+            e.ToTable("card_authentications");
+            e.HasIndex(x => x.AttemptKey);
+            e.HasIndex(x => new { x.BookingId, x.StartedAt });
+            e.Property(x => x.AttemptKey).HasMaxLength(160).IsRequired();
+            e.Property(x => x.Amount).HasPrecision(12, 2);
+            e.Property(x => x.Method).HasMaxLength(30);
+            e.Property(x => x.CardLast4).HasMaxLength(4);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         // docs/07 §11 — the bank has taken money back while it decides.
         b.Entity<Chargeback>(e =>
         {
@@ -177,6 +206,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Amount).HasPrecision(12, 2);
             e.Property(x => x.PlatformFee).HasPrecision(12, 2);
             e.Property(x => x.HostPayout).HasPrecision(12, 2);
+            e.Property(x => x.PayoutDeducted).HasPrecision(12, 2);
+            e.Property(x => x.PayoutReference).HasMaxLength(40);
             e.HasOne(x => x.Booking).WithOne(bk => bk.Payment)
                 .HasForeignKey<Payment>(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
         });

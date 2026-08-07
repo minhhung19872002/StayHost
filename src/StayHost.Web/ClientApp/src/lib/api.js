@@ -160,6 +160,13 @@ export const api = {
     request(`/api/host/listings/${id}/rules`, { method: 'PUT', body: JSON.stringify(body) }),
   editDays: (id, body) =>
     request(`/api/host/listings/${id}/days`, { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/07 §2 and §4 — the catalogue, and the cards a guest has kept. */
+  paymentCatalogue: () => request('/api/payment-methods/catalogue'),
+  savedCards: () => request('/api/payment-methods'),
+  addCard: body => request('/api/payment-methods', { method: 'POST', body: JSON.stringify(body) }),
+  makeCardDefault: id => request(`/api/payment-methods/${id}/default`, { method: 'PUT' }),
+  removeCard: id => request(`/api/payment-methods/${id}`, { method: 'DELETE' }),
+
   hostPayout: () => request('/api/host/payout'),
   saveHostPayout: body => request('/api/host/payout', { method: 'PUT', body: JSON.stringify(body) }),
   superhostProgress: () => request('/api/host/superhost'),

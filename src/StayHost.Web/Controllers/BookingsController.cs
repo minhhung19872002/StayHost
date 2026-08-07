@@ -13,7 +13,7 @@ namespace StayHost.Web.Controllers;
 public class BookingsController(
     StayHostDbContext db, AuthService auth, NotificationService notifications,
     CatalogService catalog, BookingService rules, ReviewService reviews, ThreadMessenger messenger,
-    PaymentGateway gateway, RiskWatch risk, WalletService wallet)
+    PaymentGateway gateway, RiskWatch risk, WalletService wallet, PaymentCompletion completion)
     : ControllerBase
 {
     /// <summary>
@@ -200,6 +200,67 @@ public class BookingsController(
     }
 
     /// <summary>
+    /// Stands in for the bank's own 3-D Secure page (docs/07 §5). It is a
+    /// separate request because in reality it is a separate site: the bank checks
+    /// the code and takes the money there, and the platform finds out afterwards
+    /// — or, when the guest's connection drops, does not find out at all until it
+    /// asks. That is the case docs/07 §18 scenario 3 requires to work, and it
+    /// cannot be exercised end to end unless the two halves can come apart.
+    /// </summary>
+    [HttpPost("{id:int}/bank-otp")]
+    public async Task<ActionResult<CardAuthChallengeDto>> BankOtp(
+        int id, [FromBody] BankOtpRequest req, CancellationToken ct)
+    {
+        var booking = await FindOwnedAsync(id, ct);
+        if (booking is null) return NotFound();
+
+        var pending = await db.CardAuthentications
+            .FirstOrDefaultAsync(a => a.AttemptKey == req.AttemptKey && a.BookingId == booking.Id, ct);
+
+        if (pending is null) return NotFound(new { message = "Không tìm thấy phiên xác thực." });
+
+        if (pending.Outcome == AuthOutcome.Succeeded)
+        {
+            return Ok(new CardAuthChallengeDto(
+                pending.AttemptKey, booking.HoldExpiresAt, pending.CodeAttempts, 0,
+                CardAuth.OutcomeMessage(AuthOutcome.Succeeded, pending.CodeAttempts)));
+        }
+
+        if (!CardAuth.CanTryCodeAgain(pending.CodeAttempts))
+        {
+            return BadRequest(new
+            {
+                message = CardAuth.OutcomeMessage(AuthOutcome.WrongCode, pending.CodeAttempts),
+                needsDifferentMethod = true
+            });
+        }
+
+        pending.CodeAttempts++;
+
+        var authorised = gateway.Authorise(
+            pending.AttemptKey, pending.Amount, pending.Method, pending.CardLast4, req.Code);
+
+        pending.Outcome = authorised.Ok ? AuthOutcome.Succeeded : AuthOutcome.WrongCode;
+        if (authorised.Ok) pending.SettledAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        if (!authorised.Ok)
+        {
+            return BadRequest(new
+            {
+                message = CardAuth.OutcomeMessage(AuthOutcome.WrongCode, pending.CodeAttempts),
+                retryable = CardAuth.CanTryCodeAgain(pending.CodeAttempts)
+            });
+        }
+
+        // The money has moved. Whether the guest makes it back to StayHost is now
+        // out of everyone's hands — which is exactly why the sweep exists.
+        return Ok(new CardAuthChallengeDto(
+            pending.AttemptKey, booking.HoldExpiresAt, pending.CodeAttempts, 0,
+            CardAuth.OutcomeMessage(AuthOutcome.Succeeded, pending.CodeAttempts)));
+    }
+
+    /// <summary>
     /// Takes the money for a booking that is holding its dates. docs/01 ĐP-12:
     /// the server prices the stay again here and refuses to charge a number
     /// different from the one the guest agreed to.
@@ -297,6 +358,15 @@ public class BookingsController(
             ? replayKey
             : Payments.KeyFor(booking.Id, charged, method);
 
+        // docs/07 §5 — cards that need the bank's OTP go there first. The row is
+        // created before the idempotency claim so a guest coming back with their
+        // code resumes this attempt rather than being told it already happened.
+        if (gateway.NeedsAuthentication(method, req?.CardLast4))
+        {
+            var challenge = await AuthenticateAsync(booking, key, charged, method, req, ct);
+            if (challenge is not null) return challenge;
+        }
+
         var settled = await db.PaymentAttempts.FirstOrDefaultAsync(a => a.Key == key, ct);
         if (settled is not null)
         {
@@ -324,7 +394,9 @@ public class BookingsController(
             return Conflict(new { message = "Yêu cầu thanh toán này đang được xử lý. Vui lòng đợi trong giây lát." });
         }
 
-        var attempt = gateway.Charge(charged, method, req?.CardLast4);
+        // The key goes to the gateway too: docs/07 §5's self-check is only
+        // possible if the platform can ask "what happened to this attempt".
+        var attempt = gateway.Charge(charged, method, req?.CardLast4, key);
 
         if (!attempt.Ok)
         {
@@ -345,60 +417,11 @@ public class BookingsController(
         claim.Status = PaymentAttemptStatus.Succeeded;
         claim.CompletedAt = DateTime.UtcNow;
 
-        db.BookingEvents.Add(BookingLifecycle.Transition(
-            booking, BookingStatus.Confirmed, $"guest:{user.Id}",
-            partial
-                ? $"Đã đặt cọc {charged:#,##0}₫ trên tổng {price.Total:#,##0}₫."
-                : "Thanh toán thành công."));
+        // The same steps the self-check of docs/07 §5 runs when it discovers a
+        // booking was paid after the guest's connection dropped.
+        await completion.ConfirmAsync(
+            booking, price, charged, partial, today, user.Id, req?.PaymentMethod, req?.CardLast4, ct);
 
-        booking.DepositPaid = charged;
-        booking.BalanceDue = price.Total - charged;
-        booking.BalanceDueOn = partial ? PartialPayment.BalanceDueOn(booking.CheckIn, today) : null;
-        booking.BalanceStatus = partial ? BalanceStatus.Scheduled : BalanceStatus.None;
-
-        if (booking.Payment is not null)
-        {
-            booking.Payment.Status = PaymentStatus.Captured;
-            booking.Payment.CapturedAt = DateTime.UtcNow;
-            if (!string.IsNullOrWhiteSpace(req?.PaymentMethod)) booking.Payment.Method = req.PaymentMethod;
-            if (!string.IsNullOrWhiteSpace(req?.CardLast4)) booking.Payment.CardLast4 = req.CardLast4;
-        }
-
-        if (booking.CreditUsed > 0)
-        {
-            wallet.Add(user.Id, -booking.CreditUsed, CreditReason.Spent,
-                $"Dùng cho đơn {booking.Reference}", booking.Id);
-        }
-
-        db.LedgerEntries.AddRange(
-            Ledger.CaptureBooking(booking, price, DateTime.UtcNow, charged, booking.CreditUsed));
-        await db.SaveChangesAsync(ct);
-
-        var listing = booking.Listing!;
-
-        // docs/01 TN-04 — the conversation carries the order's own milestones.
-        await messenger.PostAsync(booking,
-            $"Đơn {booking.Reference} đã được xác nhận: {booking.CheckIn:dd/MM} – {booking.CheckOut:dd/MM}, " +
-            $"{booking.Nights} đêm, {booking.Guests} khách.", ct);
-
-        var hostUser = await db.Users.FirstOrDefaultAsync(u => u.HostProfile!.Id == listing.HostId, ct);
-
-        await notifications.QueueWithEmailAsync(hostUser, NotificationKind.BookingConfirmed,
-            "Bạn có lượt đặt mới",
-            $"{booking.GuestName} đặt \"{listing.Title}\" từ {booking.CheckIn:dd/MM} đến {booking.CheckOut:dd/MM} " +
-            $"({booking.Nights} đêm, {booking.Guests} khách).",
-            "/hosting", ct);
-
-        await notifications.QueueWithEmailAsync(user, NotificationKind.BookingConfirmed,
-            "Đặt chỗ đã được xác nhận",
-            $"Mã đặt chỗ {booking.Reference} · {listing.Title} · {booking.Nights} đêm.",
-            $"/trips/{booking.Id}", ct);
-
-        // docs/01 AT-11 — a paid booking is the moment worth looking at the
-        // account's pattern; the flag never stands in the guest's way.
-        await risk.EvaluateAsync(user.Id, booking, ct);
-
-        await db.SaveChangesAsync(ct);
         return Ok(ToDto(booking));
     }
 
@@ -773,6 +796,103 @@ public class BookingsController(
     {
         var booking = await FindOwnedAsync(id, ct, includeListing: true);
         return booking is null ? NotFound() : Ok(ToDto(booking));
+    }
+
+    /// <summary>
+    /// docs/07 §5 — the trip to the bank's OTP page.
+    ///
+    /// Returns the response to send when the guest still has authenticating to
+    /// do, and null once they are through and the charge may go ahead.
+    /// </summary>
+    private async Task<ActionResult<BookingDto>?> AuthenticateAsync(
+        Booking booking, string key, decimal amount, string method, PayBookingRequest? req, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+
+        var auth = await db.CardAuthentications.FirstOrDefaultAsync(a => a.AttemptKey == key, ct);
+
+        if (auth is null)
+        {
+            auth = new CardAuthentication
+            {
+                BookingId = booking.Id, AttemptKey = key, Amount = amount,
+                Method = method, CardLast4 = req?.CardLast4
+            };
+            db.CardAuthentications.Add(auth);
+        }
+
+        if (auth.Outcome == AuthOutcome.Succeeded) return null;
+
+        // §5 — the guest may have authorised on the bank's page and only now got
+        // back. The gateway is asked rather than the browser believed, so the
+        // money that already moved is recognised instead of being taken twice.
+        if (gateway.Lookup(key) == AuthOutcome.Succeeded)
+        {
+            auth.Outcome = AuthOutcome.Succeeded;
+            auth.SettledAt ??= now;
+            auth.ConfirmedWithGatewayAt = now;
+            await db.SaveChangesAsync(ct);
+            return null;
+        }
+
+        // §5.2 — the dates must not fall off the market while the guest is on
+        // their bank's page. That would be our timer expiring, not them giving up.
+        if (CardAuth.NeedsExtension(booking.HoldExpiresAt, now))
+        {
+            booking.HoldExpiresAt = CardAuth.ExtendedTo(booking.HoldExpiresAt, now);
+            db.BookingEvents.Add(BookingLifecycle.Note(
+                booking, "system", "Gia hạn giữ chỗ trong lúc khách xác thực với ngân hàng."));
+        }
+
+        // No code yet: this is the guest arriving, or coming back to a tab they
+        // closed. Either way they are sent to the same place.
+        if (string.IsNullOrWhiteSpace(req?.AuthenticationCode))
+        {
+            auth.Outcome = AuthOutcome.Pending;
+            await db.SaveChangesAsync(ct);
+
+            return Accepted(new CardAuthChallengeDto(
+                key, booking.HoldExpiresAt, auth.CodeAttempts,
+                CardAuth.MaxCodeAttempts - auth.CodeAttempts,
+                CardAuth.OutcomeMessage(AuthOutcome.Pending, auth.CodeAttempts)));
+        }
+
+        if (!CardAuth.CanTryCodeAgain(auth.CodeAttempts))
+        {
+            await db.SaveChangesAsync(ct);
+            return BadRequest(new
+            {
+                message = CardAuth.OutcomeMessage(AuthOutcome.WrongCode, auth.CodeAttempts),
+                needsDifferentMethod = true
+            });
+        }
+
+        // The code goes to the bank, and it is the bank that moves the money —
+        // before this platform hears a word about it.
+        var authorised = gateway.Authorise(key, amount, method, req.CardLast4, req.AuthenticationCode);
+
+        if (!authorised.Ok)
+        {
+            auth.CodeAttempts++;
+            auth.Outcome = AuthOutcome.WrongCode;
+            await db.SaveChangesAsync(ct);
+
+            return BadRequest(new
+            {
+                message = CardAuth.OutcomeMessage(AuthOutcome.WrongCode, auth.CodeAttempts),
+                retryable = CardAuth.CanTryCodeAgain(auth.CodeAttempts),
+                needsDifferentMethod = !CardAuth.CanTryCodeAgain(auth.CodeAttempts)
+            });
+        }
+
+        auth.CodeAttempts++;
+        auth.Outcome = AuthOutcome.Succeeded;
+        auth.SettledAt = now;
+        // The charge below is what the gateway will report; this row is confirmed
+        // against it by the sweep rather than by anything the browser said.
+        await db.SaveChangesAsync(ct);
+
+        return null;
     }
 
     private async Task<Booking?> FindOwnedAsync(int id, CancellationToken ct, bool includeListing = false)

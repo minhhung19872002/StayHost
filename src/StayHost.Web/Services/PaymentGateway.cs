@@ -22,9 +22,39 @@ public class PaymentGateway(ILogger<PaymentGateway> log)
         public string? Reason => Ok ? null : Payments.Message(Decline);
     }
 
-    public Result Charge(decimal amount, string method, string? cardLast4)
+    /// <summary>
+    /// docs/07 §5 — a card ending in these four digits always sends the guest to
+    /// their bank's OTP page.
+    ///
+    /// In reality the issuer decides, and for Vietnamese cards the answer is
+    /// nearly always yes. There is no 3-D Secure server behind this build, so
+    /// putting every payment through a page that accepts any code would be worse
+    /// than useless — it would look like authentication without being it. A test
+    /// card selects the branch instead, the same way <see cref="DecliningCard"/>
+    /// selects the refusal branch. Wiring a real PSP means making this true for
+    /// every card.
+    /// </summary>
+    public const string AuthenticatingCard = "0002";
+
+    /// <summary>The OTP the stand-in accepts. A real one comes from the guest's bank.</summary>
+    public const string TestOtp = "123456";
+
+    /// <summary>
+    /// What this gateway remembers charging, keyed by the attempt key — which is
+    /// what makes the self-check of docs/07 §5 possible: the platform can ask
+    /// what really happened rather than believing the browser.
+    /// </summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, decimal> _charged = new();
+
+    public Result Charge(decimal amount, string method, string? cardLast4, string? key = null)
     {
         if (amount <= 0) return new Result(true);
+
+        // Already taken under this key — which is what happens after a 3-D Secure
+        // authorisation: the bank moved the money on its own page, and this call
+        // is the platform catching up. Charging again would be the exact fault
+        // docs/07 §7 calls the worst one in the module.
+        if (key is not null && _charged.ContainsKey(key)) return new Result(true);
 
         if (cardLast4 == DecliningCard)
         {
@@ -32,7 +62,38 @@ public class PaymentGateway(ILogger<PaymentGateway> log)
             return new Result(false, DeclineReason.BankRefused);
         }
 
+        if (key is not null) _charged[key] = amount;
+
         log.LogInformation("Charged {Amount} via {Method}.", amount, method);
         return new Result(true);
+    }
+
+    /// <summary>docs/07 §5 — does this card send the guest to their bank first?</summary>
+    public bool NeedsAuthentication(string method, string? cardLast4) =>
+        PaymentMethods.IsCard(method) && cardLast4 == AuthenticatingCard;
+
+    /// <summary>
+    /// docs/07 §5 — "hệ thống phải tự kiểm tra lại kết quả với cổng thanh toán".
+    /// Returns what the gateway knows about an attempt, or null when it has
+    /// never heard of it.
+    /// </summary>
+    public AuthOutcome? Lookup(string key) =>
+        _charged.ContainsKey(key) ? AuthOutcome.Succeeded : null;
+
+    /// <summary>The stand-in's OTP check. A real one happens on the bank's own page.</summary>
+    public bool CodeAccepted(string? code) => code?.Trim() == TestOtp;
+
+    /// <summary>
+    /// Stands in for what happens on the bank's own page: the code is checked and,
+    /// if it is right, the money moves — before the platform hears anything.
+    ///
+    /// That ordering is the whole point. It is why docs/07 §5 insists the platform
+    /// ask the gateway rather than believe the browser, and why a guest whose
+    /// connection dies on the way back has still been charged.
+    /// </summary>
+    public Result Authorise(string key, decimal amount, string method, string? cardLast4, string? code)
+    {
+        if (!CodeAccepted(code)) return new Result(false, DeclineReason.IncorrectDetails);
+        return Charge(amount, method, cardLast4, key);
     }
 }

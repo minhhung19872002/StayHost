@@ -342,6 +342,14 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
             {
                 await using var scope = services.CreateAsyncScope();
 
+                // docs/07 §5 — asks the gateway what really happened to guests who
+                // never came back from their bank's page. It runs before the
+                // lifecycle sweep because that one expires unpaid holds, and a
+                // booking that was paid must be recognised before it is failed.
+                var cardAuth = scope.ServiceProvider.GetRequiredService<CardAuthSweeper>();
+                var authResult = await cardAuth.SweepAsync(stoppingToken);
+                if (authResult.Any) log.LogInformation("Xác thực thẻ: {Result}.", authResult);
+
                 var bookings = scope.ServiceProvider.GetRequiredService<BookingService>();
                 var result = await bookings.SweepAsync(stoppingToken);
                 if (result.Any) log.LogInformation("Vòng đời đơn: {Result}.", result);
@@ -372,6 +380,12 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var payouts = scope.ServiceProvider.GetRequiredService<PayoutService>();
                 var payoutResult = await payouts.SweepAsync(stoppingToken);
                 if (payoutResult.Any) log.LogInformation("Chuyển tiền: {Result}.", payoutResult);
+
+                // docs/07 §4 — a card about to expire with money still to come
+                // off it, fourteen days ahead.
+                var expiring = await Controllers.PaymentMethodsController.RemindExpiringAsync(
+                    scope.ServiceProvider.GetRequiredService<StayHostDbContext>(), notifications, stoppingToken);
+                if (expiring > 0) log.LogInformation("Đã nhắc {Count} thẻ sắp hết hạn.", expiring);
 
                 // docs/03 §8 — grants and revokes the two titles. Cheap on every
                 // other tick: rows already decided for this quarter or this week
