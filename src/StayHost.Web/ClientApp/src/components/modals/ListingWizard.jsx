@@ -308,7 +308,19 @@ function StepPlace({ form, field, meta }) {
       attribution: '&copy; OpenStreetMap', maxZoom: 18
     }).addTo(map);
 
-    const marker = L.marker(start, { draggable: true }).addTo(map);
+    // Leaflet's default marker loads marker-icon.png from a path the bundler
+    // never emits, so it rendered as a broken image with the alt text "Marker"
+    // showing through. Every other map in the app draws its pins with a divIcon;
+    // this one now does too, and depends on no image file at all.
+    const marker = L.marker(start, {
+      draggable: true,
+      icon: L.divIcon({
+        className: '',
+        html: '<span class="pin-marker" aria-hidden="true"></span>',
+        iconSize: [28, 38],
+        iconAnchor: [14, 38]
+      })
+    }).addTo(map);
     marker.on('dragend', () => {
       const { lat, lng } = marker.getLatLng();
       fieldRef.current('latitude', Number(lat.toFixed(6)));
@@ -476,6 +488,8 @@ function StepAmenities({ form, setForm, meta }) {
 function StepPhotos({ form, setForm }) {
   const state = useStore();
   const [dragging, setDragging] = useState(null);
+  // Whether a file is currently hovering the drop zone, so it can say so.
+  const [over, setOver] = useState(false);
 
   const captionOf = i => form.imageCaptions[i] ?? (i === 0 ? 'Ảnh bìa' : `Ảnh ${i + 1}`);
 
@@ -525,10 +539,25 @@ function StepPhotos({ form, setForm }) {
         để khách biết mình đang xem gì. Hiện có <b>{form.images.length}/5</b>.
       </span>
 
-      <label className="dropzone" style={{ marginTop: 14 }}>
+      {/*
+        * docs/01 CN-07 — a box that looks like a drop zone has to accept a drop.
+        * It only opened a file picker before, so dragging a photo onto it made
+        * the browser navigate away to that photo and lose the half-filled form.
+        */}
+      <label className={`dropzone ${over ? 'is-over' : ''}`} style={{ marginTop: 14 }}
+             onDragOver={e => { e.preventDefault(); setOver(true); }}
+             onDragEnter={e => { e.preventDefault(); setOver(true); }}
+             onDragLeave={() => setOver(false)}
+             onDrop={e => {
+               e.preventDefault();
+               setOver(false);
+               const files = [...(e.dataTransfer?.files ?? [])].filter(f => f.type.startsWith('image/'));
+               if (files.length) upload(files);
+               else if (e.dataTransfer?.files?.length) toast('Chỉ nhận tệp ảnh.');
+             }}>
         <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple hidden
                onChange={e => { upload(e.target.files); e.target.value = ''; }} />
-        <b>{state.uploading ? 'Đang tải ảnh lên…' : 'Chọn ảnh từ máy'}</b>
+        <b>{state.uploading ? 'Đang tải ảnh lên…' : over ? 'Thả ảnh vào đây' : 'Kéo ảnh vào đây hoặc bấm để chọn'}</b>
         <span>JPG, PNG, WebP hoặc AVIF · tối đa 8MB mỗi ảnh</span>
       </label>
 

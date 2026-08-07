@@ -621,6 +621,26 @@ select.field { width: 100%; padding: 10px 12px; }
 }
 .price-marker.is-active { background: var(--ink); color: #fff; }
 
+/*
+ * docs/01 CN-03 — the pin the host drags to place their listing. Drawn rather
+ * than loaded: Leaflet's own marker image is not emitted by the bundler, and a
+ * broken <img> with the alt text showing is what that looked like.
+ */
+.pin-marker {
+  display: block; width: 28px; height: 38px; cursor: grab;
+  background: var(--brand);
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 50% / 44% 44% 56% 56%;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .3);
+  position: relative;
+  clip-path: polygon(50% 100%, 0 46%, 0 0, 100% 0, 100% 46%);
+}
+.pin-marker::after {
+  content: ""; position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+  width: 9px; height: 9px; border-radius: 50%; background: #fff;
+}
+.leaflet-marker-draggable .pin-marker:active { cursor: grabbing; }
+
 /* ------------------------------------------------------------------ detail */
 .back-link { border: 0; background: transparent; font-size: 13.5px; font-weight: 600; padding: 6px 0; color: var(--ink); }
 .back-link:hover { text-decoration: underline; }
@@ -1353,11 +1373,21 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
 .step-dot.is-done .n { background: var(--brand); color: #fff; }
 
 /* --------------------------------------------------------- image uploader */
+/*
+ * A <label> is inline by default, and this one was never told otherwise: the
+ * dashed border wrapped only part of it while the bold line broke out to full
+ * width beside the box.
+ */
 .dropzone {
+  display: block;
   margin-top: 14px; border: 2px dashed var(--line); border-radius: var(--r-field);
   padding: 26px 18px; text-align: center; cursor: pointer; background: var(--surface-soft);
+  transition: border-color .15s, background-color .15s;
 }
 .dropzone:hover { border-color: var(--ink); background: #f4f4f4; }
+/* While a file is over it, so the drop target is unmistakable. */
+.dropzone.is-over { border-color: var(--brand); background: var(--brand-soft); }
+.dropzone.is-over b { color: var(--brand-dark); }
 .dropzone b { display: block; font-size: 14.5px; font-weight: 700; }
 .dropzone span { font-size: 12.5px; color: var(--ink-muted); }
 
