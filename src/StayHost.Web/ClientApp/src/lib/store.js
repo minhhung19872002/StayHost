@@ -92,7 +92,15 @@ export const state = {
   suggestOpen: false,
   inspirationTab: null,
   photoIndex: null,
-  awaitingCheckout: false,
+  /**
+   * The arrival chosen on the first click, before a check-out exists.
+   *
+   * While it is set the committed checkIn/checkOut are left exactly as they
+   * were — a search or a price quote running in the background keeps working on
+   * the last real range — and the calendar paints this one day and nothing else.
+   * One click used to light up two days: the day tapped and the night after it.
+   */
+  pickingFrom: null,
 
   // Which month the calendar is looking at. Its own state, because paging must
   // not touch the chosen dates: a check-out three months out is reached by
@@ -931,26 +939,50 @@ function rangeHasBlockedNight(fromIso, toIso) {
  * Two-click range picking: the first click sets check-in with a one-night
  * default, the second closes the range, any later click starts over.
  */
+/**
+ * One click, one date. The first picks the arrival and nothing else; the second
+ * completes the stay. A second click on or before the arrival starts again
+ * rather than making a stay of zero nights.
+ */
 export function pickDate(iso) {
-  const previous = { checkIn: state.checkIn, checkOut: state.checkOut };
+  const from = state.pickingFrom;
 
-  if (state.awaitingCheckout && iso > state.checkIn) {
-    state.checkOut = iso;
-    state.awaitingCheckout = false;
-  } else {
-    state.checkIn = iso;
-    const next = parseIso(iso);
-    next.setDate(next.getDate() + 1);
-    state.checkOut = isoOf(next);
-    state.awaitingCheckout = true;
+  if (from === null || iso <= from) {
+    state.pickingFrom = iso;
+    notify();
+    return;
   }
 
+  const previous = { checkIn: state.checkIn, checkOut: state.checkOut };
+  state.checkIn = from;
+  state.checkOut = iso;
+  state.pickingFrom = null;
+
   if (rangeHasBlockedNight(state.checkIn, state.checkOut)) {
-    Object.assign(state, previous, { awaitingCheckout: false });
+    Object.assign(state, previous);
     toast('Khoảng ngày này đã có người đặt. Chọn ngày khác nhé.');
     notify();
     return;
   }
+
+  normaliseDates();
+}
+
+/**
+ * Closing the picker with only an arrival chosen commits it as a one-night stay.
+ * Leaving it half-picked would mean the bar shows one date while the search runs
+ * on the range from before — the bar lying about the search.
+ */
+export function settleDates() {
+  const from = state.pickingFrom;
+  if (from === null) return;
+
+  state.pickingFrom = null;
+  state.checkIn = from;
+
+  const out = parseIso(from);
+  out.setDate(out.getDate() + 1);
+  state.checkOut = isoOf(out);
 
   normaliseDates();
 }
@@ -1001,7 +1033,7 @@ export function applyDatePreset(key) {
 
   // A preset chooses both ends at once, so nothing is half-picked afterwards,
   // and the view follows the dates it just set.
-  state.awaitingCheckout = false;
+  state.pickingFrom = null;
   state.calendarMonth = null;
   normaliseDates();
 }
@@ -1012,7 +1044,7 @@ export function clearDates() {
   state.stay = 'exact';
   state.flexDays = 0;
   state.startMonths = [];
-  state.awaitingCheckout = false;
+  state.pickingFrom = null;
   // Dates that jump somewhere else take the view with them, or the picker sits
   // on a month with nothing selected in it.
   state.calendarMonth = null;

@@ -72,8 +72,13 @@ function Month({ monthStart, isFirst, isLast, state, nights }) {
     // The calendar endpoint is authoritative when we have it; the detail page's
     // unavailable list is the fallback while it loads.
     const disabled = night ? !night.available : iso < today || blocked.has(iso);
-    const edge = iso === state.checkIn || iso === state.checkOut;
-    const between = iso > state.checkIn && iso < state.checkOut;
+    // Mid-pick the calendar shows the one day chosen and nothing else — not the
+    // range from before, which is still what the search is running on.
+    const picking = state.pickingFrom;
+    const edge = picking !== null
+      ? iso === picking
+      : iso === state.checkIn || iso === state.checkOut;
+    const between = picking === null && iso > state.checkIn && iso < state.checkOut;
 
     cells.push(
       <button key={iso} type="button" disabled={disabled}
@@ -127,7 +132,7 @@ function Openings({ openings, nights }) {
     const to = new Date(from);
     to.setDate(to.getDate() + Math.min(wantedNights, opening.nights));
 
-    set({ checkIn: isoOf(from), checkOut: isoOf(to), awaitingCheckout: false });
+    set({ checkIn: isoOf(from), checkOut: isoOf(to), pickingFrom: null });
     normaliseDates();
   };
 

@@ -2,7 +2,7 @@ import { useStore } from '../../lib/useStore.js';
 import {
   set, state as store, activeFilterCount, resetFilters, totalGuests,
   toggleAmenity, bumpCount, bumpGuest, applyDatePreset, clearDates, setStayShape,
-  applyCurrency, applyLanguage, closeOverlay, toast
+  applyCurrency, applyLanguage, closeOverlay, settleDates, toast
 } from '../../lib/store.js';
 import { api } from '../../lib/api.js';
 import { applySearch } from '../../lib/nav.js';
@@ -199,10 +199,17 @@ export function DateFields() {
 
     {tab === 'months' ? <MonthPicker state={state} /> : <>
       <div style={{ margin: '18px 0' }}>
-        <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>{nights} đêm</h3>
-        <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--ink-muted)' }}>
-          {longDate(state.checkIn)} – {longDate(state.checkOut)}
-        </p>
+        {state.pickingFrom ? <>
+          <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>Chọn ngày trả phòng</h3>
+          <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--ink-muted)' }}>
+            Nhận phòng {longDate(state.pickingFrom)}
+          </p>
+        </> : <>
+          <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>{nights} đêm</h3>
+          <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--ink-muted)' }}>
+            {longDate(state.checkIn)} – {longDate(state.checkOut)}
+          </p>
+        </>}
       </div>
       <Calendar months={2} />
 
@@ -221,7 +228,7 @@ export function DatesModal() {
   return (
     <Modal title="Chọn ngày" foot={<>
       <button className="text-btn" onClick={() => { clearDates(); applySearch(); }}>Xoá ngày</button>
-      <button className="btn btn-dark btn-sm" onClick={closeOverlay}>Xong</button>
+      <button className="btn btn-dark btn-sm" onClick={() => { settleDates(); closeOverlay(); }}>Xong</button>
     </>}>
       <DateFields />
     </Modal>

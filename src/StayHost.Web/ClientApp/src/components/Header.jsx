@@ -3,13 +3,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
   set, state as store, isDiscovery, activeFilterCount, guestLabel, totalGuests,
-  loadSuggestions, loadNotifications, becomeHost, logout, toast, openOverlay, openMenu, toggleAmenity,
+  loadSuggestions, loadNotifications, becomeHost, logout, toast, openOverlay, openMenu, toggleAmenity, settleDates,
   clearDates, resetCalendarView
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { applySearch } from '../lib/nav.js';
 import { recentSearches, clearSearchHistory } from '../lib/history.js';
-import { dateRangeLabel, debounce } from '../lib/format.js';
+import { dateRangeLabel, shortDate, debounce } from '../lib/format.js';
 import { Avatar } from './Avatar.jsx';
 import { Icon } from './Icon.jsx';
 import { DateFields, GuestFields } from './modals/SearchModals.jsx';
@@ -167,10 +167,13 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
   useEffect(() => {
     if (!openSeg) return undefined;
 
+    // Clicking away and pressing Escape close the bar just as "Xong" does, so
+    // they have to commit a half-picked stay the same way — otherwise the pill
+    // keeps reading "25-08 – ?" over a search that is using something else.
     const away = e => {
-      if (!barRef.current?.contains(e.target)) { setOpenSeg(null); set({ suggestOpen: false }); }
+      if (!barRef.current?.contains(e.target)) closeBar();
     };
-    const key = e => { if (e.key === 'Escape') { setOpenSeg(null); set({ suggestOpen: false }); } };
+    const key = e => { if (e.key === 'Escape') closeBar(); };
 
     document.addEventListener('pointerdown', away);
     document.addEventListener('keydown', key);
@@ -192,7 +195,7 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
     setOpenSeg(seg);
   };
 
-  const closeBar = () => { setOpenSeg(null); set({ suggestOpen: false }); };
+  const closeBar = () => { setOpenSeg(null); settleDates(); set({ suggestOpen: false }); };
 
   /*
    * The panel's box is worked out in pixels rather than left by CSS to one of
@@ -277,7 +280,11 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
         <button type="button" className={segClass('when')} onClick={() => toggle('when')}
                 aria-expanded={openSeg === 'when'}>
           {wide && <span className="seg-cap">Ngày</span>}
-          <span className="seg-val">{dateRangeLabel(state.checkIn, state.checkOut)}</span>
+          <span className="seg-val">
+            {state.pickingFrom
+              ? `${shortDate(state.pickingFrom)} – ?`
+              : dateRangeLabel(state.checkIn, state.checkOut)}
+          </span>
         </button>
         <span className="seg-div" />
         <button type="button" className={segClass('who')} onClick={() => toggle('who')}
