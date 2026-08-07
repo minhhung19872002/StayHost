@@ -108,7 +108,7 @@ public static class ExperienceSeeder
             ["Xe đưa đón từ trung tâm", "200g cà phê mang về", "Bánh và cà phê thử"],
             ["https://images.pexels.com/photos/4820817/pexels-photo-4820817.jpeg"]),
 
-        new("Chợ đêm và ăn vặt Sài Gòn bằng xe máy", "Thành phố Hồ Chí Minh",
+        new("Chợ đêm và ăn vặt Sài Gòn bằng xe máy", "TP. Hồ Chí Minh",
             "Bảy món ở năm quận, ngồi sau xe người địa phương",
             "Bắt đầu ở quận 4 với ốc, qua quận 5 ăn hủ tiếu hồ, dừng ở một quán chè mở từ 1975. Mỗi " +
             "người đi cùng một tài xế riêng, có mũ bảo hiểm và áo mưa.",

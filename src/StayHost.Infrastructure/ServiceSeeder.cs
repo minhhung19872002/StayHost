@@ -92,7 +92,7 @@ public static class ServiceSeeder
             "Xanh Taxi Hà Nội", 0.12m,
             "https://images.pexels.com/photos/136739/pexels-photo-136739.jpeg"),
 
-        new("Giữ hành lý theo giờ", "luggage", "Thành phố Hồ Chí Minh",
+        new("Giữ hành lý theo giờ", "luggage", "TP. Hồ Chí Minh",
             "Gửi vali giữa lúc trả phòng và giờ bay",
             "Điểm giữ ngay trung tâm quận 1, có camera và niêm phong từng kiện. Nhận từ 6 giờ sáng, " +
             "trả tới nửa đêm.",

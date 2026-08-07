@@ -42,10 +42,15 @@ public static class SearchText
     /// Shorthand people actually type. Stored alongside the city so "hcm" or
     /// "sg" reaches Thành phố Hồ Chí Minh without a second lookup at query time.
     /// </summary>
+    /// <remarks>
+    /// Keyed by <see cref="Cities.Key"/>, so every spelling of one city reaches
+    /// the same row. It used to be keyed by the literal name, which meant "TP.
+    /// Hồ Chí Minh" and "Thành phố Hồ Chí Minh" each needed their own copy —
+    /// and the second one was a line somebody had to remember to keep in step.
+    /// </remarks>
     private static readonly Dictionary<string, string[]> CityAliases = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["Thành phố Hồ Chí Minh"] = ["hcm", "tphcm", "sg", "saigon", "sai gon", "ho chi minh"],
-        ["TP. Hồ Chí Minh"] = ["hcm", "tphcm", "sg", "saigon", "sai gon", "ho chi minh"],
+        ["ho chi minh"] = ["hcm", "tphcm", "sg", "saigon", "sai gon", "ho chi minh", "thanh pho ho chi minh"],
         ["Hà Nội"] = ["hn", "hanoi"],
         ["Đà Nẵng"] = ["dn", "danang"],
         ["Đà Lạt"] = ["dl", "dalat"],
@@ -62,9 +67,9 @@ public static class SearchText
     };
 
     public static string AliasesFor(string? city) =>
-        city is not null && CityAliases.TryGetValue(city, out var aliases)
-            ? string.Join(' ', aliases)
-            : "";
+        CityAliases.TryGetValue(Cities.Key(city), out var aliases) ? string.Join(' ', aliases)
+        : city is not null && CityAliases.TryGetValue(city, out var byName) ? string.Join(' ', byName)
+        : "";
 
     /// <summary>Every term a query should match against, already normalised.</summary>
     public static string[] Terms(string? query) =>

@@ -86,7 +86,7 @@ public static class HotelSeeder
 
     private static readonly Seed[] Seeds =
     [
-        new("Khách sạn Bến Nghé", "Thành phố Hồ Chí Minh", "Quận 1", 10.7745, 106.7010,
+        new("Khách sạn Bến Nghé", "TP. Hồ Chí Minh", "Quận 1", 10.7745, 106.7010,
             "Khách sạn 42 phòng cách chợ Bến Thành 400 mét. Lễ tân 24 giờ, bữa sáng phở và bánh mì " +
             "từ 6 giờ, hồ bơi nhỏ trên tầng 9 mở tới 22 giờ.",
             [

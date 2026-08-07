@@ -577,7 +577,13 @@ public class HostController(
     private async Task ApplyAsync(Listing listing, SaveListingRequest r, CancellationToken ct)
     {
         listing.Title = r.Title.Trim();
-        listing.City = r.City.Trim();
+
+        // One place is one place. The catalogue groups by this string exactly —
+        // city rails, "chỗ nghỉ ở X" links, the market-price comparison — so a
+        // host typing "Thành phố Hồ Chí Minh" where the catalogue says "TP. Hồ
+        // Chí Minh" used to create a second city holding one listing: theirs.
+        var knownCities = await db.Listings.Select(l => l.City).ToListAsync(ct);
+        listing.City = Cities.Canonical(r.City, knownCities);
         var category = CatalogService.Categories.FirstOrDefault(c => c.Key == r.TypeKey && c.Key != "all");
         listing.Type = category.Key is null ? PlaceType.House : category.Type;
         listing.RoomType = r.RoomTypeKey switch

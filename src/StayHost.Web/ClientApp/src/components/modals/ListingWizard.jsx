@@ -278,18 +278,59 @@ function StepType({ form, field, meta }) {
       </div>
     </section>
 
+    <CityPicker form={form} field={field} meta={meta} />
+  </>;
+}
+
+/**
+ * The city is chosen, not typed.
+ *
+ * It used to be a free-text box with the known cities merely suggested, and the
+ * catalogue groups by this string exactly — city rails, "chỗ nghỉ ở X" links,
+ * the market comparison of docs/01 CN-10. A host who wrote "Thành phố Hồ Chí
+ * Minh" where the catalogue said "TP. Hồ Chí Minh" created a second city holding
+ * one listing, and their new place turned up in none of the places they looked.
+ *
+ * There is still a way to name a city the platform has never covered — refusing
+ * that would mean a host in one simply cannot publish — but it is a deliberate
+ * second step rather than the default.
+ */
+function CityPicker({ form, field, meta }) {
+  const known = meta?.cities ?? [];
+  const isKnown = known.includes(form.city);
+  const [other, setOther] = useState(() => !!form.city && !isKnown);
+
+  return (
     <section className="modal-section">
       <h3>Ở thành phố nào?</h3>
+      <span className="hint">
+        Chọn từ danh sách để chỗ nghỉ của bạn nằm chung khu vực với các tin khác —
+        tự gõ một cách viết khác sẽ tách nó ra thành một khu vực riêng.
+      </span>
+
       <label className="form-field">
         <span className="cap">Thành phố *</span>
-        <input value={form.city} onChange={e => field('city', e.target.value)}
-               placeholder="Đà Nẵng" list="wizard-city-list" required />
-        <datalist id="wizard-city-list">
-          {(meta?.cities ?? []).map(c => <option key={c} value={c} />)}
-        </datalist>
+        <select value={other ? '__other' : form.city}
+                onChange={e => {
+                  if (e.target.value === '__other') { setOther(true); field('city', ''); return; }
+                  setOther(false);
+                  field('city', e.target.value);
+                }}>
+          <option value="" disabled>— Chọn thành phố —</option>
+          {known.map(c => <option key={c} value={c}>{c}</option>)}
+          <option value="__other">Thành phố khác…</option>
+        </select>
       </label>
+
+      {other && (
+        <label className="form-field">
+          <span className="cap">Tên thành phố</span>
+          <input value={form.city} onChange={e => field('city', e.target.value)}
+                 placeholder="Ví dụ: Buôn Ma Thuột" required />
+        </label>
+      )}
     </section>
-  </>;
+  );
 }
 
 /** docs/01 CN-03 — the host drags the pin until it sits on the right building. */
