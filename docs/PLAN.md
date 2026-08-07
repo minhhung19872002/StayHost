@@ -87,6 +87,55 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 
 ---
 
+## 6. Xếp hạng kết quả tìm kiếm — ⬜ **chưa đối chiếu bao giờ**
+
+`docs/03 §6` định nghĩa một điểm tổng hợp có trọng số. Mã nguồn hiện tại
+(`CatalogService.SearchAsync`) sắp xếp mặc định bằng:
+
+```csharp
+OrderByDescending(l => l.IsGuestFavorite).ThenByDescending(l => l.Rating).ThenBy(l => l.Id)
+```
+
+| Yếu tố (`03 §6`) | Trọng số | Hiện trạng |
+|---|---|---|
+| Gần trung tâm khu vực tìm | 30% | ⬜ không tính |
+| Chất lượng (điểm có tính số lượng đánh giá) | 25% | 🟡 chỉ dùng `Rating` thô |
+| Tỉ lệ xem→đặt gần đây | 15% | ⬜ không đếm lượt xem |
+| Giá cạnh tranh so với trung vị cùng khu vực | 10% | ⬜ |
+| Chất lượng phục vụ (phản hồi + đặt ngay) | 10% | ⬜ |
+| Chất lượng ảnh | 5% | ⬜ |
+| Tin mới (30 ngày đầu) | 5% | ⬜ |
+| **Trừ điểm**: tự huỷ nhiều, điểm < 4.0, thiếu ảnh | — | ⬜ |
+| **Đa dạng hoá**: 12 kết quả đầu ≤ 2 chỗ cùng chủ nhà | — | ⬜ |
+
+Phần **lọc trước** của `§6` thì đúng: vùng địa lý, sức chứa, còn trống, bộ lọc,
+khoảng giá đều là bộ lọc thật. Tìm không dấu ("da lat", "hcm") cũng đúng.
+
+**Vì sao đáng làm:** không có đa dạng hoá thì một chủ nhà có thể chiếm trọn trang
+đầu của một thành phố. Mục này quyết định thu nhập của chủ nhà, mà chưa ai đối chiếu.
+
+## 7. Danh hiệu — 🟡 tính đúng nhưng **không ai cấp, không ai thu hồi**
+
+`docs/03 §8` yêu cầu xét lại định kỳ. Bốn tiêu chí Chủ nhà Ưu tú đã được tính
+đúng và hiện cho chủ nhà xem (`QL-17`, `HostOperationsController.Superhost`):
+điểm ≥ 4.8 · từ 10 chuyến/năm (hoặc 3 chuyến ≥ 100 đêm) · phản hồi ≥ 90% ·
+tự huỷ < 1%.
+
+Nhưng **`IsSuperhost` là cờ do seeder gán và không bao giờ được tính lại.**
+Tác vụ nền mỗi phút (`BookingService`) chỉ chạy `SweepAsync` cho đơn, đánh giá
+và số dư — không có việc xét danh hiệu.
+
+| Việc | Chu kỳ theo spec | Hiện trạng |
+|---|---|---|
+| Cấp/thu hồi **Chủ nhà Ưu tú** | mỗi quý: 1/1, 1/4, 1/7, 1/10 | ⬜ chưa có |
+| Cấp/thu hồi **Khách chọn** | hằng tuần | ⬜ chưa có |
+| Hiện tiến độ 4 tiêu chí cho chủ nhà | — | ✅ `QL-17` |
+| Mất danh hiệu rồi đạt lại thì có lại | — | ⬜ chưa có |
+
+Phép tính đã có sẵn, chỉ thiếu chỗ gọi nó theo lịch và ghi kết quả xuống.
+
+---
+
 ## Lộ trình — đã đi hết A → D
 
 ### Giai đoạn 9 — Tài khoản (nhóm `TK`) 🟡 đang làm

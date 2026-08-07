@@ -478,6 +478,22 @@ export async function loadPublicProfile(id) {
   }
 }
 
+/**
+ * docs/01 CN-01 — a guest becomes a host. Lives here rather than in the account
+ * menu because the "Cho thuê nhà" landing page needs the same three lines, and
+ * having only the menu know how left that page's own button with nowhere to go.
+ */
+export async function becomeHost() {
+  try {
+    await api.becomeHost();
+    await loadMe();
+    return true;
+  } catch (err) {
+    toast(err.message);
+    return false;
+  }
+}
+
 export async function loadSessions() {
   try {
     state.sessions = await api.sessions();

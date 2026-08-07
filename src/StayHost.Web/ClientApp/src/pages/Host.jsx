@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
-import { openOverlay } from '../lib/store.js';
+import { becomeHost, openOverlay, toast } from '../lib/store.js';
 import { money } from '../lib/format.js';
 
 const STATS = [
@@ -18,6 +19,24 @@ const STEPS = [
 
 export function Host() {
   const state = useStore();
+  const navigate = useNavigate();
+
+  /*
+   * The one button this page exists for. It used to open the sign-in box
+   * unconditionally, so somebody already signed in was handed a login form and
+   * no way to reach the wizard at all — the only working route in was a menu
+   * item three levels down.
+   */
+  const startListing = async () => {
+    if (!state.user) { openOverlay('login'); return; }
+
+    if (!state.user.isHost && !await becomeHost()) return;
+    if (!state.user.isHost) toast('Bạn đã sẵn sàng cho thuê nhà.');
+
+    // The intent travels with the navigation. Opening the editor here instead
+    // would be undone a tick later: App closes every overlay on a route change.
+    navigate('/hosting', { state: { newListing: true } });
+  };
   const [nights, setNights] = useState(20);
   const [rate, setRate] = useState(1_500_000);
 
@@ -43,7 +62,9 @@ export function Host() {
             và bảo trì — bạn chỉ nhận doanh thu.
           </p>
           <div className="host-cta">
-            <button className="btn btn-primary" onClick={() => openOverlay('login')}>Đăng nhà cho thuê →</button>
+            <button className="btn btn-primary" onClick={startListing}>
+              {state.user?.isHost ? 'Đăng thêm chỗ nghỉ →' : 'Đăng nhà cho thuê →'}
+            </button>
             <button className="btn btn-outline"
                     onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}>
               Xem cách hoạt động

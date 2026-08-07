@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
   set, state as store, isDiscovery, activeFilterCount, guestLabel, totalGuests,
-  loadSuggestions, loadNotifications, loadMe, logout, toast, openOverlay, openMenu, toggleAmenity,
+  loadSuggestions, loadNotifications, becomeHost, logout, toast, openOverlay, openMenu, toggleAmenity,
   clearDates, resetCalendarView
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
@@ -459,14 +459,11 @@ function AccountMenu() {
     );
   }
 
-  const becomeHost = async () => {
-    try {
-      await api.becomeHost();
-      set({ menu: null });
-      await loadMe();
-      toast('Bạn đã sẵn sàng cho thuê nhà.');
-      navigate('/hosting');
-    } catch (err) { toast(err.message); }
+  const startHosting = async () => {
+    set({ menu: null });
+    if (!await becomeHost()) return;
+    toast('Bạn đã sẵn sàng cho thuê nhà.');
+    navigate('/hosting');
   };
 
   return (
@@ -492,7 +489,7 @@ function AccountMenu() {
       <hr />
       {u.isHost
         ? <button className="bold" role="menuitem" onClick={() => goTo('/hosting')}>Trang chủ nhà ({u.listingCount} chỗ nghỉ)</button>
-        : <button className="bold" role="menuitem" onClick={becomeHost}>Cho thuê nhà trên StayHost</button>}
+        : <button className="bold" role="menuitem" onClick={startHosting}>Cho thuê nhà trên StayHost</button>}
       {u.role === 'Admin' && <button className="bold" role="menuitem" onClick={() => goTo('/admin')}>Trang quản trị</button>}
       <button role="menuitem" onClick={() => openOverlay('profile')}>Tài khoản</button>
       <button role="menuitem" onClick={() => goTo(`/users/${u.id}`)}>Hồ sơ công khai</button>

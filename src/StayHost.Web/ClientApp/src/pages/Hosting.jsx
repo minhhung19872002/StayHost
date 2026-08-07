@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
   set, loadHosting, loadHostCalendar, respondBooking, requireAuth
@@ -22,6 +22,22 @@ export function Hosting() {
   const navigate = useNavigate();
 
   useEffect(() => { if (state.user) loadHosting(); }, [state.user]);
+
+  /*
+   * Arriving from the "Đăng nhà cho thuê" button on /host, which cannot open the
+   * editor itself — App closes every overlay on a route change, so the intent
+   * has to survive the navigation and be acted on once this page is here.
+   *
+   * Above the early returns below, because a hook that only sometimes runs is
+   * not a hook.
+   */
+  const location = useLocation();
+  useEffect(() => {
+    if (!location.state?.newListing || !state.user) return;
+    set({ editingListing: null, overlay: 'listing-editor' });
+    navigate(location.pathname, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, state.user]);
 
   if (!state.user) {
     return (
