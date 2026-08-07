@@ -945,6 +945,11 @@ function rangeHasBlockedNight(fromIso, toIso) {
  * rather than making a stay of zero nights.
  */
 export function pickDate(iso) {
+  // Pin the view before anything moves. The anchor falls back to checkIn, so
+  // completing a stay on the right-hand month used to slide that month over to
+  // the left under the cursor — the calendar walking away mid-click.
+  if (state.calendarMonth === null) state.calendarMonth = isoOf(calendarAnchor());
+
   const from = state.pickingFrom;
 
   if (from === null || iso <= from) {

@@ -132,7 +132,9 @@ function Openings({ openings, nights }) {
     const to = new Date(from);
     to.setDate(to.getDate() + Math.min(wantedNights, opening.nights));
 
-    set({ checkIn: isoOf(from), checkOut: isoOf(to), pickingFrom: null });
+    // Taking a suggested opening is "show me that stay", so the view follows it
+    // — unlike picking a date, where the months must stay where they are.
+    set({ checkIn: isoOf(from), checkOut: isoOf(to), pickingFrom: null, calendarMonth: null });
     normaliseDates();
   };
 
