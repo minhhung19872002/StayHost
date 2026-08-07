@@ -212,12 +212,94 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 
 ## 9. Phần còn thiếu — soát ở mức code, không đoán
 
-Plan cũ chỉ ghi 58/201 mã. Đã dò từng mã đáng ngờ trong mã nguồn; những mục dưới đây
-**thật sự chưa có**. Phần lớn mã còn lại tuy không được liệt kê nhưng đã làm
-(ví dụ `ĐP-01`, `TM-01`, `TĐ-01`, `CĐ-01`, `YT-01`, `ĐG-04`, `TC-01` đều chạy).
+**Soát lại toàn bộ ngày 07/08/2026.** Trước đó mục này chỉ liệt kê những mã "đáng
+ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
+đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
+
+Kết quả: **137 xong · 13 làm một phần · 51 chưa có.** Con số 105 mã "không thấy
+nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
+phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
+
+### 9.0 Chín mã P0 còn nợ — làm trước
+
+Đây là danh sách duy nhất cần nhìn khi hỏi "còn việc gì gấp".
+
+| Mã | Việc | Tình trạng |
+|---|---|---|
+| `TĐ-03` | Nút dịch mô tả tin đăng sang ngôn ngữ người xem | chưa có |
+| `TĐ-13` | Khoảng cách tới các điểm chính trên bản đồ | một phần |
+| `TĐ-14` | Ngôn ngữ chủ nhà + co-host trên thẻ giới thiệu | một phần |
+| `TM-15` | Gom "Tuỳ chọn đặt" thành một nhóm trong bộ lọc | một phần |
+| `TM-20` | Công tắc "hiện giá đã gồm thuế và phí" | một phần (đang là "Tổng giá") |
+| `CĐ-02` | Đếm ngược tới ngày nhận phòng | một phần |
+| `CN-08` | Gợi ý tự động cho tiêu đề và mô tả | một phần |
+| `CN-10` | Tham khảo khoảng giá thị trường khi đặt giá | một phần |
+| `QL-13` | Cảnh báo hậu quả trước khi chủ nhà xác nhận huỷ | một phần |
+
+Tám trong chín mã chỉ thiếu một nhánh, không phải làm lại từ đầu.
+
+### 9.1 Chưa có (51 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
+| `ĐP-03` | Điều kiện Đặt ngay: chỉ khách đã xác minh / có đánh giá tốt | P1 |
+| `ĐP-09` · `TC-09` | **Mã giảm giá**: ô nhập, kiểm tra điều kiện, chiến dịch, giới hạn lượt | P1 |
+| `ĐP-10` | Yêu cầu bắt buộc trước khi đặt (có ảnh hồ sơ, đã xác minh, đồng ý nội quy) | P1 |
+| `ĐP-14` | Hoá đơn tải về được | P1 |
+| `ĐP-17` · `QL-14` | Chủ nhà gửi ưu đãi riêng trong tin nhắn, hiệu lực 24h | P1 |
+| `CĐ-06` | Yêu cầu đổi ngày / số khách sau khi đặt, chủ nhà duyệt, tự tính chênh lệch | P1 |
+| `CĐ-12` | Nút xin trợ giúp gắn với đúng đơn đang gặp vấn đề | P1 |
+| `QL-11` | Cảnh báo khi lịch iCal nhập về trùng đơn đã xác nhận | P1 |
+| `QL-16` | Báo cáo hiệu suất tin đăng: lượt xem, lượt lưu, tỉ lệ đặt, tỉ lệ lấp đầy | P1 |
+| `TM-17` | Lọc khả năng tiếp cận (lối vào bằng phẳng, thang máy, cửa rộng) | P1 |
+| `TM-18` | Lọc theo ngôn ngữ chủ nhà | P2 |
+| `TM-23` | Lưu bộ tìm kiếm + thông báo khi có chỗ mới phù hợp | P2 |
+| `TM-24` | Vẽ vùng tìm kiếm trên bản đồ | P2 |
+| `TM-26` | Trang giới thiệu theo thành phố / loại hình (cho tìm kiếm ngoài sàn) | P1 |
+| `TĐ-03` · `TN-06` | Dịch mô tả tin đăng · dịch tin nhắn | P1 |
+| `TC-03` | Đơn từ 28 đêm trở lên thu theo từng tháng | P1 |
+| `TC-11` | Xử lý tranh chấp thẻ và giao dịch nghi ngờ gian lận | P1 |
+| `TK-12` | Tạm vô hiệu hoá / xoá tài khoản, ẩn danh dữ liệu giao dịch | P1 |
+| `TK-07` · `TK-13` | Xác minh email công ty · liên hệ khẩn cấp | P2 |
+| `ĐG-10` | Báo cáo đánh giá vi phạm | P1 |
+| `ĐG-12` | Đơn bị chủ nhà huỷ thì tự sinh ghi chú công khai trên tin đăng | P1 |
+| `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
+| `AT-01` | Kiểm duyệt tin đăng mới **trước** khi hiển thị | P1 |
+| `AT-09` | Chuyển tiếp lên nhân viên hỗ trợ | P1 |
+| `AT-03` · `AT-08` · `AT-10` · `AT-12` | Kênh hàng xóm · trợ lý tự động · danh sách chặn · chống phân biệt đối xử | P2 |
+| `QT-03` | Tra cứu, khoá, mở khoá tài khoản | P1 |
+| `QT-07` · `QT-08` · `QT-10` | Quản lý bài trợ giúp · bật tính năng theo tỉ lệ · đăng nhập thay mặt | P2 |
+| `TN-05` | Lọc hộp thư: chưa đọc, cần trả lời, đã lưu trữ | P1 |
+| `YT-03` · `YT-05` | Ghi chú riêng cho mục đã lưu · chia sẻ và cùng sửa danh sách | P1 |
+| `YT-06` · `YT-07` · `YT-08` | Bình chọn nhóm · so sánh 2–5 chỗ · báo khi chỗ đã lưu giảm giá | P2 |
+| `QL-09` · `QL-18` · `CN-14` · `CN-15` | Gợi ý giá thị trường · gợi ý cải thiện · ước lượng thu nhập · nhân bản tin | P2 |
+| `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
+
+### 9.2 Làm một phần (13 mã) — có phần lõi, thiếu một nhánh
+
+| Mã | Đã có | Còn thiếu |
+|---|---|---|
+| `TM-02` | 3 tab Chỗ ở / Trải nghiệm / Dịch vụ | Không có tab "Tất cả"; bấm 2 tab kia chỉ hiện toast, chưa đổi dòng tìm |
+| `TM-15` | Đặt ngay, huỷ miễn phí ở thanh nhanh; tự nhận phòng & thú cưng qua lọc tiện nghi | Chưa gom thành nhóm "Tuỳ chọn đặt" trong bộ lọc |
+| `TM-20` | Công tắc "Tổng giá" (giá trọn kỳ) | Spec đòi công tắc **"đã gồm thuế và phí"** — không cùng một thứ |
+| `TĐ-13` | Bản đồ vị trí gần đúng + mô tả khu vực | Khoảng cách tới các điểm chính |
+| `TĐ-14` | Tỉ lệ và thời gian phản hồi | Ngôn ngữ chủ nhà, danh sách co-host |
+| `TĐ-18` | Chia sẻ link + share sheet của máy | Nút mạng xã hội, gửi email |
+| `CĐ-02` | Địa chỉ đầy đủ + chỉ đường (từ `CĐ-03`) | Đếm ngược tới ngày nhận phòng |
+| `CN-08` | Tiêu đề + mô tả có giới hạn ký tự | Gợi ý tự động |
+| `CN-10` | Đặt giá | Tham khảo khoảng giá thị trường của khu vực |
+| `QL-13` | Chủ nhà huỷ được, tiền hoàn tính đúng | Chưa cảnh báo rõ hậu quả trước khi xác nhận |
+| `TC-04` | Thuế theo khu vực, nhiều loại chồng nhau | Xuất báo cáo thuế |
+| `TC-07` | Số dư khuyến mãi là sổ chỉ-thêm | **Hạn sử dụng** — `CreditEntry` không có cột hết hạn |
+| `AT-02` | Báo cáo **tin đăng** (`TĐ-19`) | Báo cáo người dùng, tin nhắn, đánh giá — `CreateReportRequest` chỉ nhận `ListingId` |
+
+### 9.3 Ghi chú về cách soát
+
+Kết luận dựa trên đọc mã nguồn, không dựa trên việc mã yêu cầu có xuất hiện trong
+comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `TM-25`,
+`TC-02`, `TN-01` đều **chạy được** dù không chỗ nào trong code viết tên mã ra.
+
+---|---|---|
 | `TK-12` | Tạm vô hiệu hoá / xoá tài khoản, ẩn danh dữ liệu giao dịch | P1 |
 | `TĐ-03`, `TN-06` | Dịch mô tả tin đăng · dịch tin nhắn | P1 |
 | `TC-03` | Đơn từ 28 đêm trở lên thu theo từng tháng | P1 |
