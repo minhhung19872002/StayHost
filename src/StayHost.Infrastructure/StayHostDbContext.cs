@@ -56,6 +56,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<IdentityCheck> IdentityChecks => Set<IdentityCheck>();
     public DbSet<ListingView> ListingViews => Set<ListingView>();
     public DbSet<PaymentAttempt> PaymentAttempts => Set<PaymentAttempt>();
+    public DbSet<Chargeback> Chargebacks => Set<Chargeback>();
     public DbSet<ShieldClaim> ShieldClaims => Set<ShieldClaim>();
     public DbSet<ShieldEvidence> ShieldEvidence => Set<ShieldEvidence>();
     public DbSet<ShieldItem> ShieldItems => Set<ShieldItem>();
@@ -148,6 +149,19 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Method).HasMaxLength(30);
             e.Property(x => x.CardLast4).HasMaxLength(4);
             e.Property(x => x.Message).HasMaxLength(300);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/07 §11 — the bank has taken money back while it decides.
+        b.Entity<Chargeback>(e =>
+        {
+            e.ToTable("chargebacks");
+            e.HasIndex(x => x.BookingId);
+            e.HasIndex(x => x.Status);
+            e.Property(x => x.Amount).HasPrecision(12, 2);
+            e.Property(x => x.Reason).HasMaxLength(300);
+            e.Property(x => x.Evidence).HasMaxLength(2000);
             e.HasOne(x => x.Booking).WithMany()
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
         });
