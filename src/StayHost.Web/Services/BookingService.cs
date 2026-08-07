@@ -368,6 +368,14 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var calledOff = await experiences.SweepAsync(stoppingToken);
                 if (calledOff > 0) log.LogInformation("Đã huỷ {Count} suất trải nghiệm thiếu người.", calledOff);
 
+                // docs/03 §8 — grants and revokes the two titles. Cheap on every
+                // other tick: rows already decided for this quarter or this week
+                // are not even fetched.
+                var badges = scope.ServiceProvider.GetRequiredService<BadgeService>();
+                var badgeResult = await badges.SweepAsync(stoppingToken);
+                if (badgeResult.HostsReviewed + badgeResult.ListingsReviewed > 0)
+                    log.LogInformation("Danh hiệu: {Result}.", badgeResult);
+
                 // Referrals pay out once the newcomer has actually travelled.
                 var wallet = scope.ServiceProvider.GetRequiredService<WalletService>();
                 var rewarded = await wallet.RewardCompletedStaysAsync(stoppingToken);

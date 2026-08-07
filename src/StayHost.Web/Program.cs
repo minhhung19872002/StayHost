@@ -32,6 +32,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<ReviewService>();
+builder.Services.AddScoped<BadgeService>();
 builder.Services.AddScoped<ThreadMessenger>();
 builder.Services.AddScoped<AdminAudit>();
 builder.Services.AddScoped<PaymentGateway>();

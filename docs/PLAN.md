@@ -114,25 +114,49 @@ khoảng giá đều là bộ lọc thật. Tìm không dấu ("da lat", "hcm") 
 **Vì sao đáng làm:** không có đa dạng hoá thì một chủ nhà có thể chiếm trọn trang
 đầu của một thành phố. Mục này quyết định thu nhập của chủ nhà, mà chưa ai đối chiếu.
 
-## 7. Danh hiệu — 🟡 tính đúng nhưng **không ai cấp, không ai thu hồi**
+## 7. Danh hiệu — ✅ đã cấp và thu hồi tự động
 
-`docs/03 §8` yêu cầu xét lại định kỳ. Bốn tiêu chí Chủ nhà Ưu tú đã được tính
-đúng và hiện cho chủ nhà xem (`QL-17`, `HostOperationsController.Superhost`):
-điểm ≥ 4.8 · từ 10 chuyến/năm (hoặc 3 chuyến ≥ 100 đêm) · phản hồi ≥ 90% ·
-tự huỷ < 1%.
+`docs/03 §8`. Ngưỡng nằm **một chỗ duy nhất** trong `StayHost.Domain/Badges.cs`,
+để màn hình tiến độ (`QL-17`) và job xét danh hiệu không thể nói khác nhau —
+trước đây mỗi bên tự tính lấy.
 
-Nhưng **`IsSuperhost` là cờ do seeder gán và không bao giờ được tính lại.**
-Tác vụ nền mỗi phút (`BookingService`) chỉ chạy `SweepAsync` cho đơn, đánh giá
-và số dư — không có việc xét danh hiệu.
-
-| Việc | Chu kỳ theo spec | Hiện trạng |
+| Việc | Chu kỳ | Trạng thái |
 |---|---|---|
-| Cấp/thu hồi **Chủ nhà Ưu tú** | mỗi quý: 1/1, 1/4, 1/7, 1/10 | ⬜ chưa có |
-| Cấp/thu hồi **Khách chọn** | hằng tuần | ⬜ chưa có |
-| Hiện tiến độ 4 tiêu chí cho chủ nhà | — | ✅ `QL-17` |
-| Mất danh hiệu rồi đạt lại thì có lại | — | ⬜ chưa có |
+| Cấp / thu hồi **Chủ nhà Ưu tú** (đủ cả 4 tiêu chí) | mỗi quý: 1/1, 1/4, 1/7, 1/10 | ✅ |
+| Cấp / thu hồi **Khách chọn** (điểm ≥ 4.9, ≥ 5 đánh giá, ít huỷ, không bị báo cáo) | hằng tuần, mốc thứ Hai | ✅ |
+| Hiện tiến độ 4 tiêu chí cho chủ nhà | — | ✅ `QL-17`, dùng chung phép tính |
+| Mất danh hiệu rồi đạt lại thì có lại | — | ✅ mỗi kỳ tính lại từ đầu |
+| Báo cho chủ nhà khi được cấp / bị dừng | — | ✅ kèm ngày xét lại kế tiếp |
 
-Phép tính đã có sẵn, chỉ thiếu chỗ gọi nó theo lịch và ghi kết quả xuống.
+**Xét theo dấu kỳ, không theo "hôm nay có phải ngày 1 không".** Mỗi chủ nhà và
+mỗi tin đăng mang một cột ghi kỳ đã xét gần nhất; job so cột đó với đầu quý (hoặc
+thứ Hai của tuần). Nhờ vậy máy chủ tắt đúng ngày 1/4 thì ngày 2/4 vẫn xét bù, và
+chạy job hai lần trong ngày không đổi gì.
+
+**Cờ trên tin đăng là bản sao, không phải sự thật thứ hai.** Bộ lọc tìm kiếm đọc
+`listing.IsSuperhost`, nên tin lệch pha sẽ lọt vào kết quả "Siêu chủ nhà" của một
+chủ nhà không có danh hiệu. Đã bịt cả ba đường sinh ra lệch:
+
+- job xét danh hiệu đồng bộ tin **mỗi lần xét**, không chỉ khi danh hiệu đổi;
+- lưu tin (`HostController`) luôn lấy cờ từ chủ nhà — tin mới đăng của một Siêu
+  chủ nhà trước đây không có huy hiệu cho tới kỳ xét sau;
+- dữ liệu mẫu suy cờ từ chủ nhà thay vì gán riêng cho từng tin (trước là 15 tin lệch).
+
+**Đã gỡ một quy tắc Siêu chủ nhà thứ hai.** `HostController` có một hàm riêng
+tính lại danh hiệu ngay khi chủ nhà đánh giá khách, với ngưỡng khác spec
+(`điểm ≥ 4.8 && ≥ 5 chuyến && 0 lần tự huỷ` — không xét tỉ lệ phản hồi, không xét
+mốc 10 chuyến/năm) và **không theo kỳ nào cả**. Nó âm thầm tước danh hiệu giữa
+quý. Giờ chỉ còn một nơi quyết định.
+
+**Một chỗ tự quyết cần khách xác nhận:** `docs/03 §8` chỉ nói "tỉ lệ huỷ thấp" cho
+Khách chọn mà không nêu số. Đang lấy **< 5%** (gấp năm lần mức 1% của Chủ nhà Ưu
+tú, vì danh hiệu này nói về chỗ ở chứ không nói về người vận hành). Đổi ở
+`Badges.FavoriteCancelRate`.
+
+**Lưu ý về dữ liệu mẫu:** danh mục seed được đóng dấu "đã xét cho kỳ này", nếu
+không lần quét đầu tiên sẽ tước sạch danh hiệu của một cơ sở dữ liệu vừa dựng.
+Sang kỳ sau thì các chủ nhà mẫu **sẽ mất danh hiệu thật** — họ không có lượt đón
+khách nào trong năm. Đó là hành vi đúng theo spec, không phải lỗi.
 
 ---
 
@@ -361,7 +385,7 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (385 test)
+# Test nghiệp vụ (400 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

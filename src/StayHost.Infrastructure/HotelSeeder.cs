@@ -37,6 +37,8 @@ public static class HotelSeeder
             var listing = new Listing
             {
                 HostId = hosts[i % hosts.Count].Id,
+                // docs/03 §8 — a listing carries its host's title, never its own.
+                IsSuperhost = hosts[i % hosts.Count].IsSuperhost,
                 Slug = Slugify(s.Title, i + 1),
                 Title = s.Title,
                 City = s.City,

@@ -352,6 +352,11 @@ public static class DbSeeder
             Name = h.Name,
             Initials = Initials(h.Name),
             IsSuperhost = h.Superhost,
+            // docs/03 §8 — the demo catalogue is a snapshot of a platform that
+            // has been running, so its titles count as already decided for this
+            // period. Without the stamp the first sweep would strip every badge
+            // off a freshly seeded database within the minute.
+            SuperhostReviewedOn = Badges.CurrentQuarterStart(DateOnly.FromDateTime(DateTime.UtcNow)),
             YearsHosting = h.Years,
             Bio = h.Bio,
             ResponseRate = h.Superhost ? "100%" : "95%",
@@ -383,8 +388,12 @@ public static class DbSeeder
                 PricePerNight = s.Price,
                 Rating = s.Rating,
                 ReviewCount = s.Reviews,
-                IsSuperhost = s.Superhost,
+                // A listing carries its host's title, by definition — it is not a
+                // second fact that can disagree. The seed's own per-listing flag
+                // used to leave 15 listings badged under hosts who held nothing.
+                IsSuperhost = hosts[s.HostIndex].IsSuperhost,
                 IsGuestFavorite = s.GuestFavorite,
+                FavoriteReviewedOn = Badges.CurrentWeekStart(DateOnly.FromDateTime(DateTime.UtcNow)),
                 // Roughly a third of the catalogue carries a promotion, so the search
                 // results show struck-through pricing the way airbnb.com does.
                 DiscountPercent = i % 3 == 1 ? 10 + (i % 4) * 5 : 0,

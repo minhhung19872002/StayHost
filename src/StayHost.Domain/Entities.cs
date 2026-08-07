@@ -85,6 +85,13 @@ public class HostProfile
     public string Initials { get; set; } = "";
     public string? AvatarUrl { get; set; }
     public bool IsSuperhost { get; set; }
+
+    /// <summary>
+    /// docs/03 §8 — the first day of the quarter the title was last decided in.
+    /// Null means never decided; older than this quarter means it is due again.
+    /// </summary>
+    public DateOnly? SuperhostReviewedOn { get; set; }
+
     public int YearsHosting { get; set; }
     public string? Bio { get; set; }
     public string ResponseRate { get; set; } = "100%";
@@ -170,6 +177,12 @@ public class Listing
     public int ReviewCount { get; set; }
     public bool IsSuperhost { get; set; }
     public bool IsGuestFavorite { get; set; }
+
+    /// <summary>
+    /// docs/03 §8 — the Monday the "Khách chọn" title was last decided for this
+    /// listing. Null means never; anything older than this week's Monday is due.
+    /// </summary>
+    public DateOnly? FavoriteReviewedOn { get; set; }
 
     public double Latitude { get; set; }
     public double Longitude { get; set; }

@@ -336,8 +336,6 @@ public class HostController(
         var published = await reviews.TryPublishAsync(booking.Id, ct);
         if (published) await db.SaveChangesAsync(ct);
 
-        await RecalculateSuperhostAsync(profile.Id, ct);
-
         return Ok(new
         {
             published,
@@ -345,41 +343,6 @@ public class HostController(
                 ? "Đánh giá của hai bên đã được công khai."
                 : "Đã gửi. Đánh giá sẽ hiện khi khách cũng gửi, hoặc sau 14 ngày."
         });
-    }
-
-    /// <summary>
-    /// Superhost is earned, not set by hand: 4.8+ average, at least five completed
-    /// stays, and no host-side cancellations.
-    /// </summary>
-    private async Task RecalculateSuperhostAsync(int hostId, CancellationToken ct)
-    {
-        var host = await db.Hosts.FirstOrDefaultAsync(h => h.Id == hostId, ct);
-        if (host is null) return;
-
-        var listings = await db.Listings.Where(l => l.HostId == hostId)
-            .Select(l => new { l.Id, l.Rating, l.ReviewCount }).ToListAsync(ct);
-        var listingIds = listings.Select(l => l.Id).ToList();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-
-        var completed = await db.Bookings.CountAsync(b =>
-            listingIds.Contains(b.ListingId) && BookingLifecycle.BlocksDates.Contains(b.Status) && b.CheckOut < today, ct);
-
-        var hostCancellations = await db.Bookings.CountAsync(b =>
-            listingIds.Contains(b.ListingId) && b.Status == BookingStatus.CancelledByGuest &&
-            b.CancellationReason != null && b.CancellationReason.Contains("Chủ nhà"), ct);
-
-        var rated = listings.Where(l => l.ReviewCount > 0).ToList();
-        var average = rated.Count == 0 ? 0 : rated.Average(l => l.Rating);
-
-        host.IsSuperhost = average >= 4.8 && completed >= 5 && hostCancellations == 0;
-
-        foreach (var id in listingIds)
-        {
-            var listing = await db.Listings.FirstAsync(l => l.Id == id, ct);
-            listing.IsSuperhost = host.IsSuperhost;
-        }
-
-        await db.SaveChangesAsync(ct);
     }
 
     /* ------------------------------------------------------------ bookings */
@@ -617,6 +580,13 @@ public class HostController(
             listing.Directions = Profiles.TidyLines(guide.Directions, CheckInGuide.NoteMax);
             listing.ApplianceNotes = Profiles.TidyLines(guide.ApplianceNotes, CheckInGuide.NoteMax);
         }
+
+        // docs/03 §8 — the badge belongs to the host; the copy on the listing is
+        // what the search filter reads. A newly published place used to carry no
+        // badge at all until the next quarterly review, so a Superhost's newest
+        // listing was the one missing from the "Siêu chủ nhà" filter.
+        listing.IsSuperhost = await db.Hosts
+            .Where(h => h.Id == listing.HostId).Select(h => h.IsSuperhost).FirstOrDefaultAsync(ct);
 
         var coords = CityCoordinates(listing.City);
         listing.Latitude = r.Latitude ?? (listing.Latitude != 0 ? listing.Latitude : coords.Lat);

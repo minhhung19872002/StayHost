@@ -17,7 +17,8 @@ namespace StayHost.Web.Controllers;
 [ApiController]
 [Route("api/host")]
 public class HostOperationsController(
-    StayHostDbContext db, AuthService auth, HostAccess access, ShieldService shield) : ControllerBase
+    StayHostDbContext db, AuthService auth, HostAccess access, ShieldService shield,
+    BadgeService badges) : ControllerBase
 {
     /// <summary>
     /// A host walking away from a confirmed booking. docs/03 §4 gives the guest
@@ -433,61 +434,18 @@ public class HostOperationsController(
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
         if (profile is null) return NotFound();
 
-        var listings = await db.Listings.Where(l => l.HostId == profile.Id)
-            .Select(l => new { l.Id, l.Rating, l.ReviewCount })
-            .ToListAsync(ct);
-        var listingIds = listings.Select(l => l.Id).ToList();
-
-        var yearAgo = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-1));
-
-        var stays = await db.Bookings
-            .Where(b => listingIds.Contains(b.ListingId) && b.CheckIn >= yearAgo)
-            .Select(b => new { b.Status, b.Nights, b.CancelledBy })
-            .ToListAsync(ct);
-
-        var completed = stays.Where(s => BookingLifecycle.BlocksDates.Contains(s.Status)).ToList();
-        var hostCancels = stays.Count(s => s.CancelledBy == CancelledBy.Host);
-        var totalOrders = Math.Max(1, completed.Count + hostCancels);
-
-        var rated = listings.Where(l => l.ReviewCount > 0).ToList();
-        var rating = rated.Count == 0 ? 0 : Math.Round(rated.Average(l => l.Rating), 2);
-
-        var responded = ParsePercent(profile.ResponseRate);
-        var cancelRate = Math.Round(hostCancels * 100.0 / totalOrders, 2);
-
-        // "10 chuyến trở lên trong năm, hoặc từ 3 chuyến với tổng ≥ 100 đêm."
-        var nights = completed.Sum(s => s.Nights);
-        var enoughStays = completed.Count >= 10 || (completed.Count >= 3 && nights >= 100);
-
-        var criteria = new List<SuperhostCriterionDto>
-        {
-            new("rating", "Điểm đánh giá tổng ≥ 4.8", $"{rating:0.00}", "4.80", rating >= 4.8),
-            new("stays", "Từ 10 chuyến/năm (hoặc 3 chuyến với ≥ 100 đêm)",
-                $"{completed.Count} chuyến · {nights} đêm", "10 chuyến", enoughStays),
-            new("response", "Tỉ lệ phản hồi ≥ 90%", $"{responded}%", "90%", responded >= 90),
-            new("cancellations", "Tỉ lệ tự huỷ < 1%", $"{cancelRate:0.##}%", "1%", cancelRate < 1)
-        };
+        // docs/03 §8 — the same numbers and the same thresholds the quarterly
+        // sweep decides on, so this screen cannot promise a title the job then
+        // refuses. BadgeService owns the counting; Badges owns the rule.
+        var stats = await badges.ProgressStatsAsync(profile, ct);
+        var criteria = Badges.SuperhostCriteria(stats);
 
         return Ok(new SuperhostProgressDto(
             profile.IsSuperhost,
             criteria.All(c => c.Met),
-            NextReviewDate(DateOnly.FromDateTime(DateTime.UtcNow)),
-            criteria));
+            Badges.NextSuperhostReview(DateOnly.FromDateTime(DateTime.UtcNow)),
+            criteria.Select(c => new SuperhostCriterionDto(c.Key, c.Label, c.Current, c.Target, c.Met)).ToList()));
     }
-
-    /// <summary>Reviewed on 1 January, 1 April, 1 July and 1 October (docs/03 §8).</summary>
-    private static DateOnly NextReviewDate(DateOnly today)
-    {
-        foreach (var month in new[] { 1, 4, 7, 10 })
-        {
-            var date = new DateOnly(today.Year, month, 1);
-            if (date > today) return date;
-        }
-        return new DateOnly(today.Year + 1, 1, 1);
-    }
-
-    private static int ParsePercent(string? value) =>
-        int.TryParse(new string((value ?? "").Where(char.IsDigit).ToArray()), out var n) ? n : 0;
 
     /// <summary>
     /// The owner, or a co-host the owner gave this much rope (docs/01 QL-19).
