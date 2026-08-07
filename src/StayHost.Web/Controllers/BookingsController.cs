@@ -126,6 +126,10 @@ public class BookingsController(
             PriceLinesJson = SerializeLines(price.Lines),
             RoomTypeId = req.RoomTypeId,
             CreditUsed = creditUsed,
+            // docs/07 §6 — kept so "the price I was shown" can be settled from
+            // the record. Only a rate that could have been real is stored.
+            DisplayCurrency = string.IsNullOrWhiteSpace(req.DisplayCurrency) ? null : req.DisplayCurrency.Trim(),
+            DisplayRate = req.DisplayRate is > 0 ? req.DisplayRate : null,
             CancellationTier = listing.CancellationTier,
             GuestName = req.GuestName ?? user.FullName,
             GuestEmail = req.GuestEmail ?? user.Email,
@@ -499,9 +503,32 @@ public class BookingsController(
         return Ok(ToPreview(booking, outcome));
     }
 
-    private static RefundPreviewDto ToPreview(Booking b, Cancellation.Outcome o) => new(
-        o.Amount, b.Total - o.Amount, b.Total, o.Explanation,
-        o.RoomRefund, o.CleaningRefund, o.ServiceFeeRefund, o.TaxRefund, o.GoodwillCredit);
+    /// <summary>
+    /// docs/07 §10 — the guest is told where each part of the money goes and how
+    /// long it takes <em>before</em> confirming, not after. Cancellation decides
+    /// how much; Refunds decides which pocket.
+    /// </summary>
+    private static RefundPreviewDto ToPreview(Booking b, Cancellation.Outcome o)
+    {
+        var split = Refunds.Allocate(SourcesOf(b), o.Amount, b.RefundedAmount);
+
+        return new RefundPreviewDto(
+            o.Amount, b.Total - o.Amount, b.Total, o.Explanation,
+            o.RoomRefund, o.CleaningRefund, o.ServiceFeeRefund, o.TaxRefund, o.GoodwillCredit,
+            split.ToCard, split.ToCredit, Refunds.TimingNotice(split));
+    }
+
+    /// <summary>
+    /// What the stay was actually paid with.
+    ///
+    /// Balance is taken off the price before the card is charged (docs/07 §3),
+    /// so <see cref="Booking.Total"/> is already net of it — subtracting it a
+    /// second time here lost the guest half a million đồng off their own refund.
+    /// The card carried the total; the balance is on top of it.
+    /// </summary>
+    private static Refunds.Sources SourcesOf(Booking b) => new(
+        b.BalanceStatus == BalanceStatus.None ? b.Total : b.DepositPaid,
+        b.CreditUsed);
 
     /// <summary>
     /// docs/03 §4 pre-rule 2 caps service-fee refunds at three a year, so the

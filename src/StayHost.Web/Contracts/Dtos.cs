@@ -918,7 +918,14 @@ public record RefundPreviewDto(
     decimal CleaningRefund,
     decimal ServiceFeeRefund,
     decimal TaxRefund,
-    decimal GoodwillCredit);
+    decimal GoodwillCredit,
+    /* ------------------------------------------------------ docs/07 §10 */
+    /// <summary>Back to the card the stay was paid with.</summary>
+    decimal ToCard = 0,
+    /// <summary>Back to the StayHost balance, which is where balance-funded money returns.</summary>
+    decimal ToCredit = 0,
+    /// <summary>Said before the guest confirms: where each part goes and how long it takes.</summary>
+    string RefundTiming = "");
 
 public record CreateBookingRequest(
     int ListingId,
@@ -936,6 +943,9 @@ public record CreateBookingRequest(
     int Pets = 0,
     /// <summary>docs/01 MR-09 — which kind of room, when the listing is a hotel.</summary>
     int? RoomTypeId = null,
+    /// <summary>docs/07 §6 — what the guest was reading prices in, and at what rate.</summary>
+    string? DisplayCurrency = null,
+    decimal? DisplayRate = null,
     /// <summary>Spend the guest's balance on this booking, up to the room charge.</summary>
     bool UseCredit = false);
 

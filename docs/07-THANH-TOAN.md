@@ -289,8 +289,8 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
 | TC-P-07 | Bảng thông điệp lỗi theo §8, giới hạn số lần thử — **đã làm** |
 | TC-P-08 | Trả một phần: tính lịch, thu tự động, nhắc trước, xử lý thất bại |
 | TC-P-09 | Chia hoá đơn: tạo đường dẫn từng người, theo dõi, nhắc, hoàn khi không đủ |
-| TC-P-10 | Hoàn tiền về đúng nguồn, hoàn một phần, xử lý thẻ đã đóng |
-| TC-P-11 | Quy đổi và hiển thị nhiều tiền tệ, ghi lại tỉ giá theo đơn |
+| TC-P-10 | Hoàn tiền về đúng nguồn, hoàn một phần, xử lý thẻ đã đóng — **đã làm** (`Refunds.cs`) |
+| TC-P-11 | Quy đổi và hiển thị nhiều tiền tệ, ghi lại tỉ giá theo đơn — **đã làm** |
 | TC-P-12 | Xử lý khiếu nại ngân hàng: tạm giữ, thu thập bằng chứng, theo dõi kết quả |
 | TC-O-01 | Đăng ký và xác minh tài khoản nhận tiền của chủ nhà |
 | TC-O-02 | Cảnh báo và hoãn 3 ngày khi chủ nhà đổi tài khoản nhận tiền |

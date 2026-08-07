@@ -463,6 +463,16 @@ public class Booking
     public string PriceLinesJson { get; set; } = "[]";
 
     public decimal RefundedAmount { get; set; }
+
+    /// <summary>
+    /// docs/07 §6 — the currency the guest was reading prices in, and the rate
+    /// the screen used, frozen at the moment they booked. The money itself is
+    /// always taken in the listing's own currency; this pair exists so a
+    /// complaint about "the price I saw" can be settled from the record rather
+    /// than from today's rate.
+    /// </summary>
+    public string? DisplayCurrency { get; set; }
+    public decimal? DisplayRate { get; set; }
     /// <summary>Promotional balance granted on cancellation, e.g. when the host walked away.</summary>
     public decimal GoodwillCredit { get; set; }
     public CancellationTier CancellationTier { get; set; } = CancellationTier.Moderate;

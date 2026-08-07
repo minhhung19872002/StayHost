@@ -1,5 +1,5 @@
 import { useStore } from '../../lib/useStore.js';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   set, holdDates, payHeld, releaseHold, openSplit, openOverlay, closeOverlay,
   shareListing, toggleFavorite
@@ -211,6 +211,8 @@ export function CheckoutModal() {
   const d = state.detail;
   const q = state.quote;
   const [busy, setBusy] = useState(false);
+  /* docs/07 §7 — one key per attempt the guest makes, reused by every retry. */
+  const attemptKey = useRef(null);
 
   // docs/01 ĐP-02 — moving past the trip step takes the dates off the market
   // for 15 minutes; walking away puts them straight back.
@@ -238,12 +240,16 @@ export function CheckoutModal() {
 
   const confirm = async () => {
     const card = document.getElementById('card-number')?.value?.replace(/\D/g, '') ?? '';
+    attemptKey.current ??= `pay-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const payment = {
       paymentMethod: state.payMethod,
       cardLast4: card.length >= 4 ? card.slice(-4) : null,
       // docs/01 ĐP-06 — a deposit now, the rest taken 14 days before check-in.
       payDeposit: state.payDeposit,
-      depositAmount: state.payDeposit ? Math.ceil(q.total / 2) : null
+      depositAmount: state.payDeposit ? Math.ceil(q.total / 2) : null,
+      // docs/07 §7 — the same key on a retry, so a lost reply cannot become a
+      // second charge. New for each fresh attempt the guest makes themselves.
+      idempotencyKey: attemptKey.current
     };
 
     setBusy(true);
