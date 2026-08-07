@@ -97,7 +97,7 @@ export function Detail() {
           <Amenities detail={d} />
           <CalendarSection nights={nights} city={c.city} />
           <Reviews detail={d} card={c} />
-          <Location card={c} />
+          <Location card={c} landmarks={d.landmarks} />
           <HostProfile detail={d} />
           <ThingsToKnow detail={d} />
         </div>
@@ -463,12 +463,21 @@ function neighbourhoodHighlights(c) {
   return out.slice(0, 3);
 }
 
-function Location({ card }) {
+function Location({ card, landmarks }) {
   return (
     <section className="detail-section" id="section-location">
       <h2>Vị trí chỗ nghỉ</h2>
       <p style={{ margin: '-8px 0 16px', fontSize: 14.5, color: 'var(--ink-muted)' }}>{card.city}, {card.country}</p>
       <DetailMap latitude={card.latitude} longitude={card.longitude} />
+
+      {/* docs/01 TĐ-13 — how far the places somebody came for actually are. */}
+      {!!landmarks?.length && (
+        <ul className="landmarks">
+          {landmarks.map(l => (
+            <li key={l.name}><span>{l.name}</span><b>{l.distance}</b></li>
+          ))}
+        </ul>
+      )}
 
       <h3 style={{ margin: '22px 0 12px', fontSize: 15, fontWeight: 700 }}>Điểm nổi bật của khu vực</h3>
       <div className="hood-grid">
@@ -529,6 +538,9 @@ function HostProfile({ detail }) {
       <div style={{ display: 'grid', gap: 6, marginTop: 16, fontSize: 14, color: 'var(--ink-body)' }}>
         <div>Tỉ lệ phản hồi: <b>{h.responseRate}</b></div>
         <div>Thời gian phản hồi: <b>{h.responseTime}</b></div>
+        {/* docs/01 TĐ-14 — what they speak, and who else answers for this place. */}
+        {!!h.languages?.length && <div>Ngôn ngữ: <b>{h.languages.join(', ')}</b></div>}
+        {!!h.coHosts?.length && <div>Đồng quản lý: <b>{h.coHosts.join(', ')}</b></div>}
       </div>
       {h.userId
         ? <button className="btn btn-outline btn-sm" style={{ marginTop: 18 }} onClick={message}>Nhắn tin cho {h.name}</button>

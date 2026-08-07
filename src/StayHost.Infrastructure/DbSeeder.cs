@@ -556,6 +556,10 @@ public static class DbSeeder
             PasswordSalt = salt,
             Role = role,
             Bio = bio,
+            // docs/01 TĐ-14 — the host card lists what they speak, so the demo
+            // accounts have to speak something. Everyone has Vietnamese; hosts
+            // also have English, which is what a guest checks the card for.
+            SpokenLanguages = role == UserRole.Guest ? "vi" : "vi,en",
             EmailConfirmed = true,
             IsIdentityVerified = true,
             CreatedAt = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc)

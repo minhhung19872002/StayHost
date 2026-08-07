@@ -60,6 +60,8 @@ export function Trip() {
         </div>
       </div>
 
+      <Countdown booking={b} />
+
       <div className="trip-layout">
         <div style={{ minWidth: 0 }}>
           <section className="detail-section" style={{ paddingTop: 0 }}>
@@ -116,6 +118,46 @@ export function Trip() {
 
         <Receipt booking={b} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * docs/01 CĐ-02 — how long until they are standing at the door. Counted from
+ * the listing's own check-in hour when the guide has told us one, because a
+ * countdown that says "2 days" while the door opens at 14:00 is off by half a
+ * day for anybody catching a morning flight.
+ */
+function Countdown({ booking }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  const live = booking.status === 'Confirmed';
+  useEffect(() => {
+    if (!live) return undefined;
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, [live]);
+
+  if (!live) return null;
+
+  const hour = booking.checkInGuide?.windowLabel?.match(/(\d{2}):(\d{2})/);
+  const opensAt = new Date(`${booking.checkIn}T${hour ? `${hour[1]}:${hour[2]}` : '14:00'}:00`);
+  const minutes = Math.round((opensAt - now) / 60_000);
+
+  if (minutes <= 0) return null;
+
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+
+  const left = days > 0
+    ? `${days} ngày${hours ? ` ${hours} giờ` : ''}`
+    : hours > 0 ? `${hours} giờ ${minutes % 60} phút` : `${minutes} phút`;
+
+  return (
+    <div className="countdown">
+      <span className="cap">Còn</span>
+      <b>{left}</b>
+      <span>nữa là tới ngày nhận phòng</span>
     </div>
   );
 }

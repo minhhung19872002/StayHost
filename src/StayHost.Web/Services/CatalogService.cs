@@ -871,6 +871,25 @@ public class CatalogService(StayHostDbContext db)
             .Select(l => new { l.Rating, l.ReviewCount }).ToListAsync(ct);
 
         var host = listing.Host!;
+        // docs/01 TĐ-14 — the languages come from the host's own profile
+        // (docs/01 TK-04); a seeded host with no account simply lists none.
+        var hostLanguages = host.UserId is { } hostUserId
+            ? Profiles.UnpackLanguages(
+                    await db.Users.Where(u => u.Id == hostUserId)
+                        .Select(u => u.SpokenLanguages).FirstOrDefaultAsync(ct))
+                .Select(Profiles.LanguageLabel).ToList()
+            : [];
+
+        // docs/01 QL-19 — co-hosts who accepted, for this listing or for everything.
+        var coHosts = host.UserId is { } ownerId
+            ? await db.CoHosts
+                .Where(c => c.OwnerUserId == ownerId
+                            && c.Status == CoHostStatus.Active
+                            && (c.ListingId == null || c.ListingId == listing.Id))
+                .Select(c => c.CoHostUser!.DisplayName ?? c.CoHostUser.FullName ?? c.Email)
+                .ToListAsync(ct)
+            : [];
+
         var hostDto = new HostDto(
             host.Id, host.Name, host.Initials, host.IsSuperhost, host.YearsHosting, host.Bio,
             host.ResponseRate, host.ResponseTime,
@@ -879,7 +898,9 @@ public class CatalogService(StayHostDbContext db)
             Profiles.OverallRating(hostListings.Select(h => (h.Rating, h.ReviewCount))) ?? 5,
             hostListings.Sum(h => h.ReviewCount),
             host.UserId,
-            host.AvatarUrl);
+            host.AvatarUrl,
+            hostLanguages,
+            coHosts);
 
         var similar = await db.Listings
             .Include(l => l.Images)
@@ -931,7 +952,11 @@ public class CatalogService(StayHostDbContext db)
             similar.Select(l => ToCard(l, favIds, pricer)).ToList(),
             unavailable,
             await RoomTypesAsync(listing, checkIn, checkOut, ct),
-            CheckInGuide.WindowLabel(listing.CheckInFrom, listing.CheckInTo, listing.CheckOutBefore));
+            CheckInGuide.WindowLabel(listing.CheckInFrom, listing.CheckInTo, listing.CheckOutBefore),
+            // docs/01 TĐ-13 — how far the places a guest came for actually are.
+            Landmarks.Near(listing.City, listing.Latitude, listing.Longitude)
+                .Select(l => new LandmarkDto(l.Name, Landmarks.DistanceLabel(l.DistanceKm)))
+                .ToList());
     }
 
     /// <summary>

@@ -759,7 +759,14 @@ public record HostDto(
     /// <summary>Null for seeded demo hosts; set when the host has a real account to message.</summary>
     int? UserId,
     /// <summary>docs/01 TK-04 — the photo they uploaded, if they uploaded one.</summary>
-    string? AvatarUrl = null);
+    string? AvatarUrl = null,
+    /// <summary>docs/01 TĐ-14 — the languages they speak, already labelled.</summary>
+    IReadOnlyList<string>? Languages = null,
+    /// <summary>docs/01 TĐ-14 and QL-19 — who else answers for this place.</summary>
+    IReadOnlyList<string>? CoHosts = null);
+
+/// <summary>docs/01 TĐ-13 — "khoảng cách tới các điểm chính".</summary>
+public record LandmarkDto(string Name, string Distance);
 
 public record ReviewDto(
     int Id,
@@ -822,7 +829,9 @@ public record ListingDetailDto(
     /// whether a place works for a late flight before booking, not after. The
     /// rest of the guide stays behind the confirmation gate of docs/03 §10.
     /// </summary>
-    string CheckInWindow = "");
+    string CheckInWindow = "",
+    /// <summary>docs/01 TĐ-13 — nearest landmarks, closest first.</summary>
+    IReadOnlyList<LandmarkDto>? Landmarks = null);
 
 public record HotelRoomDto(
     int Id,
