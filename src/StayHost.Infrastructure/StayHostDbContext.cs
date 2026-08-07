@@ -54,6 +54,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
     public DbSet<OneTimeCode> OneTimeCodes => Set<OneTimeCode>();
     public DbSet<IdentityCheck> IdentityChecks => Set<IdentityCheck>();
+    public DbSet<ListingView> ListingViews => Set<ListingView>();
     public DbSet<ShieldClaim> ShieldClaims => Set<ShieldClaim>();
     public DbSet<ShieldEvidence> ShieldEvidence => Set<ShieldEvidence>();
     public DbSet<ShieldItem> ShieldItems => Set<ShieldItem>();
@@ -613,6 +614,16 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.ApplianceNotes).HasMaxLength(CheckInGuide.NoteMax);
             e.HasOne(x => x.Host).WithMany(h => h.Listings)
                 .HasForeignKey(x => x.HostId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/03 §6 — one row per listing per day, so "recent" can mean recent.
+        b.Entity<ListingView>(e =>
+        {
+            e.ToTable("listing_views");
+            e.HasIndex(x => new { x.ListingId, x.Day }).IsUnique();
+            e.HasIndex(x => x.Day);
+            e.HasOne(x => x.Listing).WithMany()
+                .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<ListingImage>(e =>

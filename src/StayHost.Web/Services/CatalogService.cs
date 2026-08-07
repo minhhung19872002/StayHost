@@ -394,27 +394,39 @@ public class CatalogService(StayHostDbContext db)
     {
         q = await ResolveDatesAsync(q, ct);
 
-        var ordered = q.Sort switch
-        {
-            "low" => BaseQuery(q).OrderBy(l => l.PricePerNight).ThenBy(l => l.Id),
-            "high" => BaseQuery(q).OrderByDescending(l => l.PricePerNight).ThenBy(l => l.Id),
-            "rating" => BaseQuery(q).OrderByDescending(l => l.Rating).ThenByDescending(l => l.ReviewCount),
-            "reviews" => BaseQuery(q).OrderByDescending(l => l.ReviewCount).ThenByDescending(l => l.Rating),
-            _ => BaseQuery(q).OrderByDescending(l => l.IsGuestFavorite)
-                             .ThenByDescending(l => l.Rating)
-                             .ThenBy(l => l.Id)
-        };
-
-        var total = await ordered.CountAsync(ct);
         var pageSize = Math.Clamp(q.PageSize, 1, 60);
         var page = Math.Max(1, q.Page);
 
-        var items = await ordered
-            .Skip((page - 1) * pageSize).Take(pageSize)
-            .Include(l => l.Images)
-            .Include(l => l.Amenities).ThenInclude(la => la.Amenity)
-            .AsSplitQuery()
-            .ToListAsync(ct);
+        // docs/03 §6 — the default order is a weighted score, not a column, so
+        // it is worked out over the whole filtered set rather than by the
+        // database. The named sorts stay in SQL, where they belong.
+        List<Listing> items;
+        int total;
+
+        if (q.Sort is "low" or "high" or "rating" or "reviews")
+        {
+            var ordered = q.Sort switch
+            {
+                "low" => BaseQuery(q).OrderBy(l => l.PricePerNight).ThenBy(l => l.Id),
+                "high" => BaseQuery(q).OrderByDescending(l => l.PricePerNight).ThenBy(l => l.Id),
+                "rating" => BaseQuery(q).OrderByDescending(l => l.Rating).ThenByDescending(l => l.ReviewCount),
+                _ => BaseQuery(q).OrderByDescending(l => l.ReviewCount).ThenByDescending(l => l.Rating)
+            };
+
+            total = await ordered.CountAsync(ct);
+            items = await ordered
+                .Skip((page - 1) * pageSize).Take(pageSize)
+                .Include(l => l.Images)
+                .Include(l => l.Amenities).ThenInclude(la => la.Amenity)
+                .AsSplitQuery()
+                .ToListAsync(ct);
+        }
+        else
+        {
+            var ranked = await RankAsync(q, ct);
+            total = ranked.Count;
+            items = ranked.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        }
         var favIds = await FavoriteIdsAsync(sessionId, ct);
         var pricer = await BuildPricerAsync(
             items, q.CheckIn, q.CheckOut, PartySize.Of(Math.Max(1, q.Guests)), ct, q.Matched);
@@ -424,6 +436,147 @@ public class CatalogService(StayHostDbContext db)
             items.Select(l => ToCard(l, favIds, pricer)).ToList(),
             total == 0 ? await ExplainEmptyAsync(q, ct) : null,
             DescribeDates(q));
+    }
+
+    /// <summary>
+    /// docs/03 §6 — one detail-page view. Upserted so the table stays at one row
+    /// per listing per day rather than one per visit.
+    /// </summary>
+    public async Task RecordViewAsync(int listingId, CancellationToken ct)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        try
+        {
+            var updated = await db.ListingViews
+                .Where(v => v.ListingId == listingId && v.Day == today)
+                .ExecuteUpdateAsync(u => u.SetProperty(v => v.Views, v => v.Views + 1), ct);
+
+            if (updated > 0) return;
+
+            db.ListingViews.Add(new ListingView { ListingId = listingId, Day = today, Views = 1 });
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // Two first views of the day at once: the unique index rejects the
+            // loser, whose count is then simply added to the row that won.
+            db.ChangeTracker.Clear();
+            await db.ListingViews
+                .Where(v => v.ListingId == listingId && v.Day == today)
+                .ExecuteUpdateAsync(u => u.SetProperty(v => v.Views, v => v.Views + 1), ct);
+        }
+    }
+
+    /// <summary>
+    /// docs/03 §6 — the whole filtered set, scored and ordered, then thinned so
+    /// one host cannot hold the first page.
+    ///
+    /// Scoring happens in memory because the formula weighs seven things the
+    /// database cannot join in one pass. That is affordable while a search
+    /// matches thousands of rows rather than millions; past that this wants a
+    /// precomputed score column and a nightly job, and the rule in
+    /// <see cref="Ranking"/> would not have to change for it.
+    /// </summary>
+    private async Task<List<Listing>> RankAsync(SearchQuery q, CancellationToken ct)
+    {
+        var pool = await BaseQuery(q)
+            .Include(l => l.Images)
+            .Include(l => l.Amenities).ThenInclude(la => la.Amenity)
+            .Include(l => l.Host)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+
+        if (pool.Count <= 1) return pool;
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var ids = pool.Select(l => l.Id).ToList();
+
+        // "Gần trung tâm khu vực tìm": the middle of the map rectangle when the
+        // guest is searching by moving it, otherwise the middle of what they
+        // matched — which is the area they are looking at, by definition.
+        var (centreLat, centreLng) = q.Bounds is { } b
+            ? ((b.South + b.North) / 2, (b.West + b.East) / 2)
+            : (pool.Average(l => l.Latitude), pool.Average(l => l.Longitude));
+
+        var distances = pool.ToDictionary(
+            l => l.Id, l => Ranking.DistanceKm(centreLat, centreLng, l.Latitude, l.Longitude));
+
+        // The edge of the area is the furthest thing in it, with a floor so a
+        // single-city search does not turn a 200m gap into the whole scale.
+        var radiusKm = Math.Max(5, distances.Values.DefaultIfEmpty(0).Max());
+
+        var median = Median(pool.Select(l => l.PricePerNight).ToList());
+
+        var since = today.AddDays(-Ranking.FreshDays);
+
+        var views = await db.ListingViews
+            .Where(v => ids.Contains(v.ListingId) && v.Day >= since)
+            .GroupBy(v => v.ListingId)
+            .Select(g => new { ListingId = g.Key, Views = g.Sum(v => v.Views) })
+            .ToDictionaryAsync(x => x.ListingId, x => x.Views, ct);
+
+        var bookedSince = DateTime.UtcNow.AddDays(-Ranking.FreshDays);
+        var bookings = await db.Bookings
+            .Where(bk => ids.Contains(bk.ListingId) && bk.CreatedAt >= bookedSince)
+            .GroupBy(bk => bk.ListingId)
+            .Select(g => new { ListingId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ListingId, x => x.Count, ct);
+
+        var hostIds = pool.Select(l => l.HostId).Distinct().ToList();
+        var yearAgo = today.AddYears(-1);
+
+        var hostOrders = await db.Bookings
+            .Where(bk => hostIds.Contains(bk.Listing!.HostId) && bk.CheckIn >= yearAgo)
+            .GroupBy(bk => bk.Listing!.HostId)
+            .Select(g => new
+            {
+                HostId = g.Key,
+                Total = g.Count(),
+                Cancelled = g.Count(bk => bk.CancelledBy == CancelledBy.Host)
+            })
+            .ToListAsync(ct);
+
+        var cancelRate = hostOrders.ToDictionary(
+            h => h.HostId, h => h.Total == 0 ? 0 : h.Cancelled * 100.0 / h.Total);
+
+        var scored = pool
+            .Select(l => new
+            {
+                Listing = l,
+                Score = Ranking.Score(new Ranking.Candidate(
+                    l.Id,
+                    l.HostId,
+                    distances[l.Id],
+                    radiusKm,
+                    l.Rating,
+                    l.ReviewCount,
+                    views.GetValueOrDefault(l.Id),
+                    bookings.GetValueOrDefault(l.Id),
+                    l.PricePerNight,
+                    median,
+                    BadgeService.ParsePercent(l.Host?.ResponseRate),
+                    l.InstantBook,
+                    l.Images.Count,
+                    (today.DayNumber - DateOnly.FromDateTime(l.CreatedAt).DayNumber),
+                    cancelRate.GetValueOrDefault(l.HostId),
+                    l.IsComplete))
+            })
+            // Id last so the order is stable across identical scores; without it
+            // paging can show the same listing twice.
+            .OrderByDescending(x => x.Score).ThenBy(x => x.Listing.Id)
+            .Select(x => x.Listing)
+            .ToList();
+
+        return Ranking.Diversify(scored, l => l.HostId);
+    }
+
+    private static decimal Median(List<decimal> values)
+    {
+        if (values.Count == 0) return 0;
+        var sorted = values.OrderBy(v => v).ToList();
+        var mid = sorted.Count / 2;
+        return sorted.Count % 2 == 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2m;
     }
 
     private static FlexibleDatesDto? DescribeDates(SearchQuery q)

@@ -87,32 +87,47 @@ Sổ ghi tiền hai chiều, bất biến (`ledger_entries`). Mọi bút toán p
 
 ---
 
-## 6. Xếp hạng kết quả tìm kiếm — ⬜ **chưa đối chiếu bao giờ**
+## 6. Xếp hạng kết quả tìm kiếm — ✅ đúng bảng trọng số của `03 §6`
 
-`docs/03 §6` định nghĩa một điểm tổng hợp có trọng số. Mã nguồn hiện tại
-(`CatalogService.SearchAsync`) sắp xếp mặc định bằng:
+Trước đây sắp xếp mặc định là `IsGuestFavorite → Rating → Id`. Giờ là điểm tổng
+hợp trong `StayHost.Domain/Ranking.cs`; mỗi yếu tố quy về thang 0–1 rồi mới nhân
+trọng số, nên bảng dưới là **thứ duy nhất** quyết định yếu tố nào nặng hơn.
 
-```csharp
-OrderByDescending(l => l.IsGuestFavorite).ThenByDescending(l => l.Rating).ThenBy(l => l.Id)
-```
-
-| Yếu tố (`03 §6`) | Trọng số | Hiện trạng |
+| Yếu tố | Trọng số | Cách tính |
 |---|---|---|
-| Gần trung tâm khu vực tìm | 30% | ⬜ không tính |
-| Chất lượng (điểm có tính số lượng đánh giá) | 25% | 🟡 chỉ dùng `Rating` thô |
-| Tỉ lệ xem→đặt gần đây | 15% | ⬜ không đếm lượt xem |
-| Giá cạnh tranh so với trung vị cùng khu vực | 10% | ⬜ |
-| Chất lượng phục vụ (phản hồi + đặt ngay) | 10% | ⬜ |
-| Chất lượng ảnh | 5% | ⬜ |
-| Tin mới (30 ngày đầu) | 5% | ⬜ |
-| **Trừ điểm**: tự huỷ nhiều, điểm < 4.0, thiếu ảnh | — | ⬜ |
-| **Đa dạng hoá**: 12 kết quả đầu ≤ 2 chỗ cùng chủ nhà | — | ⬜ |
+| Gần trung tâm khu vực tìm | 30% | ở tâm được 1, ở rìa vùng được 0 |
+| Chất lượng | 25% | điểm kéo về trung bình theo số lượng đánh giá — 3 đánh giá 5 sao **không** hơn 200 đánh giá 4.8 |
+| Tỉ lệ xem→đặt gần đây | 15% | đặt/xem trong 30 ngày, 1/5 là kịch trần |
+| Giá cạnh tranh | 10% | so với **trung vị** của tập kết quả cùng vùng; bằng trung vị được 0.5 |
+| Chất lượng phục vụ | 10% | 70% tỉ lệ phản hồi + 30% có bật đặt ngay |
+| Chất lượng ảnh | 5% | 10 ảnh là đủ bộ |
+| Tin mới | 5% | 30 ngày đầu, giảm dần |
 
-Phần **lọc trước** của `§6` thì đúng: vùng địa lý, sức chứa, còn trống, bộ lọc,
-khoảng giá đều là bộ lọc thật. Tìm không dấu ("da lat", "hcm") cũng đúng.
+**Trừ điểm:** điểm < 4.0 (−0.25) · chủ nhà tự huỷ > 5% (−0.20) · dưới 5 ảnh
+(−0.10) · tin chưa hoàn tất (−0.15). Điểm không bao giờ âm.
 
-**Vì sao đáng làm:** không có đa dạng hoá thì một chủ nhà có thể chiếm trọn trang
-đầu của một thành phố. Mục này quyết định thu nhập của chủ nhà, mà chưa ai đối chiếu.
+**Đa dạng hoá:** 12 kết quả đầu tối đa 2 chỗ mỗi chủ nhà. Chỗ thứ ba **bị đẩy ra
+sau cửa sổ chứ không bị loại** — nó vẫn là kết quả khách đã lọc ra. Khi không đủ
+chủ nhà khác nhau để lấp 12 chỗ thì nới quy tắc và lấp tiếp theo thứ tự điểm, vì
+trả về 4 kết quả thay vì 12 còn tệ hơn cho khách.
+
+**Hai chỗ tự quyết, cần khách xác nhận:**
+- *"Trung tâm khu vực tìm"* = tâm khung bản đồ khi khách đang tìm bằng bản đồ,
+  còn lại là **tâm của chính tập kết quả**. Không cần bảng địa danh riêng, và
+  theo định nghĩa thì đó là vùng khách đang xem. Bán kính = chỗ xa nhất trong tập,
+  sàn 5km để một thành phố nhỏ không biến 200m thành cả thang điểm.
+- *"Chỗ tương đương cùng khu vực"* để so giá = tập kết quả hiện tại.
+
+**Lượt xem là dữ liệu mới.** Bảng `listing_views` ghi một dòng mỗi tin mỗi ngày,
+tăng khi trang chi tiết được phục vụ. Đếm cả đời sẽ trả lời sai câu hỏi "gần đây".
+Việc đếm không bao giờ làm hỏng request — một tín hiệu xếp hạng không đáng để trang
+khách đang đọc trả về 500.
+
+**Giới hạn đã biết:** điểm được tính trong bộ nhớ trên toàn bộ tập đã lọc, vì công
+thức cân bảy thứ mà truy vấn không gộp một lượt được. Ổn khi một lượt tìm khớp
+hàng nghìn dòng; tới hàng triệu thì cần cột điểm tính sẵn và job chạy đêm —
+`Ranking` không phải sửa gì cho việc đó. Các kiểu sắp xếp có tên (giá, đánh giá,
+số đánh giá) vẫn chạy bằng SQL.
 
 ## 7. Danh hiệu — ✅ đã cấp và thu hồi tự động
 
@@ -385,7 +400,7 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (400 test)
+# Test nghiệp vụ (418 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

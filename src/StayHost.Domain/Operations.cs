@@ -79,3 +79,22 @@ public class EmailMessage
     public DateTime? SentAt { get; set; }
     public string? Error { get; set; }
 }
+
+/// <summary>
+/// docs/03 §6 — detail-page views, one row per listing per day.
+///
+/// A lifetime counter would not answer the question the ranking asks, which is
+/// about "gần đây": a place that converted well two years ago and nothing since
+/// should not be pushed up today. Daily rows are small — one per listing per day
+/// — and let the window move.
+/// </summary>
+public class ListingView
+{
+    public long Id { get; set; }
+
+    public int ListingId { get; set; }
+    public Listing? Listing { get; set; }
+
+    public DateOnly Day { get; set; }
+    public int Views { get; set; }
+}

@@ -185,7 +185,14 @@ public class ListingsController(CatalogService catalog, BookingService bookings)
         CancellationToken ct = default)
     {
         var detail = await catalog.GetDetailAsync(idOrSlug, HttpContext.SessionId(), checkIn, checkOut, guests, ct);
-        return detail is null ? NotFound() : Ok(detail);
+        if (detail is null) return NotFound();
+
+        // docs/03 §6 — the view half of "tỉ lệ xem→đặt". Counted after the page
+        // was actually served, and never allowed to fail the request: a ranking
+        // signal is not worth a 500 on the page somebody came to read.
+        await catalog.RecordViewAsync(detail.Card.Id, ct);
+
+        return Ok(detail);
     }
 
     [HttpGet("quote")]
