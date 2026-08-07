@@ -241,13 +241,16 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
         ? state.meta?.categories.find(c => c.key === state.category)?.label ?? 'Chỗ ở'
         : 'Mọi nơi';
 
-  const segClass = (seg, extra) =>
-    `seg ${wide ? extra : ''} ${openSeg === seg ? 'is-active' : ''}`;
+  // The per-segment class carries the widths, so it belongs on both bars. Hanging
+  // it on `wide` alone left the compact bar's three fields at their natural size,
+  // bunched against the left edge with a third of the pill empty behind them.
+  const segClass = seg =>
+    `seg seg-${seg} ${openSeg === seg ? 'is-active' : ''}`;
 
   const field = (
     // The destination is a segment like the other two: putting the caret in it
     // greys the bar and lifts this one, so all three behave the same way.
-    <label className={segClass('where', 'seg-where')}>
+    <label className={segClass('where')}>
       {wide && <span className="seg-cap">Địa điểm</span>}
       <input id="q" type="text" value={state.q} placeholder={placeholder} autoComplete="off"
              onChange={e => onQueryInput(e.target.value)}
@@ -270,13 +273,13 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
         {!wide && <span className="seg-lead" aria-hidden="true"><Icon name="house" size={20} /></span>}
         {field}
         <span className="seg-div" />
-        <button type="button" className={segClass('when', 'seg-when')} onClick={() => toggle('when')}
+        <button type="button" className={segClass('when')} onClick={() => toggle('when')}
                 aria-expanded={openSeg === 'when'}>
           {wide && <span className="seg-cap">Ngày</span>}
           <span className="seg-val">{dateRangeLabel(state.checkIn, state.checkOut)}</span>
         </button>
         <span className="seg-div" />
-        <button type="button" className={segClass('who', 'seg-who')} onClick={() => toggle('who')}
+        <button type="button" className={segClass('who')} onClick={() => toggle('who')}
                 aria-expanded={openSeg === 'who'}>
           {wide && <span className="seg-cap">Khách</span>}
           <span className="seg-val">{guestLabel()}</span>
