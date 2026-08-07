@@ -260,6 +260,86 @@ public class AdminController(
         return NoContent();
     }
 
+    /* ------------------------------------------- docs/01 TK-06: identity */
+
+    [HttpGet("admin/identity")]
+    public async Task<ActionResult<IReadOnlyList<IdentityReviewDto>>> IdentityQueue(
+        [FromQuery] bool includeDecided = false, CancellationToken ct = default)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Moderation, ct);
+        if (admin is null)
+            return StatusCode(403, new { message = "Bạn không có quyền kiểm duyệt." });
+
+        var query = db.IdentityChecks.AsQueryable();
+        if (!includeDecided) query = query.Where(c => c.Status == IdentityCheckStatus.Pending);
+
+        var rows = await query
+            .OrderBy(c => c.SubmittedAt)
+            .Take(200)
+            .Select(c => new
+            {
+                c.Id, c.UserId,
+                UserName = c.User!.DisplayName ?? c.User.FullName,
+                c.User.Email,
+                c.Document, c.DocumentLast4,
+                c.FrontImageUrl, c.BackImageUrl, c.SelfieImageUrl,
+                c.Status, c.SubmittedAt
+            })
+            .ToListAsync(ct);
+
+        return Ok(rows.Select(c => new IdentityReviewDto(
+            c.Id, c.UserId, c.UserName, c.Email,
+            IdentityChecks.DocumentLabel(c.Document), c.DocumentLast4,
+            c.FrontImageUrl, c.BackImageUrl, c.SelfieImageUrl,
+            c.Status.ToString(), c.SubmittedAt)).ToList());
+    }
+
+    /// <summary>
+    /// docs/01 TK-06 — a person decides, and the badge on the public profile is
+    /// the direct consequence, so the decision is written to the audit log like
+    /// every other thing an admin does (docs/01 QT-09).
+    /// </summary>
+    [HttpPost("admin/identity/{id:int}/decide")]
+    public async Task<IActionResult> DecideIdentity(
+        int id, [FromBody] DecideIdentityRequest req, CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Moderation, ct);
+        if (admin is null)
+            return StatusCode(403, new { message = "Bạn không có quyền kiểm duyệt." });
+
+        var check = await db.IdentityChecks.Include(c => c.User)
+            .FirstOrDefaultAsync(c => c.Id == id, ct);
+        if (check is null) return NotFound();
+        if (check.Status != IdentityCheckStatus.Pending)
+            return Conflict(new { message = "Hồ sơ này đã được xử lý." });
+
+        if (!req.Approve && string.IsNullOrWhiteSpace(req.Note))
+            return BadRequest(new { message = "Từ chối thì phải nêu lý do để người dùng nộp lại được." });
+
+        audit.Record(admin, "identity.decide", $"identity:{check.Id}",
+            "Đang chờ duyệt", req.Approve ? "Đã xác minh" : "Bị từ chối", req.Note);
+
+        check.Status = req.Approve ? IdentityCheckStatus.Approved : IdentityCheckStatus.Rejected;
+        check.Note = Profiles.Tidy(req.Note, 500);
+        check.DecidedAt = DateTime.UtcNow;
+        check.DecidedByUserId = admin.Id;
+
+        // The badge on the public profile is this flag and nothing else.
+        if (check.User is { } person) person.IsIdentityVerified = req.Approve;
+
+        await notifications.QueueWithEmailAsync(
+            check.User,
+            req.Approve ? NotificationKind.ListingApproved : NotificationKind.ListingRejected,
+            req.Approve ? "Danh tính đã được xác minh" : "Hồ sơ xác minh danh tính bị từ chối",
+            req.Approve
+                ? "Hồ sơ của bạn giờ có huy hiệu đã xác minh danh tính."
+                : $"Lý do: {check.Note}. Bạn có thể nộp lại hồ sơ khác.",
+            "/", ct);
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     [HttpPost("admin/listings/{id:int}/publish")]
     public async Task<IActionResult> SetPublished(int id, [FromQuery] bool published, CancellationToken ct)
     {

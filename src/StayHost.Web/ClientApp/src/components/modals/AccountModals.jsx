@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../lib/useStore.js';
 import {
   set, login, register, loadMe, saveProfile, submitReview,
-  closeOverlay, toast, loadSessions, loadBookings, loadTrip, loadSpokenLanguages, state as store
+  closeOverlay, toast, loadSessions, loadBookings, loadTrip, loadSpokenLanguages,
+  submitTwoFactor, resendTwoFactor, state as store
 } from '../../lib/store.js';
 import { api } from '../../lib/api.js';
 import { money, longDate } from '../../lib/format.js';
@@ -16,6 +17,7 @@ export function AuthModal() {
   const state = useStore();
   if (state.authMode === 'forgot') return <ForgotModal />;
   if (state.authMode === 'reset') return <ResetModal />;
+  if (state.authMode === 'twoFactor') return <TwoFactorModal />;
 
   const isRegister = state.authMode === 'register';
 
@@ -38,7 +40,11 @@ export function AuthModal() {
       : { email: typed, password: f.password.value };
 
     const ok = await (isRegister ? register(body) : login(body));
-    if (ok) { await loadMe(); closeOverlay(); }
+
+    // docs/01 TK-08 — a challenge means the password step passed and the login
+    // has not finished. The overlay stays open and swaps to the code step;
+    // closing it here would strand somebody halfway in with no way back.
+    if (ok && !store.twoFactor) { await loadMe(); closeOverlay(); }
   };
 
   return (
@@ -219,8 +225,63 @@ function ResetModal() {
 }
 
 const PROFILE_TABS = [
-  ['profile', 'Hồ sơ'], ['verify', 'Xác thực'], ['security', 'Bảo mật'], ['devices', 'Thiết bị']
+  ['profile', 'Hồ sơ'],
+  ['verify', 'Xác thực'],
+  ['identity', 'Danh tính'],
+  ['security', 'Bảo mật'],
+  ['devices', 'Thiết bị'],
+  ['alerts', 'Thông báo'],
+  ['data', 'Dữ liệu']
 ];
+
+/**
+ * docs/01 TK-08 — the second step of a login. The account is not signed in yet:
+ * everything this screen knows is a challenge token and a masked address.
+ */
+function TwoFactorModal() {
+  const state = useStore();
+  const tf = state.twoFactor;
+  const [code, setCode] = useState('');
+
+  if (!tf) return null;
+
+  const submit = async e => {
+    e.preventDefault();
+    const ok = await submitTwoFactor(code.trim());
+    if (ok && store.user) closeOverlay();
+  };
+
+  return (
+    <Modal title="Xác minh đăng nhập">
+      <p style={{ margin: '0 0 16px', fontSize: 14.5, lineHeight: 1.6, color: 'var(--ink-body)' }}>
+        Chúng tôi đã gửi mã {tf.codeLength} số tới <b>{tf.sentTo}</b>. Nhập mã để hoàn tất đăng nhập.
+      </p>
+
+      {/* Same escape hatch as sign-up: no SMS provider behind this build. */}
+      {tf.devCode && <div className="form-note">Mã thử nghiệm: <code>{tf.devCode}</code></div>}
+
+      <form onSubmit={submit}>
+        <label className="form-field"><span className="cap">Mã xác minh</span>
+          <input inputMode="numeric" autoComplete="one-time-code" maxLength={tf.codeLength}
+                 value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+                 style={{ letterSpacing: 6, fontSize: 20, textAlign: 'center' }} autoFocus /></label>
+
+        {state.authError && <div className="form-error">{state.authError}</div>}
+
+        <button type="submit" className="btn btn-primary btn-block" disabled={state.authBusy}>
+          {state.authBusy ? 'Đang kiểm tra…' : 'Xác minh'}
+        </button>
+      </form>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+        <button className="link-btn" onClick={resendTwoFactor}>Gửi lại mã</button>
+        <button className="link-btn" onClick={() => set({ authMode: 'login', twoFactor: null, authError: null })}>
+          Đăng nhập bằng tài khoản khác
+        </button>
+      </div>
+    </Modal>
+  );
+}
 
 /**
  * docs/01 TK-02. Each provider opens its own window — the Google account chooser,
@@ -377,6 +438,14 @@ export function ProfileModal() {
       {tab === 'profile' && <ProfileForm />}
 
       {tab === 'verify' && <Verification />}
+
+      {tab === 'identity' && <IdentityPanel />}
+
+      {tab === 'alerts' && <NotificationMatrix />}
+
+      {tab === 'data' && <DataPanel />}
+
+      {tab === 'security' && <TwoFactorPanel />}
 
       {tab === 'security' && (
         <form onSubmit={changePassword}>
@@ -577,6 +646,298 @@ function ProfileForm() {
         Xem hồ sơ công khai
       </button>
     </form>
+  );
+}
+
+/**
+ * docs/01 TK-08 — the second factor. Switching it on takes a code so nobody
+ * points it at an address they cannot read; switching it off takes the
+ * password, so an unlocked screen is not enough to strip it.
+ */
+function TwoFactorPanel() {
+  const state = useStore();
+  const [tf, setTf] = useState(null);
+  const [stage, setStage] = useState('idle');   // idle | code | off
+  const [kind, setKind] = useState('Email');
+  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [devCode, setDevCode] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { api.twoFactorState().then(setTf).catch(() => setTf(null)); }, []);
+
+  if (!tf) return null;
+
+  const run = async fn => {
+    setBusy(true);
+    try { await fn(); } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
+  const sendCode = () => run(async () => {
+    const res = await api.enableTwoFactor({ kind, code: null });
+    setDevCode(res.devCode ?? null);
+    setStage('code');
+    toast(res.message);
+  });
+
+  const confirm = () => run(async () => {
+    setTf(await api.enableTwoFactor({ kind, code: code.trim() }));
+    setStage('idle');
+    setCode('');
+    toast('Đã bật bảo mật 2 lớp.');
+  });
+
+  const turnOff = () => run(async () => {
+    setTf(await api.disableTwoFactor(password));
+    setStage('idle');
+    setPassword('');
+    toast('Đã tắt bảo mật 2 lớp.');
+  });
+
+  return (
+    <section className="modal-section" style={{ paddingTop: 0 }}>
+      <h3>Bảo mật 2 lớp</h3>
+      <span className="hint">
+        Sau khi nhập mật khẩu, chúng tôi hỏi thêm một mã 6 số gửi tới {kind === 'Phone' ? 'điện thoại' : 'email'} của bạn.
+      </span>
+
+      <div className="count-row">
+        <div className="tx">
+          <b>{tf.enabled ? 'Đang bật' : 'Đang tắt'}</b>
+          <span>{tf.enabled ? `Mã gửi tới ${tf.sentTo}` : 'Chỉ cần mật khẩu để đăng nhập.'}</span>
+        </div>
+        {tf.enabled
+          ? <button type="button" className="pill" onClick={() => setStage(stage === 'off' ? 'idle' : 'off')}>Tắt</button>
+          : <button type="button" className="pill is-on" onClick={sendCode} disabled={busy}>Bật</button>}
+      </div>
+
+      {!tf.enabled && stage === 'idle' && (
+        <label className="form-field"><span className="cap">Gửi mã tới</span>
+          <select value={kind} onChange={e => setKind(e.target.value)}>
+            <option value="Email">Email {state.user?.email ? `(${state.user.email})` : ''}</option>
+            <option value="Phone" disabled={!state.user?.phone}>
+              Số điện thoại {state.user?.phone ? `(${state.user.phone})` : '— chưa có'}
+            </option>
+          </select>
+        </label>
+      )}
+
+      {stage === 'code' && <>
+        {devCode && <div className="form-note">Mã thử nghiệm: <code>{devCode}</code></div>}
+        <label className="form-field"><span className="cap">Nhập mã vừa gửi</span>
+          <input inputMode="numeric" maxLength={6} value={code}
+                 onChange={e => setCode(e.target.value.replace(/\D/g, ''))} /></label>
+        <button type="button" className="btn btn-primary btn-block" onClick={confirm} disabled={busy}>
+          Xác nhận bật
+        </button>
+      </>}
+
+      {stage === 'off' && <>
+        <label className="form-field"><span className="cap">Mật khẩu hiện tại</span>
+          <input type="password" value={password} autoComplete="current-password"
+                 onChange={e => setPassword(e.target.value)} /></label>
+        <button type="button" className="btn btn-block" onClick={turnOff} disabled={busy}>
+          Xác nhận tắt
+        </button>
+      </>}
+    </section>
+  );
+}
+
+/**
+ * docs/01 TK-06 — proving who somebody is. Two photos of a document and one of
+ * their face, reviewed by a person; the badge on the public profile is what
+ * comes out the other end.
+ */
+function IdentityPanel() {
+  const [check, setCheck] = useState(undefined);
+  const [document, setDocument] = useState('NationalId');
+  const [shots, setShots] = useState({ front: null, back: null, selfie: null });
+  const [number, setNumber] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = () => api.identityStatus().then(setCheck).catch(() => setCheck(null));
+  useEffect(() => { load(); }, []);
+
+  const needsBack = document !== 'Passport';
+
+  const pick = async (slot, file) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const body = new FormData();
+      body.append('files', file);
+      const res = await fetch('/api/uploads/images', { method: 'POST', body, credentials: 'same-origin' });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.message ?? 'Không tải được ảnh.');
+      setShots(s => ({ ...s, [slot]: payload.urls[0] }));
+    } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
+  const submit = async e => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      setCheck(await api.submitIdentity({
+        document,
+        documentNumber: number.trim() || null,
+        frontImageUrl: shots.front,
+        backImageUrl: needsBack ? shots.back : null,
+        selfieImageUrl: shots.selfie
+      }));
+      toast('Đã gửi hồ sơ. Chúng tôi sẽ phản hồi sớm.');
+    } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
+  if (check === undefined) return <p className="field-note">Đang tải…</p>;
+
+  if (check && check.status !== 'Rejected') {
+    return (
+      <div style={{ display: 'grid', gap: 12 }}>
+        <div>
+          <span className={`badge ${check.badgeClass}`}>{check.statusLabel}</span>
+        </div>
+        <p className="field-note" style={{ margin: 0 }}>
+          {check.documentLabel}{check.documentLast4 ? ` ••••${check.documentLast4}` : ''} · gửi ngày{' '}
+          {longDate(check.submittedAt.slice(0, 10))}
+        </p>
+        {check.status === 'Pending' && (
+          <p className="field-note" style={{ margin: 0 }}>
+            Hồ sơ đang chờ duyệt. Bạn sẽ nhận được thông báo khi có kết quả.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit}>
+      {check?.status === 'Rejected' && (
+        <div className="book-alert">
+          <b>Hồ sơ trước bị từ chối</b>
+          <span>{check.note}</span>
+        </div>
+      )}
+
+      <p className="field-note" style={{ marginTop: 10 }}>
+        Ảnh giấy tờ và ảnh chân dung chỉ dùng để xác minh, không hiển thị công khai.
+      </p>
+
+      <label className="form-field"><span className="cap">Loại giấy tờ</span>
+        <select value={document} onChange={e => setDocument(e.target.value)}>
+          <option value="NationalId">Căn cước công dân</option>
+          <option value="Passport">Hộ chiếu</option>
+          <option value="DriverLicence">Giấy phép lái xe</option>
+        </select>
+      </label>
+
+      <label className="form-field"><span className="cap">Số giấy tờ <span style={{ fontWeight: 400 }}>(chỉ lưu 4 số cuối)</span></span>
+        <input value={number} maxLength={30} onChange={e => setNumber(e.target.value)} /></label>
+
+      <div className="shot-row">
+        <Shot label="Mặt trước" url={shots.front} onPick={f => pick('front', f)} />
+        {needsBack && <Shot label="Mặt sau" url={shots.back} onPick={f => pick('back', f)} />}
+        <Shot label="Ảnh chân dung" url={shots.selfie} onPick={f => pick('selfie', f)} />
+      </div>
+
+      <button type="submit" className="btn btn-primary btn-block" style={{ marginTop: 14 }} disabled={busy}>
+        {busy ? 'Đang xử lý…' : 'Gửi hồ sơ xác minh'}
+      </button>
+    </form>
+  );
+}
+
+function Shot({ label, url, onPick }) {
+  const ref = useRef(null);
+  return (
+    <div className="shot">
+      <button type="button" className={`shot-box ${url ? 'is-set' : ''}`} onClick={() => ref.current?.click()}>
+        {url ? <img src={url} alt="" /> : <span>+</span>}
+      </button>
+      <span>{label}</span>
+      <input ref={ref} type="file" accept="image/*" hidden
+             onChange={e => { onPick(e.target.files?.[0]); e.target.value = ''; }} />
+    </div>
+  );
+}
+
+/**
+ * docs/01 TK-10 — the matrix. docs/03 §11 locks the transactional rows, and the
+ * server is what enforces that; a locked switch here just says so out loud.
+ */
+function NotificationMatrix() {
+  const [prefs, setPrefs] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { api.notificationPrefs().then(setPrefs).catch(err => toast(err.message)); }, []);
+
+  if (!prefs) return <p className="field-note">Đang tải…</p>;
+
+  const toggle = async (topic, cell) => {
+    if (cell.locked || busy) return;
+    setBusy(true);
+    try {
+      setPrefs(await api.setNotificationPref({ topic, channel: cell.channel, on: !cell.on }));
+    } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="matrix-wrap">
+      <table className="matrix">
+        <thead>
+          <tr>
+            <th />
+            {prefs.channelLabels.map(l => <th key={l}>{l}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {prefs.rows.map(row => (
+            <tr key={row.topic}>
+              <th scope="row">
+                <b>{row.label}</b>
+                <span>{row.note}</span>
+              </th>
+              {row.cells.map(cell => (
+                <td key={cell.channel}>
+                  <button type="button"
+                          className={`switch-btn ${cell.on ? 'is-on' : ''} ${cell.locked ? 'is-locked' : ''}`}
+                          aria-pressed={cell.on} disabled={cell.locked}
+                          title={cell.locked ? 'Thông báo giao dịch luôn được gửi' : undefined}
+                          onClick={() => toggle(row.topic, cell)}>
+                    <span />
+                  </button>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="field-note" style={{ marginTop: 12 }}>
+        Thông báo về đơn đặt và thanh toán luôn được gửi — đó là bằng chứng về tiền của bạn.
+      </p>
+    </div>
+  );
+}
+
+/** docs/01 TK-11 — one file, downloaded now, with everything held about them. */
+function DataPanel() {
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.6, color: 'var(--ink-body)' }}>
+        Tải về bản sao dữ liệu cá nhân của bạn: hồ sơ, đơn đặt, hoá đơn, đánh giá,
+        tin nhắn, số dư, hồ sơ StayShield, thông báo và lịch sử đăng nhập.
+      </p>
+      <a className="btn btn-primary btn-block" href="/api/account/data/export" download>
+        Tải dữ liệu của tôi (.json)
+      </a>
+      <p className="field-note" style={{ margin: 0 }}>
+        Tệp gồm cả dữ liệu giao dịch mà sàn phải giữ cho nghĩa vụ kế toán.
+      </p>
+    </div>
   );
 }
 

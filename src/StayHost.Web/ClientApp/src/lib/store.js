@@ -101,8 +101,10 @@ export const state = {
   calendarMonth: null,
 
   // auth / profile modals
-  authMode: 'login',     // login | register | forgot | reset
+  authMode: 'login',     // login | register | forgot | reset | twoFactor
   profileTab: 'profile',
+  // docs/01 TK-08 — the half-finished login: a challenge token, never a session.
+  twoFactor: null,
   resetLink: null,
   resetToken: null,
   // docs/01 TK-04 / TK-05 — the language picker, and somebody else's profile.
@@ -388,7 +390,18 @@ async function runAuth(fn) {
   state.authError = null;
   notify();
   try {
-    state.user = await fn();
+    const result = await fn();
+
+    // docs/01 TK-08 — the password was right but a code is still owed. There is
+    // no session yet, so nothing about the account may be loaded here.
+    if (result?.challenge) {
+      state.twoFactor = result;
+      state.authMode = 'twoFactor';
+      return true;
+    }
+
+    state.user = result;
+    state.twoFactor = null;
     toast(`Xin chào ${state.user.fullName}!`);
     await Promise.all([loadFavorites(), loadBookings(), loadNotifications()]);
     return true;
@@ -402,6 +415,20 @@ async function runAuth(fn) {
 }
 
 export const login = body => runAuth(() => api.login(body));
+
+/** docs/01 TK-08 — the second step: the code that finishes a login. */
+export const submitTwoFactor = code =>
+  runAuth(() => api.twoFactorVerify({ challenge: state.twoFactor?.challenge, code }));
+
+export async function resendTwoFactor() {
+  try {
+    state.twoFactor = await api.twoFactorResend(state.twoFactor?.challenge);
+    toast('Đã gửi lại mã.');
+  } catch (err) {
+    state.authError = err.message;
+  }
+  notify();
+}
 export const register = body => runAuth(() => api.register(body));
 
 export async function logout() {

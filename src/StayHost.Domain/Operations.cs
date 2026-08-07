@@ -10,7 +10,15 @@ public enum NotificationKind
     ReviewReceived = 5,
     ListingApproved = 6,
     ListingRejected = 7,
-    System = 8
+    System = 8,
+
+    // Appended, never reordered: the number is what is in the database.
+    /// <summary>docs/03 §11 — money reached the host.</summary>
+    PayoutSent = 9,
+    /// <summary>docs/03 §11 — 7 days out, 24 hours out, and check-out morning.</summary>
+    StayReminder = 10,
+    /// <summary>docs/03 §11 — a saved listing got cheaper. The one kind that is marketing.</summary>
+    PriceDrop = 11
 }
 
 /// <summary>In-app notification. The same row is what an email job would send.</summary>

@@ -56,6 +56,83 @@ public record UpdateProfileRequest(
 /// <summary>One of the languages the profile editor offers (docs/01 TK-04).</summary>
 public record SpokenLanguageDto(string Code, string Label);
 
+/* ---- docs/01 TK-10: notifications, type × channel ------------------------ */
+
+/// <summary>One cell of the matrix: on or off, and whether it may be changed at all.</summary>
+public record NotificationCellDto(string Channel, string ChannelLabel, bool On, bool Locked);
+
+public record NotificationRowDto(
+    string Topic,
+    string Label,
+    string Note,
+    IReadOnlyList<NotificationCellDto> Cells);
+
+public record NotificationPrefsDto(
+    IReadOnlyList<string> Channels,
+    IReadOnlyList<string> ChannelLabels,
+    IReadOnlyList<NotificationRowDto> Rows);
+
+public record UpdateNotificationPrefRequest(string Topic, string Channel, bool On);
+
+/* ---- docs/01 TK-08: two-factor ------------------------------------------ */
+
+/// <summary>
+/// What the browser gets when the password was right but a code is still owed.
+/// Carries no session and no account details beyond where the code went.
+/// </summary>
+public record TwoFactorChallengeDto(
+    string Challenge,
+    /// <summary>"email" or "phone" — which one the code was sent to.</summary>
+    string Kind,
+    /// <summary>Masked: "b***@gmail.com", "09****678".</summary>
+    string SentTo,
+    int CodeLength,
+    /// <summary>Development only, like the sign-up code (docs/01 TK-01).</summary>
+    string? DevCode);
+
+public record TwoFactorVerifyRequest(string? Challenge, string? Code);
+
+public record TwoFactorSetupRequest(string? Kind, string? Code);
+
+public record TwoFactorStateDto(bool Enabled, string Kind, string? SentTo);
+
+/* ---- docs/01 TK-06: identity verification -------------------------------- */
+
+public record IdentityCheckRequest(
+    string? Document,
+    string? DocumentNumber,
+    string? FrontImageUrl,
+    string? BackImageUrl,
+    string? SelfieImageUrl);
+
+public record IdentityCheckDto(
+    int Id,
+    string Document,
+    string DocumentLabel,
+    string? DocumentLast4,
+    string Status,
+    string StatusLabel,
+    string BadgeClass,
+    string? Note,
+    DateTime SubmittedAt,
+    DateTime? DecidedAt);
+
+/// <summary>The admin queue view — carries the images, which the guest's own view does not need.</summary>
+public record IdentityReviewDto(
+    int Id,
+    int UserId,
+    string UserName,
+    string? UserEmail,
+    string DocumentLabel,
+    string? DocumentLast4,
+    string FrontImageUrl,
+    string? BackImageUrl,
+    string SelfieImageUrl,
+    string Status,
+    DateTime SubmittedAt);
+
+public record DecideIdentityRequest(bool Approve, string? Note);
+
 public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
 public record ForgotPasswordRequest(string Email);

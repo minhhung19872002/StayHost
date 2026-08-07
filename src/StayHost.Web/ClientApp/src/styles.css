@@ -1900,3 +1900,45 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
 @media (max-width: 619px) {
   .grid-2, .grid-3 { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* --------------------- account security & preferences (TK-06, TK-08, TK-10) */
+.form-note {
+  background: var(--surface-soft); border: 1px solid var(--divider); border-radius: var(--r-field);
+  padding: 10px 14px; font-size: 13px; color: var(--ink-body); margin-bottom: 12px;
+}
+.form-note code { font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 700; }
+
+/* docs/01 TK-06 — three photo slots that read as slots, not as file inputs. */
+.shot-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+.shot { display: grid; gap: 6px; justify-items: center; }
+.shot > span { font-size: 12.5px; color: var(--ink-muted); }
+.shot-box {
+  width: 110px; height: 78px; border-radius: var(--r-field); border: 1px dashed var(--line);
+  background: var(--surface-soft); display: flex; align-items: center; justify-content: center;
+  font-size: 24px; color: var(--ink-muted); overflow: hidden; padding: 0;
+}
+.shot-box.is-set { border-style: solid; border-color: var(--ink); }
+.shot-box img { width: 100%; height: 100%; object-fit: cover; }
+
+/* docs/01 TK-10 — the matrix. Scrolls sideways rather than squashing the rows. */
+.matrix-wrap { overflow-x: auto; }
+.matrix { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.matrix th, .matrix td { padding: 12px 8px; border-bottom: 1px solid var(--divider); }
+.matrix thead th { font-size: 12px; font-weight: 700; color: var(--ink-muted); text-align: center; white-space: nowrap; }
+.matrix tbody th { text-align: left; font-weight: 400; min-width: 190px; }
+.matrix tbody th b { display: block; font-size: 14px; font-weight: 600; }
+.matrix tbody th span { font-size: 12px; color: var(--ink-muted); line-height: 1.45; }
+.matrix td { text-align: center; }
+
+.switch-btn {
+  width: 40px; height: 23px; border-radius: 999px; border: 0; background: #d6d6d6;
+  padding: 0 3px; display: inline-flex; align-items: center; transition: background-color .16s;
+}
+.switch-btn > span {
+  width: 17px; height: 17px; border-radius: 50%; background: #fff; display: block;
+  transition: transform .16s; box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+.switch-btn.is-on { background: var(--ink); }
+.switch-btn.is-on > span { transform: translateX(17px); }
+/* A locked switch is on and stays on; it reads as a statement, not a control. */
+.switch-btn.is-locked { background: #c9dfd0; cursor: not-allowed; opacity: .8; }

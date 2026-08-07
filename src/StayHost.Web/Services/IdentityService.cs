@@ -31,8 +31,11 @@ public class IdentityService(
         var now = DateTime.UtcNow;
 
         // A resend button must not become a way to text somebody repeatedly.
+        // Only a code that is still live counts: one already typed in belongs to
+        // a flow that finished, and holding the next flow back for a minute
+        // because of it strands somebody who just turned two-factor on.
         var last = await db.OneTimeCodes
-            .Where(c => c.UserId == user.Id && c.Kind == kind)
+            .Where(c => c.UserId == user.Id && c.Kind == kind && c.UsedAt == null)
             .OrderByDescending(c => c.CreatedAt)
             .FirstOrDefaultAsync(ct);
 

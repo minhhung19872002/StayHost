@@ -112,6 +112,22 @@ export const api = {
   profileOptions: () => request('/api/account/profile-options'),
   /* docs/01 TK-05 — somebody else's profile; no sign-in needed */
   publicProfile: id => request(`/api/users/${id}`),
+  /* docs/01 TK-06 — identity verification */
+  identityStatus: () => request('/api/account/identity'),
+  submitIdentity: body => request('/api/account/identity', { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/01 TK-08 — two-factor */
+  twoFactorState: () => request('/api/account/two-factor'),
+  twoFactorVerify: body => request('/api/account/two-factor', { method: 'POST', body: JSON.stringify(body) }),
+  twoFactorResend: challenge =>
+    request('/api/account/two-factor/resend', { method: 'POST', body: JSON.stringify({ challenge }) }),
+  enableTwoFactor: body =>
+    request('/api/account/two-factor/enable', { method: 'POST', body: JSON.stringify(body) }),
+  disableTwoFactor: password =>
+    request('/api/account/two-factor/disable', { method: 'POST', body: JSON.stringify({ email: '', password }) }),
+  /* docs/01 TK-10 — the notification matrix */
+  notificationPrefs: () => request('/api/account/notifications'),
+  setNotificationPref: body =>
+    request('/api/account/notifications', { method: 'PUT', body: JSON.stringify(body) }),
 
   /* -------------------------------------------------------------- hosting */
   hostDashboard: () => request('/api/host/dashboard'),

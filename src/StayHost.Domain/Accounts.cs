@@ -97,6 +97,20 @@ public class User
     /// <summary>docs/01 TK-04 — newline-separated, because an interest may hold a comma.</summary>
     public string? Interests { get; set; }
 
+    /// <summary>
+    /// docs/01 TK-10 — the whole notification matrix as one bitmask. Read it
+    /// through <see cref="NotificationPrefs"/>, never directly.
+    /// </summary>
+    public int NotificationMask { get; set; } = NotificationPrefs.Defaults();
+
+    /// <summary>
+    /// docs/01 TK-08 — a six-digit code is asked for after the password. Which
+    /// identifier it goes to is <see cref="TwoFactorKind"/>.
+    /// </summary>
+    public bool TwoFactorEnabled { get; set; }
+
+    public IdentifierKind TwoFactorKind { get; set; } = IdentifierKind.Email;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>Set when the account was created from an anonymous browsing session.</summary>
@@ -111,7 +125,12 @@ public class User
 public enum TokenPurpose
 {
     PasswordReset = 0,
-    EmailVerification = 1
+    EmailVerification = 1,
+    /// <summary>
+    /// docs/01 TK-08 — hands out no access on its own. It says only "this
+    /// browser got the password right" while the second factor is being typed.
+    /// </summary>
+    TwoFactorChallenge = 2
 }
 
 /// <summary>Single-use, short-lived token for password resets and email verification.</summary>

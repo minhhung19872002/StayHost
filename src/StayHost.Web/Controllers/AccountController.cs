@@ -41,7 +41,136 @@ public class AccountController(
     {
         var result = await auth.LoginAsync(req.Email, req.Password, ct);
         if (!result.Ok) return Unauthorized(new { message = result.Error });
+
+        // docs/01 TK-08 — 202 rather than 200: the password was accepted, the
+        // login is not finished, and no session cookie came back with this.
+        if (result.TwoFactorChallenge is { } challenge)
+            return Accepted(await ChallengeDtoAsync(result.User!, challenge, ct));
+
         return Ok(await ToDtoAsync(result.User!, ct));
+    }
+
+    /* ------------------------------------------- docs/01 TK-08: two-factor */
+
+    /// <summary>Finishes a login that stopped for a code.</summary>
+    [HttpPost("two-factor")]
+    public async Task<ActionResult<CurrentUserDto>> TwoFactor(
+        [FromBody] TwoFactorVerifyRequest req, CancellationToken ct)
+    {
+        var pending = await auth.ReadChallengeAsync(req.Challenge, ct);
+        if (pending is null)
+            return Unauthorized(new { message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." });
+
+        var check = await identity.ConfirmCodeAsync(pending, pending.TwoFactorKind, req.Code, ct);
+        if (!check.Ok) return BadRequest(new { message = check.Error });
+
+        var signedIn = await auth.RedeemChallengeAsync(req.Challenge!, ct);
+        if (!signedIn.Ok) return Unauthorized(new { message = signedIn.Error });
+
+        return Ok(await ToDtoAsync(signedIn.User!, ct));
+    }
+
+    /// <summary>Sends the code again for a login already waiting on one.</summary>
+    [HttpPost("two-factor/resend")]
+    public async Task<ActionResult<TwoFactorChallengeDto>> ResendTwoFactor(
+        [FromBody] TwoFactorVerifyRequest req, CancellationToken ct)
+    {
+        var pending = await auth.ReadChallengeAsync(req.Challenge, ct);
+        if (pending is null)
+            return Unauthorized(new { message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." });
+
+        return Ok(await ChallengeDtoAsync(pending, req.Challenge!, ct));
+    }
+
+    [HttpGet("two-factor")]
+    public async Task<ActionResult<TwoFactorStateDto>> TwoFactorState(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        return Ok(new TwoFactorStateDto(
+            user.TwoFactorEnabled,
+            user.TwoFactorKind.ToString(),
+            user.TwoFactorEnabled ? Mask(user, user.TwoFactorKind) : null));
+    }
+
+    /// <summary>
+    /// docs/01 TK-08 — turning it on takes two calls: one with no code, which
+    /// sends one, and one with the code. Nobody switches on a second factor
+    /// pointed at an address they cannot read.
+    /// </summary>
+    [HttpPost("two-factor/enable")]
+    public async Task<IActionResult> EnableTwoFactor([FromBody] TwoFactorSetupRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var kind = ParseKind(req.Kind);
+        var target = kind == IdentifierKind.Phone ? user.Phone : user.Email;
+        if (string.IsNullOrWhiteSpace(target))
+            return BadRequest(new { message = $"Tài khoản chưa có {Identity.KindLabel(kind)}." });
+
+        if (string.IsNullOrWhiteSpace(req.Code))
+        {
+            var sent = await identity.SendCodeAsync(user, kind, ct);
+            if (!sent.Ok) return BadRequest(new { message = sent.Error });
+            return Ok(new { message = $"Đã gửi mã tới {Mask(user, kind)}.", devCode = sent.DevCode });
+        }
+
+        var check = await identity.ConfirmCodeAsync(user, kind, req.Code, ct);
+        if (!check.Ok) return BadRequest(new { message = check.Error });
+
+        user.TwoFactorEnabled = true;
+        user.TwoFactorKind = kind;
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new TwoFactorStateDto(true, kind.ToString(), Mask(user, kind)));
+    }
+
+    /// <summary>
+    /// Turning it off asks for the password, not a code: somebody who walked up
+    /// to an unlocked screen should not be able to strip the second factor.
+    /// </summary>
+    [HttpPost("two-factor/disable")]
+    public async Task<IActionResult> DisableTwoFactor([FromBody] LoginRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        if (!PasswordHasher.Verify(req.Password ?? "", user.PasswordHash, user.PasswordSalt))
+            return BadRequest(new { message = "Mật khẩu không đúng." });
+
+        user.TwoFactorEnabled = false;
+        await db.SaveChangesAsync(ct);
+        return Ok(new TwoFactorStateDto(false, user.TwoFactorKind.ToString(), null));
+    }
+
+    private async Task<TwoFactorChallengeDto> ChallengeDtoAsync(User user, string challenge, CancellationToken ct)
+    {
+        var sent = await identity.SendCodeAsync(user, user.TwoFactorKind, ct);
+        return new TwoFactorChallengeDto(
+            challenge,
+            user.TwoFactorKind.ToString(),
+            Mask(user, user.TwoFactorKind),
+            Identity.CodeLength,
+            sent.DevCode);
+    }
+
+    /// <summary>
+    /// Enough for somebody to recognise their own address and not enough for
+    /// anybody else to learn it from a login screen.
+    /// </summary>
+    private static string Mask(User user, IdentifierKind kind)
+    {
+        if (kind == IdentifierKind.Phone)
+        {
+            var phone = user.Phone ?? "";
+            return phone.Length < 7 ? "số điện thoại của bạn" : $"{phone[..2]}****{phone[^3..]}";
+        }
+
+        var email = user.Email ?? "";
+        var at = email.IndexOf('@');
+        return at < 1 ? "email của bạn" : $"{email[0]}***{email[at..]}";
     }
 
     /* ------------------------------------------------- docs/01 TK-01: OTP */
@@ -214,6 +343,117 @@ public class AccountController(
     [HttpGet("profile-options")]
     public ActionResult<IReadOnlyList<SpokenLanguageDto>> ProfileOptions() =>
         Ok(Profiles.SpokenLanguages.Select(l => new SpokenLanguageDto(l.Code, l.Label)).ToList());
+
+    /* --------------------------------------- docs/01 TK-06: who you are */
+
+    /// <summary>The person's own view: status and reason, never the images back again.</summary>
+    [HttpGet("identity")]
+    public async Task<ActionResult<IdentityCheckDto?>> IdentityStatus(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var latest = await LatestCheckAsync(user.Id, ct);
+        return latest is null ? NoContent() : Ok(ToDto(latest));
+    }
+
+    [HttpPost("identity")]
+    public async Task<ActionResult<IdentityCheckDto>> SubmitIdentity(
+        [FromBody] IdentityCheckRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var document = Enum.TryParse<IdentityDocument>(req.Document, true, out var parsed)
+            ? parsed
+            : IdentityDocument.NationalId;
+
+        var latest = await LatestCheckAsync(user.Id, ct);
+        var check = IdentityChecks.CanSubmit(
+            latest, document, req.FrontImageUrl, req.BackImageUrl, req.SelfieImageUrl);
+
+        if (!check.Ok) return BadRequest(new { message = check.Message });
+
+        var row = new IdentityCheck
+        {
+            UserId = user.Id,
+            Document = document,
+            DocumentLast4 = IdentityChecks.Last4(req.DocumentNumber),
+            FrontImageUrl = req.FrontImageUrl!.Trim(),
+            BackImageUrl = IdentityChecks.NeedsBackImage(document) ? req.BackImageUrl!.Trim() : null,
+            SelfieImageUrl = req.SelfieImageUrl!.Trim()
+        };
+
+        db.IdentityChecks.Add(row);
+        await db.SaveChangesAsync(ct);
+
+        return Ok(ToDto(row));
+    }
+
+    private Task<IdentityCheck?> LatestCheckAsync(int userId, CancellationToken ct) =>
+        db.IdentityChecks
+            .Where(c => c.UserId == userId)
+            .OrderByDescending(c => c.SubmittedAt).ThenByDescending(c => c.Id)
+            .FirstOrDefaultAsync(ct);
+
+    private static IdentityCheckDto ToDto(IdentityCheck c) => new(
+        c.Id,
+        c.Document.ToString(),
+        IdentityChecks.DocumentLabel(c.Document),
+        c.DocumentLast4,
+        c.Status.ToString(),
+        IdentityChecks.StatusLabel(c.Status),
+        IdentityChecks.BadgeClass(c.Status),
+        c.Note,
+        c.SubmittedAt,
+        c.DecidedAt);
+
+    /* ------------------------------------------------------ docs/01 TK-10 */
+
+    [HttpGet("notifications")]
+    public async Task<ActionResult<NotificationPrefsDto>> NotificationPreferences(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        return Ok(BuildPrefs(user.NotificationMask));
+    }
+
+    /// <summary>
+    /// One cell at a time. A whole-matrix PUT would let a stale tab overwrite
+    /// changes made on a phone a minute ago with what it happened to be showing.
+    /// </summary>
+    [HttpPut("notifications")]
+    public async Task<ActionResult<NotificationPrefsDto>> UpdateNotificationPreference(
+        [FromBody] UpdateNotificationPrefRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        if (!Enum.TryParse<NotificationTopic>(req.Topic, true, out var topic) ||
+            !Enum.TryParse<NotificationChannel>(req.Channel, true, out var channel))
+            return BadRequest(new { message = "Không có loại thông báo hoặc kênh này." });
+
+        // docs/03 §11 — a cell that may not be turned off simply does not move,
+        // rather than the request failing: the screen already shows it locked.
+        user.NotificationMask = NotificationPrefs.With(user.NotificationMask, topic, channel, req.On);
+        await db.SaveChangesAsync(ct);
+
+        return Ok(BuildPrefs(user.NotificationMask));
+    }
+
+    private static NotificationPrefsDto BuildPrefs(int mask) => new(
+        NotificationPrefs.Channels.Select(c => c.ToString()).ToList(),
+        NotificationPrefs.Channels.Select(NotificationPrefs.ChannelLabel).ToList(),
+        NotificationPrefs.Topics.Select(topic => new NotificationRowDto(
+            topic.ToString(),
+            NotificationPrefs.TopicLabel(topic),
+            NotificationPrefs.TopicNote(topic),
+            NotificationPrefs.Channels.Select(channel => new NotificationCellDto(
+                channel.ToString(),
+                NotificationPrefs.ChannelLabel(channel),
+                NotificationPrefs.IsOn(mask, topic, channel),
+                !NotificationPrefs.CanTurnOff(topic, channel))).ToList())).ToList());
 
     /// <summary>Turns a guest account into a host account without publishing anything yet.</summary>
     [HttpPost("become-host")]

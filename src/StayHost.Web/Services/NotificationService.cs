@@ -28,7 +28,16 @@ public class NotificationService(StayHostDbContext db, ILogger<NotificationServi
     {
         if (recipient is null) return;
 
+        // docs/01 TK-10 — the in-app row is always written: it is the record,
+        // and docs/03 §11 keeps transactional notices un-silenceable anyway.
         Queue(recipient.Id, kind, title, body, link);
+
+        var topic = NotificationPrefs.TopicOf(kind);
+        if (!NotificationPrefs.IsOn(recipient.NotificationMask, topic, NotificationChannel.Email))
+        {
+            log.LogInformation("User {UserId} turned off {Topic} email; in-app only.", recipient.Id, topic);
+            return;
+        }
 
         // Somebody who signed up with a phone has no address to write to
         // (docs/01 TK-01); the in-app notification above is all they get.

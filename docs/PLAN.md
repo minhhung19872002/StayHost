@@ -103,11 +103,16 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
       sở thích. Ảnh chỉ nhận tệp vừa tải lên sàn, không nhận địa chỉ bên ngoài
 - [x] `TK-05` trang hồ sơ công khai `/users/:id`: ảnh, năm tham gia, huy hiệu xác minh,
       giới thiệu, ngôn ngữ, tin đăng đang có, đánh giá nhận được từ **cả hai phía**
-- [ ] `TK-06` xác minh giấy tờ tuỳ thân + selfie (P1)
+- [x] `TK-06` xác minh danh tính: ảnh giấy tờ + ảnh chân dung, người thật duyệt, chỉ giữ
+      4 số cuối của số giấy tờ; duyệt xong mới có huy hiệu trên hồ sơ công khai
+- [x] `TK-08` **bảo mật 2 lớp**: mật khẩu đúng chưa mở phiên, còn phải nhập mã 6 số;
+      bật cần mã, tắt cần mật khẩu
+- [x] `TK-10` ma trận thông báo loại × kênh. Thông báo đơn đặt và thanh toán **không tắt
+      được** (`docs/03 §11`), tiếp thị mặc định tắt
+- [x] `TK-11` tải toàn bộ dữ liệu cá nhân về một tệp JSON, tải ngay chứ không chờ email
 - [ ] `TK-07` xác minh email công ty (P2)
-- [ ] `TK-08` phần **bảo mật 2 lớp** (P1)
-- [ ] `TK-10` ma trận thông báo: loại × kênh (P1)
-- [ ] `TK-11` tải toàn bộ dữ liệu cá nhân (P1)
+- [ ] `TK-12` tạm vô hiệu hoá / xoá tài khoản, ẩn danh dữ liệu giao dịch (P1)
+- [ ] `TK-13` liên hệ khẩn cấp (P2)
 
 ### Giai đoạn 0 — Nền ✅
 - [x] Chuyển frontend sang React 19 + Vite + React Router 7
@@ -213,9 +218,7 @@ Plan cũ chỉ ghi 58/201 mã. Đã dò từng mã đáng ngờ trong mã nguồ
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
-| `TK-06` | Xác minh giấy tờ tuỳ thân + selfie | P1 |
-| `TK-08` | Bảo mật 2 lớp (phần phiên thiết bị đã có) | P1 |
-| `TK-10`, `TK-11` | Ma trận thông báo · tải dữ liệu cá nhân | P1 |
+| `TK-12` | Tạm vô hiệu hoá / xoá tài khoản, ẩn danh dữ liệu giao dịch | P1 |
 | `TĐ-03`, `TN-06` | Dịch mô tả tin đăng · dịch tin nhắn | P1 |
 | `TC-03` | Đơn từ 28 đêm trở lên thu theo từng tháng | P1 |
 | `ĐG-10` | Báo cáo đánh giá vi phạm | P1 |
@@ -227,7 +230,7 @@ Plan cũ chỉ ghi 58/201 mã. Đã dò từng mã đáng ngờ trong mã nguồ
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (362 test)
+# Test nghiệp vụ (385 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

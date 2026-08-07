@@ -22,3 +22,7 @@ Thumbs.db
 appsettings.*.local.json
 .env
 .env.local
+
+# Runtime image uploads live under wwwroot; only the folder is tracked.
+src/StayHost.Web/wwwroot/uploads/*
+!src/StayHost.Web/wwwroot/uploads/.gitkeep

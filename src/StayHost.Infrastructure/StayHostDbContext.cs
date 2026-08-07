@@ -53,6 +53,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<Referral> Referrals => Set<Referral>();
     public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
     public DbSet<OneTimeCode> OneTimeCodes => Set<OneTimeCode>();
+    public DbSet<IdentityCheck> IdentityChecks => Set<IdentityCheck>();
     public DbSet<ShieldClaim> ShieldClaims => Set<ShieldClaim>();
     public DbSet<ShieldEvidence> ShieldEvidence => Set<ShieldEvidence>();
     public DbSet<ShieldItem> ShieldItems => Set<ShieldItem>();
@@ -95,6 +96,22 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.SpokenLanguages).HasMaxLength(Profiles.MaxLanguages * (Profiles.TagMax + 1));
             e.Property(x => x.Interests).HasMaxLength(Profiles.MaxInterests * (Profiles.TagMax + 1));
             e.Ignore(x => x.HostProfileId);
+        });
+
+        // docs/01 TK-06 — one row per attempt at proving who somebody is.
+        b.Entity<IdentityCheck>(e =>
+        {
+            e.ToTable("identity_checks");
+            e.HasIndex(x => new { x.UserId, x.SubmittedAt });
+            e.HasIndex(x => x.Status);
+            e.Property(x => x.DocumentLast4).HasMaxLength(4);
+            e.Property(x => x.FrontImageUrl).HasMaxLength(300).IsRequired();
+            e.Property(x => x.BackImageUrl).HasMaxLength(300);
+            e.Property(x => x.SelfieImageUrl).HasMaxLength(300).IsRequired();
+            e.Property(x => x.Note).HasMaxLength(500);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.DecidedByUser).WithMany().HasForeignKey(x => x.DecidedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         b.Entity<AuthSession>(e =>

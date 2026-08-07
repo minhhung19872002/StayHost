@@ -14,7 +14,14 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
 {
     public const string CookieName = "sh_auth";
 
-    public sealed record AuthResult(bool Ok, string? Error = null, User? User = null);
+    public sealed record AuthResult(
+        bool Ok, string? Error = null, User? User = null,
+        /// <summary>
+        /// docs/01 TK-08 — set when the password was right but a second factor
+        /// is still owed. No session exists yet; this token only says which
+        /// account is halfway in.
+        /// </summary>
+        string? TwoFactorChallenge = null);
 
     private HttpContext Ctx => accessor.HttpContext
         ?? throw new InvalidOperationException("No active HTTP context.");
@@ -85,9 +92,73 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
             || !PasswordHasher.Verify(password, user.PasswordHash, user.PasswordSalt))
             return new(false, "Email, số điện thoại hoặc mật khẩu không đúng.");
 
+        // docs/01 TK-08 — the password alone does not open the door. Nothing is
+        // adopted and no session is issued until the code comes back.
+        if (user.TwoFactorEnabled)
+            return new(true, null, user, await IssueChallengeAsync(user, ct));
+
         await AdoptAnonymousDataAsync(user, ct);
         await IssueSessionAsync(user, ct);
         return new(true, null, user);
+    }
+
+    /// <summary>
+    /// docs/01 TK-08 — a short-lived, single-use token naming the half-signed-in
+    /// account. It grants nothing on its own: <see cref="RedeemChallengeAsync"/>
+    /// is the only thing that reads it, and only alongside a correct code.
+    /// </summary>
+    public async Task<string> IssueChallengeAsync(User user, CancellationToken ct)
+    {
+        // Any older challenge for this account stops working the moment a new
+        // one is issued, so a stale tab cannot be used to finish a login.
+        var stale = await db.UserTokens
+            .Where(t => t.UserId == user.Id && t.Purpose == TokenPurpose.TwoFactorChallenge && t.UsedAt == null)
+            .ToListAsync(ct);
+        foreach (var t in stale) t.UsedAt = DateTime.UtcNow;
+
+        var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48))
+            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+        db.UserTokens.Add(new UserToken
+        {
+            Token = token,
+            UserId = user.Id,
+            Purpose = TokenPurpose.TwoFactorChallenge,
+            ExpiresAt = DateTime.UtcNow + Identity.CodeLifetime
+        });
+        await db.SaveChangesAsync(ct);
+        return token;
+    }
+
+    /// <summary>Reads a live challenge without spending it; the code still has to be right.</summary>
+    public async Task<User?> ReadChallengeAsync(string? token, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return null;
+
+        var entry = await db.UserTokens
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.Token == token && t.Purpose == TokenPurpose.TwoFactorChallenge, ct);
+
+        if (entry is null || entry.UsedAt is not null || entry.ExpiresAt < DateTime.UtcNow) return null;
+        return entry.User;
+    }
+
+    /// <summary>Spends the challenge and starts the session it was standing in for.</summary>
+    public async Task<AuthResult> RedeemChallengeAsync(string token, CancellationToken ct)
+    {
+        var entry = await db.UserTokens
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.Token == token && t.Purpose == TokenPurpose.TwoFactorChallenge, ct);
+
+        if (entry is null || entry.UsedAt is not null || entry.ExpiresAt < DateTime.UtcNow)
+            return new(false, "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+
+        entry.UsedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        await AdoptAnonymousDataAsync(entry.User!, ct);
+        await IssueSessionAsync(entry.User!, ct);
+        return new(true, null, entry.User);
     }
 
     /// <summary>Starts a session for somebody a provider just vouched for (docs/01 TK-02).</summary>
