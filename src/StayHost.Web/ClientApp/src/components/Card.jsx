@@ -4,7 +4,7 @@ import { useSlideshow } from '../lib/useSlideshow.js';
 import { useStore } from '../lib/useStore.js';
 import { state as store, toggleFavorite } from '../lib/store.js';
 import { money, shortDate } from '../lib/format.js';
-import { stayTotal, originalStayTotal } from '../lib/pricing.js';
+import { stayTotal, originalStayTotal, allInPerNight } from '../lib/pricing.js';
 import { setHoveredListing } from './Maps.jsx';
 
 /**
@@ -104,8 +104,9 @@ function BrowseBody({ card, showTotal }) {
     <div className="card-sub">{card.city} · {card.bedrooms} phòng ngủ</div>
     <div className="card-sub">{card.typeLabel} · {card.roomTypeLabel}</div>
     <div className="card-price">
+      {/* docs/01 TM-20 — the same stay, priced the way the guest asked to see it. */}
       {showTotal
-        ? <><b>{money(total)}</b> <span>tổng {nights} đêm</span></>
+        ? <><b>{money(allInPerNight(card))}</b> <span>/ đêm · {money(total)} tổng {nights} đêm</span></>
         : <><b>{money(card.pricePerNight)}</b> <span>/ đêm</span></>}
     </div>
   </>;

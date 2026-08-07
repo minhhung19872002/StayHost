@@ -28,6 +28,19 @@ export function stayTotal(card) {
   return { nights, total: subtotal + cleaning + Math.round(subtotal * f.guestServiceFeeRate) };
 }
 
+/**
+ * docs/01 TM-20 — the nightly price with fees and taxes in it.
+ *
+ * When the search carried dates the server sent a real quote for this card, and
+ * that number is the whole of docs/03 §1 including tax. Without dates it falls
+ * back to the same fee model the rest of this file uses, which has no tax in it
+ * — the toggle then still answers "gồm phí", just not "và thuế".
+ */
+export function allInPerNight(card) {
+  const { nights, total } = stayTotal(card);
+  return nights > 0 ? Math.round(total / nights) : card.pricePerNight;
+}
+
 /** Same fee model applied to the pre-discount nightly rate, for the strike-through. */
 export function originalStayTotal(card) {
   if (!card.originalPricePerNight) return null;

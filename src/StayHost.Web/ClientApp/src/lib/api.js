@@ -131,6 +131,12 @@ export const api = {
 
   /* -------------------------------------------------------------- hosting */
   hostDashboard: () => request('/api/host/dashboard'),
+  /* docs/01 CN-08 — titles and a draft description from the facts so far */
+  copySuggestions: body => request('/api/host/copy-suggestions', { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/01 CN-10 — what comparable places nearby charge */
+  marketPrice: params => request(`/api/host/market-price${qs(params)}`),
+  /* docs/01 QL-13 — what happens if the host cancels, before they confirm */
+  hostCancelPreview: id => request(`/api/host/bookings/${id}/cancel-preview`),
   createListing: body => request('/api/host/listings', { method: 'POST', body: JSON.stringify(body) }),
   updateListing: (id, body) => request(`/api/host/listings/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteListing: id => request(`/api/host/listings/${id}`, { method: 'DELETE' }),

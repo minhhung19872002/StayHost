@@ -539,9 +539,9 @@ function QuickBar() {
 
         <button className={`total-toggle ${state.showTotalPrice ? 'is-on' : ''}`}
                 aria-pressed={state.showTotalPrice}
-                title="Hiển thị giá trọn kỳ nghỉ thay vì giá mỗi đêm"
+                title="Hiện giá mỗi đêm đã gồm phí dịch vụ, phí dọn dẹp và thuế"
                 onClick={() => set({ showTotalPrice: !state.showTotalPrice })}>
-          <span className="switch" aria-hidden="true" /> Tổng giá
+          <span className="switch" aria-hidden="true" /> Giá đã gồm thuế và phí
         </button>
       </div>
     </div>

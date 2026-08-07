@@ -135,6 +135,8 @@ export const state = {
   // hosting
   hostingTab: 'today',
   editingListing: null,
+  // docs/01 QL-13 — the warning shown before a host cancels a guest's stay.
+  hostCancel: null,
   uploading: false,
   hostMonthOffset: 0,
   hostCalcNights: 20,
@@ -796,6 +798,32 @@ export async function respondBooking(id, action) {
     toast(action === 'confirm' ? 'Đã xác nhận đặt chỗ.' : 'Đã từ chối đặt chỗ.');
     await loadHosting();
   } catch (err) { toast(err.message); }
+}
+
+/**
+ * docs/01 QL-13 — a host cancelling a confirmed stay is shown what follows
+ * before they confirm, not after: the refund, the automatic StayShield case
+ * inside 30 days, and what it does to their Superhost cancellation rate.
+ */
+export async function previewHostCancel(id) {
+  try {
+    // The id travels with the preview: the server's payload names the booking
+    // by reference, and the cancel call needs the number.
+    state.hostCancel = { ...await api.hostCancelPreview(id), id };
+    state.overlay = 'host-cancel';
+  } catch (err) { toast(err.message); }
+  notify();
+}
+
+export async function confirmHostCancel(id, reason) {
+  try {
+    await api.hostCancelBooking(id, reason);
+    state.hostCancel = null;
+    state.overlay = null;
+    toast('Đã huỷ đơn và hoàn tiền cho khách.');
+    await loadHosting();
+  } catch (err) { toast(err.message); }
+  notify();
 }
 
 /* --------------------------------------------------------------- messaging */

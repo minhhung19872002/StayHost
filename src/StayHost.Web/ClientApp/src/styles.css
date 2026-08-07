@@ -1964,3 +1964,28 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
 }
 .countdown .cap { font-size: 12.5px; font-weight: 700; color: var(--ink-muted); }
 .countdown b { font-size: 22px; color: var(--brand-dark); letter-spacing: -0.3px; }
+
+/* ------------------------- host tooling (CN-08, CN-10, QL-13, TM-15) */
+/* docs/01 CN-08 — a suggestion is something to take, so it looks takeable. */
+.idea-list { display: grid; gap: 8px; margin-bottom: 14px; }
+.idea {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  width: 100%; text-align: left; padding: 12px 14px; border-radius: var(--r-field);
+  border: 1px solid var(--line); background: #fff; font-size: 14px; line-height: 1.5; color: var(--ink-body);
+}
+.idea:hover { border-color: var(--ink); background: var(--surface-soft); }
+.idea b { color: var(--brand); font-size: 13px; white-space: nowrap; }
+
+/* docs/01 CN-10 — three numbers, with the one that matters in the middle. */
+.market-band { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+.market-band > div {
+  padding: 12px 14px; border-radius: var(--r-field); background: var(--surface-soft);
+  border: 1px solid var(--divider); text-align: center;
+}
+.market-band .is-mid { background: var(--brand-soft); border-color: var(--brand-soft-border); }
+.market-band .cap { display: block; font-size: 12px; font-weight: 700; color: var(--ink-muted); margin-bottom: 4px; }
+.market-band b { font-size: 15px; }
+
+/* docs/01 QL-13 — the consequences read as a list somebody has to get past. */
+.consequences { margin: 16px 0 0; padding-left: 20px; display: grid; gap: 8px; }
+.consequences li { font-size: 14.5px; line-height: 1.55; color: var(--ink-body); }

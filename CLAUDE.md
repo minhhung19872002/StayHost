@@ -39,7 +39,7 @@ thì **code sai**, không phải tài liệu sai.
 ## 3. Hiện trạng
 
 **10/10 tình huống nghiệm thu** của `docs/04` chạy được trên server thật
-(`scripts/acceptance.py`). **418 test nghiệp vụ** xanh.
+(`scripts/acceptance.py`). **437 test nghiệp vụ** xanh.
 
 ### Nền
 
@@ -137,7 +137,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 418 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 437 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 cd src/StayHost.Web/ClientApp && npm run build && npx oxlint src
 

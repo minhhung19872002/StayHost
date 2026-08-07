@@ -1628,3 +1628,46 @@ public record PublicProfileDto(
     IReadOnlyList<ProfileReviewDto> ReviewsAsHost,
     /// <summary>Written by hosts about them as a guest.</summary>
     IReadOnlyList<ProfileReviewDto> ReviewsAsGuest);
+
+/* ------------------------------------------------ docs/01 CN-08 and CN-10 */
+
+/// <summary>docs/01 CN-08 — titles and a description built from what the wizard already knows.</summary>
+public record CopySuggestionDto(IReadOnlyList<string> Titles, string Description, int TitleMax);
+
+public record CopySuggestionRequest(
+    string? TypeKey, string? RoomTypeKey, string? City,
+    int Bedrooms, int MaxGuests, IReadOnlyList<string>? AmenityKeys);
+
+/// <summary>
+/// docs/01 CN-10 — what comparable places in the same city charge, so a host
+/// setting a price is not guessing alone.
+/// </summary>
+public record MarketPriceDto(
+    string City,
+    /// <summary>How many listings the figures are based on. Small samples say so.</summary>
+    int SampleSize,
+    decimal Low,
+    decimal Median,
+    decimal High,
+    /// <summary>Plain-language read on where the host's own number sits.</summary>
+    string? Verdict);
+
+/* ------------------------------------------------------- docs/01 QL-13 */
+
+/// <summary>
+/// What a host is told before they confirm cancelling a guest's stay: the money,
+/// and the things that follow which are not money.
+/// </summary>
+public record HostCancelPreviewDto(
+    string Reference,
+    string GuestName,
+    DateOnly CheckIn,
+    int Nights,
+    decimal GuestRefund,
+    decimal GoodwillCredit,
+    decimal HostPayoutLost,
+    /// <summary>docs/06 K1 — inside 30 days of check-in a StayShield case opens automatically.</summary>
+    bool OpensShieldCase,
+    /// <summary>docs/03 §8 — what this does to the self-cancellation criterion.</summary>
+    string CancelRateNote,
+    IReadOnlyList<string> Consequences);

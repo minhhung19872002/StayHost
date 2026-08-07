@@ -345,6 +345,87 @@ public class HostController(
         });
     }
 
+    /* ------------------------------------------- docs/01 CN-08 and CN-10 */
+
+    /// <summary>docs/01 CN-08 — titles and a first-draft description from the facts entered so far.</summary>
+    [HttpPost("copy-suggestions")]
+    public ActionResult<CopySuggestionDto> CopySuggestions([FromBody] CopySuggestionRequest req)
+    {
+        var category = CatalogService.Categories.FirstOrDefault(c => c.Key == req.TypeKey && c.Key != "all");
+
+        var facts = new ListingCopy.Facts(
+            category.Key is null ? PlaceType.House : category.Type,
+            req.RoomTypeKey switch
+            {
+                "private" => RoomType.PrivateRoom,
+                "shared" => RoomType.SharedRoom,
+                _ => RoomType.EntirePlace
+            },
+            req.City ?? "",
+            Math.Max(0, req.Bedrooms),
+            Math.Max(1, req.MaxGuests),
+            req.AmenityKeys ?? []);
+
+        return Ok(new CopySuggestionDto(
+            ListingCopy.Titles(facts), ListingCopy.Description(facts), ListingCopy.TitleMax));
+    }
+
+    /// <summary>
+    /// docs/01 CN-10 — what comparable places in the same city charge. Compared
+    /// like with like: same city, same room type, and within a bedroom either
+    /// way, because a studio and a five-bedroom villa are not each other's market.
+    /// </summary>
+    [HttpGet("market-price")]
+    public async Task<ActionResult<MarketPriceDto>> MarketPrice(
+        [FromQuery] string city,
+        [FromQuery] string? roomTypeKey,
+        [FromQuery] int bedrooms = 0,
+        [FromQuery] decimal? price = null,
+        CancellationToken ct = default)
+    {
+        var room = roomTypeKey switch
+        {
+            "private" => RoomType.PrivateRoom,
+            "shared" => RoomType.SharedRoom,
+            _ => RoomType.EntirePlace
+        };
+
+        var wanted = (city ?? "").Trim();
+
+        var prices = await db.Listings
+            .Where(l => l.IsPublished && l.City == wanted && l.RoomType == room
+                        && (bedrooms <= 0 || (l.Bedrooms >= bedrooms - 1 && l.Bedrooms <= bedrooms + 1)))
+            .Select(l => l.PricePerNight)
+            .ToListAsync(ct);
+
+        if (prices.Count == 0)
+            return Ok(new MarketPriceDto(wanted, 0, 0, 0, 0,
+                "Chưa có chỗ nghỉ tương đương ở khu vực này để so sánh."));
+
+        var sorted = prices.OrderBy(p => p).ToList();
+        var low = Percentile(sorted, 0.25);
+        var median = Percentile(sorted, 0.5);
+        var high = Percentile(sorted, 0.75);
+
+        // Fewer than five comparables is a hint, not a benchmark, and the host
+        // deserves to be told which they are looking at.
+        var verdict = prices.Count < 5
+            ? $"Chỉ có {prices.Count} chỗ tương đương — con số này là tham khảo, chưa đủ để coi là mặt bằng."
+            : price is not { } mine ? null
+            : mine < low ? "Giá của bạn thấp hơn phần lớn chỗ tương đương. Bạn có thể tăng thêm."
+            : mine > high ? "Giá của bạn cao hơn phần lớn chỗ tương đương. Cân nhắc hạ xuống nếu chưa có nhiều lượt đặt."
+            : "Giá của bạn nằm trong khoảng phổ biến của khu vực.";
+
+        return Ok(new MarketPriceDto(wanted, prices.Count, low, median, high, verdict));
+    }
+
+    private static decimal Percentile(List<decimal> sorted, double fraction)
+    {
+        if (sorted.Count == 0) return 0;
+        var index = Math.Clamp((int)Math.Round(fraction * (sorted.Count - 1)), 0, sorted.Count - 1);
+        return sorted[index];
+    }
+
     /* ------------------------------------------------------------ bookings */
 
     // "action" is a reserved route token in attribute routing — ASP.NET Core

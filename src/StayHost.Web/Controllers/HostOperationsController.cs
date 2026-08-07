@@ -26,6 +26,96 @@ public class HostOperationsController(
     /// case on their behalf when it happens inside 30 days of check-in — the
     /// guest should not have to notice and file it themselves.
     /// </summary>
+    /// <summary>
+    /// docs/01 QL-13 — "được cảnh báo rõ hậu quả trước khi xác nhận".
+    ///
+    /// The same refund maths the cancellation itself will run, plus the two
+    /// consequences that are not money: a StayShield case opens on the guest's
+    /// behalf inside 30 days (docs/06 K1), and the self-cancellation rate is one
+    /// of the four Superhost criteria (docs/03 §8). A host who only learns that
+    /// afterwards was not warned.
+    /// </summary>
+    [HttpGet("bookings/{id:int}/cancel-preview")]
+    public async Task<ActionResult<HostCancelPreviewDto>> CancelPreview(int id, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var booking = await db.Bookings
+            .Include(b => b.Payment)
+            .Include(b => b.Listing)
+            .Include(b => b.GuestUser)
+            .FirstOrDefaultAsync(b => b.Id == id, ct);
+        if (booking is null) return NotFound();
+
+        if (await access.ListingAsync(user, booking.ListingId, CoHostScope.Bookings, ct) is null)
+            return this.Denied("Bạn không có quyền với đơn này.");
+
+        if (!BookingLifecycle.CanTransition(booking.Status, BookingStatus.CancelledByHost))
+            return BadRequest(new
+            {
+                message = $"Đơn đang ở trạng thái \"{BookingLifecycle.Label(booking.Status)}\" nên không huỷ được."
+            });
+
+        var outcome = Cancellation.Refund(new Cancellation.Context
+        {
+            Booking = booking,
+            Now = DateTime.UtcNow,
+            By = CancelledBy.Host,
+            ServiceFeeRefundsUsed = 0
+        });
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var daysOut = booking.CheckIn.DayNumber - today.DayNumber;
+        var opensShield = daysOut is >= 0 and <= 30;
+
+        // docs/03 §8 — where this leaves the criterion, counted the way the
+        // badge job counts it, so the warning and the decision agree.
+        var host = await db.Hosts.FirstOrDefaultAsync(h => h.Id == booking.Listing!.HostId, ct);
+        var yearAgo = today.AddYears(-1);
+
+        var orders = await db.Bookings
+            .Where(b => b.Listing!.HostId == booking.Listing!.HostId && b.CheckIn >= yearAgo)
+            .Select(b => new { b.Status, b.CancelledBy })
+            .ToListAsync(ct);
+
+        var live = orders.Count(o => BookingLifecycle.BlocksDates.Contains(o.Status));
+        var cancels = orders.Count(o => o.CancelledBy == CancelledBy.Host);
+        var after = Math.Round((cancels + 1) * 100.0 / Math.Max(1, live + cancels + 1), 2);
+
+        var rateNote = after >= Badges.SuperhostCancelRate
+            ? $"Tỉ lệ tự huỷ sẽ thành {after:0.##}% — vượt mức {Badges.SuperhostCancelRate:0}% "
+              + $"của danh hiệu Siêu chủ nhà{(host?.IsSuperhost == true ? ", bạn có thể mất danh hiệu ở kỳ xét tới." : ".")}"
+            : $"Tỉ lệ tự huỷ sẽ thành {after:0.##}%, vẫn dưới mức {Badges.SuperhostCancelRate:0}%.";
+
+        var consequences = new List<string>
+        {
+            $"Khách được hoàn {outcome.Amount:N0}đ — toàn bộ số tiền đã trả.",
+            "Ngày trong lịch được mở lại, khách khác có thể đặt ngay.",
+            rateNote
+        };
+
+        if (outcome.GoodwillCredit > 0)
+            consequences.Insert(1, $"Khách nhận thêm {outcome.GoodwillCredit:N0}đ số dư đền bù (docs/03 §4).");
+
+        if (opensShield)
+            consequences.Insert(1,
+                $"Còn {daysOut} ngày tới ngày nhận phòng nên hệ thống **tự mở hồ sơ StayShield** "
+                + "để tìm chỗ ở thay thế cho khách; chi phí chênh lệch có thể được thu lại từ bạn.");
+
+        return Ok(new HostCancelPreviewDto(
+            booking.Reference,
+            booking.GuestUser?.FullName ?? booking.GuestName,
+            booking.CheckIn,
+            booking.Nights,
+            outcome.Amount,
+            outcome.GoodwillCredit,
+            booking.Payment?.HostPayout ?? booking.HostPayout,
+            opensShield,
+            rateNote,
+            consequences));
+    }
+
     [HttpPost("bookings/{id:int}/cancel")]
     public async Task<IActionResult> CancelBooking(
         int id, [FromBody] HostCancelRequest? req, CancellationToken ct)

@@ -308,25 +308,28 @@ Kết quả: **137 xong · 13 làm một phần · 51 chưa có.** Con số 105 
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
-### 9.0 Chín mã P0 còn nợ — làm trước
+### 9.0 P0 — còn **một** mã, và nó chờ khách quyết chứ không chờ code
 
-Đây là danh sách duy nhất cần nhìn khi hỏi "còn việc gì gấp".
+Tám trong chín mã P0 của lần soát 07/08/2026 đã làm xong trong cùng ngày:
 
-| Mã | Việc | Tình trạng |
+| Mã | Việc | Làm gì |
 |---|---|---|
-| `TĐ-03` | Nút dịch mô tả tin đăng sang ngôn ngữ người xem | chưa có |
-| `TĐ-13` | Khoảng cách tới các điểm chính trên bản đồ | một phần |
-| `TĐ-14` | Ngôn ngữ chủ nhà + co-host trên thẻ giới thiệu | một phần |
-| `TM-15` | Gom "Tuỳ chọn đặt" thành một nhóm trong bộ lọc | một phần |
-| `TM-20` | Công tắc "hiện giá đã gồm thuế và phí" | một phần (đang là "Tổng giá") |
-| `CĐ-02` | Đếm ngược tới ngày nhận phòng | một phần |
-| `CN-08` | Gợi ý tự động cho tiêu đề và mô tả | một phần |
-| `CN-10` | Tham khảo khoảng giá thị trường khi đặt giá | một phần |
-| `QL-13` | Cảnh báo hậu quả trước khi chủ nhà xác nhận huỷ | một phần |
+| `TĐ-13` | Khoảng cách tới các điểm chính | `Landmarks.cs` — danh sách địa danh theo thành phố, đo từ toạ độ tin đăng |
+| `TĐ-14` | Ngôn ngữ chủ nhà + co-host | đọc từ hồ sơ chủ nhà (`TK-04`) và `QL-19`, không tạo bản sao |
+| `CĐ-02` | Đếm ngược tới ngày nhận phòng | tính từ **giờ nhận phòng của tin đăng**, không phải nửa đêm |
+| `TM-15` | Nhóm "Tuỳ chọn đặt" trong bộ lọc | gom đặt ngay · tự nhận phòng · thú cưng · huỷ miễn phí |
+| `TM-20` | Công tắc "giá đã gồm thuế và phí" | hiện **giá mỗi đêm đã gồm tất cả**, kèm tổng kỳ nghỉ |
+| `CN-08` | Gợi ý tiêu đề & mô tả | `ListingCopy.cs` — dựng từ chính dữ liệu host đã nhập |
+| `CN-10` | Giá thị trường khu vực | phân vị 25/50/75 của chỗ tương đương cùng thành phố |
+| `QL-13` | Cảnh báo hậu quả trước khi huỷ | tiền hoàn + hồ sơ StayShield + tỉ lệ tự huỷ sau khi huỷ |
+| `TĐ-03` | Dịch mô tả tin đăng | **chưa làm** — cần nhà cung cấp dịch thuật, xem `§9.1` |
 
-Tám trong chín mã chỉ thiếu một nhánh, không phải làm lại từ đầu.
+`TĐ-03` là mã P0 duy nhất còn lại và nó chờ một quyết định của khách chứ không
+chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và trả tiền
+khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
+mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (51 mã)
+### 9.1 Chưa có### 9.1 Chưa có (51 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -344,7 +347,7 @@ Tám trong chín mã chỉ thiếu một nhánh, không phải làm lại từ �
 | `TM-23` | Lưu bộ tìm kiếm + thông báo khi có chỗ mới phù hợp | P2 |
 | `TM-24` | Vẽ vùng tìm kiếm trên bản đồ | P2 |
 | `TM-26` | Trang giới thiệu theo thành phố / loại hình (cho tìm kiếm ngoài sàn) | P1 |
-| `TĐ-03` · `TN-06` | Dịch mô tả tin đăng · dịch tin nhắn | P1 |
+| `TĐ-03` · `TN-06` | Dịch mô tả tin đăng (**P0**) · dịch tin nhắn (P1) — cần nhà cung cấp dịch thuật | P0/P1 |
 | `TC-03` | Đơn từ 28 đêm trở lên thu theo từng tháng | P1 |
 | `TC-11` | Xử lý tranh chấp thẻ và giao dịch nghi ngờ gian lận | P1 |
 | `TK-12` | Tạm vô hiệu hoá / xoá tài khoản, ẩn danh dữ liệu giao dịch | P1 |
@@ -389,7 +392,7 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 
 ---|---|---|
 | `TK-12` | Tạm vô hiệu hoá / xoá tài khoản, ẩn danh dữ liệu giao dịch | P1 |
-| `TĐ-03`, `TN-06` | Dịch mô tả tin đăng · dịch tin nhắn | P1 |
+| `TĐ-03`, `TN-06` | Dịch mô tả tin đăng (P0) · dịch tin nhắn (P1) | P0/P1 |
 | `TC-03` | Đơn từ 28 đêm trở lên thu theo từng tháng | P1 |
 | `ĐG-10` | Báo cáo đánh giá vi phạm | P1 |
 | `QL-09` | Gợi ý giá theo nhu cầu thị trường | P2 |
@@ -400,7 +403,7 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (418 test)
+# Test nghiệp vụ (437 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

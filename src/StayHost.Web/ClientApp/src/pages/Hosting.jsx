@@ -248,6 +248,10 @@ function BookingRow({ booking: b, navigate }) {
           <button className="btn btn-outline btn-sm"
                   onClick={() => set({ guestReviewBooking: b, overlay: 'guest-review' })}>Đánh giá khách</button>
         )}
+        {/* docs/01 QL-13 — never a bare "huỷ": the warning comes first. */}
+        {b.status === 'Confirmed' && (
+          <button className="btn btn-outline btn-sm" onClick={() => previewHostCancel(b.id)}>Huỷ đơn</button>
+        )}
         <button className="btn btn-outline btn-sm" onClick={() => navigate('/messages')}>Nhắn khách</button>
       </div>
     </article>

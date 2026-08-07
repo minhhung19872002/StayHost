@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { useStore } from '../../lib/useStore.js';
 import { set, saveListing, removeListing, closeOverlay, toast } from '../../lib/store.js';
+import { api } from '../../lib/api.js';
 import { money } from '../../lib/format.js';
 import { AmenityIcon } from '../Icon.jsx';
 import { Modal } from './Modal.jsx';
@@ -562,11 +563,50 @@ function StepPhotos({ form, setForm }) {
   );
 }
 
+/**
+ * docs/01 CN-08 — the blank box is what stops a host finishing a listing, so the
+ * wizard offers titles and a first draft built from what it already knows. They
+ * are suggestions to edit, never text that gets saved without being read.
+ */
 function StepWords({ form, field }) {
+  const [ideas, setIdeas] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const suggest = async () => {
+    setBusy(true);
+    try {
+      setIdeas(await api.copySuggestions({
+        typeKey: form.typeKey,
+        roomTypeKey: form.roomTypeKey,
+        city: form.city,
+        bedrooms: form.bedrooms,
+        maxGuests: form.maxGuests,
+        amenityKeys: form.amenityKeys
+      }));
+    } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
   return <>
     <section className="modal-section">
       <h3>Đặt tên cho chỗ nghỉ</h3>
       <span className="hint">Ngắn, cụ thể, nói được điều đặc biệt. Tối đa 60 ký tự.</span>
+
+      <button type="button" className="btn btn-sm" style={{ marginBottom: 12 }}
+              onClick={suggest} disabled={busy || !form.city.trim()}>
+        {busy ? 'Đang nghĩ…' : ideas ? 'Gợi ý khác' : '✨ Gợi ý tiêu đề & mô tả'}
+      </button>
+      {!form.city.trim() && <p className="field-note">Nhập thành phố ở bước Vị trí để nhận gợi ý.</p>}
+
+      {!!ideas?.titles.length && (
+        <div className="idea-list">
+          {ideas.titles.map(t => (
+            <button type="button" className="idea" key={t} onClick={() => field('title', t)}>
+              <span>{t}</span><b>Dùng</b>
+            </button>
+          ))}
+        </div>
+      )}
       <label className="form-field">
         <span className="cap">Tiêu đề * <span style={{ fontWeight: 400 }}>({form.title.length}/60)</span></span>
         <input value={form.title} maxLength={60} onChange={e => field('title', e.target.value)}
@@ -576,6 +616,12 @@ function StepWords({ form, field }) {
 
     <section className="modal-section">
       <h3>Mô tả</h3>
+      {ideas?.description && (
+        <button type="button" className="idea" style={{ marginBottom: 10 }}
+                onClick={() => field('description', ideas.description)}>
+          <span>{ideas.description}</span><b>Dùng</b>
+        </button>
+      )}
       <label className="form-field">
         <span className="cap">Giới thiệu chỗ nghỉ * <span style={{ fontWeight: 400 }}>(tối thiểu 40 ký tự)</span></span>
         <textarea rows={6} value={form.description} onChange={e => field('description', e.target.value)}
@@ -596,7 +642,38 @@ function StepPrice({ form, num, rule, meta }) {
   const hostFee = meta?.fees?.hostServiceFeeRate ?? 0.03;
   const guestPays = form.pricePerNight + form.cleaningFee;
 
+  // docs/01 CN-10 — what comparable places in the same city charge. Re-read when
+  // the host changes their own number so the verdict keeps up with them.
+  const [market, setMarket] = useState(null);
+  useEffect(() => {
+    if (!form.city.trim()) { setMarket(null); return; }
+    api.marketPrice({
+      city: form.city,
+      roomTypeKey: form.roomTypeKey,
+      bedrooms: form.bedrooms,
+      price: form.pricePerNight
+    }).then(setMarket).catch(() => setMarket(null));
+  }, [form.city, form.roomTypeKey, form.bedrooms, form.pricePerNight]);
+
   return <>
+    {market && (
+      <section className="modal-section">
+        <h3>Giá thị trường ở {market.city}</h3>
+        <span className="hint">
+          {market.sampleSize > 0
+            ? `Dựa trên ${market.sampleSize} chỗ nghỉ tương đương đang hiển thị.`
+            : 'Chưa có dữ liệu so sánh.'}
+        </span>
+        {market.sampleSize > 0 && (
+          <div className="market-band">
+            <div><span className="cap">Thấp</span><b>{money(market.low)}</b></div>
+            <div className="is-mid"><span className="cap">Trung vị</span><b>{money(market.median)}</b></div>
+            <div><span className="cap">Cao</span><b>{money(market.high)}</b></div>
+          </div>
+        )}
+        {market.verdict && <p className="field-note" style={{ marginTop: 10 }}>{market.verdict}</p>}
+      </section>
+    )}
     <section className="modal-section">
       <h3>Giá mỗi đêm</h3>
       <div className="field-grid">

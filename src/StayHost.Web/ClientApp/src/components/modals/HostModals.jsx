@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../../lib/useStore.js';
-import { set, loadHostCalendar, loadHosting, toast } from '../../lib/store.js';
+import { set, loadHostCalendar, loadHosting, confirmHostCancel, toast } from '../../lib/store.js';
 import { api } from '../../lib/api.js';
 import { money, shortMoney, longDate, isoOf } from '../../lib/format.js';
 import { Modal } from './Modal.jsx';
@@ -443,6 +443,57 @@ export function GuestReviewModal() {
 
         <button type="submit" className="btn btn-primary btn-block">Gửi đánh giá</button>
       </form>
+    </Modal>
+  );
+}
+
+/**
+ * docs/01 QL-13 — everything that follows a host cancellation, before it
+ * happens. The consequences come from the server, computed with the same rules
+ * that will run a second later, so this is a preview and not a description of
+ * one.
+ */
+export function HostCancelModal() {
+  const state = useStore();
+  const p = state.hostCancel;
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  if (!p) return null;
+
+  const go = async () => {
+    setBusy(true);
+    await confirmHostCancel(p.id, reason.trim() || null);
+    setBusy(false);
+  };
+
+  return (
+    <Modal title="Huỷ đơn của khách">
+      <div className="book-alert">
+        <b>Việc này không thể hoàn tác</b>
+        <span>{p.guestName} đã đặt {p.nights} đêm từ {longDate(p.checkIn)} · mã {p.reference}</span>
+      </div>
+
+      <ul className="consequences">
+        {p.consequences.map(c => <li key={c}>{c}</li>)}
+      </ul>
+
+      <div className="kv-grid" style={{ marginTop: 16 }}>
+        <div className="kv"><span className="kv-label">Khách được hoàn</span><b>{money(p.guestRefund)}</b></div>
+        <div className="kv"><span className="kv-label">Bạn mất khoản nhận</span><b>{money(p.hostPayoutLost)}</b></div>
+      </div>
+
+      <label className="form-field" style={{ marginTop: 16 }}>
+        <span className="cap">Lý do huỷ <span style={{ fontWeight: 400 }}>(khách sẽ đọc được)</span></span>
+        <input value={reason} onChange={e => setReason(e.target.value)}
+               placeholder="Ví dụ: nhà đang sửa chữa đột xuất" />
+      </label>
+
+      <button className="btn btn-block" style={{ marginTop: 6 }} disabled={busy} onClick={go}>
+        {busy ? 'Đang huỷ…' : 'Tôi hiểu hậu quả, vẫn huỷ đơn'}
+      </button>
+      <button className="btn btn-primary btn-block" style={{ marginTop: 8 }}
+              onClick={() => set({ overlay: null, hostCancel: null })}>Giữ đơn lại</button>
     </Modal>
   );
 }

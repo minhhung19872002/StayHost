@@ -120,6 +120,37 @@ export function FiltersModal() {
         </section>
       ))}
 
+      {/*
+        * docs/01 TM-15 — the four booking options as one group. Two are flags on
+        * the search, two are amenities; a guest filtering for "tự nhận phòng"
+        * should not have to know which is which.
+        */}
+      <section className="modal-section">
+        <h3>Tuỳ chọn đặt</h3>
+        <div className="pill-row" style={{ marginTop: 14 }}>
+          <button className={`pill ${state.instantBookOnly ? 'is-on' : ''}`}
+                  aria-pressed={state.instantBookOnly}
+                  onClick={() => { set({ instantBookOnly: !state.instantBookOnly }); applySearch(); }}>
+            <Icon name="ev" size={17} /> Đặt ngay
+          </button>
+          <button className={`pill ${state.amenities.includes('selfcheckin') ? 'is-on' : ''}`}
+                  aria-pressed={state.amenities.includes('selfcheckin')}
+                  onClick={() => { toggleAmenity('selfcheckin'); applySearch(); }}>
+            <AmenityIcon name="selfcheckin" size={17} /> Tự nhận phòng
+          </button>
+          <button className={`pill ${state.amenities.includes('pet') ? 'is-on' : ''}`}
+                  aria-pressed={state.amenities.includes('pet')}
+                  onClick={() => { toggleAmenity('pet'); applySearch(); }}>
+            <AmenityIcon name="pet" size={17} /> Cho thú cưng
+          </button>
+          <button className={`pill ${state.freeCancellationOnly ? 'is-on' : ''}`}
+                  aria-pressed={state.freeCancellationOnly}
+                  onClick={() => { set({ freeCancellationOnly: !state.freeCancellationOnly }); applySearch(); }}>
+            <Icon name="heart" size={17} /> Huỷ miễn phí
+          </button>
+        </div>
+      </section>
+
       <section className="modal-section">
         <h3>Lựa chọn nổi bật</h3>
         <div className="pill-row" style={{ marginTop: 14 }}>
