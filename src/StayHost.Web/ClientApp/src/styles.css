@@ -938,6 +938,12 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
   position: absolute; right: 0; top: calc(100% + 8px); min-width: 240px; background: #fff;
   border-radius: var(--r-field); box-shadow: var(--shadow-xl); padding: 8px 0; z-index: 60;
   border: 1px solid var(--divider);
+  /* The signed-in menu carries sixteen entries. On a short window it used to run
+     off the bottom of the screen and take the page scrollbar with it; it now
+     scrolls inside itself and leaves the page alone. */
+  max-height: calc(100dvh - 104px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .menu button {
   display: flex; width: 100%; align-items: center; gap: 10px; border: 0; background: transparent;
@@ -1080,7 +1086,12 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
 .notice-warn { background: #fff7e6; color: #96690a; }
 
 /* ----------------------------------------------------------- account menu */
-.menu-user { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+/* Pinned, so a scrolled menu still says whose account it belongs to. */
+.menu-user {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  position: sticky; top: 0; margin-top: -8px; padding-top: 20px;
+  background: #fff; z-index: 1;
+}
 .menu-user b { display: block; font-size: 14px; font-weight: 700; }
 .menu-user span:not(.avatar) { font-size: 12.5px; color: var(--ink-muted); }
 .menu button { justify-content: flex-start; }
