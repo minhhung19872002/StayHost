@@ -18,7 +18,7 @@ namespace StayHost.Web.Controllers;
 [Route("api/host")]
 public class HostOperationsController(
     StayHostDbContext db, AuthService auth, HostAccess access, ShieldService shield,
-    BadgeService badges) : ControllerBase
+    BadgeService badges, NotificationService notifications) : ControllerBase
 {
     /// <summary>
     /// A host walking away from a confirmed booking. docs/03 §4 gives the guest
@@ -468,10 +468,29 @@ public class HostOperationsController(
         if (digits.Length is > 0 and < 6)
             return BadRequest(new { message = "Số tài khoản không hợp lệ." });
 
+        // docs/07 §12.2 — changing where the money goes freezes payouts for
+        // three days and warns the address on file. Only a real change counts;
+        // re-saving the same account is not an event.
+        var newTail = digits.Length >= 6 ? digits[^4..] : profile.PayoutAccountLast4;
+        var changed = newTail != profile.PayoutAccountLast4
+                      || req.BankName?.Trim() != profile.PayoutBankName
+                      || req.AccountName?.Trim() != profile.PayoutAccountName;
+
         profile.PayoutBankName = req.BankName?.Trim();
         profile.PayoutAccountName = req.AccountName?.Trim();
         // Only the tail is ever stored: the full number is not ours to keep.
-        if (digits.Length >= 6) profile.PayoutAccountLast4 = digits[^4..];
+        profile.PayoutAccountLast4 = newTail;
+
+        if (changed && profile.PayoutAccountLast4 is not null)
+        {
+            profile.PayoutAccountChangedAt = DateTime.UtcNow;
+            profile.PayoutAccountVerified = false;
+
+            await notifications.QueueWithEmailAsync(user, NotificationKind.System,
+                "Tài khoản nhận tiền vừa được thay đổi",
+                Payouts.FreezeNotice(profile.PayoutAccountChangedAt.Value),
+                "/hosting", ct);
+        }
         profile.PayoutSchedule = Enum.TryParse<PayoutSchedule>(req.Schedule, true, out var s)
             ? s
             : PayoutSchedule.PerBooking;

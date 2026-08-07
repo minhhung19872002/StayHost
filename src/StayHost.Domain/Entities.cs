@@ -109,6 +109,17 @@ public class HostProfile
     public string? PayoutAccountLast4 { get; set; }
     public PayoutSchedule PayoutSchedule { get; set; } = PayoutSchedule.PerBooking;
 
+    /// <summary>
+    /// docs/07 §12.2 — when the account the money goes to was last changed.
+    /// Payouts freeze for three days afterwards: somebody who has taken over an
+    /// account must not be able to redirect a payout before the real host has
+    /// had a chance to read the warning.
+    /// </summary>
+    public DateTime? PayoutAccountChangedAt { get; set; }
+
+    /// <summary>Set once a small test transfer has proved the account is real (docs/07 §12.2).</summary>
+    public bool PayoutAccountVerified { get; set; }
+
     public List<Listing> Listings { get; set; } = [];
 }
 
