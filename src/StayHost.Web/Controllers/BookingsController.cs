@@ -213,6 +213,23 @@ public class BookingsController(
 
         if (booking is null) return NotFound();
 
+        // docs/07 §7 — a retry of a request already answered gets that answer
+        // back. Checked before the state guard, because by then the first attempt
+        // has moved the booking on and the retry would be told the order is in
+        // the wrong state — true, and useless to a client whose reply was lost.
+        var replayKey = Payments.NamespaceKey(
+            booking.Id, req?.IdempotencyKey, 0, req?.PaymentMethod ?? "card");
+
+        if (req?.IdempotencyKey is not null)
+        {
+            var answered = await db.PaymentAttempts
+                .FirstOrDefaultAsync(a => a.BookingId == booking.Id && a.Key == replayKey, ct);
+
+            if (answered is { Status: PaymentAttemptStatus.Succeeded }) return Ok(ToDto(booking));
+            if (answered is { Status: PaymentAttemptStatus.Failed })
+                return BadRequest(new { message = answered.Message ?? Payments.Message(answered.Reason) });
+        }
+
         if (booking.Status != BookingStatus.PendingPayment)
         {
             return BadRequest(new
@@ -259,8 +276,70 @@ public class BookingsController(
         var partial = req?.PayDeposit == true && PartialPayment.IsAvailable(booking.CheckIn, today);
         var charged = partial ? PartialPayment.Deposit(price.Total, req?.DepositAmount) : price.Total;
 
-        var attempt = gateway.Charge(charged, req?.PaymentMethod ?? "card", req?.CardLast4);
-        if (!attempt.Ok) return BadRequest(new { message = attempt.Reason });
+        var method = req?.PaymentMethod ?? "card";
+
+        // docs/07 §8 — a card tester gets five goes an hour on one booking.
+        var since = DateTime.UtcNow - Payments.FailureWindow;
+        var failures = await db.PaymentAttempts.CountAsync(
+            a => a.BookingId == booking.Id && a.Status == PaymentAttemptStatus.Failed && a.CreatedAt >= since, ct);
+
+        if (Payments.LockedOut(failures))
+            return StatusCode(429, new { message = Payments.LockedOutMessage() });
+
+        // docs/07 §7 — the same request twice must take the money once. The key
+        // is claimed before the gateway is called and the unique index is what
+        // decides the race, not the order two requests happen to arrive in.
+        var key = req?.IdempotencyKey is not null
+            ? replayKey
+            : Payments.KeyFor(booking.Id, charged, method);
+
+        var settled = await db.PaymentAttempts.FirstOrDefaultAsync(a => a.Key == key, ct);
+        if (settled is not null)
+        {
+            if (settled.Status == PaymentAttemptStatus.Failed)
+                return BadRequest(new { message = settled.Message ?? Payments.Message(settled.Reason) });
+            return Ok(ToDto(booking));
+        }
+
+        var claim = new PaymentAttempt
+        {
+            Key = key, BookingId = booking.Id, Amount = charged,
+            Method = method, CardLast4 = req?.CardLast4
+        };
+        db.PaymentAttempts.Add(claim);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // Another request holds this key. It is charging, or has charged;
+            // either way this one must not.
+            db.ChangeTracker.Clear();
+            return Conflict(new { message = "Yêu cầu thanh toán này đang được xử lý. Vui lòng đợi trong giây lát." });
+        }
+
+        var attempt = gateway.Charge(charged, method, req?.CardLast4);
+
+        if (!attempt.Ok)
+        {
+            claim.Status = PaymentAttemptStatus.Failed;
+            claim.Reason = attempt.Decline;
+            claim.Message = Payments.Message(attempt.Decline);
+            claim.CompletedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+
+            return BadRequest(new
+            {
+                message = claim.Message,
+                retryable = Payments.Retryable(attempt.Decline),
+                needsDifferentMethod = Payments.NeedsDifferentMethod(attempt.Decline)
+            });
+        }
+
+        claim.Status = PaymentAttemptStatus.Succeeded;
+        claim.CompletedAt = DateTime.UtcNow;
 
         db.BookingEvents.Add(BookingLifecycle.Transition(
             booking, BookingStatus.Confirmed, $"guest:{user.Id}",

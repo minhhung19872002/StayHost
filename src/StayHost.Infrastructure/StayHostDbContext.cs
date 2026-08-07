@@ -55,6 +55,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<OneTimeCode> OneTimeCodes => Set<OneTimeCode>();
     public DbSet<IdentityCheck> IdentityChecks => Set<IdentityCheck>();
     public DbSet<ListingView> ListingViews => Set<ListingView>();
+    public DbSet<PaymentAttempt> PaymentAttempts => Set<PaymentAttempt>();
     public DbSet<ShieldClaim> ShieldClaims => Set<ShieldClaim>();
     public DbSet<ShieldEvidence> ShieldEvidence => Set<ShieldEvidence>();
     public DbSet<ShieldItem> ShieldItems => Set<ShieldItem>();
@@ -133,6 +134,22 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Token).HasMaxLength(88).IsRequired();
             e.HasOne(x => x.User).WithMany()
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/07 §7 — the unique key is the whole point: it is what stops the
+        // same charge being made twice when a request is retried.
+        b.Entity<PaymentAttempt>(e =>
+        {
+            e.ToTable("payment_attempts");
+            e.HasIndex(x => x.Key).IsUnique();
+            e.HasIndex(x => new { x.BookingId, x.CreatedAt });
+            e.Property(x => x.Key).HasMaxLength(160).IsRequired();
+            e.Property(x => x.Amount).HasPrecision(12, 2);
+            e.Property(x => x.Method).HasMaxLength(30);
+            e.Property(x => x.CardLast4).HasMaxLength(4);
+            e.Property(x => x.Message).HasMaxLength(300);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<Payment>(e =>

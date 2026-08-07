@@ -902,7 +902,12 @@ public record PayBookingRequest(
     /// <summary>docs/01 ĐP-06 — take a deposit now instead of the whole amount.</summary>
     bool PayDeposit = false,
     /// <summary>How much of a deposit. Held to at least half the total.</summary>
-    decimal? DepositAmount = null);
+    decimal? DepositAmount = null,
+    /// <summary>
+    /// docs/07 §7 — sent by the client so a retried request is recognised as the
+    /// same attempt. Omitted, the server derives one from the booking and amount.
+    /// </summary>
+    string? IdempotencyKey = null);
 
 public record RefundPreviewDto(
     decimal Refund,
