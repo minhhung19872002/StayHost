@@ -599,6 +599,25 @@ public class HostController(
             listing.PetFeePerNight = p.PetFeePerNight;
         }
 
+        // docs/01 CĐ-03 — the arrival guide. Left untouched when the client did
+        // not send one, so a save from an older screen cannot wipe it.
+        if (r.CheckIn is { } guide)
+        {
+            listing.CheckInFrom = CheckInGuide.ParseTime(guide.CheckInFrom, listing.CheckInFrom);
+            listing.CheckInTo = CheckInGuide.ParseTime(guide.CheckInTo, listing.CheckInTo);
+            listing.CheckOutBefore = CheckInGuide.ParseTime(guide.CheckOutBefore, listing.CheckOutBefore);
+            listing.CheckInMethod = Enum.TryParse<CheckInMethod>(guide.Method, true, out var method)
+                ? method
+                : CheckInMethod.Host;
+            listing.AddressLine = Profiles.Tidy(guide.AddressLine, CheckInGuide.LineMax * 2);
+            listing.WifiName = Profiles.Tidy(guide.WifiName, CheckInGuide.LineMax);
+            listing.WifiPassword = Profiles.Tidy(guide.WifiPassword, CheckInGuide.LineMax);
+            listing.DoorCode = Profiles.Tidy(guide.DoorCode, 40);
+            listing.HostPhone = Profiles.Tidy(guide.HostPhone, 30);
+            listing.Directions = Profiles.TidyLines(guide.Directions, CheckInGuide.NoteMax);
+            listing.ApplianceNotes = Profiles.TidyLines(guide.ApplianceNotes, CheckInGuide.NoteMax);
+        }
+
         var coords = CityCoordinates(listing.City);
         listing.Latitude = r.Latitude ?? (listing.Latitude != 0 ? listing.Latitude : coords.Lat);
         listing.Longitude = r.Longitude ?? (listing.Longitude != 0 ? listing.Longitude : coords.Lng);
@@ -696,7 +715,15 @@ public class HostController(
             l.LicenseNumber, l.HasSecurityCameras, l.SecurityCameraNote,
             l.HasWeaponsOnProperty, l.HasDangerousAnimals),
         l.WizardStep,
-        l.IsComplete);
+        l.IsComplete,
+        // docs/01 CĐ-03 — the host sees their own guide in full, door code included.
+        new CheckInSetupDto(
+            l.CheckInFrom.ToString("HH\\:mm"),
+            l.CheckInTo.ToString("HH\\:mm"),
+            l.CheckOutBefore.ToString("HH\\:mm"),
+            l.CheckInMethod.ToString(),
+            l.AddressLine, l.Directions, l.WifiName, l.WifiPassword,
+            l.ApplianceNotes, l.DoorCode, l.HostPhone));
 
     private static readonly System.Text.Json.JsonSerializerOptions LayoutJson =
         new(System.Text.Json.JsonSerializerDefaults.Web);

@@ -755,6 +755,35 @@ public class BookingsController(
             b.BalanceDue,
             b.BalanceDueOn,
             b.BalanceStatus.ToString(),
-            PartialPayment.Label(b.BalanceStatus));
+            PartialPayment.Label(b.BalanceStatus),
+            BuildGuide(b));
+    }
+
+    /// <summary>
+    /// docs/01 CĐ-03 and CĐ-04 — the arrival guide, filtered by docs/03 §10
+    /// before it leaves the server. Withheld fields are absent rather than
+    /// blank, so a door code the guest may not see yet is never in the response
+    /// for them to read out of it.
+    /// </summary>
+    private static CheckInGuideDto? BuildGuide(Booking b)
+    {
+        if (b.Listing is not { } l || !CheckInGuide.CanSeeGuide(b.Status)) return null;
+
+        var localNow = BookingService.LocalNow(l);
+        var codeReady = CheckInGuide.CanSeeDoorCode(b.Status, b.CheckIn, l.CheckInFrom, localNow);
+        var hasCode = !string.IsNullOrWhiteSpace(l.DoorCode);
+
+        return new CheckInGuideDto(
+            CheckInGuide.WindowLabel(l.CheckInFrom, l.CheckInTo, l.CheckOutBefore),
+            CheckInGuide.MethodLabel(l.CheckInMethod),
+            l.AddressLine,
+            l.Directions,
+            l.WifiName,
+            l.WifiPassword,
+            CheckInGuide.Lines(l.ApplianceNotes),
+            l.HostPhone,
+            hasCode && codeReady ? l.DoorCode : null,
+            hasCode,
+            hasCode && !codeReady ? CheckInGuide.DoorCodeWaitNote(b.CheckIn, l.CheckInFrom) : null);
     }
 }

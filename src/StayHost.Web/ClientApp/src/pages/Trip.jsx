@@ -65,8 +65,9 @@ export function Trip() {
           <section className="detail-section" style={{ paddingTop: 0 }}>
             <h2>Chuyến đi của bạn</h2>
             <div className="kv-grid">
-              <Kv label="Nhận phòng" value={longDate(b.checkIn)} hint="Sau 14:00" />
-              <Kv label="Trả phòng" value={longDate(b.checkOut)} hint="Trước 12:00" />
+              {/* docs/01 CĐ-03 — the listing's own hours, not a hardcoded pair. */}
+              <Kv label="Nhận phòng" value={longDate(b.checkIn)} hint={arrivalHint(b, 'in')} />
+              <Kv label="Trả phòng" value={longDate(b.checkOut)} hint={arrivalHint(b, 'out')} />
               <Kv label="Số đêm" value={`${b.nights} đêm`} />
               <Kv label="Khách" value={`${b.guests} khách`} />
               <Kv label="Chủ nhà" value={b.hostName} />
@@ -78,6 +79,8 @@ export function Trip() {
               </p>
             )}
           </section>
+
+          <CheckInSection booking={b} />
 
           <section className="detail-section">
             <h2>Chính sách huỷ</h2>
@@ -114,6 +117,71 @@ export function Trip() {
         <Receipt booking={b} />
       </div>
     </div>
+  );
+}
+
+/**
+ * docs/01 CĐ-03 — "Nhận phòng 14:00 – 22:00 · Trả phòng trước 12:00" split back
+ * into the two halves the summary grid shows. Falls back to nothing rather than
+ * to an invented hour when the guide is still withheld.
+ */
+function arrivalHint(booking, side) {
+  const label = booking.checkInGuide?.windowLabel;
+  if (!label) return undefined;
+  const [arrive, leave] = label.split(' · ');
+  return side === 'in' ? arrive : leave;
+}
+
+/**
+ * docs/01 CĐ-03 — how to get in, what the wifi is, how the appliances work.
+ * docs/03 §10 keeps the whole section off an unconfirmed booking, and the door
+ * code off it until 48 hours before check-in (CĐ-04) — both decided by the
+ * server, so this component renders what it is given and withholds nothing
+ * itself.
+ */
+function CheckInSection({ booking }) {
+  const g = booking.checkInGuide;
+  if (!g) return null;
+
+  return (
+    <section className="detail-section">
+      <h2>Hướng dẫn nhận phòng</h2>
+
+      <p className="guide-window">{g.windowLabel}</p>
+
+      <div className="kv-grid">
+        <Kv label="Cách vào nhà" value={g.methodLabel} />
+        {g.addressLine && <Kv label="Địa chỉ" value={g.addressLine} />}
+        {g.hostPhone && <Kv label="Điện thoại chủ nhà" value={g.hostPhone} />}
+        {g.wifiName && <Kv label="Wifi" value={g.wifiName} hint={g.wifiPassword ? `Mật khẩu: ${g.wifiPassword}` : undefined} />}
+      </div>
+
+      {/* docs/01 CĐ-04 — either the code, or when it will be here. */}
+      {g.doorCodeExpected && (
+        <div className={`door-code ${g.doorCode ? 'is-ready' : ''}`}>
+          <span className="cap">Mã cửa</span>
+          {g.doorCode
+            ? <b>{g.doorCode}</b>
+            : <span className="door-code-wait">{g.doorCodeNote}</span>}
+        </div>
+      )}
+
+      {g.addressLine && (
+        <a className="btn btn-outline btn-sm" style={{ marginTop: 14 }} target="_blank" rel="noreferrer"
+           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(g.addressLine)}`}>
+          Chỉ đường
+        </a>
+      )}
+
+      {g.directions && <p className="guide-note">{g.directions}</p>}
+
+      {!!g.applianceNotes.length && <>
+        <h3 className="guide-sub">Hướng dẫn thiết bị</h3>
+        <ul className="guide-list">
+          {g.applianceNotes.map(n => <li key={n}>{n}</li>)}
+        </ul>
+      </>}
+    </section>
   );
 }
 

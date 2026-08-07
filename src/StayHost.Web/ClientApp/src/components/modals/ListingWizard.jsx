@@ -21,6 +21,7 @@ const STEPS = [
   ['words', 'Tiêu đề & mô tả'],
   ['price', 'Giá'],
   ['rules', 'Nhận đơn & huỷ'],
+  ['checkin', 'Nhận phòng'],
   ['legal', 'Pháp lý'],
   ['review', 'Xem trước']
 ];
@@ -34,6 +35,25 @@ const BLANK_PRICING = {
   petsAllowed: false, maxPets: 2, petFee: 0, petFeePerNight: false
 };
 
+// docs/01 CĐ-03 — the arrival guide. Blank rather than absent so the editor is
+// never handed an undefined it has to guard on every field.
+const BLANK_CHECKIN = {
+  checkInFrom: '14:00', checkInTo: '22:00', checkOutBefore: '12:00',
+  method: 'Host', addressLine: '', directions: '',
+  wifiName: '', wifiPassword: '', applianceNotes: '', doorCode: '', hostPhone: ''
+};
+
+/** docs/01 CĐ-03 — how a guest gets in; the last three need a code (CĐ-04). */
+const CHECKIN_METHODS = [
+  ['Host', 'Chủ nhà đón và giao chìa khoá'],
+  ['Reception', 'Nhận chìa khoá ở quầy lễ tân'],
+  ['Keypad', 'Tự nhận phòng bằng mã cửa'],
+  ['Lockbox', 'Tự nhận phòng bằng hộp khoá'],
+  ['SmartLock', 'Tự nhận phòng bằng khoá thông minh']
+];
+
+const NEEDS_CODE = ['Keypad', 'Lockbox', 'SmartLock'];
+
 const BLANK_LEGAL = {
   licenseNumber: '', hasSecurityCameras: false, securityCameraNote: '',
   hasWeaponsOnProperty: false, hasDangerousAnimals: false
@@ -46,7 +66,7 @@ const BLANK = {
   instantBook: true, isPublished: false, cancellationTier: 'Moderate',
   description: '', highlight: '', images: [], imageCaptions: [], amenityKeys: [],
   latitude: null, longitude: null,
-  pricing: BLANK_PRICING, bedLayout: [], legal: BLANK_LEGAL,
+  pricing: BLANK_PRICING, bedLayout: [], legal: BLANK_LEGAL, checkIn: BLANK_CHECKIN,
   wizardStep: 0, isComplete: false
 };
 
@@ -78,6 +98,7 @@ export function ListingWizard() {
         ...BLANK, ...editing,
         pricing: { ...BLANK_PRICING, ...(editing.pricing ?? {}) },
         legal: { ...BLANK_LEGAL, ...(editing.legal ?? {}) },
+        checkIn: { ...BLANK_CHECKIN, ...(editing.checkIn ?? {}) },
         bedLayout: editing.bedLayout ?? [],
         imageCaptions: editing.imageCaptions ?? []
       };
@@ -106,6 +127,7 @@ export function ListingWizard() {
   const num = (key, value) => field(key, Number(value) || 0);
   const rule = (key, value) => setForm(f => ({ ...f, pricing: { ...f.pricing, [key]: value } }));
   const legal = (key, value) => setForm(f => ({ ...f, legal: { ...f.legal, [key]: value } }));
+  const arrival = (key, value) => setForm(f => ({ ...f, checkIn: { ...f.checkIn, [key]: value } }));
 
   const blocked = blockedReason(form, step);
 
@@ -194,6 +216,7 @@ export function ListingWizard() {
       {key === 'words' && <StepWords form={form} field={field} />}
       {key === 'price' && <StepPrice form={form} num={num} rule={rule} meta={meta} />}
       {key === 'rules' && <StepRules form={form} field={field} num={num} />}
+      {key === 'checkin' && <StepCheckIn form={form} arrival={arrival} />}
       {key === 'legal' && <StepLegal form={form} legal={legal} />}
       {key === 'review' && <StepReview form={form} onJump={setStep} />}
     </Modal>
@@ -209,6 +232,9 @@ function blockedReason(form, step) {
   if (key === 'words' && form.description.trim().length < 40) return 'Mô tả cần ít nhất 40 ký tự.';
   if (key === 'photos' && form.images.length < 5) return 'Cần tối thiểu 5 ảnh để đăng công khai.';
   if (key === 'price' && form.pricePerNight < 50000) return 'Giá mỗi đêm tối thiểu 50.000₫.';
+  // docs/01 CĐ-04 — a keypad with no code is a door the guest cannot open.
+  if (key === 'checkin' && NEEDS_CODE.includes(form.checkIn.method) && !form.checkIn.doorCode?.trim())
+    return 'Cách vào nhà này cần một mã cửa để khách tự vào được.';
   return null;
 }
 
@@ -669,6 +695,82 @@ function StepRules({ form, field, num }) {
 }
 
 /** docs/01 CN-12 — what has to be declared before a listing can go public. */
+/**
+ * docs/01 CĐ-03 — the arrival guide. Everything here reaches one guest with a
+ * confirmed stay and nobody else (docs/03 §10), and the door code only inside
+ * the last 48 hours (CĐ-04) — the screen says so, because a host typing their
+ * own door code deserves to know where it goes.
+ */
+function StepCheckIn({ form, arrival }) {
+  const c = form.checkIn;
+  const needsCode = NEEDS_CODE.includes(c.method);
+
+  return (
+    <section className="modal-section">
+      <h3>Hướng dẫn nhận phòng</h3>
+      <span className="hint">
+        Chỉ khách đã được xác nhận mới đọc được phần này. Mã cửa hiện với khách
+        từ 48 giờ trước giờ nhận phòng.
+      </span>
+
+      <div className="grid-3" style={{ marginTop: 14 }}>
+        <label className="form-field"><span className="cap">Nhận phòng từ</span>
+          <input type="time" value={c.checkInFrom}
+                 onChange={e => arrival('checkInFrom', e.target.value)} /></label>
+        <label className="form-field"><span className="cap">Đến</span>
+          <input type="time" value={c.checkInTo}
+                 onChange={e => arrival('checkInTo', e.target.value)} /></label>
+        <label className="form-field"><span className="cap">Trả phòng trước</span>
+          <input type="time" value={c.checkOutBefore}
+                 onChange={e => arrival('checkOutBefore', e.target.value)} /></label>
+      </div>
+
+      <label className="form-field"><span className="cap">Cách vào nhà</span>
+        <select value={c.method} onChange={e => arrival('method', e.target.value)}>
+          {CHECKIN_METHODS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select>
+      </label>
+
+      {needsCode && (
+        <label className="form-field"><span className="cap">Mã cửa / mã hộp khoá</span>
+          <input value={c.doorCode ?? ''} maxLength={40} placeholder="Ví dụ: 4207#"
+                 onChange={e => arrival('doorCode', e.target.value)} /></label>
+      )}
+
+      <label className="form-field"><span className="cap">Địa chỉ đầy đủ</span>
+        <input value={c.addressLine ?? ''} placeholder="123 Nguyễn Văn Linh, Hải Châu, Đà Nẵng"
+               onChange={e => arrival('addressLine', e.target.value)} /></label>
+
+      <label className="form-field"><span className="cap">Số điện thoại liên hệ</span>
+        <input type="tel" value={c.hostPhone ?? ''} placeholder="0912 345 678"
+               onChange={e => arrival('hostPhone', e.target.value)} /></label>
+
+      <div className="grid-2">
+        <label className="form-field"><span className="cap">Tên wifi</span>
+          <input value={c.wifiName ?? ''} placeholder="StayHost-201"
+                 onChange={e => arrival('wifiName', e.target.value)} /></label>
+        <label className="form-field"><span className="cap">Mật khẩu wifi</span>
+          <input value={c.wifiPassword ?? ''} onChange={e => arrival('wifiPassword', e.target.value)} /></label>
+      </div>
+
+      <label className="form-field"><span className="cap">Chỉ đường</span>
+        <textarea rows={3} value={c.directions ?? ''}
+                  placeholder="Từ sân bay đi taxi khoảng 20 phút. Toà nhà ngay góc ngã tư, cổng sơn xanh."
+                  onChange={e => arrival('directions', e.target.value)}
+                  style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
+      </label>
+
+      <label className="form-field"><span className="cap">Hướng dẫn thiết bị — mỗi dòng một mục</span>
+        <textarea rows={4} value={c.applianceNotes ?? ''}
+                  placeholder={`Điều hoà: bấm nút xanh, để 26°C.
+Bình nóng lạnh: bật công tắc ngoài phòng tắm, chờ 10 phút.`}
+                  onChange={e => arrival('applianceNotes', e.target.value)}
+                  style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
+      </label>
+    </section>
+  );
+}
+
 function StepLegal({ form, legal }) {
   return (
     <section className="modal-section">

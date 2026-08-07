@@ -124,7 +124,9 @@ public record HostListingDto(
     IReadOnlyList<string> ImageCaptions,
     LegalDeclarationDto Legal,
     int WizardStep,
-    bool IsComplete);
+    bool IsComplete,
+    /// <summary>docs/01 CĐ-03 — the arrival guide, as the host last saved it.</summary>
+    CheckInSetupDto? CheckIn = null);
 
 /// <summary>The host-settable half of docs/03 §1 — discounts and surcharges.</summary>
 public record PricingRulesDto(
@@ -173,7 +175,49 @@ public record SaveListingRequest(
     LegalDeclarationDto? Legal = null,
     /// <summary>docs/01 CN-01 — where the host got to; 0 means finished.</summary>
     int WizardStep = 0,
-    bool IsComplete = true);
+    bool IsComplete = true,
+    /// <summary>docs/01 CĐ-03 — omitted by older clients; the guide is then left alone.</summary>
+    CheckInSetupDto? CheckIn = null);
+
+/// <summary>
+/// docs/01 CĐ-03 and CĐ-04 — the arrival guide as the host fills it in. Times
+/// travel as "14:00" rather than as a duration, because that is what an
+/// &lt;input type="time"&gt; hands back.
+/// </summary>
+public record CheckInSetupDto(
+    string CheckInFrom,
+    string CheckInTo,
+    string CheckOutBefore,
+    string Method,
+    string? AddressLine,
+    string? Directions,
+    string? WifiName,
+    string? WifiPassword,
+    string? ApplianceNotes,
+    /// <summary>docs/01 CĐ-04 — stored here, released only inside the 48-hour window.</summary>
+    string? DoorCode,
+    string? HostPhone);
+
+/// <summary>
+/// docs/01 CĐ-03 — the guide as one guest reads it, already filtered by
+/// docs/03 §10. A field that guest may not see is not blanked here, it is
+/// absent: the server never sends a door code it has decided to withhold.
+/// </summary>
+public record CheckInGuideDto(
+    string WindowLabel,
+    string MethodLabel,
+    string? AddressLine,
+    string? Directions,
+    string? WifiName,
+    string? WifiPassword,
+    IReadOnlyList<string> ApplianceNotes,
+    string? HostPhone,
+    /// <summary>docs/01 CĐ-04 — null until 48 hours before check-in.</summary>
+    string? DoorCode,
+    /// <summary>True when there is a code to wait for, so the page can say so.</summary>
+    bool DoorCodeExpected,
+    /// <summary>When the code will appear, while it is still being withheld.</summary>
+    string? DoorCodeNote);
 
 /// <summary>docs/01 CN-12 — the declarations a host must make before publishing.</summary>
 public record LegalDeclarationDto(
@@ -695,7 +739,13 @@ public record ListingDetailDto(
     /// docs/01 MR-08 — empty for an ordinary place. When it has rows the guest
     /// must pick one before checkout (MR-09).
     /// </summary>
-    IReadOnlyList<HotelRoomDto>? RoomTypes = null);
+    IReadOnlyList<HotelRoomDto>? RoomTypes = null,
+    /// <summary>
+    /// docs/01 CĐ-03 — the arrival hours, which are public: a guest decides
+    /// whether a place works for a late flight before booking, not after. The
+    /// rest of the guide stays behind the confirmation gate of docs/03 §10.
+    /// </summary>
+    string CheckInWindow = "");
 
 public record HotelRoomDto(
     int Id,
@@ -847,7 +897,12 @@ public record BookingDto(
     decimal BalanceDue = 0,
     DateOnly? BalanceDueOn = null,
     string BalanceStatus = "None",
-    string BalanceLabel = "");
+    string BalanceLabel = "",
+    /// <summary>
+    /// docs/01 CĐ-03 — null until the stay is confirmed (docs/03 §10), so an
+    /// unanswered request never carries an address.
+    /// </summary>
+    CheckInGuideDto? CheckInGuide = null);
 
 public record BookingEventDto(
     string? FromStatus, string FromLabel, string ToStatus, string ToLabel,

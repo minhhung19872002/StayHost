@@ -176,6 +176,16 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 - [x] Thẻ quà tặng, số dư khuyến mãi, giới thiệu bạn bè: số dư là sổ chỉ-thêm,
       chỉ trừ vào tiền phòng, huỷ đơn thì trả lại bằng số dư
 
+### Giai đoạn 10 — Nhận phòng (nhóm `CĐ`) ✅
+- [x] `CĐ-03` hướng dẫn nhận phòng: giờ nhận/trả, cách vào nhà, địa chỉ đầy đủ, số điện
+      thoại chủ nhà, wifi, chỉ đường, hướng dẫn thiết bị — chủ nhà tự điền ở bước
+      "Nhận phòng" của trình soạn tin
+- [x] `CĐ-04` mã cửa **chỉ hiện từ 48 giờ trước giờ nhận phòng**, và chỉ với đơn đã xác
+      nhận (`docs/03 §10`). Máy chủ **không gửi** mã chưa tới hạn chứ không chỉ ẩn trên
+      giao diện; đơn bị huỷ mất luôn cả hướng dẫn
+- [x] Giờ nhận/trả là **một nguồn duy nhất**: trang chi tiết, trang chuyến đi và nội quy
+      nhà đều đọc từ `CheckInGuide.WindowLabel`
+
 ### Giai đoạn 8 — StayShield ✅
 - [x] `AT-06-01` trang giới thiệu hai nhánh, nêu rõ phạm vi, hạn mức, loại trừ
 - [x] `AT-06-02` nút "Chỗ ở có vấn đề" chỉ hiện trong 72 giờ đầu
@@ -206,7 +216,6 @@ Plan cũ chỉ ghi 58/201 mã. Đã dò từng mã đáng ngờ trong mã nguồ
 | `TK-06` | Xác minh giấy tờ tuỳ thân + selfie | P1 |
 | `TK-08` | Bảo mật 2 lớp (phần phiên thiết bị đã có) | P1 |
 | `TK-10`, `TK-11` | Ma trận thông báo · tải dữ liệu cá nhân | P1 |
-| `CĐ-03`, `CĐ-04` | Hướng dẫn nhận phòng · mã cửa chỉ hiện trước 48 giờ | P0/P1 |
 | `TĐ-03`, `TN-06` | Dịch mô tả tin đăng · dịch tin nhắn | P1 |
 | `TC-03` | Đơn từ 28 đêm trở lên thu theo từng tháng | P1 |
 | `ĐG-10` | Báo cáo đánh giá vi phạm | P1 |
@@ -218,7 +227,7 @@ Plan cũ chỉ ghi 58/201 mã. Đã dò từng mã đáng ngờ trong mã nguồ
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (349 test)
+# Test nghiệp vụ (362 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

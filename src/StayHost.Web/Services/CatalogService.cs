@@ -777,7 +777,8 @@ public class CatalogService(StayHostDbContext db)
             hostDto,
             similar.Select(l => ToCard(l, favIds, pricer)).ToList(),
             unavailable,
-            await RoomTypesAsync(listing, checkIn, checkOut, ct));
+            await RoomTypesAsync(listing, checkIn, checkOut, ct),
+            CheckInGuide.WindowLabel(listing.CheckInFrom, listing.CheckInTo, listing.CheckOutBefore));
     }
 
     /// <summary>

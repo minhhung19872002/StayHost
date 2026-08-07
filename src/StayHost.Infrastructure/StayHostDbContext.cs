@@ -586,6 +586,14 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.BedLayoutJson).HasColumnType("jsonb");
             e.Property(x => x.LicenseNumber).HasMaxLength(80);
             e.Property(x => x.SecurityCameraNote).HasMaxLength(500);
+            // docs/01 CĐ-03 and CĐ-04 — the arrival guide.
+            e.Property(x => x.AddressLine).HasMaxLength(CheckInGuide.LineMax * 2);
+            e.Property(x => x.WifiName).HasMaxLength(CheckInGuide.LineMax);
+            e.Property(x => x.WifiPassword).HasMaxLength(CheckInGuide.LineMax);
+            e.Property(x => x.DoorCode).HasMaxLength(40);
+            e.Property(x => x.HostPhone).HasMaxLength(30);
+            e.Property(x => x.Directions).HasMaxLength(CheckInGuide.NoteMax);
+            e.Property(x => x.ApplianceNotes).HasMaxLength(CheckInGuide.NoteMax);
             e.HasOne(x => x.Host).WithMany(h => h.Listings)
                 .HasForeignKey(x => x.HostId).OnDelete(DeleteBehavior.Cascade);
         });

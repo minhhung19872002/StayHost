@@ -82,11 +82,15 @@ public static class Profiles
         return collapsed.Length <= max ? collapsed : collapsed[..max].TrimEnd();
     }
 
+    /// <summary>docs/01 TK-04 — a bio, at the length a bio is allowed to be.</summary>
+    public static string? TidyBio(string? raw) => TidyLines(raw, BioMax);
+
     /// <summary>
-    /// Same, but a bio may keep its line breaks — people write them on purpose.
-    /// Runs of blank lines collapse to one so the public page cannot be padded.
+    /// Same as <see cref="Tidy"/>, but the text may keep its line breaks —
+    /// people write them on purpose. Runs of blank lines collapse to one so a
+    /// page cannot be padded out with empty space.
     /// </summary>
-    public static string? TidyBio(string? raw)
+    public static string? TidyLines(string? raw, int max)
     {
         if (string.IsNullOrWhiteSpace(raw)) return null;
 
@@ -102,7 +106,7 @@ public static class Profiles
 
         var text = string.Join('\n', kept);
         if (text.Length == 0) return null;
-        return text.Length <= BioMax ? text : text[..BioMax].TrimEnd();
+        return text.Length <= max ? text : text[..max].TrimEnd();
     }
 
     /// <summary>

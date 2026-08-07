@@ -194,7 +194,44 @@ public class Listing
     public void RefreshSearchText() =>
         SearchText = Domain.SearchText.ForListing(Title, City, Country);
     public CancellationTier CancellationTier { get; set; } = CancellationTier.Moderate;
-    public string HouseRules { get; set; } = "Nhận phòng sau 14:00|Trả phòng trước 12:00|Không hút thuốc trong nhà|Không tổ chức tiệc";
+    /// <summary>
+    /// Free text the host writes. The arrival hours are not in here any more —
+    /// they are <see cref="CheckInFrom"/> and friends, so the listing page and
+    /// the trip page cannot disagree about them (docs/01 CĐ-03).
+    /// </summary>
+    public string HouseRules { get; set; } = "Không hút thuốc trong nhà|Không tổ chức tiệc|Giữ yên lặng sau 22:00";
+
+    /* ------------------------------------------- docs/01 CĐ-03 and CĐ-04 */
+
+    public TimeOnly CheckInFrom { get; set; } = new(14, 0);
+    public TimeOnly CheckInTo { get; set; } = new(22, 0);
+    public TimeOnly CheckOutBefore { get; set; } = new(12, 0);
+
+    public CheckInMethod CheckInMethod { get; set; } = CheckInMethod.Host;
+
+    /// <summary>
+    /// docs/03 §10 — the street address, released only to a guest holding a
+    /// confirmed stay. <see cref="City"/> is the public half.
+    /// </summary>
+    public string? AddressLine { get; set; }
+
+    /// <summary>How to find the door once they are on the street.</summary>
+    public string? Directions { get; set; }
+
+    public string? WifiName { get; set; }
+    public string? WifiPassword { get; set; }
+
+    /// <summary>Newline-separated: air conditioner, water heater, induction hob…</summary>
+    public string? ApplianceNotes { get; set; }
+
+    /// <summary>
+    /// docs/01 CĐ-04 — never leaves the server until the stay is confirmed
+    /// <em>and</em> check-in is inside 48 hours. See <see cref="Domain.CheckInGuide"/>.
+    /// </summary>
+    public string? DoorCode { get; set; }
+
+    /// <summary>Released with the address; a guest who cannot get in needs a number to ring.</summary>
+    public string? HostPhone { get; set; }
     public string SafetyInfo { get; set; } = "Có thiết bị báo khói|Có bình chữa cháy|Có bộ sơ cứu";
 
     /// <summary>Drafts are visible only to their host until published.</summary>

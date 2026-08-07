@@ -546,7 +546,11 @@ function ThingsToKnow({ detail }) {
       <div className="know-grid">
         <div className="know">
           <h3>Nội quy nhà</h3>
-          <ul>{detail.houseRules.map(r => <li key={r}>{r}</li>)}</ul>
+          <ul>
+            {/* docs/01 CĐ-03 — the hours the host actually set, ahead of the free-text rules. */}
+            {detail.checkInWindow && <li>{detail.checkInWindow}</li>}
+            {detail.houseRules.map(r => <li key={r}>{r}</li>)}
+          </ul>
         </div>
         <div className="know">
           <h3>An toàn &amp; chỗ ở</h3>

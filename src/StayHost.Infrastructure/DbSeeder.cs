@@ -418,7 +418,23 @@ public static class DbSeeder
                 Longitude = s.Lng,
                 Description = s.Desc,
                 SpaceHighlight = s.Highlight,
-                HostId = hosts[s.HostIndex].Id
+                HostId = hosts[s.HostIndex].Id,
+                // docs/01 CĐ-03 — an arrival guide on every listing, and a door
+                // code on the self-check-in ones so CĐ-04's 48-hour gate has
+                // something real to withhold.
+                CheckInFrom = new TimeOnly(14, 0),
+                CheckInTo = new TimeOnly(i % 3 == 0 ? 23 : 22, 0),
+                CheckOutBefore = new TimeOnly(12, 0),
+                CheckInMethod = (CheckInMethod)(i % 5),
+                AddressLine = $"{12 + i} Đường Nguyễn Văn Linh, {s.City}",
+                Directions = "Từ sân bay đi taxi khoảng 20 phút.\nToà nhà nằm ngay góc ngã tư, cổng sơn xanh.",
+                WifiName = $"StayHost-{i + 1:000}",
+                WifiPassword = $"staycation{1000 + i}",
+                ApplianceNotes = "Điều hoà: bấm nút xanh trên điều khiển, để 26°C là mát nhất.\n"
+                                 + "Bình nóng lạnh: bật công tắc ngoài phòng tắm, chờ 10 phút.\n"
+                                 + "Bếp từ: xoay núm sang mức 3 rồi đặt nồi lên.",
+                DoorCode = CheckInGuide.NeedsDoorCode((CheckInMethod)(i % 5)) ? $"{4200 + i * 7}#" : null,
+                HostPhone = $"09{12_345_678 + i * 137}"
             };
 
             // Five photos per listing so the card carousel and the detail gallery both have material.
