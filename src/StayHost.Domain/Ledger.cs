@@ -447,6 +447,19 @@ public static class Ledger
             new Leg(LedgerAccount.GuestFunds, LedgerDirection.Credit, amount, $"Chuyển cho chủ nhà đơn {booking.Reference}"));
 
     /// <summary>
+    /// docs/07 §17.4 — the part of a payout kept back against what the host owes.
+    /// It is not cash going out, so it never touches the bank leg: what the
+    /// platform was holding for the host simply stops being owed to them.
+    /// </summary>
+    public static List<LedgerEntry> RecoverFromHost(Booking booking, decimal amount, DateTime at) =>
+        amount <= 0
+            ? []
+            : Post("host-debt-recovered", booking.Id, at,
+                new Leg(LedgerAccount.HostPayable, LedgerDirection.Debit, amount, "Khấu trừ khoản chủ nhà nợ sàn"),
+                new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Credit, amount,
+                    $"Thu hồi từ chủ nhà, đơn {booking.Reference}"));
+
+    /// <summary>
     /// docs/01 AT-04 — an admin's ruling on a claim. Money moves between the
     /// two sides of the booking, never out of thin air: whatever the guest gets
     /// back comes out of what the host was owed, and the reverse for damages.

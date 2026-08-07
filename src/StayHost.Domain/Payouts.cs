@@ -44,6 +44,34 @@ public static class Payouts
         $"Bạn vừa đổi tài khoản nhận tiền, nên các khoản chuyển tạm hoãn tới " +
         $"{FrozenUntil(changedAt):HH:mm dd/MM/yyyy}. Nếu không phải bạn đổi, hãy liên hệ hỗ trợ ngay.";
 
+    /* -------------------------------------- §12.2, proving the account */
+
+    /// <summary>
+    /// docs/07 §12.2 — the amount sent to prove the account exists and belongs to
+    /// who it says. Small enough that getting it wrong costs nothing, large enough
+    /// that a bank will actually move it.
+    /// </summary>
+    public const decimal TestTransferAmount = 2_000m;
+
+    /// <summary>
+    /// docs/07 §12.2 — "Tên chủ tài khoản phải khớp tên trên hồ sơ đã xác minh
+    /// danh tính." Vietnamese banks hold the name unaccented and in capitals, and
+    /// people type it either way, so the comparison ignores both.
+    /// </summary>
+    public static bool NameMatchesIdentity(string? accountName, string? legalName)
+    {
+        var a = SearchText.Normalize(accountName ?? "");
+        var b = SearchText.Normalize(legalName ?? "");
+        return a.Length > 0 && a == b;
+    }
+
+    public static string NameMismatchNotice() =>
+        "Tên chủ tài khoản không khớp tên trên hồ sơ đã xác minh danh tính. " +
+        "Chúng tôi sẽ xem xét thủ công trước khi chuyển khoản đầu tiên.";
+
+    public static string VerifiedNotice(string? last4) =>
+        $"Đã chuyển thử {TestTransferAmount:#,##0}₫ tới tài khoản ••••{last4} và xác nhận thành công.";
+
     /* ------------------------------------------------- §12.3, the new host */
 
     /// <summary>docs/07 §16 TT-C — a host's first stays are held a little longer.</summary>
@@ -60,6 +88,20 @@ public static class Payouts
     public static DateOnly DueOn(DateOnly checkIn, int completedStays) =>
         checkIn.AddDays(1 + (IsNewHost(completedStays) ? NewHostExtraDays : 0));
 
+    /// <summary>
+    /// docs/07 §12.3 — "Gom nhiều đơn thành một lần chuyển trong ngày để giảm phí,
+    /// nhưng báo cáo vẫn tách theo từng đơn." One host, one day, one transfer: the
+    /// reference is what lets a host holding a bank statement line for 12 triệu
+    /// find the four bookings that made it up.
+    /// </summary>
+    /// <param name="sequence">
+    /// Normally 1: everything due today goes in one sweep. A payout that only
+    /// becomes payable later the same day — a hold lifted, a retry coming good —
+    /// is a second transfer, and must not borrow the first one's reference.
+    /// </param>
+    public static string BatchReference(int hostId, DateOnly day, int sequence = 1) =>
+        sequence <= 1 ? $"PO-{day:yyyyMMdd}-{hostId}" : $"PO-{day:yyyyMMdd}-{hostId}-{sequence}";
+
     /* -------------------------------------------------- §12.4, the holds */
 
     /// <summary>Everything that decides whether this payout may go out today.</summary>
@@ -69,7 +111,8 @@ public static class Payouts
         bool ListingSuspended,
         bool AccountVerified,
         DateTime? AccountChangedAt,
-        decimal OwedToPlatform);
+        decimal OwedToPlatform,
+        decimal Payable = 0m);
 
     /// <summary>
     /// The first reason that applies, in the order docs/07 §12.4 lists them —
@@ -81,11 +124,35 @@ public static class Payouts
         if (c.HasChargeback) return PayoutHoldReason.Chargeback;
         if (c.ListingSuspended) return PayoutHoldReason.ListingSuspended;
         if (!c.AccountVerified || AccountFrozen(c.AccountChangedAt, now)) return PayoutHoldReason.AccountUnverified;
-        if (c.OwedToPlatform > 0) return PayoutHoldReason.HostOwesPlatform;
+        if (c.OwedToPlatform >= c.Payable && c.OwedToPlatform > 0) return PayoutHoldReason.HostOwesPlatform;
         return PayoutHoldReason.None;
     }
 
     public static bool CanPay(Conditions c, DateTime now) => HoldReason(c, now) == PayoutHoldReason.None;
+
+    /* -------------------------------------------- §17.4, the deduction */
+
+    /// <summary>What a debt does to a transfer.</summary>
+    public readonly record struct Deduction(decimal Transfer, decimal Applied, decimal StillOwed);
+
+    /// <summary>
+    /// docs/07 §17.4 — "khoản khấu trừ do nợ sàn". A host who owes the platform
+    /// has it taken out of the next transfer rather than being chased for it, and
+    /// only when the debt swallows the whole transfer does nothing go out at all
+    /// (which is the case <see cref="PayoutHoldReason.HostOwesPlatform"/> covers).
+    /// </summary>
+    public static Deduction Deduct(decimal payable, decimal owed)
+    {
+        if (owed <= 0 || payable <= 0) return new Deduction(Math.Max(0m, payable), 0m, Math.Max(0m, owed));
+
+        var applied = Math.Min(payable, owed);
+        return new Deduction(payable - applied, applied, owed - applied);
+    }
+
+    public static string DeductionNote(decimal applied, decimal stillOwed) =>
+        stillOwed > 0
+            ? $"Đã khấu trừ {applied:#,##0}₫ vào khoản bạn còn nợ StayHost; còn lại {stillOwed:#,##0}₫."
+            : $"Đã khấu trừ {applied:#,##0}₫ — bạn không còn nợ StayHost khoản nào.";
 
     /// <summary>docs/07 §12.4 — "báo chủ nhà lý do". A hold nobody explains is a hold nobody trusts.</summary>
     public static string HoldLabel(PayoutHoldReason reason) => reason switch

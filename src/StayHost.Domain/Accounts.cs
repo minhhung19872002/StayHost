@@ -203,6 +203,29 @@ public class Payment
     public decimal HostPayout { get; set; }
     public PayoutStatus PayoutStatus { get; set; } = PayoutStatus.Scheduled;
     public DateOnly? PayoutDueOn { get; set; }
+
+    /// <summary>docs/07 §12.4 — why this one is not going out, so the host can be told.</summary>
+    public PayoutHoldReason PayoutHoldReason { get; set; }
+
+    /// <summary>docs/07 §12.5 — how many times the transfer has been tried.</summary>
+    public int PayoutAttempts { get; set; }
+
+    public DateOnly? PayoutLastAttemptOn { get; set; }
+    public DateTime? PaidOutAt { get; set; }
+
+    /// <summary>
+    /// docs/07 §12.3 — several bookings go out as one transfer to save the fee,
+    /// so each one records which transfer carried it and the report can still be
+    /// read per booking.
+    /// </summary>
+    public string? PayoutReference { get; set; }
+
+    /// <summary>
+    /// docs/07 §17.4 — this booking's share of what was kept back against the
+    /// host's debt. What actually reached the bank is <see cref="HostPayout"/>
+    /// minus this, and a host reconciling a statement needs the difference named.
+    /// </summary>
+    public decimal PayoutDeducted { get; set; }
 }
 
 /// <summary>One conversation, always anchored to a listing and optionally a booking.</summary>

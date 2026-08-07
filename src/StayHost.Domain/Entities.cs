@@ -120,6 +120,13 @@ public class HostProfile
     /// <summary>Set once a small test transfer has proved the account is real (docs/07 §12.2).</summary>
     public bool PayoutAccountVerified { get; set; }
 
+    /// <summary>
+    /// docs/07 §17.4 — what the host still owes StayHost: a cancellation penalty,
+    /// a settled claim, a chargeback arbitration found them at fault for. It comes
+    /// out of the next transfer rather than being chased separately.
+    /// </summary>
+    public decimal OwedToPlatform { get; set; }
+
     public List<Listing> Listings { get; set; } = [];
 }
 

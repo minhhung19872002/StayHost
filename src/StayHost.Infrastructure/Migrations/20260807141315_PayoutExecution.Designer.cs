@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using StayHost.Infrastructure;
@@ -11,9 +12,11 @@ using StayHost.Infrastructure;
 namespace StayHost.Infrastructure.Migrations
 {
     [DbContext(typeof(StayHostDbContext))]
-    partial class StayHostDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260807141315_PayoutExecution")]
+    partial class PayoutExecution
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1253,9 +1256,6 @@ namespace StayHost.Infrastructure.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
 
-                    b.Property<decimal>("OwedToPlatform")
-                        .HasColumnType("numeric");
-
                     b.Property<DateTime?>("PayoutAccountChangedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -2039,9 +2039,6 @@ namespace StayHost.Infrastructure.Migrations
                     b.Property<int>("PayoutAttempts")
                         .HasColumnType("integer");
 
-                    b.Property<decimal>("PayoutDeducted")
-                        .HasColumnType("numeric");
-
                     b.Property<DateOnly?>("PayoutDueOn")
                         .HasColumnType("date");
 
@@ -2050,9 +2047,6 @@ namespace StayHost.Infrastructure.Migrations
 
                     b.Property<DateOnly?>("PayoutLastAttemptOn")
                         .HasColumnType("date");
-
-                    b.Property<string>("PayoutReference")
-                        .HasColumnType("text");
 
                     b.Property<int>("PayoutStatus")
                         .HasColumnType("integer");

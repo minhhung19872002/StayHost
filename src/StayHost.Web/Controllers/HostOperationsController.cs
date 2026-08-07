@@ -18,7 +18,7 @@ namespace StayHost.Web.Controllers;
 [Route("api/host")]
 public class HostOperationsController(
     StayHostDbContext db, AuthService auth, HostAccess access, ShieldService shield,
-    BadgeService badges, NotificationService notifications) : ControllerBase
+    BadgeService badges, NotificationService notifications, PaymentGateway gateway) : ControllerBase
 {
     /// <summary>
     /// A host walking away from a confirmed booking. docs/03 §4 gives the guest
@@ -490,6 +490,34 @@ public class HostOperationsController(
                 "Tài khoản nhận tiền vừa được thay đổi",
                 Payouts.FreezeNotice(profile.PayoutAccountChangedAt.Value),
                 "/hosting", ct);
+
+            // docs/07 §12.2 — the account only becomes payable once the name on it
+            // matches the verified identity and a small transfer has actually
+            // landed there. A mismatch is not a refusal; it is a queue for a person.
+            if (!Payouts.NameMatchesIdentity(profile.PayoutAccountName, user.FullName))
+            {
+                await notifications.QueueWithEmailAsync(user, NotificationKind.System,
+                    "Cần xem xét tài khoản nhận tiền", Payouts.NameMismatchNotice(), "/hosting", ct);
+            }
+            else
+            {
+                var test = gateway.Charge(
+                    Payouts.TestTransferAmount, "bank-transfer-test", profile.PayoutAccountLast4);
+
+                if (test.Ok)
+                {
+                    profile.PayoutAccountVerified = true;
+                    await notifications.QueueWithEmailAsync(user, NotificationKind.System,
+                        "Tài khoản nhận tiền đã xác minh",
+                        Payouts.VerifiedNotice(profile.PayoutAccountLast4), "/hosting", ct);
+                }
+                else
+                {
+                    await notifications.QueueWithEmailAsync(user, NotificationKind.System,
+                        "Không chuyển thử được tới tài khoản này",
+                        $"{test.Reason} Vui lòng kiểm tra lại số tài khoản.", "/hosting", ct);
+                }
+            }
         }
         profile.PayoutSchedule = Enum.TryParse<PayoutSchedule>(req.Schedule, true, out var s)
             ? s
@@ -506,28 +534,67 @@ public class HostOperationsController(
     private async Task<PayoutSettingsDto> PayoutOf(HostProfile profile, CancellationToken ct)
     {
         var listingIds = await db.Listings.Where(l => l.HostId == profile.Id).Select(l => l.Id).ToListAsync(ct);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var upcoming = await db.Bookings
-            .Where(b => listingIds.Contains(b.ListingId) && BookingLifecycle.BlocksDates.Contains(b.Status))
+        var bookings = await db.Bookings
+            .Where(b => listingIds.Contains(b.ListingId)
+                        && (BookingLifecycle.BlocksDates.Contains(b.Status) || b.Status == BookingStatus.Completed))
             .Include(b => b.Payment)
             .Include(b => b.Listing)
-            .OrderBy(b => b.CheckIn)
-            .Take(30)
+            .OrderByDescending(b => b.CheckIn)
+            .Take(120)
             .ToListAsync(ct);
 
-        var schedule = upcoming
-            .Select(b => new PayoutRowDto(
-                b.Reference,
-                b.Listing?.Title ?? "",
-                b.Payment?.PayoutDueOn ?? b.CheckIn.AddDays(1),
-                b.Payment?.HostPayout ?? b.HostPayout,
-                (b.Payment?.PayoutDueOn ?? b.CheckIn.AddDays(1)) <= today ? "Đã chuyển" : "Chờ chuyển"))
+        // The status is read off the payout itself, not guessed from the calendar:
+        // a host chasing money needs to see the hold reason, not a date that has
+        // passed while the transfer sat still (docs/07 §12.4).
+        PayoutRowDto RowOf(Booking b)
+        {
+            var p = b.Payment;
+            var due = p?.PayoutDueOn ?? b.CheckIn.AddDays(1);
+            var status = p?.PayoutStatus switch
+            {
+                PayoutStatus.Paid => "Đã chuyển",
+                PayoutStatus.OnHold => p.PayoutHoldReason == PayoutHoldReason.None
+                    ? "Chuyển không thành công, sẽ thử lại"
+                    : "Tạm giữ",
+                _ => "Chờ chuyển"
+            };
+
+            return new PayoutRowDto(
+                b.Reference, b.Listing?.Title ?? "", due, p?.HostPayout ?? b.HostPayout, status,
+                HoldReason: p is { PayoutHoldReason: not PayoutHoldReason.None }
+                    ? Payouts.HoldLabel(p.PayoutHoldReason)
+                    : null,
+                TransferReference: p?.PayoutReference,
+                PaidAt: p?.PaidOutAt,
+                Attempts: p?.PayoutAttempts ?? 0,
+                Deducted: p?.PayoutDeducted ?? 0m);
+        }
+
+        var paidOut = bookings.Where(b => b.Payment?.PayoutStatus == PayoutStatus.Paid).ToList();
+
+        var upcoming = bookings
+            .Where(b => b.Payment?.PayoutStatus != PayoutStatus.Paid)
+            .OrderBy(b => b.Payment?.PayoutDueOn ?? b.CheckIn.AddDays(1))
+            .Take(30)
+            .Select(RowOf)
+            .ToList();
+
+        var history = paidOut
+            .OrderByDescending(b => b.Payment!.PaidOutAt)
+            .Take(30)
+            .Select(RowOf)
             .ToList();
 
         return new PayoutSettingsDto(
             profile.PayoutBankName, profile.PayoutAccountName, profile.PayoutAccountLast4,
-            profile.PayoutSchedule.ToString(), schedule);
+            profile.PayoutSchedule.ToString(), upcoming,
+            Verified: profile.PayoutAccountVerified,
+            FrozenUntil: profile.PayoutAccountChangedAt is { } at && DateTime.UtcNow < Payouts.FrozenUntil(at)
+                ? Payouts.FrozenUntil(at)
+                : null,
+            OwedToPlatform: profile.OwedToPlatform,
+            History: history);
     }
 
     /* ------------------------------------------------------------- QL-17 */

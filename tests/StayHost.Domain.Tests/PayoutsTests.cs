@@ -134,4 +134,85 @@ public class PayoutsTests
         // docs/07 §12.5 — the money is held, not lost, and saying so is the point.
         Assert.Contains("giữ nguyên cho bạn", Payouts.ExhaustedNotice());
     }
+
+    /* ---- docs/07 §12.3, one transfer a day per host ---- */
+
+    [Fact]
+    public void A_days_bookings_for_one_host_share_a_single_transfer_reference()
+    {
+        var day = new DateOnly(2026, 8, 7);
+
+        Assert.Equal(Payouts.BatchReference(12, day), Payouts.BatchReference(12, day));
+        Assert.NotEqual(Payouts.BatchReference(12, day), Payouts.BatchReference(13, day));
+        Assert.NotEqual(Payouts.BatchReference(12, day), Payouts.BatchReference(12, day.AddDays(1)));
+    }
+
+    [Fact]
+    public void A_second_transfer_the_same_day_does_not_borrow_the_first_ones_reference()
+    {
+        var day = new DateOnly(2026, 8, 7);
+
+        Assert.NotEqual(Payouts.BatchReference(12, day, 1), Payouts.BatchReference(12, day, 2));
+        Assert.Equal(Payouts.BatchReference(12, day), Payouts.BatchReference(12, day, 1));
+    }
+
+    /* ---- docs/07 §12.2, proving the account ---- */
+
+    [Fact]
+    public void The_account_name_matches_however_it_was_typed()
+    {
+        // Banks hold it unaccented and shouted; people type it either way.
+        Assert.True(Payouts.NameMatchesIdentity("NGUYEN VAN AN", "Nguyễn Văn An"));
+        Assert.True(Payouts.NameMatchesIdentity("nguyen van an", "NGUYEN VAN AN"));
+    }
+
+    [Fact]
+    public void A_different_person_on_the_account_is_not_a_match()
+    {
+        Assert.False(Payouts.NameMatchesIdentity("NGUYEN VAN BINH", "Nguyễn Văn An"));
+        Assert.False(Payouts.NameMatchesIdentity("", "Nguyễn Văn An"));
+        Assert.False(Payouts.NameMatchesIdentity(null, "Nguyễn Văn An"));
+    }
+
+    /* ---- docs/07 §17.4, what the host owes comes off the transfer ---- */
+
+    [Fact]
+    public void A_debt_smaller_than_the_payout_is_deducted_and_the_rest_still_goes_out()
+    {
+        var d = Payouts.Deduct(5_000_000m, 1_200_000m);
+
+        Assert.Equal(3_800_000m, d.Transfer);
+        Assert.Equal(1_200_000m, d.Applied);
+        Assert.Equal(0m, d.StillOwed);
+    }
+
+    [Fact]
+    public void A_debt_bigger_than_the_payout_takes_all_of_it_and_carries_the_rest_forward()
+    {
+        var d = Payouts.Deduct(1_000_000m, 2_500_000m);
+
+        Assert.Equal(0m, d.Transfer);
+        Assert.Equal(1_000_000m, d.Applied);
+        Assert.Equal(1_500_000m, d.StillOwed);
+    }
+
+    [Fact]
+    public void Only_a_debt_that_swallows_the_whole_payout_holds_it()
+    {
+        var clear = new Payouts.Conditions(false, false, false, true, null, 0m, 5_000_000m);
+        var partial = clear with { OwedToPlatform = 1_200_000m };
+        var total = clear with { OwedToPlatform = 5_000_000m };
+
+        Assert.Equal(PayoutHoldReason.None, Payouts.HoldReason(clear, Now));
+        // Deducting is not holding: 3,8 triệu still leaves today.
+        Assert.Equal(PayoutHoldReason.None, Payouts.HoldReason(partial, Now));
+        Assert.Equal(PayoutHoldReason.HostOwesPlatform, Payouts.HoldReason(total, Now));
+    }
+
+    [Fact]
+    public void The_deduction_notice_says_whether_anything_is_still_owed()
+    {
+        Assert.Contains("còn lại", Payouts.DeductionNote(1_000_000m, 500_000m));
+        Assert.Contains("không còn nợ", Payouts.DeductionNote(1_000_000m, 0m));
+    }
 }

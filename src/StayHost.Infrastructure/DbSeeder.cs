@@ -362,6 +362,13 @@ public static class DbSeeder
             ResponseRate = h.Superhost ? "100%" : "95%",
             ResponseTime = h.Superhost ? "trong vòng 1 giờ" : "trong vòng vài giờ",
             JoinedAt = new DateTime(2026 - h.Years, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+            // docs/07 §12.2 — a demo host has been paid before, so their account
+            // is already proved. Seeding them unverified would hold every payout
+            // in the catalogue on day one for a reason that is not being tested.
+            PayoutBankName = "Vietcombank",
+            PayoutAccountName = h.Name,
+            PayoutAccountLast4 = $"{1000 + i}",
+            PayoutAccountVerified = true,
             UserId = hostUsers[i].Id
         }).ToList();
         db.Hosts.AddRange(hosts);

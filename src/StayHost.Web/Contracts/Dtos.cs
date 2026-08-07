@@ -407,9 +407,32 @@ public record PayoutSettingsDto(
     string? AccountName,
     string? AccountLast4,
     string Schedule,
-    IReadOnlyList<PayoutRowDto> Upcoming);
+    IReadOnlyList<PayoutRowDto> Upcoming,
+    /// <summary>docs/07 §12.2 — false until a test transfer has proved the account.</summary>
+    bool Verified = false,
+    /// <summary>Set while the three-day freeze after an account change is running.</summary>
+    DateTime? FrozenUntil = null,
+    /// <summary>docs/07 §17.4 — what still comes off the next transfer.</summary>
+    decimal OwedToPlatform = 0m,
+    /// <summary>docs/07 §12.3 — transfers already made, newest first.</summary>
+    IReadOnlyList<PayoutRowDto>? History = null);
 
-public record PayoutRowDto(string Reference, string ListingTitle, DateOnly DueOn, decimal Amount, string Status);
+/// <summary>
+/// One booking's share of a transfer. docs/07 §12.3 — the money may leave as a
+/// single bank line, but the report stays per booking.
+/// </summary>
+public record PayoutRowDto(
+    string Reference,
+    string ListingTitle,
+    DateOnly DueOn,
+    decimal Amount,
+    string Status,
+    string? HoldReason = null,
+    string? TransferReference = null,
+    DateTime? PaidAt = null,
+    int Attempts = 0,
+    /// <summary>docs/07 §17.4 — kept back against the host's debt, so it never reached the bank.</summary>
+    decimal Deducted = 0m);
 
 public record SavePayoutRequest(string? BankName, string? AccountName, string? AccountNumber, string? Schedule);
 

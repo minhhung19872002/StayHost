@@ -368,6 +368,11 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var calledOff = await experiences.SweepAsync(stoppingToken);
                 if (calledOff > 0) log.LogInformation("Đã huỷ {Count} suất trải nghiệm thiếu người.", calledOff);
 
+                // docs/07 §12 — sends hosts their money, or says why not.
+                var payouts = scope.ServiceProvider.GetRequiredService<PayoutService>();
+                var payoutResult = await payouts.SweepAsync(stoppingToken);
+                if (payoutResult.Any) log.LogInformation("Chuyển tiền: {Result}.", payoutResult);
+
                 // docs/03 §8 — grants and revokes the two titles. Cheap on every
                 // other tick: rows already decided for this quarter or this week
                 // are not even fetched.

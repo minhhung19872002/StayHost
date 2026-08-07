@@ -292,12 +292,12 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
 | TC-P-10 | Hoàn tiền về đúng nguồn, hoàn một phần, xử lý thẻ đã đóng — **đã làm** (`Refunds.cs`) |
 | TC-P-11 | Quy đổi và hiển thị nhiều tiền tệ, ghi lại tỉ giá theo đơn — **đã làm** |
 | TC-P-12 | Xử lý khiếu nại ngân hàng: tạm giữ, thu thập bằng chứng, theo dõi kết quả — **quy tắc + bảng đã làm** (`Chargebacks.cs`), còn màn hình vận hành |
-| TC-O-01 | Đăng ký và xác minh tài khoản nhận tiền của chủ nhà |
+| TC-O-01 | Đăng ký và xác minh tài khoản nhận tiền của chủ nhà — **đã làm** (khớp tên hồ sơ đã xác minh + chuyển thử 2.000₫) |
 | TC-O-02 | Cảnh báo và hoãn 3 ngày khi chủ nhà đổi tài khoản nhận tiền — **đã làm** (`Payouts.cs`) |
-| TC-O-03 | Lên lịch và thực hiện chuyển tiền, gom theo ngày |
-| TC-O-04 | Quy tắc tạm giữ theo §12.4 — **quy tắc đã làm** (`Payouts.HoldReason`), còn nối vào job chuyển tiền |
-| TC-O-05 | Thử lại khi chuyển thất bại, thông báo chủ nhà — **quy tắc đã làm** (1/3/7 ngày), còn nối vào job |
-| TC-O-06 | Màn hình chủ nhà xem lịch sử và lịch chuyển tiền sắp tới |
+| TC-O-03 | Lên lịch và thực hiện chuyển tiền, gom theo ngày — **đã làm** (`PayoutService`, một mã chuyển cho mỗi chủ nhà mỗi ngày) |
+| TC-O-04 | Quy tắc tạm giữ theo §12.4 — **đã làm**, job đánh giá 5 lý do và báo chủ nhà |
+| TC-O-05 | Thử lại khi chuyển thất bại, thông báo chủ nhà — **đã làm** (1/3/7 ngày, hết lượt thì báo chủ nhà) |
+| TC-O-06 | Màn hình chủ nhà xem lịch sử và lịch chuyển tiền sắp tới — **đã làm** (tab Nhận tiền, gom theo mã chuyển) |
 | TC-A-01 | Đối soát hằng ngày với cổng thanh toán, báo động khi lệch — **phép so đã làm** (`Reconciliation.cs`), còn nối nguồn dữ liệu cổng |
 | TC-A-02 | Màn hình quản trị: tra cứu giao dịch, hoàn tiền thủ công, điều chỉnh khoản chuyển |
 | TC-A-03 | Bảng theo dõi gian lận theo §14.5 |

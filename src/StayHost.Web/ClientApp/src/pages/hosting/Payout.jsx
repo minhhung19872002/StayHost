@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { toast } from '../../lib/store.js';
-import { money, longDate } from '../../lib/format.js';
+import { money, longDate, dateTime } from '../../lib/format.js';
 
 const SCHEDULES = [
   ['PerBooking', 'Sau từng đơn', '24 giờ sau khi khách nhận phòng.'],
@@ -59,6 +59,25 @@ export function Payout() {
             : 'Chưa có tài khoản nào — thêm để nhận được tiền.'}
         </p>
 
+        {/* docs/07 §12.2 — a host whose money is not moving needs to be told why
+            here, on the screen they came to, not left to guess from a silence. */}
+        {!!data.accountLast4 && !data.verified && (
+          <p className="notice notice-warn">
+            Tài khoản chưa xác minh. Chúng tôi chỉ chuyển tiền sau khi chuyển thử thành công
+            và tên chủ tài khoản khớp hồ sơ đã xác minh danh tính.
+          </p>
+        )}
+        {!!data.frozenUntil && (
+          <p className="notice notice-warn">
+            Bạn vừa đổi tài khoản nhận tiền, các khoản chuyển tạm hoãn tới {dateTime(data.frozenUntil)}.
+          </p>
+        )}
+        {data.owedToPlatform > 0 && (
+          <p className="notice notice-warn">
+            Bạn còn nợ StayHost {money(data.owedToPlatform)} — khoản này được khấu trừ vào lần chuyển kế tiếp.
+          </p>
+        )}
+
         <form onSubmit={save} style={{ maxWidth: 560, marginTop: 16 }}>
           <div className="field-grid">
             <label className="form-field"><span className="cap">Ngân hàng</span>
@@ -114,7 +133,18 @@ export function Payout() {
                     <td>{r.listingTitle}</td>
                     <td>{longDate(r.dueOn)}</td>
                     <td>{money(r.amount)}</td>
-                    <td><span className={`badge ${r.status === 'Đã chuyển' ? 'confirmed' : 'pending'}`}>{r.status}</span></td>
+                    <td>
+                      <span className={`badge ${r.status === 'Đã chuyển' ? 'confirmed' : 'pending'}`}>{r.status}</span>
+                      {/* docs/07 §12.4 — "báo chủ nhà lý do". */}
+                      {!!r.holdReason && (
+                        <div style={{ fontSize: 12, color: 'var(--ink-muted)', marginTop: 4 }}>{r.holdReason}</div>
+                      )}
+                      {!r.holdReason && r.attempts > 1 && (
+                        <div style={{ fontSize: 12, color: 'var(--ink-muted)', marginTop: 4 }}>
+                          Đã thử {r.attempts} lần
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -122,8 +152,71 @@ export function Payout() {
           </div>
         )}
       </section>
+
+      {/* docs/07 §12.3 — the money leaves as one bank line a day, so the history
+          is grouped the way the statement will read, with the bookings inside. */}
+      {!!data.history?.length && (
+        <section style={{ marginTop: 40 }}>
+          <h2 className="section-title" style={{ fontSize: 20 }}>Đã chuyển</h2>
+          <p className="section-sub">
+            Mỗi mã chuyển là một lần chuyển khoản; các đơn trong cùng một ngày đi chung một lần.
+          </p>
+
+          <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>
+            {groupByTransfer(data.history).map(g => (
+              <div className="stat" key={g.key} style={{ padding: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                  <b>{money(g.total)}</b>
+                  <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>
+                    {g.key} · {g.paidAt ? dateTime(g.paidAt) : ''}
+                  </span>
+                </div>
+                <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+                  {g.rows.map(r => (
+                    <div key={r.reference}
+                         style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13 }}>
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <b>{r.reference}</b> · {r.listingTitle}
+                      </span>
+                      <span>{money(r.amount - r.deducted)}</span>
+                    </div>
+                  ))}
+                  {g.deducted > 0 && (
+                    <div style={{ fontSize: 12.5, color: 'var(--ink-muted)', marginTop: 2 }}>
+                      Đã khấu trừ {money(g.deducted)} vào khoản nợ StayHost.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
+}
+
+/** One card per bank transfer, keeping the per-booking lines inside it. */
+function groupByTransfer(rows) {
+  const out = [];
+  const index = new Map();
+
+  for (const r of rows) {
+    const key = r.transferReference || r.reference;
+    let group = index.get(key);
+    if (!group) {
+      group = { key, total: 0, deducted: 0, paidAt: r.paidAt, rows: [] };
+      index.set(key, group);
+      out.push(group);
+    }
+    // The headline is what reached the bank, so it can be matched against a
+    // statement line — not the gross the booking earned.
+    group.total += r.amount - r.deducted;
+    group.deducted += r.deducted;
+    group.rows.push(r);
+  }
+
+  return out;
 }
 
 /** docs/03 §8 — progress towards Siêu chủ nhà, checked every quarter. */
