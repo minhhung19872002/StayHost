@@ -680,7 +680,7 @@ public class CatalogService(StayHostDbContext db)
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => new ReviewDto(
                 r.Id, r.AuthorName, r.AuthorInitials, r.AuthorLocation, r.When, r.Text,
-                Math.Round(r.Rating, 1), r.HostReply, r.HostRepliedAt))
+                Math.Round(r.Rating, 1), r.HostReply, r.HostRepliedAt, r.AuthorUserId))
             .ToList();
 
         // docs/01 TĐ-10 — the distribution, five stars first.
@@ -723,9 +723,10 @@ public class CatalogService(StayHostDbContext db)
             host.ResponseRate, host.ResponseTime,
             $"Tham gia StayHost tháng {host.JoinedAt.Month}, {host.JoinedAt.Year}",
             hostListings.Count,
-            hostListings.Count == 0 ? 5 : Math.Round(hostListings.Average(h => h.Rating), 2),
+            Profiles.OverallRating(hostListings.Select(h => (h.Rating, h.ReviewCount))) ?? 5,
             hostListings.Sum(h => h.ReviewCount),
-            host.UserId);
+            host.UserId,
+            host.AvatarUrl);
 
         var similar = await db.Listings
             .Include(l => l.Images)

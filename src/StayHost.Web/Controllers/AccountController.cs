@@ -174,25 +174,46 @@ public class AccountController(
         var user = await auth.CurrentUserAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
 
-        if (!string.IsNullOrWhiteSpace(req.FullName))
-        {
-            user.FullName = req.FullName.Trim();
-            user.Initials = AuthService.MakeInitials(user.FullName);
-        }
+        if (!string.IsNullOrWhiteSpace(req.FullName)) user.FullName = req.FullName.Trim();
         user.Phone = req.Phone?.Trim();
-        user.Bio = req.Bio?.Trim();
 
+        // docs/01 TK-04 — everything below is free text somebody typed, so it is
+        // trimmed and capped here rather than trusted at the length the browser
+        // happened to allow.
+        user.Bio = Profiles.TidyBio(req.Bio);
+        user.DisplayName = Profiles.Tidy(req.DisplayName, Profiles.LineMax);
+        user.Location = Profiles.Tidy(req.Location, Profiles.LineMax);
+        user.Occupation = Profiles.Tidy(req.Occupation, Profiles.LineMax);
+        user.SpokenLanguages = Profiles.PackLanguages(req.Languages);
+        user.Interests = Profiles.PackInterests(req.Interests) is { Length: > 0 } packed ? packed : null;
+
+        if (string.IsNullOrWhiteSpace(req.AvatarUrl)) user.AvatarUrl = null;
+        else if (Profiles.IsOwnUpload(req.AvatarUrl)) user.AvatarUrl = req.AvatarUrl.Trim();
+        else return BadRequest(new { message = "Ảnh đại diện phải là ảnh bạn vừa tải lên." });
+
+        // The grey circle stands in for the photo, so it has to spell the name
+        // people actually see — otherwise "Hưng" sits next to a circle reading KD.
+        var shown = Profiles.DisplayNameOf(user.DisplayName, user.FullName);
+        user.Initials = Profiles.InitialsOf(shown);
+
+        // The host card on a listing shows the same person, so it follows.
         var host = await db.Hosts.FirstOrDefaultAsync(h => h.UserId == user.Id, ct);
         if (host is not null)
         {
-            host.Name = user.FullName;
+            host.Name = shown;
             host.Initials = user.Initials;
             host.Bio = user.Bio;
+            host.AvatarUrl = user.AvatarUrl;
         }
 
         await db.SaveChangesAsync(ct);
         return Ok(await ToDtoAsync(user, ct));
     }
+
+    /// <summary>docs/01 TK-04 — the spoken languages the editor may offer.</summary>
+    [HttpGet("profile-options")]
+    public ActionResult<IReadOnlyList<SpokenLanguageDto>> ProfileOptions() =>
+        Ok(Profiles.SpokenLanguages.Select(l => new SpokenLanguageDto(l.Code, l.Label)).ToList());
 
     /// <summary>Turns a guest account into a host account without publishing anything yet.</summary>
     [HttpPost("become-host")]
@@ -315,7 +336,13 @@ public class AccountController(
             user.Id, user.Email, user.FullName, user.Initials, user.Phone, user.Bio,
             user.Role.ToString(), host is not null, host?.Id, listingCount, unread,
             user.EmailConfirmed,
-            $"Tham gia StayHost tháng {user.CreatedAt.Month}, {user.CreatedAt.Year}",
-            user.PhoneConfirmed);
+            Profiles.JoinedLabel(user.CreatedAt),
+            user.PhoneConfirmed,
+            user.DisplayName,
+            user.AvatarUrl,
+            Profiles.UnpackLanguages(user.SpokenLanguages),
+            user.Location,
+            user.Occupation,
+            Profiles.UnpackInterests(user.Interests));
     }
 }

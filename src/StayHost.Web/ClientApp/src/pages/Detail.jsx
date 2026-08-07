@@ -7,6 +7,7 @@ import {
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate, nightsBetween } from '../lib/format.js';
+import { Avatar } from '../components/Avatar.jsx';
 import { Card } from '../components/Card.jsx';
 import { Calendar } from '../components/Calendar.jsx';
 import { DetailMap } from '../components/Maps.jsx';
@@ -229,7 +230,7 @@ function Summary({ detail, card }) {
 function HostRow({ host }) {
   return (
     <div className="host-row">
-      <div className="host-avatar" aria-hidden="true">{host.initials}</div>
+      <Avatar url={host.avatarUrl} initials={host.initials} className="host-avatar" />
       <div>
         <div className="host-name">Chủ nhà: {host.name}</div>
         <div className="host-meta">
@@ -355,6 +356,7 @@ const REVIEW_TOPICS = [
 ];
 
 function Reviews({ detail, card }) {
+  const navigate = useNavigate();
   const rb = detail.ratingBreakdown;
   const shown = detail.reviews.slice(0, 6);
 
@@ -396,9 +398,13 @@ function Reviews({ detail, card }) {
         {shown.map(r => (
           <article className="review" key={r.id ?? `${r.authorName}-${r.when}`}>
             <div className="review-head">
-              <span className="avatar" aria-hidden="true">{r.authorInitials}</span>
+              <Avatar initials={r.authorInitials} />
               <div style={{ minWidth: 0 }}>
-                <div className="review-name">{r.authorName}</div>
+                {/* docs/01 TK-05 — a real guest's name opens their profile. */}
+                {r.authorUserId
+                  ? <button className="link-btn review-name"
+                            onClick={() => navigate(`/users/${r.authorUserId}`)}>{r.authorName}</button>
+                  : <div className="review-name">{r.authorName}</div>}
                 <div className="review-when">{r.authorLocation ? `${r.authorLocation} · ` : ''}{r.when}</div>
               </div>
             </div>
@@ -502,9 +508,13 @@ function HostProfile({ detail }) {
       <h2>Gặp gỡ chủ nhà</h2>
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 220 }}>
-          <div className="host-avatar" style={{ width: 64, height: 64, fontSize: 20 }}>{h.initials}</div>
+          <Avatar url={h.avatarUrl} initials={h.initials} className="host-avatar" size={64} />
           <div>
-            <div style={{ fontSize: 20, fontWeight: 800 }}>{h.name}</div>
+            {/* docs/01 TK-05 — the name opens the profile when there is one to open. */}
+            {h.userId
+              ? <button className="link-btn" style={{ fontSize: 20, fontWeight: 800 }}
+                        onClick={() => navigate(`/users/${h.userId}`)}>{h.name}</button>
+              : <div style={{ fontSize: 20, fontWeight: 800 }}>{h.name}</div>}
             <div className="host-meta">{h.isSuperhost ? 'Siêu chủ nhà' : 'Chủ nhà'}</div>
           </div>
         </div>

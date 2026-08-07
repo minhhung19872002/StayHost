@@ -28,6 +28,7 @@ import { Services, ServiceBookings } from './pages/Services.jsx';
 import { Wallet } from './pages/Wallet.jsx';
 import { Shield, ShieldTerms } from './pages/Shield.jsx';
 import { Resolutions } from './pages/Resolutions.jsx';
+import { UserProfile } from './pages/UserProfile.jsx';
 
 export function App() {
   const state = useStore();
@@ -129,6 +130,7 @@ export function App() {
             <Route path="/shield/terms" element={<ShieldTerms />} />
             <Route path="/shield/:id" element={<Shield />} />
             <Route path="/split/:token" element={<Split />} />
+            <Route path="/users/:id" element={<UserProfile />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<Browse />} />
           </Routes>

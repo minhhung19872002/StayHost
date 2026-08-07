@@ -584,9 +584,11 @@ public class BookingsController(
             ListingId = booking.ListingId,
             BookingId = booking.Id,
             AuthorUserId = user.Id,
-            AuthorName = user.FullName,
-            AuthorInitials = user.Initials,
-            When = $"Tháng {DateTime.UtcNow.Month}, {DateTime.UtcNow.Year}",
+            // docs/01 TK-04 — a review is public, so it carries the name they
+            // chose to be known by, not the one on their account.
+            AuthorName = Profiles.DisplayNameOf(user.DisplayName, user.FullName),
+            AuthorInitials = Profiles.InitialsOf(Profiles.DisplayNameOf(user.DisplayName, user.FullName)),
+            When = Profiles.MonthLabel(DateTime.UtcNow),
             Text = text,
             PrivateNote = string.IsNullOrWhiteSpace(req.PrivateNote) ? null : req.PrivateNote.Trim(),
             EditableUntil = DateTime.UtcNow + ReviewService.EditWindow,

@@ -86,6 +86,14 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Initials).HasMaxLength(4);
             e.Property(x => x.PasswordHash).HasMaxLength(200).IsRequired();
             e.Property(x => x.PasswordSalt).HasMaxLength(100).IsRequired();
+            // docs/01 TK-04 — the lengths are the ones Profiles trims to, so a
+            // value that got past the service layer still cannot get past here.
+            e.Property(x => x.DisplayName).HasMaxLength(Profiles.LineMax);
+            e.Property(x => x.Location).HasMaxLength(Profiles.LineMax);
+            e.Property(x => x.Occupation).HasMaxLength(Profiles.LineMax);
+            e.Property(x => x.Bio).HasMaxLength(Profiles.BioMax);
+            e.Property(x => x.SpokenLanguages).HasMaxLength(Profiles.MaxLanguages * (Profiles.TagMax + 1));
+            e.Property(x => x.Interests).HasMaxLength(Profiles.MaxInterests * (Profiles.TagMax + 1));
             e.Ignore(x => x.HostProfileId);
         });
 

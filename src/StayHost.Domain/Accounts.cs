@@ -79,6 +79,24 @@ public class User
 
     public string? Bio { get; set; }
     public string? AvatarUrl { get; set; }
+
+    /// <summary>
+    /// docs/01 TK-04 — what they chose to be called. The full name on the
+    /// account is legal identity; this is the one strangers see.
+    /// </summary>
+    public string? DisplayName { get; set; }
+
+    /// <summary>docs/01 TK-04 — comma-separated language codes, see <see cref="Profiles"/>.</summary>
+    public string SpokenLanguages { get; set; } = "";
+
+    /// <summary>docs/01 TK-04 — where they live, in their own words.</summary>
+    public string? Location { get; set; }
+
+    public string? Occupation { get; set; }
+
+    /// <summary>docs/01 TK-04 — newline-separated, because an interest may hold a comma.</summary>
+    public string? Interests { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>Set when the account was created from an anonymous browsing session.</summary>

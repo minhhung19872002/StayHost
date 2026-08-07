@@ -105,6 +105,10 @@ export const state = {
   profileTab: 'profile',
   resetLink: null,
   resetToken: null,
+  // docs/01 TK-04 / TK-05 — the language picker, and somebody else's profile.
+  spokenLanguages: [],
+  publicProfile: null,
+  publicProfileLoading: false,
 
   // checkout
   checkoutStep: 0,
@@ -419,6 +423,30 @@ export async function saveProfile(body) {
     toast(err.message);
     return false;
   } finally {
+    notify();
+  }
+}
+
+/** docs/01 TK-04 — fetched once; the list only changes when the server does. */
+export async function loadSpokenLanguages() {
+  if (state.spokenLanguages.length) return;
+  try {
+    state.spokenLanguages = await api.profileOptions();
+  } catch { /* the editor falls back to whatever the profile already holds */ }
+  notify();
+}
+
+/** docs/01 TK-05 — somebody else's public profile. */
+export async function loadPublicProfile(id) {
+  state.publicProfileLoading = true;
+  state.publicProfile = null;
+  notify();
+  try {
+    state.publicProfile = await api.publicProfile(id);
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    state.publicProfileLoading = false;
     notify();
   }
 }

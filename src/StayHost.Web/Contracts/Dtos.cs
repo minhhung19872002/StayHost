@@ -41,7 +41,20 @@ public record VerificationStateDto(
 
 public record LoginRequest(string Email, string Password);
 
-public record UpdateProfileRequest(string? FullName, string? Phone, string? Bio);
+/// <summary>docs/01 TK-04 — everything somebody may say about themselves.</summary>
+public record UpdateProfileRequest(
+    string? FullName,
+    string? Phone,
+    string? Bio,
+    string? DisplayName = null,
+    string? AvatarUrl = null,
+    IReadOnlyList<string>? Languages = null,
+    string? Location = null,
+    string? Occupation = null,
+    IReadOnlyList<string>? Interests = null);
+
+/// <summary>One of the languages the profile editor offers (docs/01 TK-04).</summary>
+public record SpokenLanguageDto(string Code, string Label);
 
 public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
@@ -68,7 +81,14 @@ public record CurrentUserDto(
     bool EmailConfirmed,
     string JoinedLabel,
     /// <summary>docs/01 TK-01 — the phone was proved with a six-digit code.</summary>
-    bool PhoneConfirmed = false);
+    bool PhoneConfirmed = false,
+    /* ------------------------------------------------------ docs/01 TK-04 */
+    string? DisplayName = null,
+    string? AvatarUrl = null,
+    IReadOnlyList<string>? Languages = null,
+    string? Location = null,
+    string? Occupation = null,
+    IReadOnlyList<string>? Interests = null);
 
 /* ------------------------------------------------------------------ hosting */
 
@@ -616,7 +636,9 @@ public record HostDto(
     double AverageRating,
     int TotalReviews,
     /// <summary>Null for seeded demo hosts; set when the host has a real account to message.</summary>
-    int? UserId);
+    int? UserId,
+    /// <summary>docs/01 TK-04 — the photo they uploaded, if they uploaded one.</summary>
+    string? AvatarUrl = null);
 
 public record ReviewDto(
     int Id,
@@ -628,7 +650,9 @@ public record ReviewDto(
     double Rating,
     /// <summary>docs/01 TĐ-12 — the host's single public answer.</summary>
     string? HostReply,
-    DateTime? HostRepliedAt);
+    DateTime? HostRepliedAt,
+    /// <summary>docs/01 TK-05 — set when the author has an account to open. Null for seeded reviews.</summary>
+    int? AuthorUserId = null);
 
 public record RatingBreakdownDto(
     double Cleanliness,
@@ -1414,3 +1438,52 @@ public record RehousingDto(
     /// <summary>The ceiling on the difference the platform will cover (docs/06 K-A).</summary>
     decimal TopUpCeiling,
     IReadOnlyList<RehousingOptionDto> Options);
+
+/* --------------------------------------------------------- public profile */
+
+/// <summary>
+/// docs/01 TK-05, docs/02 C6 — one review as it appears on somebody's profile,
+/// from either side of the stay. The listing is named when there is one, so a
+/// reader can see which stay a host is being praised for.
+/// </summary>
+public record ProfileReviewDto(
+    int Id,
+    string AuthorName,
+    string AuthorInitials,
+    int? AuthorUserId,
+    string When,
+    string Text,
+    double Rating,
+    string? ListingTitle,
+    string? ListingSlug);
+
+/// <summary>
+/// docs/01 TK-05, docs/02 C6 — everything a stranger may read about somebody.
+/// Deliberately holds no email, no phone and no date of birth: this endpoint is
+/// open, and anything in it is public whether or not a page renders it.
+/// </summary>
+public record PublicProfileDto(
+    int Id,
+    string DisplayName,
+    string Initials,
+    string? AvatarUrl,
+    string JoinedLabel,
+    /// <summary>docs/01 TK-05 — only what was actually proved.</summary>
+    IReadOnlyList<string> Badges,
+    string? Bio,
+    IReadOnlyList<string> Languages,
+    string? Location,
+    string? Occupation,
+    IReadOnlyList<string> Interests,
+    bool IsHost,
+    bool IsSuperhost,
+    string? ResponseRate,
+    string? ResponseTime,
+    /// <summary>Average across the listings they host; null when they host none.</summary>
+    double? Rating,
+    int ReviewCount,
+    IReadOnlyList<ListingCardDto> Listings,
+    /// <summary>Written by guests about their places (docs/02 C6 "từ hai phía").</summary>
+    IReadOnlyList<ProfileReviewDto> ReviewsAsHost,
+    /// <summary>Written by hosts about them as a guest.</summary>
+    IReadOnlyList<ProfileReviewDto> ReviewsAsGuest);

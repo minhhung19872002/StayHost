@@ -99,8 +99,10 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 - [x] `TK-03` bắt buộc **đủ 18 tuổi**, tính theo ngày chứ không theo năm
 - [x] `TK-08` xem và thu hồi phiên đăng nhập trên từng thiết bị
 - [x] `TK-09` cài đặt ngôn ngữ, tiền tệ
-- [ ] `TK-04` hồ sơ đầy đủ: ngôn ngữ nói, nơi ở, nghề nghiệp, sở thích (P0)
-- [ ] `TK-05` trang hồ sơ công khai (P0)
+- [x] `TK-04` hồ sơ đầy đủ: ảnh đại diện, tên hiển thị, ngôn ngữ nói, nơi ở, nghề nghiệp,
+      sở thích. Ảnh chỉ nhận tệp vừa tải lên sàn, không nhận địa chỉ bên ngoài
+- [x] `TK-05` trang hồ sơ công khai `/users/:id`: ảnh, năm tham gia, huy hiệu xác minh,
+      giới thiệu, ngôn ngữ, tin đăng đang có, đánh giá nhận được từ **cả hai phía**
 - [ ] `TK-06` xác minh giấy tờ tuỳ thân + selfie (P1)
 - [ ] `TK-07` xác minh email công ty (P2)
 - [ ] `TK-08` phần **bảo mật 2 lớp** (P1)
@@ -201,7 +203,6 @@ Plan cũ chỉ ghi 58/201 mã. Đã dò từng mã đáng ngờ trong mã nguồ
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
-| `TK-04`, `TK-05` | Hồ sơ cá nhân đầy đủ và trang hồ sơ công khai | P0 |
 | `TK-06` | Xác minh giấy tờ tuỳ thân + selfie | P1 |
 | `TK-08` | Bảo mật 2 lớp (phần phiên thiết bị đã có) | P1 |
 | `TK-10`, `TK-11` | Ma trận thông báo · tải dữ liệu cá nhân | P1 |
@@ -217,7 +218,7 @@ Plan cũ chỉ ghi 58/201 mã. Đã dò từng mã đáng ngờ trong mã nguồ
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (327 test)
+# Test nghiệp vụ (349 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

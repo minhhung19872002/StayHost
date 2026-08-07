@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../lib/useStore.js';
 import {
   set, login, register, loadMe, saveProfile, submitReview,
-  closeOverlay, toast, loadSessions, loadBookings, loadTrip, state as store
+  closeOverlay, toast, loadSessions, loadBookings, loadTrip, loadSpokenLanguages, state as store
 } from '../../lib/store.js';
 import { api } from '../../lib/api.js';
 import { money, longDate } from '../../lib/format.js';
+import { Avatar } from '../Avatar.jsx';
 import { Modal } from './Modal.jsx';
 
 import { externalConfig, mountGoogleButton, signInWithApple, signInWithFacebook } from '../../lib/externalLogin.js';
@@ -342,9 +344,9 @@ export function ProfileModal() {
   return (
     <Modal title="Tài khoản">
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-        <span className="avatar" style={{ width: 56, height: 56, fontSize: 18 }}>{u.initials}</span>
+        <Avatar url={u.avatarUrl} initials={u.initials} size={56} />
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 17, fontWeight: 800 }}>{u.fullName}</div>
+          <div style={{ fontSize: 17, fontWeight: 800 }}>{u.displayName || u.fullName}</div>
           <div style={{ fontSize: 13, color: 'var(--ink-muted)' }}>{u.email} · {u.joinedLabel}</div>
           <div style={{ marginTop: 6 }}>
             {/* docs/01 TK-01 — a phone-only account has no address to nag about. */}
@@ -372,26 +374,7 @@ export function ProfileModal() {
         ))}
       </nav>
 
-      {tab === 'profile' && (
-        <form onSubmit={e => {
-          e.preventDefault();
-          const f = e.currentTarget;
-          saveProfile({
-            fullName: f.fullName.value.trim(),
-            phone: f.phone.value.trim() || null,
-            bio: f.bio.value.trim() || null
-          });
-        }}>
-          <label className="form-field"><span className="cap">Họ và tên</span>
-            <input type="text" name="fullName" defaultValue={u.fullName} required /></label>
-          <label className="form-field"><span className="cap">Số điện thoại</span>
-            <input type="tel" name="phone" defaultValue={u.phone ?? ''} /></label>
-          <label className="form-field"><span className="cap">Giới thiệu</span>
-            <textarea name="bio" rows={4} defaultValue={u.bio ?? ''}
-              style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} /></label>
-          <button type="submit" className="btn btn-primary btn-block">Lưu thay đổi</button>
-        </form>
-      )}
+      {tab === 'profile' && <ProfileForm />}
 
       {tab === 'verify' && <Verification />}
 
@@ -433,6 +416,167 @@ export function ProfileModal() {
         </div>
       )}
     </Modal>
+  );
+}
+
+/**
+ * docs/01 TK-04 — the whole profile in one form: the photo, the name other
+ * people see, and the four things the spec asks for beyond a bio.
+ *
+ * The photo, the languages and the interests are held in React state because
+ * each is edited by clicking rather than typing; everything else stays an
+ * uncontrolled field, the way the rest of the modals here work.
+ */
+function ProfileForm() {
+  const state = useStore();
+  const u = state.user;
+  const navigate = useNavigate();
+
+  const [avatar, setAvatar] = useState(u.avatarUrl ?? null);
+  const [languages, setLanguages] = useState(() => [...(u.languages ?? [])]);
+  const [interests, setInterests] = useState(() => [...(u.interests ?? [])]);
+  const [draft, setDraft] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const photoRef = useRef(null);
+
+  useEffect(() => { loadSpokenLanguages(); }, []);
+
+  const options = state.spokenLanguages ?? [];
+
+  const pickPhoto = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append('files', file);
+      const res = await fetch('/api/uploads/images', { method: 'POST', body, credentials: 'same-origin' });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.message ?? 'Không tải được ảnh.');
+      setAvatar(payload.urls[0]);
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const toggleLanguage = code =>
+    setLanguages(list => list.includes(code) ? list.filter(c => c !== code) : [...list, code]);
+
+  const addInterest = () => {
+    const value = draft.trim();
+    if (!value) return;
+    setInterests(list => list.some(i => i.toLowerCase() === value.toLowerCase()) ? list : [...list, value]);
+    setDraft('');
+  };
+
+  const submit = async e => {
+    e.preventDefault();
+    const f = e.currentTarget;
+    setSaving(true);
+    await saveProfile({
+      fullName: f.fullName.value.trim(),
+      displayName: f.displayName.value.trim() || null,
+      phone: f.phone.value.trim() || null,
+      bio: f.bio.value.trim() || null,
+      avatarUrl: avatar,
+      languages,
+      location: f.location.value.trim() || null,
+      occupation: f.occupation.value.trim() || null,
+      interests
+    });
+    setSaving(false);
+  };
+
+  return (
+    <form onSubmit={submit}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+        <Avatar url={avatar} initials={u.initials} size={64} />
+        <div style={{ display: 'grid', gap: 6 }}>
+          <button type="button" className="btn btn-sm" disabled={uploading}
+                  onClick={() => photoRef.current?.click()}>
+            {uploading ? 'Đang tải…' : avatar ? 'Đổi ảnh' : 'Tải ảnh lên'}
+          </button>
+          {avatar && (
+            <button type="button" className="text-btn" style={{ fontSize: 12.5 }}
+                    onClick={() => setAvatar(null)}>Gỡ ảnh</button>
+          )}
+        </div>
+        <input ref={photoRef} type="file" accept="image/*" hidden onChange={pickPhoto} />
+      </div>
+
+      <label className="form-field"><span className="cap">Họ và tên</span>
+        <input type="text" name="fullName" defaultValue={u.fullName} required /></label>
+
+      <label className="form-field">
+        <span className="cap">Tên hiển thị</span>
+        <input type="text" name="displayName" defaultValue={u.displayName ?? ''}
+               placeholder={u.fullName} maxLength={80} />
+      </label>
+      <p className="field-note">Đây là tên người khác nhìn thấy. Bỏ trống thì dùng họ tên ở trên.</p>
+
+      <label className="form-field"><span className="cap">Số điện thoại</span>
+        <input type="tel" name="phone" defaultValue={u.phone ?? ''} /></label>
+
+      <label className="form-field"><span className="cap">Nơi ở</span>
+        <input type="text" name="location" defaultValue={u.location ?? ''}
+               placeholder="Đà Nẵng, Việt Nam" maxLength={80} /></label>
+
+      <label className="form-field"><span className="cap">Nghề nghiệp</span>
+        <input type="text" name="occupation" defaultValue={u.occupation ?? ''}
+               placeholder="Kiến trúc sư" maxLength={80} /></label>
+
+      <div className="form-field">
+        <span className="cap">Ngôn ngữ nói được</span>
+        <div className="chip-wrap">
+          {options.map(l => (
+            <button type="button" key={l.code}
+                    className={`quick-chip ${languages.includes(l.code) ? 'is-on' : ''}`}
+                    aria-pressed={languages.includes(l.code)}
+                    onClick={() => toggleLanguage(l.code)}>{l.label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="form-field">
+        <span className="cap">Sở thích</span>
+        {!!interests.length && (
+          <div className="chip-wrap" style={{ marginBottom: 8 }}>
+            {interests.map(i => (
+              <span className="quick-chip is-on" key={i}>
+                {i}
+                <button type="button" aria-label={`Bỏ ${i}`} className="chip-x"
+                        onClick={() => setInterests(list => list.filter(x => x !== i))}>×</button>
+              </span>
+            ))}
+          </div>
+        )}
+        {/* Not a nested form — Enter has to add a tag, not save the profile. */}
+        <div className="chip-add">
+          <input type="text" value={draft} maxLength={40} placeholder="Nấu ăn, leo núi, nhiếp ảnh…"
+                 onChange={e => setDraft(e.target.value)}
+                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addInterest(); } }} />
+          <button type="button" className="btn btn-sm" onClick={addInterest}>Thêm</button>
+        </div>
+      </div>
+
+      <label className="form-field"><span className="cap">Giới thiệu</span>
+        <textarea name="bio" rows={4} defaultValue={u.bio ?? ''} maxLength={700}
+          style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} /></label>
+
+      <button type="submit" className="btn btn-primary btn-block" disabled={saving}>
+        {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
+      </button>
+
+      <button type="button" className="btn btn-block" style={{ marginTop: 8 }}
+              onClick={() => { closeOverlay(); navigate(`/users/${u.id}`); }}>
+        Xem hồ sơ công khai
+      </button>
+    </form>
   );
 }
 

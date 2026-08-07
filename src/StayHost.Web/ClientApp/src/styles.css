@@ -1821,3 +1821,54 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
   width: 140px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
   font-size: 18px; font-weight: 700; letter-spacing: 4px; text-align: center;
 }
+
+/* ------------------------------------------------ public profile (TK-05) */
+/* One circle serves both: the photo when there is one, the initials when there
+   is not, so nothing shifts when somebody finally uploads one. */
+.avatar img, .host-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+.field-note { margin: -6px 0 14px; font-size: 12.5px; color: var(--ink-muted); line-height: 1.5; }
+
+.chip-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-add { display: flex; gap: 8px; }
+.chip-add input {
+  flex: 1 1 auto; min-width: 0; padding: 11px 14px; border: 1px solid var(--line);
+  border-radius: var(--r-field); font-size: 14px;
+}
+.chip-add input:focus { outline: 0; border-color: var(--ink); }
+.chip-x {
+  border: 0; background: transparent; color: inherit; font-size: 16px; line-height: 1;
+  padding: 0 0 0 4px; opacity: .75;
+}
+.chip-x:hover { opacity: 1; }
+
+.profile-head { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 40px; margin-top: 18px; }
+
+.profile-card {
+  border: 1px solid var(--divider); border-radius: var(--r-panel); padding: 28px 24px;
+  box-shadow: var(--shadow-lg); text-align: center; align-self: start;
+  display: grid; justify-items: center; gap: 4px;
+}
+.profile-name { font-size: 26px; font-weight: 800; margin: 12px 0 0; letter-spacing: -0.4px; }
+.profile-role { margin: 0; font-size: 14px; color: var(--ink-muted); }
+.profile-stats {
+  display: grid; gap: 14px; margin-top: 20px; width: 100%;
+  border-top: 1px solid var(--divider); padding-top: 18px; text-align: left;
+}
+.profile-stats b { display: block; font-size: 17px; }
+.profile-stats span { font-size: 12.5px; color: var(--ink-muted); }
+
+.profile-joined { margin: 0 0 14px; font-size: 14px; color: var(--ink-muted); }
+.profile-sub { font-size: 17px; font-weight: 700; margin: 22px 0 10px; }
+.profile-bio { font-size: 15px; line-height: 1.65; color: var(--ink-body); white-space: pre-line; margin: 18px 0 0; }
+.profile-facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.profile-facts li { display: flex; align-items: center; gap: 10px; font-size: 14.5px; color: var(--ink-body); }
+.profile-facts svg { color: var(--ink-muted); flex: 0 0 auto; }
+
+.profile-reviews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 40px; margin-top: 18px; }
+.profile-review-text { font-size: 14.5px; line-height: 1.6; color: var(--ink-body); margin: 10px 0 6px; }
+
+@media (max-width: 899px) {
+  .profile-head { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .profile-reviews { grid-template-columns: minmax(0, 1fr); }
+}

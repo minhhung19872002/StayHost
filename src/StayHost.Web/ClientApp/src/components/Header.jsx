@@ -10,6 +10,7 @@ import { api } from '../lib/api.js';
 import { applySearch } from '../lib/nav.js';
 import { recentSearches, clearSearchHistory } from '../lib/history.js';
 import { dateRangeLabel, debounce } from '../lib/format.js';
+import { Avatar } from './Avatar.jsx';
 import { Icon } from './Icon.jsx';
 import { DateFields, GuestFields } from './modals/SearchModals.jsx';
 
@@ -102,9 +103,9 @@ export function Header() {
                   onClick={() => openMenu('account')}>
             <span className="ic"><Icon name="menu" size={17} /></span>
             <UnreadBadge />
-            <span className={`avatar ${state.user ? '' : 'is-anon'}`} aria-hidden="true">
-              {state.user ? state.user.initials : <Icon name="heart" size={15} />}
-            </span>
+            {state.user
+              ? <Avatar url={state.user.avatarUrl} initials={state.user.initials} />
+              : <span className="avatar is-anon" aria-hidden="true"><Icon name="heart" size={15} /></span>}
           </button>
           {state.menu === 'account' && <AccountMenu />}
         </div>
@@ -471,9 +472,9 @@ function AccountMenu() {
   return (
     <div className="menu" role="menu">
       <div className="menu-user">
-        <span className="avatar">{u.initials}</span>
+        <Avatar url={u.avatarUrl} initials={u.initials} />
         <div style={{ minWidth: 0 }}>
-          <b>{u.fullName}</b>
+          <b>{u.displayName || u.fullName}</b>
           <span>{u.email}</span>
         </div>
       </div>
@@ -494,6 +495,7 @@ function AccountMenu() {
         : <button className="bold" role="menuitem" onClick={becomeHost}>Cho thuê nhà trên StayHost</button>}
       {u.role === 'Admin' && <button className="bold" role="menuitem" onClick={() => goTo('/admin')}>Trang quản trị</button>}
       <button role="menuitem" onClick={() => openOverlay('profile')}>Tài khoản</button>
+      <button role="menuitem" onClick={() => goTo(`/users/${u.id}`)}>Hồ sơ công khai</button>
       <hr />
       <button role="menuitem" onClick={() => openOverlay('language')}>Ngôn ngữ &amp; tiền tệ</button>
       <button role="menuitem" onClick={() => goTo('/help')}>Trung tâm trợ giúp</button>

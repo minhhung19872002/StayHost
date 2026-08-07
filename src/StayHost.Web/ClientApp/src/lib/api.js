@@ -108,6 +108,10 @@ export const api = {
   verifyEmail: token => request('/api/account/verify-email', { method: 'POST', body: JSON.stringify({ token }) }),
   sessions: () => request('/api/account/sessions'),
   revokeSession: id => request(`/api/account/sessions/${id}`, { method: 'DELETE' }),
+  /* docs/01 TK-04 — the languages the profile editor offers */
+  profileOptions: () => request('/api/account/profile-options'),
+  /* docs/01 TK-05 — somebody else's profile; no sign-in needed */
+  publicProfile: id => request(`/api/users/${id}`),
 
   /* -------------------------------------------------------------- hosting */
   hostDashboard: () => request('/api/host/dashboard'),
