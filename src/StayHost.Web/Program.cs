@@ -20,6 +20,17 @@ builder.Services.AddSingleton(externalLogin);
 builder.Services.AddHttpClient("external-login");
 builder.Services.AddScoped<ExternalTokenVerifier>();
 
+// Outgoing mail. Everything queues rows in EmailMessages; EmailWorker drains
+// them through whichever sender is registered here. With no Email:Host the
+// queue simply holds the mail — nothing pretends to send. The SMTP password
+// arrives as Email__Password from the environment, never appsettings.json.
+var email = builder.Configuration.GetSection("Email").Get<EmailSettings>() ?? new();
+builder.Services.AddSingleton(email);
+if (email.IsConfigured) builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+else builder.Services.AddScoped<IEmailSender, UnconfiguredEmailSender>();
+builder.Services.AddScoped<EmailDispatcher>();
+builder.Services.AddHostedService<EmailWorker>();
+
 var connectionString =
     builder.Configuration.GetConnectionString("Postgres")
     ?? Environment.GetEnvironmentVariable("DATABASE_URL")

@@ -80,6 +80,18 @@ public class EmailMessage
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? SentAt { get; set; }
     public string? Error { get; set; }
+
+    /// <summary>How many times a mail server has been asked to take this.</summary>
+    public int Attempts { get; set; }
+
+    /// <summary>
+    /// When to try again. Null with <see cref="SentAt"/> also null means the
+    /// message has been given up on — see <see cref="EmailDelivery"/>.
+    /// </summary>
+    public DateTime? NextAttemptAt { get; set; }
+
+    /// <summary>Set when the receiving server refused outright and always will.</summary>
+    public bool Undeliverable { get; set; }
 }
 
 /// <summary>

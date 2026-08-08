@@ -70,7 +70,9 @@ public class IdentityService(
             {
                 ToEmail = sentTo!,
                 ToName = user.FullName,
-                Subject = $"Mã xác thực StayHost: {code}",
+                // The code stays out of the subject: subjects show on lock
+                // screens and in mail logs (EmailDelivery.SubjectLeaksCode).
+                Subject = EmailDelivery.CodeSubject(),
                 Body = $"Mã xác thực của bạn là {code}. Mã có hiệu lực trong " +
                        $"{Identity.CodeLifetime.TotalMinutes:0} phút."
             });

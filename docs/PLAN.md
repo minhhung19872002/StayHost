@@ -329,7 +329,7 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có### 9.1 Chưa có (51 mã)
+### 9.1 Chưa có (51 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -390,20 +390,12 @@ Kết luận dựa trên đọc mã nguồn, không dựa trên việc mã yêu 
 comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `TM-25`,
 `TC-02`, `TN-01` đều **chạy được** dù không chỗ nào trong code viết tên mã ra.
 
----|---|---|
-| `TK-12` | Tạm vô hiệu hoá / xoá tài khoản, ẩn danh dữ liệu giao dịch | P1 |
-| `TĐ-03`, `TN-06` | Dịch mô tả tin đăng (P0) · dịch tin nhắn (P1) | P0/P1 |
-| `TC-03` | Đơn từ 28 đêm trở lên thu theo từng tháng | P1 |
-| `ĐG-10` | Báo cáo đánh giá vi phạm | P1 |
-| `QL-09` | Gợi ý giá theo nhu cầu thị trường | P2 |
-| `XH-01`→`XH-03` | Kết bạn, bản đồ hành trình, hỏi bạn bè | P2 |
-
 ---
 
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (437 test)
+# Test nghiệp vụ (654 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199

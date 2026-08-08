@@ -80,7 +80,9 @@ public class AdminController(
             payments.Sum(p => p.Amount),
             payments.Sum(p => p.PlatformFee),
             await db.ListingReports.CountAsync(r => r.Status == ReportStatus.Open, ct),
-            await db.EmailMessages.CountAsync(e => e.SentAt == null, ct),
+            // Undeliverable mail is finished, not pending — without the filter
+            // the operator's "waiting to send" number would never drain.
+            await db.EmailMessages.CountAsync(e => e.SentAt == null && !e.Undeliverable, ct),
             recent.Select(l => new AdminListingDto(
                 l.Id, l.Slug, l.Title, l.City, l.Host?.Name ?? "",
                 l.IsPublished, Math.Round(l.Rating, 2), l.ReviewCount, l.PricePerNight, l.CreatedAt)).ToList(),
