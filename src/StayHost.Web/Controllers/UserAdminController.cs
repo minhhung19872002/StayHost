@@ -39,7 +39,22 @@ public class UserAdminController(
         if (!v.Ok) return Refuse(v);
 
         var term = (q ?? "").Trim();
-        if (term.Length < 2) return Ok(Array.Empty<AdminUserRowDto>());
+
+        // No term is not "no answer": an operator opening the console wants to
+        // see who is on the platform, and guessing a search word to get a first
+        // row is busywork. The newest accounts are what that question usually
+        // means, and they are also where anything suspicious shows up first.
+        if (term.Length < 2)
+        {
+            return Ok(await db.Users
+                .OrderByDescending(u => u.Id)
+                .Take(50)
+                .Select(u => new AdminUserRowDto(
+                    u.Id, u.FullName, u.Email, u.Phone, u.Role.ToString(),
+                    u.IsBanned ? "Khoá vĩnh viễn" : u.IsSuspended ? "Tạm khoá" : "Bình thường",
+                    u.IsIdentityVerified, u.CreatedAt))
+                .ToListAsync(ct));
+        }
 
         var lower = term.ToLowerInvariant();
 

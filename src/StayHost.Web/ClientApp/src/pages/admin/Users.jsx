@@ -45,6 +45,10 @@ export function UserAdminPanel() {
     catch (err) { toast(err.message); }
   };
 
+  // Mở trang là thấy người dùng ngay: bảng trống bắt admin phải đoán một từ khoá
+  // mới có dòng đầu tiên, mà thứ họ muốn xem thường chỉ là "ai đang có trên sàn".
+  useEffect(() => { search(''); }, []);
+
   const load = async id => {
     try { setOpen(await api.adminUser(id)); }
     catch (err) { toast(err.message); }
@@ -55,6 +59,7 @@ export function UserAdminPanel() {
       <h2 className="section-title" style={{ fontSize: 20 }}>Quản trị người dùng</h2>
       <p className="section-sub">
         Tìm theo email, số điện thoại, tên, mã đơn, mã tin đăng hoặc mã giao dịch.
+        Để trống ô tìm là danh sách tài khoản mới nhất.
       </p>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'flex-end', flexWrap: 'wrap' }}>
