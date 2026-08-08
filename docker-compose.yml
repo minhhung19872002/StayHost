@@ -30,6 +30,11 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: "8080"
       ConnectionStrings__Postgres: "Host=db;Port=5432;Database=stayhost;Username=stayhost;Password=stayhost"
+    volumes:
+      # Same split as production: photos under wwwroot, identity documents out of
+      # reach of the static file middleware (docs/08 §4).
+      - uploads:/app/wwwroot/uploads
+      - identity:/app/protected/identity
     ports:
       - "8090:8080"
     healthcheck:
@@ -42,3 +47,5 @@ services:
 
 volumes:
   stayhost-pgdata:
+  uploads:
+  identity:

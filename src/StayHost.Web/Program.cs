@@ -84,6 +84,24 @@ await using (var scope = app.Services.CreateAsyncScope())
         {
             await db.Database.MigrateAsync();
             await DbSeeder.SeedAsync(db);
+
+            // docs/08 §3 — "Bắt buộc bảo mật 2 lớp. Không bật thì không đăng nhập
+            // được, không có ngoại lệ." An admin row saved before that rule
+            // existed has the flag off, and the rule then locks the console
+            // against everyone: turning two-factor on requires signing in, and
+            // signing in requires two-factor. Nobody can climb out of that from
+            // the UI, so the invalid state is repaired here instead.
+            var lockedOutAdmins = await db.Users
+                .Where(u => u.Role == UserRole.Admin && !u.TwoFactorEnabled)
+                .ExecuteUpdateAsync(s => s.SetProperty(u => u.TwoFactorEnabled, true));
+
+            if (lockedOutAdmins > 0)
+            {
+                log.LogWarning(
+                    "Đã bật bảo mật 2 lớp cho {Count} tài khoản quản trị chưa bật (docs/08 §3).",
+                    lockedOutAdmins);
+            }
+
             // docs/01 AT-07 — help articles seed on their own, so adding one
             // later does not need the whole catalogue rebuilt.
             await HelpSeeder.SeedAsync(db);

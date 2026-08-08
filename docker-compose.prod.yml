@@ -37,12 +37,27 @@ services:
       ASPNETCORE_HTTP_PORTS: "8080"
       ConnectionStrings__Postgres: "Host=db;Port=5432;Database=${POSTGRES_DB:-stayhost};Username=${POSTGRES_USER:-stayhost};Password=${POSTGRES_PASSWORD}"
       TZ: Asia/Ho_Chi_Minh
+      # Outgoing mail. Without these the queue fills and nothing ever leaves —
+      # which also means the six-digit code an admin needs to sign in (docs/08
+      # §3) never arrives, and the console is unreachable.
+      Email__Host: ${EMAIL_HOST:-}
+      Email__Port: ${EMAIL_PORT:-587}
+      Email__User: ${EMAIL_USER:-}
+      Email__Password: ${EMAIL_PASSWORD:-}
+      Email__FromAddress: ${EMAIL_FROM:-no-reply@stayhost.vn}
+      Email__FromName: ${EMAIL_FROM_NAME:-StayHost}
+      Email__UseImplicitTls: ${EMAIL_IMPLICIT_TLS:-false}
     # Nginx terminates TLS on the host and proxies here, so the port stays on loopback.
     ports:
       - "127.0.0.1:8090:8080"
     volumes:
       # Listing photos are written to wwwroot/uploads; they must outlive the image.
       - uploads:/app/wwwroot/uploads
+      # docs/08 §4 — identity documents deliberately live OUTSIDE wwwroot so the
+      # static file middleware cannot serve them to anyone holding the URL. That
+      # puts them inside the image unless they get a volume of their own, and a
+      # deploy would take somebody's verification papers with it.
+      - identity:/app/protected/identity
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
       interval: 10s
@@ -54,3 +69,4 @@ services:
 volumes:
   pgdata:
   uploads:
+  identity:

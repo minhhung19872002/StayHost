@@ -112,14 +112,29 @@ export function AuthModal() {
         <div style={{ fontSize: 12.5, color: 'var(--ink-muted)', marginTop: 6, lineHeight: 1.6 }}>
           Khách: <code>guest@stayhost.vn</code><br />
           Chủ nhà: <code>host1@stayhost.vn</code><br />
+          Quản trị: <code>admin@stayhost.vn</code><br />
           Mật khẩu: <code>stayhost123</code>
         </div>
-        <button className="btn btn-outline btn-sm btn-block" style={{ marginTop: 10 }} onClick={() => {
-          const form = document.getElementById('auth-form');
-          if (!form) return;
-          form.email.value = 'host1@stayhost.vn';
-          form.password.value = 'stayhost123';
-        }}>Điền tài khoản chủ nhà</button>
+        {/* docs/08 §3 — tài khoản quản trị bắt buộc có bảo mật 2 lớp, không ngoại
+            lệ, nên nó luôn đi qua bước mã 6 số. Nói trước để người bấm nút không
+            tưởng là hỏng. */}
+        <div style={{ fontSize: 12, color: 'var(--ink-muted)', marginTop: 6 }}>
+          Tài khoản quản trị còn một bước nữa: mã 6 số gửi tới email của tài khoản.
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          <button className="btn btn-outline btn-sm" style={{ flex: 1 }} onClick={() => {
+            const form = document.getElementById('auth-form');
+            if (!form) return;
+            form.email.value = 'host1@stayhost.vn';
+            form.password.value = 'stayhost123';
+          }}>Điền chủ nhà</button>
+          <button className="btn btn-outline btn-sm" style={{ flex: 1 }} onClick={() => {
+            const form = document.getElementById('auth-form');
+            if (!form) return;
+            form.email.value = 'admin@stayhost.vn';
+            form.password.value = 'stayhost123';
+          }}>Điền quản trị</button>
+        </div>
       </div>
     </Modal>
   );
