@@ -66,6 +66,55 @@ public class UploadsController(IWebHostEnvironment env, AuthService auth, ILogge
         return Ok(new { urls });
     }
 
+    /// <summary>
+    /// docs/08 §4 — identity documents. These are copies of government papers, so
+    /// they never land under wwwroot: the static file middleware would hand them
+    /// to anyone holding the URL, with no audit line and no role check, which
+    /// defeats the whole reasoned-view flow of QT-U-11. They are stored outside
+    /// the web root and served only by <see cref="IdentityFilesController"/>.
+    /// </summary>
+    [HttpPost("identity")]
+    [RequestSizeLimit(MaxBytes * 3)]
+    public async Task<ActionResult<object>> UploadIdentity([FromForm] IFormFileCollection files, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+        if (files.Count is 0 or > 3) return BadRequest(new { message = "Cần 1–3 ảnh giấy tờ." });
+
+        var root = IdentityFilesController.Root(env);
+        Directory.CreateDirectory(root);
+
+        var urls = new List<string>();
+
+        foreach (var file in files)
+        {
+            if (file.Length == 0) continue;
+            if (file.Length > MaxBytes)
+                return BadRequest(new { message = $"\"{file.FileName}\" vượt quá 8MB." });
+            if (!AllowedTypes.TryGetValue(file.ContentType, out var extension))
+                return BadRequest(new { message = $"\"{file.FileName}\" không phải ảnh JPG/PNG/WebP/AVIF." });
+
+            var name = $"{user.Id}-{Guid.NewGuid():N}{extension}";
+            var path = Path.Combine(root, name);
+
+            await using (var stream = System.IO.File.Create(path))
+            {
+                await file.CopyToAsync(stream, ct);
+            }
+
+            if (!await LooksLikeImageAsync(path, ct))
+            {
+                System.IO.File.Delete(path);
+                return BadRequest(new { message = $"\"{file.FileName}\" không đọc được như ảnh hợp lệ." });
+            }
+
+            urls.Add($"/api/identity-files/{name}");
+        }
+
+        log.LogInformation("User {UserId} uploaded {Count} identity document(s).", user.Id, urls.Count);
+        return Ok(new { urls });
+    }
+
     /// <summary>Checks the magic bytes so a renamed file cannot masquerade as an image.</summary>
     private static async Task<bool> LooksLikeImageAsync(string path, CancellationToken ct)
     {

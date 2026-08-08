@@ -267,6 +267,13 @@ public class Listing
 
     /// <summary>Drafts are visible only to their host until published.</summary>
     public bool IsPublished { get; set; } = true;
+
+    /// <summary>
+    /// docs/08 §5.2 and §5.5 — set when a sanction unpublished this listing, so
+    /// restoring the account republishes exactly these and not the ones the host
+    /// had chosen to keep offline. While set, the host cannot republish.
+    /// </summary>
+    public DateTime? HiddenBySanctionAt { get; set; }
     public bool InstantBook { get; set; } = true;
 
     // --- docs/03 §2: the nine checks that decide whether a stay can be booked.

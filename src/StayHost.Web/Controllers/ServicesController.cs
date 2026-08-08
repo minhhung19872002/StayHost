@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using StayHost.Domain;
 using StayHost.Web.Contracts;
 using StayHost.Web.Services;
 
@@ -64,6 +65,10 @@ public class ServicesController(AuthService auth, ServiceMarketService market) :
     {
         var user = await auth.CurrentUserAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        // docs/08 §5.2 — "không được đặt đơn mới" covers every kind of booking.
+        if (Restrictions.Has(user.RestrictionMask, RestrictionKind.NoNewBookings))
+            return StatusCode(403, new { message = Restrictions.Message(RestrictionKind.NoNewBookings) });
 
         var (booking, error) = await market.BookAsync(user, id, req, ct);
         if (booking is null) return BadRequest(new { message = error });

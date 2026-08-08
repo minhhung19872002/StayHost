@@ -9,6 +9,7 @@ import { setNavigator } from './lib/nav.js';
 
 import { Header } from './components/Header.jsx';
 import { Footer } from './components/Footer.jsx';
+import { ImpersonationBanner } from './components/ImpersonationBanner.jsx';
 import { Overlay } from './components/modals/Overlay.jsx';
 import { Toasts } from './components/Toasts.jsx';
 
@@ -29,6 +30,7 @@ import { Wallet } from './pages/Wallet.jsx';
 import { Shield, ShieldTerms } from './pages/Shield.jsx';
 import { Resolutions } from './pages/Resolutions.jsx';
 import { UserProfile } from './pages/UserProfile.jsx';
+import { MySanctions, AppealByToken } from './pages/Sanctions.jsx';
 
 export function App() {
   const state = useStore();
@@ -103,6 +105,8 @@ export function App() {
 
   return <>
     <div id="app">
+      {/* docs/08 §7.5 — above everything, for as long as the session lasts. */}
+      {state.me?.role === 'Admin' && <ImpersonationBanner />}
       <header className="site-header"><Header /></header>
       <main id="main">
         {booted && (
@@ -131,6 +135,9 @@ export function App() {
             <Route path="/shield/:id" element={<Shield />} />
             <Route path="/split/:token" element={<Split />} />
             <Route path="/users/:id" element={<UserProfile />} />
+            {/* docs/08 §8 — quyết định về mình, và cửa khiếu nại cho cả người đã bị khoá */}
+            <Route path="/account/sanctions" element={<MySanctions />} />
+            <Route path="/appeal" element={<AppealByToken />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<Browse />} />
           </Routes>

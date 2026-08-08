@@ -113,7 +113,7 @@ public class HostController(
         var profile = await auth.EnsureHostProfileAsync(user, ct);
 
         var listing = new Listing { HostId = profile.Id, Slug = await UniqueSlugAsync(req.Title, ct) };
-        await ApplyAsync(listing, req, ct);
+        await ApplyAsync(listing, req, user, ct);
 
         db.Listings.Add(listing);
         await db.SaveChangesAsync(ct);
@@ -139,7 +139,7 @@ public class HostController(
         var error = Validate(req);
         if (error is not null) return BadRequest(new { message = error });
 
-        await ApplyAsync(listing, req, ct);
+        await ApplyAsync(listing, req, user, ct);
         await db.SaveChangesAsync(ct);
 
         return Ok(ToHostListing(listing, 0, 0));
@@ -578,7 +578,7 @@ public class HostController(
         return null;
     }
 
-    private async Task ApplyAsync(Listing listing, SaveListingRequest r, CancellationToken ct)
+    private async Task ApplyAsync(Listing listing, SaveListingRequest r, User user, CancellationToken ct)
     {
         listing.Title = r.Title.Trim();
 
@@ -604,7 +604,15 @@ public class HostController(
         listing.CleaningFee = r.CleaningFee;
         listing.MinNights = r.MinNights;
         listing.InstantBook = r.InstantBook;
-        listing.IsPublished = r.IsPublished;
+
+        // docs/08 §5.2 and §5.5 — a listing the sanction hid stays hidden until
+        // an admin restores it; the host flipping the switch is not a restore.
+        // While the hide-from-search restriction stands, nothing goes public —
+        // including a listing created after the sanction.
+        var hiddenBySanction = listing.HiddenBySanctionAt is not null
+            || Restrictions.Has(user.RestrictionMask, RestrictionKind.ListingsHiddenFromSearch);
+
+        listing.IsPublished = !hiddenBySanction && r.IsPublished;
         listing.CancellationTier = Enum.TryParse<CancellationTier>(r.CancellationTier, true, out var tier)
             ? tier
             : CancellationTier.Moderate;

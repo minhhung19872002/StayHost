@@ -209,6 +209,11 @@ public class PayoutService(
             AccountVerified: host.PayoutAccountVerified,
             AccountChangedAt: host.PayoutAccountChangedAt,
             OwedToPlatform: host.OwedToPlatform,
-            Payable: payable);
+            Payable: payable,
+            // docs/08 §5.2/§6 — read from the account itself every sweep, so an
+            // admin hold is never undone by this recomputation.
+            AccountUnderReview: host.User is { } hu
+                && (hu.IsSuspended || hu.IsBanned
+                    || Restrictions.Has(hu.RestrictionMask, RestrictionKind.PayoutsHeld)));
     }
 }

@@ -88,4 +88,28 @@ public class AppealsTests
         foreach (var status in Enum.GetValues<AppealStatus>())
             Assert.NotEqual("", Appeals.StatusLabel(status));
     }
+
+    /* ---- what the person filing has to say ---- */
+
+    [Fact]
+    public void An_appeal_has_to_actually_argue_something()
+    {
+        Assert.False(Appeals.ArgumentIsUsable(null));
+        Assert.False(Appeals.ArgumentIsUsable("sai rồi"));
+        Assert.True(Appeals.ArgumentIsUsable("Tôi không hề gửi tin nhắn đó, xin xem lại nhật ký."));
+    }
+
+    [Fact]
+    public void The_person_appealing_is_asked_for_less_than_the_person_answering()
+    {
+        // They are not the professional here. The answer still has to be a real
+        // answer (§8: "không được trả lời cụt lủn").
+        Assert.True(Appeals.ArgumentMinLength < Appeals.OutcomeMinLength);
+    }
+
+    [Fact]
+    public void The_curt_argument_message_says_what_is_missing()
+    {
+        Assert.Contains("lý do", Appeals.CurtArgumentMessage());
+    }
 }

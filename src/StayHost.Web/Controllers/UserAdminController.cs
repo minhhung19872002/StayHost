@@ -43,17 +43,22 @@ public class UserAdminController(
 
         var lower = term.ToLowerInvariant();
 
-        var byBooking = await db.Bookings
-            .Where(b => b.Reference.ToLower() == lower
-                        || (b.Payment != null && b.Payment.Reference.ToLower() == lower))
-            .Select(b => b.GuestUserId)
-            .Where(id => id != null)
-            .ToListAsync(ct);
+        // A booking code has two people on it. Support is usually handed the code
+        // by one of them and needs to reach the other, so both come back.
+        var byBooking = (await db.Bookings
+                .Where(b => b.Reference.ToLower() == lower
+                            || (b.Payment != null && b.Payment.Reference.ToLower() == lower))
+                .Select(b => new { b.GuestUserId, HostUserId = (int?)b.Listing!.Host!.UserId })
+                .ToListAsync(ct))
+            .SelectMany(b => new[] { b.GuestUserId, b.HostUserId })
+            .ToList();
 
-        var byListing = int.TryParse(term, out var listingId)
-            ? await db.Listings.Where(l => l.Id == listingId)
-                .Select(l => l.Host!.UserId).Where(id => id != null).ToListAsync(ct)
-            : [];
+        var listingId = int.TryParse(term, out var parsed) ? parsed : 0;
+
+        var byListing = await db.Listings
+            .Where(l => l.Id == listingId || l.Slug == lower)
+            .Select(l => l.Host!.UserId)
+            .ToListAsync(ct);
 
         var ids = byBooking.Concat(byListing).Where(id => id.HasValue).Select(id => id!.Value).ToList();
 
@@ -105,8 +110,12 @@ public class UserAdminController(
             ? await db.Bookings.Where(b => b.Listing!.HostId == h.Id).ToListAsync(ct)
             : [];
 
-        var cancelledByThem = asGuest.Count(b => b.Status == BookingStatus.CancelledByGuest)
-                              + asHost.Count(b => b.Status == BookingStatus.CancelledByHost);
+        // Only cancellations this person actually made. A stay the platform
+        // called off — because the other side was locked — is not their doing
+        // and must not show up as their cancellation rate.
+        var cancelledByThem =
+            asGuest.Count(b => b.Status == BookingStatus.CancelledByGuest && b.CancelledBy == CancelledBy.Guest)
+            + asHost.Count(b => b.Status == BookingStatus.CancelledByHost && b.CancelledBy == CancelledBy.Host);
         var allBookings = asGuest.Count + asHost.Count;
 
         var sanctions = await db.Sanctions
@@ -121,12 +130,36 @@ public class UserAdminController(
                 s.LiftedAt, s.LiftedReason, s.OverturnedOnAppeal, s.Severe))
             .ToListAsync(ct);
 
-        var reportsAgainst = user.HostProfile is { } hp
-            ? await db.ListingReports.CountAsync(r => r.Listing!.HostId == hp.Id, ct)
-            : 0;
+        var hostId = user.HostProfile?.Id;
+
+        // docs/08 §4 — "báo cáo bị nhận". A host collects listing reports; a
+        // guest collects cases the other side opened about them, and counting
+        // only the first left every guest reading a blameless zero.
+        var reportsAgainst =
+            (hostId is { } reportedHost
+                ? await db.ListingReports.CountAsync(r => r.Listing!.HostId == reportedHost, ct)
+                : 0)
+            + await db.ResolutionCases.CountAsync(
+                c => (c.Booking!.GuestUserId == id && c.OpenedByHost)
+                     || (hostId != null && c.Booking!.Listing!.HostId == hostId && !c.OpenedByHost), ct);
+
+        // §4 — "hồ sơ tranh chấp" in its own right, open ones called out.
+        var disputes = await db.ResolutionCases
+            .Where(c => c.OpenedByUserId == id
+                        || c.Booking!.GuestUserId == id
+                        || (hostId != null && c.Booking!.Listing!.HostId == hostId))
+            .Select(c => c.Status)
+            .ToListAsync(ct);
 
         var balance = await db.CreditEntries.Where(c => c.UserId == id)
             .SumAsync(c => (decimal?)c.Amount, ct) ?? 0m;
+
+        // §4 lists gift cards next to the balance: they are money this person
+        // holds that never passes through the credit ledger until redeemed.
+        var giftCards = await db.GiftCards
+            .Where(g => g.PurchasedByUserId == id || g.RedeemedByUserId == id)
+            .Select(g => new { g.Remaining, g.Status })
+            .ToListAsync(ct);
 
         var cards = await db.SavedCards.Where(c => c.UserId == id)
             .Select(c => SavedCards.BrandLabel(c.Brand) + " ••••" + c.Last4)
@@ -136,8 +169,47 @@ public class UserAdminController(
             .Where(s => s.UserId == id)
             .OrderByDescending(s => s.CreatedAt)
             .Take(10)
-            .Select(s => new AdminSessionRowDto(s.UserAgent ?? "", s.CreatedAt, s.RevokedAt == null))
+            .Select(s => new AdminSessionRowDto(s.UserAgent ?? "", s.CreatedAt, s.RevokedAt == null, s.IpAddress))
             .ToListAsync(ct);
+
+        // §4 — "Vai trò: khách, chủ nhà, co-host, danh hiệu."
+        var coHostOf = (await db.CoHosts
+                .Where(c => c.CoHostUserId == id && c.Status == CoHostStatus.Active)
+                .Select(c => new { Owner = c.OwnerUser!.FullName, c.Scope, Listing = c.Listing!.Title })
+                .ToListAsync(ct))
+            .Select(c => $"{c.Owner}{(c.Listing == null ? "" : $" · {c.Listing}")}: {CoHostScopes.Describe(c.Scope)}")
+            .ToList();
+
+        var guestFavourite = hostId is { } favouriteHost
+            && await db.Listings.AnyAsync(l => l.HostId == favouriteHost && l.IsGuestFavorite, ct);
+
+        // §4 — reviews written AND received. A host is reviewed on their
+        // listings; a guest is reviewed by their hosts.
+        var reviewsReceived =
+            (hostId is { } reviewedHost
+                ? await db.Reviews.CountAsync(r => r.Listing!.HostId == reviewedHost, ct)
+                : 0)
+            + await db.GuestReviews.CountAsync(r => r.GuestUserId == id, ct);
+
+        // §4 — the two-sided history itself, not just its count.
+        var recent = await db.Bookings
+            .Where(b => b.GuestUserId == id || (hostId != null && b.Listing!.HostId == hostId))
+            .OrderByDescending(b => b.CreatedAt)
+            .Take(20)
+            .Select(b => new
+            {
+                b.Id, b.Reference, b.Status, b.CheckIn, b.CheckOut, b.Total,
+                Listing = b.Listing!.Title,
+                AsGuest = b.GuestUserId == id
+            })
+            .ToListAsync(ct);
+
+        var recentBookings = recent
+            .Select(b => new AdminBookingRowDto(
+                b.Id, b.Reference, b.AsGuest ? "Khách" : "Chủ nhà", b.Listing,
+                b.Status.ToString(), BookingLifecycle.Label(b.Status),
+                b.CheckIn, b.CheckOut, b.Total))
+            .ToList();
 
         // docs/08 §4 — payout account is Finance's to see, and only the tail.
         var maySeePayout = AdminActions.Allows(v.Admin!.AdminScope, AdminAction.ViewPayoutAccount);
@@ -170,7 +242,15 @@ public class UserAdminController(
             AdminActions.All
                 .Where(r => AdminActions.Allows(v.Admin.AdminScope, r.Action))
                 .Select(r => r.Action.ToString())
-                .ToList()));
+                .ToList(),
+            guestFavourite,
+            coHostOf,
+            reviewsReceived,
+            disputes.Count(s => s is ResolutionStatus.AwaitingResponse or ResolutionStatus.Disputed),
+            disputes.Count,
+            giftCards.Count,
+            giftCards.Where(g => g.Status == GiftCardStatus.Active).Sum(g => g.Remaining),
+            recentBookings));
     }
 
     /// <summary>
@@ -348,13 +428,44 @@ public class UserAdminController(
             user.IsSuspended ? "đã bị khoá" : "bình thường",
             Sanctions.Label(level), req.Reason);
 
+        // docs/08 §5.6 — a severe jump goes straight onto a Super's desk, with
+        // the 24-hour clock already running.
+        if (severe)
+        {
+            var super = await db.Users
+                .Where(u => u.Id != v.Admin.Id && u.Role == UserRole.Admin
+                            && u.AdminScope.HasFlag(AdminScope.Super))
+                .OrderBy(u => u.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (super is not null)
+            {
+                await notifications.QueueWithEmailAsync(super, NotificationKind.System,
+                    "Hồ sơ vi phạm nghiêm trọng cần xem lại trong 24 giờ",
+                    $"{v.Admin.FullName} vừa {Sanctions.Label(level).ToLowerInvariant()} người dùng #{id} " +
+                    $"theo §5.6 ({req.SevereGround}). Hạn xem lại: " +
+                    $"{Sanctions.SevereReviewDueBy(now):HH:mm dd/MM/yyyy}.",
+                    "/admin", ct);
+            }
+        }
+
+        // docs/08 §8 — a suspension takes the sign-in away, so the appeal right
+        // travels in the email as a token instead of a page they can no longer open.
+        string appealLink = "/account/sanctions";
+        if (level >= SanctionLevel.Suspension)
+        {
+            var token = SanctionsController.IssueAppealToken(user.Id);
+            db.UserTokens.Add(token);
+            appealLink = $"/appeal?token={token.Token}";
+        }
+
         await db.SaveChangesAsync(ct);
 
         await notifications.QueueWithEmailAsync(user, NotificationKind.System,
             $"StayHost: {Sanctions.Label(level).ToLowerInvariant()}",
             Sanctions.Notice(sanction) +
-            $" Bạn có thể khiếu nại một lần trong {Appeals.WindowDays} ngày.",
-            "/account/sanctions", ct);
+            $" Bạn có thể khiếu nại một lần trong {Appeals.WindowDays} ngày theo liên kết trong thư này.",
+            appealLink, ct);
 
         return await Profile(id, null, ct);
     }
@@ -384,6 +495,9 @@ public class UserAdminController(
                 var preview = await BuildPreviewAsync(user, refundInFull, ct);
                 user.MayStillRespondToDisputes = SuspensionImpact.MustKeepAbleToRespond(preview);
 
+                // The preview the admin confirmed is a promise; this keeps it.
+                await ExecuteFalloutAsync(user, preview, ct);
+
                 await HideListingsAsync(user, ct);
                 await HoldPayoutsAsync(user, ct);
 
@@ -394,12 +508,110 @@ public class UserAdminController(
         }
     }
 
+    /// <summary>
+    /// docs/08 §6 — what the lock-preview said would happen, actually happening.
+    /// Cancellations go through <see cref="BookingsController.PostCancellation"/>
+    /// — the same path as any other cancellation — so the ledger, the booking
+    /// history and the refund maths come out identical to a normal cancel.
+    /// </summary>
+    private async Task ExecuteFalloutAsync(User user, SuspensionImpact.Preview preview, CancellationToken ct)
+    {
+        var isHost = user.HostProfile is not null;
+
+        foreach (var line in preview.Lines)
+        {
+            var booking = await db.Bookings
+                .Include(b => b.Payment)
+                .Include(b => b.GuestUser)
+                .Include(b => b.Listing!).ThenInclude(l => l.Host!).ThenInclude(h => h.User)
+                .FirstOrDefaultAsync(b => b.Id == line.BookingId, ct);
+            if (booking is null) continue;
+
+            switch (line.Action)
+            {
+                case BookingFallout.CancelRefundFull:
+                case BookingFallout.CancelPerPolicy:
+                {
+                    // §6 — the platform cancelled, not the host, so no host
+                    // penalty; a guest lock may instead apply the booking's own
+                    // policy ("hoặc hoàn 100% tuỳ mức độ vi phạm — admin chọn").
+                    var by = line.Action == BookingFallout.CancelRefundFull
+                        ? CancelledBy.Platform
+                        : CancelledBy.Guest;
+
+                    var outcome = Cancellation.Refund(new Cancellation.Context
+                    {
+                        Booking = booking,
+                        Now = DateTime.UtcNow,
+                        By = by
+                    });
+
+                    BookingsController.PostCancellation(db, booking, outcome, by,
+                        isHost ? "Sàn huỷ: tài khoản chủ nhà bị khoá." : "Sàn huỷ: tài khoản khách bị khoá.");
+
+                    if (isHost && booking.GuestUser is not null)
+                    {
+                        // §6 — "hoàn 100% cho khách, gửi khách danh sách chỗ thay thế."
+                        var city = booking.Listing?.City ?? "";
+                        await notifications.QueueWithEmailAsync(booking.GuestUser, NotificationKind.BookingCancelled,
+                            "Đơn của bạn đã được hoàn tiền đầy đủ",
+                            $"Đơn {booking.Reference} bị huỷ vì chỗ nghỉ ngừng hoạt động trên StayHost. " +
+                            $"Bạn được hoàn {outcome.Amount:#,##0}₫ — không phải do bạn. " +
+                            $"Chúng tôi đã chọn sẵn các chỗ tương tự ở {city} cho bạn.",
+                            $"/search?city={Uri.EscapeDataString(city)}", ct);
+                    }
+                    else if (!isHost)
+                    {
+                        await notifications.QueueWithEmailAsync(booking.Listing?.Host?.User, NotificationKind.BookingCancelled,
+                            "Một đơn đã bị sàn huỷ",
+                            $"Đơn {booking.Reference} đã bị huỷ vì tài khoản khách bị khoá. " +
+                            "Lịch của bạn đã mở lại cho những ngày đó.",
+                            "/hosting", ct);
+                    }
+                    break;
+                }
+
+                case BookingFallout.CancelRequest:
+                {
+                    // §6 — "Tự động huỷ yêu cầu, báo khách." Nothing was captured,
+                    // so there is no money to move — only a request to close.
+                    var to = booking.Status == BookingStatus.PendingHostApproval
+                        ? BookingStatus.Expired
+                        : BookingStatus.CancelledByGuest;
+
+                    db.BookingEvents.Add(BookingLifecycle.Transition(booking, to, "system",
+                        isHost ? "Tự huỷ: tài khoản chủ nhà bị khoá." : "Tự huỷ: tài khoản khách bị khoá."));
+
+                    if (isHost && booking.GuestUser is not null)
+                    {
+                        await notifications.QueueWithEmailAsync(booking.GuestUser, NotificationKind.BookingDeclined,
+                            "Yêu cầu đặt chỗ đã đóng",
+                            $"Yêu cầu {booking.Reference} không thể tiếp tục vì chỗ nghỉ ngừng hoạt động. " +
+                            "Bạn chưa bị trừ tiền.",
+                            "/search", ct);
+                    }
+                    break;
+                }
+
+                // LeaveAlone: somebody is in that house tonight — §6 says not to
+                // touch it. HoldPayout: applied wholesale by HoldPayoutsAsync.
+            }
+        }
+    }
+
     private async Task HideListingsAsync(User user, CancellationToken ct)
     {
         if (user.HostProfile is not { } host) return;
 
+        var now = DateTime.UtcNow;
+
         foreach (var l in await db.Listings.Where(l => l.HostId == host.Id && l.IsPublished).ToListAsync(ct))
+        {
             l.IsPublished = false;
+            // Remembered so §5.5 restore republishes exactly these — and so the
+            // host cannot simply flip them back on while the sanction stands.
+            l.HiddenBySanctionAt = now;
+        }
     }
 
     private async Task HoldPayoutsAsync(User user, CancellationToken ct)
@@ -413,7 +625,7 @@ public class UserAdminController(
         foreach (var p in payments)
         {
             p.PayoutStatus = PayoutStatus.OnHold;
-            p.PayoutHoldReason = PayoutHoldReason.Dispute;
+            p.PayoutHoldReason = PayoutHoldReason.AccountUnderReview;
         }
     }
 
@@ -448,6 +660,32 @@ public class UserAdminController(
         user.SuspendedUntil = null;
         user.RestrictionMask = 0;
         user.MayStillRespondToDisputes = false;
+
+        // §5.5 — what the sanction hid comes back; what the host had chosen to
+        // keep offline stays offline.
+        if (user.HostProfile is { } hostProfile)
+        {
+            foreach (var l in await db.Listings
+                         .Where(l => l.HostId == hostProfile.Id && l.HiddenBySanctionAt != null)
+                         .ToListAsync(ct))
+            {
+                l.IsPublished = true;
+                l.HiddenBySanctionAt = null;
+            }
+
+            // Money held only because of the sanction starts moving again; holds
+            // with a life of their own (disputes, chargebacks) are recomputed by
+            // the payout sweep and stay put.
+            foreach (var p in await db.Payments
+                         .Where(p => p.PayoutStatus == PayoutStatus.OnHold
+                                     && p.PayoutHoldReason == PayoutHoldReason.AccountUnderReview
+                                     && p.Booking!.Listing!.HostId == hostProfile.Id)
+                         .ToListAsync(ct))
+            {
+                p.PayoutStatus = PayoutStatus.Scheduled;
+                p.PayoutHoldReason = PayoutHoldReason.None;
+            }
+        }
 
         audit.Record(v.Admin!, "user.restore", $"user:{id}", "đang bị xử lý", "bình thường", req.Reason);
         await db.SaveChangesAsync(ct);
@@ -527,6 +765,110 @@ public class UserAdminController(
             check.FrontImageUrl, check.BackImageUrl, check.SelfieImageUrl,
             stamp,
             check.Status.ToString(), check.SubmittedAt));
+    }
+
+    /* ------------------------------------------------ §2, the two ✓* reads */
+
+    /// <summary>
+    /// docs/08 §2 — "Xem nội dung tin nhắn của một đơn cụ thể." One booking, not
+    /// an inbox: the row is scoped to the booking the admin names, so "xem tin
+    /// nhắn" can never quietly become "đọc mọi cuộc trò chuyện của người này".
+    /// POST, because a reason has to travel with it and each read is recorded.
+    /// </summary>
+    [HttpPost("bookings/{bookingId:int}/thread")]
+    public async Task<ActionResult<AdminThreadDto>> ViewThread(
+        int bookingId, [FromBody] RestoreRequest req, CancellationToken ct)
+    {
+        var booking = await db.Bookings
+            .Include(b => b.Listing!).ThenInclude(l => l.Host)
+            .FirstOrDefaultAsync(b => b.Id == bookingId, ct);
+
+        if (booking is null) return NotFound(new { message = "Không tìm thấy đơn này." });
+
+        var v = await gate.AllowAsync(AdminAction.ViewBookingThread, req.Reason, ct, booking.GuestUserId);
+        if (!v.Ok) return Refuse(v);
+
+        var thread = await db.MessageThreads
+            .Include(t => t.Messages).ThenInclude(m => m.SenderUser)
+            .Include(t => t.GuestUser).Include(t => t.HostUser)
+            .FirstOrDefaultAsync(t => t.BookingId == bookingId, ct);
+
+        gate.RecordSensitiveRead(v.Admin!, AdminAction.ViewBookingThread, $"booking:{booking.Reference}", req.Reason!);
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new AdminThreadDto(
+            booking.Id, booking.Reference,
+            booking.Listing?.Title ?? "",
+            thread?.GuestUser?.FullName ?? booking.GuestName ?? "Khách",
+            thread?.HostUser?.FullName ?? booking.Listing?.Host?.Name ?? "Chủ nhà",
+            thread is null
+                ? []
+                : thread.Messages
+                    .OrderBy(m => m.SentAt)
+                    .Select(m => new AdminThreadMessageDto(
+                        m.SenderUser?.FullName ?? "—", m.Body, m.SentAt, m.IsSystem))
+                    .ToList()));
+    }
+
+    /// <summary>
+    /// docs/08 §2 and §9 — "Sửa thông tin sai: người dùng tự sửa được phần lớn;
+    /// phần đã xác minh cần admin duyệt." Only the fields a person might be stuck
+    /// with; the email and the payout account are deliberately not here, because
+    /// those decide who controls the account and where the money goes.
+    /// </summary>
+    [HttpPost("{id:int}/profile")]
+    public async Task<ActionResult<AdminUserDto>> EditProfile(
+        int id, [FromBody] AdminEditProfileRequest req, CancellationToken ct)
+    {
+        var v = await gate.AllowAsync(AdminAction.EditProfile, req.Reason, ct, id);
+        if (!v.Ok) return Refuse(v);
+
+        var user = await db.Users.Include(u => u.HostProfile).FirstOrDefaultAsync(u => u.Id == id, ct);
+        if (user is null) return NotFound();
+
+        var before = $"{user.FullName} · {user.Phone ?? "—"}";
+
+        if (!string.IsNullOrWhiteSpace(req.FullName)) user.FullName = req.FullName.Trim();
+        if (req.DisplayName is not null) user.DisplayName = Profiles.Tidy(req.DisplayName, Profiles.LineMax);
+        if (req.Location is not null) user.Location = Profiles.Tidy(req.Location, Profiles.LineMax);
+        if (req.Occupation is not null) user.Occupation = Profiles.Tidy(req.Occupation, Profiles.LineMax);
+
+        if (req.Phone is not null)
+        {
+            var phone = Identity.NormalisePhone(req.Phone);
+            if (req.Phone.Trim().Length > 0 && phone is null)
+                return BadRequest(new { message = "Số điện thoại không hợp lệ." });
+
+            if (phone is not null && await db.Users.AnyAsync(u => u.Id != id && u.Phone == phone, ct))
+                return BadRequest(new { message = "Số điện thoại này đã thuộc về tài khoản khác." });
+
+            // A number an admin typed in has not been proved by anybody, so the
+            // confirmed flag goes with it.
+            user.Phone = phone;
+            user.PhoneConfirmed = false;
+        }
+
+        var shown = Profiles.DisplayNameOf(user.DisplayName, user.FullName);
+        user.Initials = Profiles.InitialsOf(shown);
+
+        if (user.HostProfile is { } host)
+        {
+            host.Name = shown;
+            host.Initials = user.Initials;
+        }
+
+        audit.Record(v.Admin!, "user.edit-profile", $"user:{id}",
+            before, $"{user.FullName} · {user.Phone ?? "—"}", req.Reason);
+
+        await db.SaveChangesAsync(ct);
+
+        await notifications.QueueWithEmailAsync(user, NotificationKind.System,
+            "Hồ sơ của bạn vừa được StayHost chỉnh sửa",
+            $"Nhân viên hỗ trợ đã sửa thông tin hồ sơ của bạn. Lý do: {req.Reason!.Trim()}. " +
+            "Nếu bạn thấy bất thường, hãy liên hệ ngay.",
+            "/account", ct);
+
+        return await Profile(id, null, ct);
     }
 
     /// <summary>docs/08 §2 — send them round the identity check again.</summary>

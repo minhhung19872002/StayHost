@@ -13,7 +13,13 @@ public enum PayoutHoldReason
     /// <summary>Payout account unverified, or changed within the cooling-off window.</summary>
     AccountUnverified = 4,
     /// <summary>The host owes the platform — a cancellation penalty, a settled claim.</summary>
-    HostOwesPlatform = 5
+    HostOwesPlatform = 5,
+    /// <summary>
+    /// docs/08 §5.2 and §6 — an admin held the account's money (PayoutsHeld
+    /// restriction, suspension, ban). Appended, never reordered: the number is in
+    /// the database.
+    /// </summary>
+    AccountUnderReview = 6
 }
 
 /// <summary>
@@ -112,7 +118,8 @@ public static class Payouts
         bool AccountVerified,
         DateTime? AccountChangedAt,
         decimal OwedToPlatform,
-        decimal Payable = 0m);
+        decimal Payable = 0m,
+        bool AccountUnderReview = false);
 
     /// <summary>
     /// The first reason that applies, in the order docs/07 §12.4 lists them —
@@ -120,6 +127,12 @@ public static class Payouts
     /// </summary>
     public static PayoutHoldReason HoldReason(Conditions c, DateTime now)
     {
+        // docs/08 §5.2/§6 — an admin's hold on the whole account outranks every
+        // per-booking condition. It is derived from the account's live state, so
+        // the sweep cannot recompute it away, and payments that arrive after the
+        // sanction are held just the same.
+        if (c.AccountUnderReview) return PayoutHoldReason.AccountUnderReview;
+
         if (c.HasOpenDispute) return PayoutHoldReason.Dispute;
         if (c.HasChargeback) return PayoutHoldReason.Chargeback;
         if (c.ListingSuspended) return PayoutHoldReason.ListingSuspended;
@@ -162,6 +175,7 @@ public static class Payouts
         PayoutHoldReason.ListingSuspended => "Tin đăng đang bị tạm dừng để xem xét",
         PayoutHoldReason.AccountUnverified => "Tài khoản nhận tiền chưa xác minh hoặc vừa được đổi",
         PayoutHoldReason.HostOwesPlatform => "Đang khấu trừ khoản bạn còn nợ StayHost",
+        PayoutHoldReason.AccountUnderReview => "Tài khoản của bạn đang được StayHost xem xét — tiền vẫn là của bạn, chỉ tạm giữ",
         _ => ""
     };
 

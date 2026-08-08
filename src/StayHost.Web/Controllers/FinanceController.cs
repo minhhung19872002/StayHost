@@ -19,10 +19,26 @@ namespace StayHost.Web.Controllers;
 [ApiController]
 [Route("api/admin/finance")]
 public class FinanceController(
-    StayHostDbContext db, AdminAudit audit, PaymentGateway gateway, NotificationService notifications)
+    StayHostDbContext db, AdminAudit audit, AdminGate gate, PaymentGateway gateway,
+    NotificationService notifications)
     : ControllerBase
 {
     private Task<User?> RequireAsync(CancellationToken ct) => audit.RequireAsync(AdminScope.Finance, ct);
+
+    private ActionResult Refuse(AdminGate.Verdict v) =>
+        StatusCode(v.Status ?? 403, new { message = v.Refusal });
+
+    /// <summary>
+    /// docs/08 §1.3 — a refund or a hold has two people on it, and the admin must
+    /// be related to neither. The gate checks one target; the other side is
+    /// checked here so "I refunded my own stay" cannot slip through as the host.
+    /// </summary>
+    private async Task<string?> OtherPartyConflictAsync(User admin, int? otherUserId, CancellationToken ct)
+    {
+        if (otherUserId is not { } other) return null;
+        var conflict = await gate.ConflictAsync(admin, other, ct);
+        return AdminConflict.Blocks(conflict) ? AdminConflict.Message(conflict) : null;
+    }
 
     /* ------------------------------------------------- TC-A-04, the report */
 
@@ -190,18 +206,23 @@ public class FinanceController(
     public async Task<ActionResult<TransactionDto>> Refund(
         int bookingId, [FromBody] ManualRefundRequest req, CancellationToken ct)
     {
-        var admin = await RequireAsync(ct);
-        if (admin is null) return this.Denied();
-
         var booking = await db.Bookings
-            .Include(b => b.Payment).Include(b => b.Listing).Include(b => b.GuestUser)
+            .Include(b => b.Payment).Include(b => b.Listing!).ThenInclude(l => l.Host)
+            .Include(b => b.GuestUser)
             .FirstOrDefaultAsync(b => b.Id == bookingId, ct);
 
         if (booking?.Payment is null) return NotFound(new { message = "Không tìm thấy giao dịch." });
 
-        var reason = (req.Reason ?? "").Trim();
-        if (reason.Length < 5)
-            return BadRequest(new { message = "Cần ghi lý do hoàn tiền thủ công." });
+        // docs/08 §2 and §1 — through the gate: the matrix row, the 10-character
+        // reason, and the §1.3 conflict check against BOTH parties to the money.
+        var v = await gate.AllowAsync(AdminAction.ManualRefund, req.Reason, ct, booking.GuestUserId);
+        if (!v.Ok) return Refuse(v);
+
+        if (await OtherPartyConflictAsync(v.Admin!, booking.Listing?.Host?.UserId, ct) is { } hostConflict)
+            return StatusCode(403, new { message = hostConflict });
+
+        var admin = v.Admin!;
+        var reason = req.Reason!.Trim();
 
         // What was actually taken. DepositPaid carries it on every path that goes
         // through the pay endpoint; a captured payment that never set it was
@@ -292,9 +313,6 @@ public class FinanceController(
     public async Task<ActionResult<TransactionDto>> AdjustPayout(
         int bookingId, [FromBody] AdjustPayoutRequest req, CancellationToken ct)
     {
-        var admin = await RequireAsync(ct);
-        if (admin is null) return this.Denied();
-
         var payment = await db.Payments
             .Include(p => p.Booking!).ThenInclude(b => b.Listing!).ThenInclude(l => l.Host!).ThenInclude(h => h.User)
             .FirstOrDefaultAsync(p => p.BookingId == bookingId, ct);
@@ -304,8 +322,16 @@ public class FinanceController(
         if (payment.PayoutStatus == PayoutStatus.Paid)
             return BadRequest(new { message = "Khoản này đã chuyển, không điều chỉnh được nữa." });
 
-        var reason = (req.Reason ?? "").Trim();
-        if (reason.Length < 5) return BadRequest(new { message = "Cần ghi lý do điều chỉnh." });
+        var hostUserId = payment.Booking?.Listing?.Host?.UserId;
+
+        var v = await gate.AllowAsync(AdminAction.AdjustPayout, req.Reason, ct, hostUserId);
+        if (!v.Ok) return Refuse(v);
+
+        if (await OtherPartyConflictAsync(v.Admin!, payment.Booking?.GuestUserId, ct) is { } guestConflict)
+            return StatusCode(403, new { message = guestConflict });
+
+        var admin = v.Admin!;
+        var reason = req.Reason!.Trim();
 
         var before = payment.PayoutStatus == PayoutStatus.OnHold
             ? Payouts.HoldLabel(payment.PayoutHoldReason)
@@ -313,6 +339,44 @@ public class FinanceController(
 
         if (req.Release)
         {
+            // docs/08 §10 QT-E — releasing held money IS moving money. Above the
+            // threshold it waits for a second signature like a refund would.
+            if (AdminOversight.NeedsSecondApproval(payment.HostPayout))
+            {
+                var target = $"booking:{payment.Booking!.Reference}";
+
+                var parked = await db.MoneyApprovals.FirstOrDefaultAsync(
+                    m => m.Target == target && m.Action == "finance.payout-adjust"
+                         && m.Amount == payment.HostPayout && m.ExecutedAt == null, ct);
+
+                if (parked is null)
+                {
+                    db.MoneyApprovals.Add(new MoneyApproval
+                    {
+                        Action = "finance.payout-adjust",
+                        Target = target,
+                        Amount = payment.HostPayout,
+                        Reason = reason,
+                        RequestedByUserId = admin.Id
+                    });
+                    await db.SaveChangesAsync(ct);
+
+                    return StatusCode(202, new
+                    {
+                        message = AdminOversight.SecondApprovalMessage(payment.HostPayout),
+                        needsSecondApproval = true
+                    });
+                }
+
+                if (parked.IsOpen)
+                    return StatusCode(202, new { message = "Khoản này đang chờ người thứ hai duyệt.", needsSecondApproval = true });
+
+                if (parked.RejectedAt is not null)
+                    return BadRequest(new { message = $"Khoản này đã bị từ chối: {parked.RejectedReason}" });
+
+                parked.ExecutedAt = DateTime.UtcNow;
+            }
+
             payment.PayoutStatus = PayoutStatus.Scheduled;
             payment.PayoutHoldReason = PayoutHoldReason.None;
             // A released payout goes out on the next sweep, not in three days'

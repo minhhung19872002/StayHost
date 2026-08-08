@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StayHost.Domain;
@@ -77,12 +78,39 @@ public class AdminOversightController(
         await db.SaveChangesAsync(ct);
 
         // docs/08 §7.4 — the person is told, unless a fraud investigation was
-        // separately approved to stay quiet. Approved by a name, not a checkbox.
-        if (req.SilentFraudInvestigation && v.Admin.AdminScope.HasFlag(AdminScope.Super))
+        // separately approved to stay quiet. "Separately" is the load-bearing
+        // word: the approval must come from a different Super, by name, and that
+        // person is told they are on the hook for it.
+        var silenced = false;
+        if (req.SilentFraudInvestigation)
         {
-            session.SilenceApprovedByUserId = v.Admin.Id;
+            var approver = req.SilenceApprovedByUserId is { } approverId
+                ? await db.Users.FirstOrDefaultAsync(
+                    u => u.Id == approverId && u.Role == UserRole.Admin
+                         && u.AdminScope.HasFlag(AdminScope.Super), ct)
+                : null;
+
+            if (approver is null || approver.Id == v.Admin.Id)
+            {
+                return BadRequest(new
+                {
+                    message = "Điều tra gian lận cần một Quản trị tối cao KHÁC phê duyệt việc không báo " +
+                              "cho người dùng. Hãy nhập đúng người đã phê duyệt."
+                });
+            }
+
+            session.SilenceApprovedByUserId = approver.Id;
+            silenced = true;
+
+            await notifications.QueueWithEmailAsync(approver, NotificationKind.System,
+                "Bạn đứng tên phê duyệt một phiên thay mặt không báo người dùng",
+                $"{v.Admin.FullName} vừa vào tài khoản người dùng #{target.Id} theo hồ sơ #{ticket.Id} " +
+                $"trong chế độ điều tra gian lận, ghi bạn là người phê duyệt. " +
+                "Nếu bạn không phê duyệt việc này, hãy báo ngay.",
+                "/admin", ct);
         }
-        else
+
+        if (!silenced)
         {
             await notifications.QueueWithEmailAsync(target, NotificationKind.System,
                 "Nhân viên hỗ trợ đã truy cập tài khoản của bạn",
@@ -306,6 +334,45 @@ public class AdminOversightController(
     }
 
     /// <summary>
+    /// docs/08 §9 — fulfilling an export: mint the time-limited link and tell the
+    /// person it is waiting. The file itself is built on download rather than
+    /// stored, so a copy of somebody's whole life is never sitting on a disk.
+    /// </summary>
+    [HttpPost("data-requests/{id:int}/export")]
+    public async Task<ActionResult<IReadOnlyList<DataRequestDto>>> FulfilExport(
+        int id, [FromBody] RestoreRequest req, CancellationToken ct)
+    {
+        var request = await db.DataRequests.Include(r => r.User)
+            .FirstOrDefaultAsync(r => r.Id == id && r.Kind == DataRequestKind.Export, ct);
+
+        if (request is null) return NotFound(new { message = "Không tìm thấy yêu cầu xuất dữ liệu này." });
+
+        var v = await gate.AllowAsync(AdminAction.EraseData, req.Reason, ct, request.UserId);
+        if (!v.Ok) return Refuse(v);
+
+        var now = DateTime.UtcNow;
+
+        request.LinkToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+        request.LinkExpiresAt = now + Domain.DataRequests.LinkLifetime;
+        request.Status = DataRequestStatus.Done;
+        request.CompletedAt = now;
+        request.HandledByUserId = v.Admin!.Id;
+        request.Note = Domain.DataRequests.ExportReadyNotice(request.LinkExpiresAt.Value);
+
+        audit.Record(v.Admin, "user.data-export", $"user:{request.UserId}",
+            null, "đã cấp liên kết tải", req.Reason);
+
+        await db.SaveChangesAsync(ct);
+
+        await notifications.QueueWithEmailAsync(request.User, NotificationKind.System,
+            "Dữ liệu cá nhân của bạn đã sẵn sàng để tải",
+            request.Note, $"/api/account/data/download/{request.LinkToken}", ct);
+
+        return await DataRequests(ct);
+    }
+
+    /// <summary>
     /// docs/08 §9 and §13 scenario 9 — the person disappears and the money does
     /// not. Nothing is deleted here: the account is anonymised in place, so every
     /// booking, payment and ledger line keeps pointing at a row that still exists.
@@ -347,6 +414,10 @@ public class AdminOversightController(
         user.PhoneConfirmed = false;
         user.ErasedAt = DateTime.UtcNow;
 
+        // docs/08 §9 — reviews stay ("đánh giá thuộc về cộng đồng") but the
+        // author's name is copied onto every review row, so it goes here too.
+        await AnonymiseReviewsAsync(user.Id, ct);
+
         // The identity images are the one thing that is genuinely destroyed:
         // they are copies of a government document and nothing needs them.
         foreach (var check in await db.IdentityChecks.Where(c => c.UserId == user.Id).ToListAsync(ct))
@@ -369,6 +440,38 @@ public class AdminOversightController(
         return await DataRequests(ct);
     }
 
+    /// <summary>
+    /// docs/08 §9 — "Chỉ ẩn tên người viết." The name is copied onto every review
+    /// row when it is written, so anonymising the account row alone leaves the
+    /// real name on public pages. Host-side names live on HostProfile and are
+    /// wiped with the same brush.
+    /// </summary>
+    private async Task AnonymiseReviewsAsync(int userId, CancellationToken ct)
+    {
+        var ghost = Domain.DataRequests.AnonymousReviewerName();
+
+        foreach (var r in await db.Reviews.Where(r => r.AuthorUserId == userId).ToListAsync(ct))
+        {
+            r.AuthorName = ghost;
+            r.AuthorInitials = "•";
+            r.AuthorLocation = null;
+        }
+
+        var hostProfileId = await db.Users
+            .Where(u => u.Id == userId)
+            .Select(u => u.HostProfileId)
+            .FirstOrDefaultAsync(ct);
+
+        if (hostProfileId is { } hostId
+            && await db.Hosts.FirstOrDefaultAsync(h => h.Id == hostId, ct) is { } host)
+        {
+            host.Name = ghost;
+            host.Initials = "•";
+            host.AvatarUrl = null;
+            host.Bio = null;
+        }
+    }
+
     private async Task<Domain.DataRequests.Blockers> BlockersAsync(int userId, CancellationToken ct)
     {
         // docs/08 §9 — "còn đơn chưa hoàn tất". A finished stay is finished:
@@ -387,10 +490,18 @@ public class AdminOversightController(
             c => c.OpenedByUserId == userId
                  && (c.Status == ResolutionStatus.AwaitingResponse || c.Status == ResolutionStatus.Disputed), ct);
 
-        var owes = await db.Users
+        // Host-side debt is a column; guest-side debt is a credit ledger that
+        // went below zero. Either one blocks erasure the same way.
+        var hostOwes = await db.Users
             .Where(u => u.Id == userId && u.HostProfile != null)
             .Select(u => u.HostProfile!.OwedToPlatform)
             .FirstOrDefaultAsync(ct) > 0;
+
+        var creditBalance = await db.CreditEntries
+            .Where(c => c.UserId == userId)
+            .SumAsync(c => (decimal?)c.Amount, ct) ?? 0m;
+
+        var owes = hostOwes || creditBalance < 0;
 
         var investigated = await db.Users
             .AnyAsync(u => u.Id == userId && (u.IsSuspended || u.IsBanned), ct);
@@ -457,12 +568,58 @@ public class AdminOversightController(
             var untied = await db.AdminProfileViews
                 .CountAsync(p => p.AdminUserId == a.Id && p.TicketId == null && p.CreatedAt >= monthAgo, ct);
 
-            if (untied >= AdminOversight.BrowsingThreshold)
+            if (untied >= AdminOversight.UntiedMonthlyThreshold)
             {
                 flags.Add(new OversightFlagDto(
                     a.FullName, OversightFlag.NoTicket.ToString(),
                     AdminOversight.FlagLabel(OversightFlag.NoTicket),
                     $"{untied} lượt xem không gắn hồ sơ nào trong 30 ngày", now));
+            }
+
+            // §3 — a lot of profiles in a single hour is browsing, not working.
+            var lastHour = await db.AdminProfileViews
+                .CountAsync(p => p.AdminUserId == a.Id && p.CreatedAt >= now - AdminOversight.BrowsingWindow, ct);
+
+            if (lastHour >= AdminOversight.BrowsingThreshold)
+            {
+                flags.Add(new OversightFlagDto(
+                    a.FullName, OversightFlag.BrowsingProfiles.ToString(),
+                    AdminOversight.FlagLabel(OversightFlag.BrowsingProfiles),
+                    $"{lastHour} hồ sơ trong một giờ qua", now));
+            }
+
+            // §3 — the same person looked up again and again inside a week.
+            var repeat = await db.AdminProfileViews
+                .Where(p => p.AdminUserId == a.Id && p.CreatedAt >= now - AdminOversight.RepeatWindow)
+                .GroupBy(p => p.TargetUserId)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .Where(g => g.Count >= AdminOversight.RepeatLookupThreshold)
+                .OrderByDescending(g => g.Count)
+                .FirstOrDefaultAsync(ct);
+
+            if (repeat is not null)
+            {
+                flags.Add(new OversightFlagDto(
+                    a.FullName, OversightFlag.RepeatLookups.ToString(),
+                    AdminOversight.FlagLabel(OversightFlag.RepeatLookups),
+                    $"tra cứu người dùng #{repeat.Key} {repeat.Count} lần trong 7 ngày", now));
+            }
+
+            // §3 — actions landing outside Vietnamese working hours. Read from
+            // the audit trail, because that is where actions live.
+            var weekAgo = now.AddDays(-7);
+            var nightActions = (await db.AdminAudit
+                    .Where(x => x.ActorUserId == a.Id && x.CreatedAt >= weekAgo)
+                    .Select(x => x.CreatedAt)
+                    .ToListAsync(ct))
+                .Count(AdminOversight.IsOutOfHoursUtc);
+
+            if (nightActions > 0)
+            {
+                flags.Add(new OversightFlagDto(
+                    a.FullName, OversightFlag.OutOfHours.ToString(),
+                    AdminOversight.FlagLabel(OversightFlag.OutOfHours),
+                    $"{nightActions} thao tác ngoài giờ (7:00–20:00, trừ Chủ nhật) trong 7 ngày", now));
             }
         }
 
@@ -492,9 +649,49 @@ public class AdminOversightController(
                 s.DecidedByUser!.FullName, s.CreatedAt))
             .ToList();
 
+        // §5.6 — severe jumps a Super has not yet looked at, 24-hour clock running.
+        var severeQueue = (await db.Sanctions
+                .Include(s => s.User).Include(s => s.DecidedByUser)
+                .Where(s => s.Severe && s.SevereReviewedAt == null)
+                .OrderBy(s => s.CreatedAt)
+                .ToListAsync(ct))
+            .Select(s => new SevereReviewDto(
+                s.Id, s.User!.FullName, Sanctions.Label(s.Level), s.Policy, s.Reason,
+                s.DecidedByUser!.FullName, s.CreatedAt,
+                Sanctions.SevereReviewDueBy(s.CreatedAt),
+                now > Sanctions.SevereReviewDueBy(s.CreatedAt)))
+            .ToList();
+
         return Ok(new OversightDto(
             cards, flags, pending, sample,
-            AdminOversight.TwoPersonThreshold, AdminOversight.RandomReviewPercent));
+            AdminOversight.TwoPersonThreshold, AdminOversight.RandomReviewPercent,
+            severeQueue));
+    }
+
+    /// <summary>
+    /// docs/08 §5.6 — "chuyển hồ sơ cho Quản trị tối cao xem lại trong 24 giờ."
+    /// The look itself is the deliverable: a Super read the file and signed it.
+    /// </summary>
+    [HttpPost("sanctions/{id:int}/severe-review")]
+    public async Task<ActionResult> SevereReview(int id, [FromBody] RestoreRequest req, CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Super, ct);
+        if (admin is null) return this.Denied("Chỉ Quản trị tối cao xem lại hồ sơ §5.6 được.");
+
+        var sanction = await db.Sanctions.FirstOrDefaultAsync(s => s.Id == id && s.Severe, ct);
+        if (sanction is null) return NotFound(new { message = "Không tìm thấy hồ sơ nghiêm trọng này." });
+
+        if (sanction.SevereReviewedAt is not null)
+            return BadRequest(new { message = "Hồ sơ này đã được xem lại rồi." });
+
+        sanction.SevereReviewedAt = DateTime.UtcNow;
+        sanction.SevereReviewedByUserId = admin.Id;
+
+        audit.Record(admin, "sanction.severe-review", $"sanction:{id}",
+            "chưa xem lại", "đã xem lại", req.Reason);
+
+        await db.SaveChangesAsync(ct);
+        return Ok(new { message = "Đã ghi nhận: hồ sơ nghiêm trọng này đã được Quản trị tối cao xem lại." });
     }
 
     /* ------------------------------------------------------------ QT-U-13 */
@@ -518,6 +715,12 @@ public class AdminOversightController(
 
         if (req.FromUserId == req.IntoUserId)
             return BadRequest(new { message = "Hai tài khoản phải khác nhau." });
+
+        // §1.3 covers both halves of a merge: an admin related to either side
+        // must not be the one welding them together.
+        var intoConflict = await gate.ConflictAsync(v.Admin!, req.IntoUserId, ct);
+        if (AdminConflict.Blocks(intoConflict))
+            return StatusCode(403, new { message = AdminConflict.Message(intoConflict) });
 
         var from = await db.Users.Include(u => u.HostProfile)
             .FirstOrDefaultAsync(u => u.Id == req.FromUserId, ct);
@@ -569,7 +772,14 @@ public class AdminOversightController(
         }
 
         var reviews = await db.Reviews.Where(r => r.AuthorUserId == from.Id).ToListAsync(ct);
-        foreach (var r in reviews) r.AuthorUserId = into.Id;
+        foreach (var r in reviews)
+        {
+            r.AuthorUserId = into.Id;
+            // The name is denormalised onto the row; left alone it would keep
+            // showing the husk's name on public pages after the husk is wiped.
+            r.AuthorName = into.DisplayName ?? into.FullName;
+            r.AuthorInitials = into.Initials;
+        }
         if (reviews.Count > 0) moved.Add($"{reviews.Count} đánh giá");
 
         var sanctions = await db.Sanctions.Where(x => x.UserId == from.Id).ToListAsync(ct);
@@ -696,6 +906,25 @@ public class AdminOversightController(
 
         if (!AdminOversight.MayApprove(v.Admin!.Id, approval.RequestedByUserId))
             return StatusCode(403, new { message = AdminOversight.SelfApprovalMessage() });
+
+        // §1.3 — the second signature is a decision about this money too, so the
+        // approver must be a stranger to both sides of the booking it belongs to.
+        if (approval.Target.StartsWith("booking:"))
+        {
+            var reference = approval.Target["booking:".Length..];
+            var parties = await db.Bookings
+                .Where(b => b.Reference == reference)
+                .Select(b => new { b.GuestUserId, HostUserId = (int?)b.Listing!.Host!.UserId })
+                .FirstOrDefaultAsync(ct);
+
+            foreach (var party in new[] { parties?.GuestUserId, parties?.HostUserId })
+            {
+                if (party is not { } partyId) continue;
+                var conflict = await gate.ConflictAsync(v.Admin, partyId, ct);
+                if (AdminConflict.Blocks(conflict))
+                    return StatusCode(403, new { message = AdminConflict.Message(conflict) });
+            }
+        }
 
         if (req.Approve)
         {

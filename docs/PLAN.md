@@ -197,9 +197,11 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
       bật cần mã, tắt cần mật khẩu
 - [x] `TK-10` ma trận thông báo loại × kênh. Thông báo đơn đặt và thanh toán **không tắt
       được** (`docs/03 §11`), tiếp thị mặc định tắt
-- [x] `TK-11` tải toàn bộ dữ liệu cá nhân về một tệp JSON, tải ngay chứ không chờ email
+- [x] `TK-11` tải toàn bộ dữ liệu cá nhân về một tệp JSON, tải ngay chứ không chờ email.
+      Ngoài ra `docs/08 §9`: gửi yêu cầu chính thức, admin cấp đường dẫn có hạn 7 ngày
+- [x] `TK-12` tạm vô hiệu hoá / xoá tài khoản, ẩn danh dữ liệu giao dịch — người dùng
+      tự gửi yêu cầu xoá; ẩn danh giữ nguyên đơn, giao dịch và sổ tiền (`docs/08 §9`)
 - [ ] `TK-07` xác minh email công ty (P2)
-- [ ] `TK-12` tạm vô hiệu hoá / xoá tài khoản, ẩn danh dữ liệu giao dịch (P1)
 - [ ] `TK-13` liên hệ khẩn cấp (P2)
 
 ### Giai đoạn 0 — Nền ✅
@@ -251,8 +253,11 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 
 ### Giai đoạn 6 — An toàn, hỗ trợ, quản trị ✅
 - [x] `AT-04` Trung tâm giải quyết: mở hồ sơ, 24h phản hồi, admin phân xử, tiền chia đúng
+- [x] `QT-01` bảng điều khiển số liệu · `QT-02` hàng chờ kiểm duyệt nội dung
+- [x] `QT-03` tra cứu, khoá, mở khoá tài khoản (chi tiết ở `docs/08`)
+- [x] `QT-04` tra cứu đơn, hoàn tiền thủ công, điều chỉnh khoản trả cho chủ nhà
 - [x] `QT-05` phân xử · `QT-06` cấu hình phí và thuế theo khu vực
-- [x] `QT-09` nhật ký quản trị chỉ-thêm
+- [x] `QT-09` nhật ký quản trị chỉ-thêm · `QT-10` đăng nhập thay mặt (`docs/08 §7`)
 - [x] Phân vai admin: Hỗ trợ / Kiểm duyệt / Tài chính / Phân xử / Tối cao
 - [x] `AT-07` trung tâm trợ giúp thật: 14 bài, tìm không dấu, tách khách/chủ nhà
 - [x] `AT-11` phát hiện bất thường: tài khoản mới đặt lớn, nhiều thẻ, nhiều huỷ, đặt dồn dập
@@ -308,6 +313,15 @@ Kết quả: **137 xong · 13 làm một phần · 51 chưa có.** Con số 105 
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
+**Soát riêng `docs/08` ngày 08/08/2026** (ba lượt đọc code độc lập). Bài học đắt
+nhất của lượt này: **có `.cs` không có nghĩa là có chạy.** `SuspensionImpact.cs`
+tính đúng toàn bộ bảng §6 nhưng chưa từng được thực thi — khoá tài khoản không huỷ
+đơn nào; `Appeals.cs` đủ luật nhưng người dùng không có đường nộp; `ActorTag`,
+`BanBlocks`, `IdleTimeout`, `AnonymousReviewerName` đều chỉ được gọi từ test. Kịch
+bản §13 vẫn xanh vì nó kiểm tra **màn hình xem trước**, không kiểm tra hậu quả thật.
+Đã sửa hết trong ngày, và kịch bản 3 giờ bấm khoá thật rồi đọc lại cơ sở dữ liệu.
+Khi thêm việc mới, viết nghiệm thu theo **kết quả**, đừng theo màn hình.
+
 ### 9.0 P0 — còn **một** mã, và nó chờ khách quyết chứ không chờ code
 
 Tám trong chín mã P0 của lần soát 07/08/2026 đã làm xong trong cùng ngày:
@@ -350,7 +364,6 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `TĐ-03` · `TN-06` | Dịch mô tả tin đăng (**P0**) · dịch tin nhắn (P1) — cần nhà cung cấp dịch thuật | P0/P1 |
 | `TC-03` | Đơn từ 28 đêm trở lên thu theo từng tháng | P1 |
 | `TC-11` | Xử lý tranh chấp thẻ và giao dịch nghi ngờ gian lận | P1 |
-| `TK-12` | Tạm vô hiệu hoá / xoá tài khoản, ẩn danh dữ liệu giao dịch | P1 |
 | `TK-07` · `TK-13` | Xác minh email công ty · liên hệ khẩn cấp | P2 |
 | `ĐG-10` | Báo cáo đánh giá vi phạm | P1 |
 | `ĐG-12` | Đơn bị chủ nhà huỷ thì tự sinh ghi chú công khai trên tin đăng | P1 |
@@ -358,8 +371,7 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `AT-01` | Kiểm duyệt tin đăng mới **trước** khi hiển thị | P1 |
 | `AT-09` | Chuyển tiếp lên nhân viên hỗ trợ | P1 |
 | `AT-03` · `AT-08` · `AT-10` · `AT-12` | Kênh hàng xóm · trợ lý tự động · danh sách chặn · chống phân biệt đối xử | P2 |
-| `QT-03` | Tra cứu, khoá, mở khoá tài khoản | P1 |
-| `QT-07` · `QT-08` · `QT-10` | Quản lý bài trợ giúp · bật tính năng theo tỉ lệ · đăng nhập thay mặt | P2 |
+| `QT-07` · `QT-08` | Quản lý bài trợ giúp · bật tính năng theo tỉ lệ | P2 |
 | `TN-05` | Lọc hộp thư: chưa đọc, cần trả lời, đã lưu trữ | P1 |
 | `YT-03` · `YT-05` | Ghi chú riêng cho mục đã lưu · chia sẻ và cùng sửa danh sách | P1 |
 | `YT-06` · `YT-07` · `YT-08` | Bình chọn nhóm · so sánh 2–5 chỗ · báo khi chỗ đã lưu giảm giá | P2 |

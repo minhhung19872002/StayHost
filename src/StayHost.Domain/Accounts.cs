@@ -162,7 +162,12 @@ public enum TokenPurpose
     /// docs/01 TK-08 — hands out no access on its own. It says only "this
     /// browser got the password right" while the second factor is being typed.
     /// </summary>
-    TwoFactorChallenge = 2
+    TwoFactorChallenge = 2,
+    /// <summary>
+    /// docs/08 §8 — sent with a suspension notice so somebody who can no longer
+    /// sign in can still file their one appeal. Opens nothing else.
+    /// </summary>
+    AppealAccess = 3
 }
 
 /// <summary>Single-use, short-lived token for password resets and email verification.</summary>
@@ -188,6 +193,13 @@ public class AuthSession
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime ExpiresAt { get; set; } = DateTime.UtcNow.AddDays(30);
     public string? UserAgent { get; set; }
+    /// <summary>docs/08 §4 — shown on the admin profile page next to the device.</summary>
+    public string? IpAddress { get; set; }
+    /// <summary>
+    /// docs/08 §3 QT-A — written only for admin sessions, which idle out after 30
+    /// minutes. Regular users keep the flat 30-day expiry and never touch this.
+    /// </summary>
+    public DateTime? LastSeenAt { get; set; }
     public DateTime? RevokedAt { get; set; }
 
     public bool IsActive => RevokedAt is null && ExpiresAt > DateTime.UtcNow;

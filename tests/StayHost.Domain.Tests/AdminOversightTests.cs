@@ -109,4 +109,35 @@ public class AdminOversightTests
         foreach (var flag in Enum.GetValues<OversightFlag>())
             Assert.NotEqual("", AdminOversight.FlagLabel(flag));
     }
+
+    /* ---- §3, the alerts that read off the profile-view log ---- */
+
+    [Fact]
+    public void The_monthly_untied_threshold_is_its_own_number()
+    {
+        // BrowsingThreshold is calibrated for one hour. Reusing it for a 30-day
+        // window made the alert 720 times more sensitive than it was designed
+        // to be, so the two constants are deliberately separate.
+        Assert.Equal(TimeSpan.FromHours(1), AdminOversight.BrowsingWindow);
+        Assert.True(AdminOversight.UntiedMonthlyThreshold > 0);
+    }
+
+    [Fact]
+    public void Working_hours_are_read_in_Vietnam_time_not_the_servers()
+    {
+        // 01:00 UTC is 08:00 in Hanoi: a normal Monday morning, not a red flag.
+        var mondayMorningUtc = new DateTime(2026, 8, 10, 1, 0, 0, DateTimeKind.Utc);
+        Assert.False(AdminOversight.IsOutOfHoursUtc(mondayMorningUtc));
+
+        // 17:00 UTC is midnight in Hanoi.
+        var midnightInHanoi = new DateTime(2026, 8, 10, 17, 0, 0, DateTimeKind.Utc);
+        Assert.True(AdminOversight.IsOutOfHoursUtc(midnightInHanoi));
+    }
+
+    [Fact]
+    public void Repeated_lookups_of_one_person_have_a_window_and_a_threshold()
+    {
+        Assert.True(AdminOversight.RepeatLookupThreshold > 1);
+        Assert.Equal(TimeSpan.FromDays(7), AdminOversight.RepeatWindow);
+    }
 }

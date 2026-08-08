@@ -73,6 +73,53 @@ public class ImpersonationTests
         Assert.False(Impersonation.BlocksPath("/api/listings"));
     }
 
+    /// <summary>
+    /// The paths here are the application's real routes, copied from the
+    /// controllers. Asserting against the labels instead is what let "đổi số
+    /// điện thoại" sit on the forbidden list for months while
+    /// PUT /api/account/profile — the endpoint that actually changes a phone
+    /// number — walked straight past the guard.
+    /// </summary>
+    [Theory]
+    [InlineData("/api/account/profile")]        // AccountController.UpdateProfile: phone
+    [InlineData("/api/account/send-code")]      // attaching a new email or phone
+    [InlineData("/api/account/confirm-code")]
+    [InlineData("/api/account/two-factor")]
+    [InlineData("/api/account/two-factor/disable")]
+    [InlineData("/api/account/change-password")]
+    [InlineData("/api/account/reset-password")]
+    [InlineData("/api/account/data-requests")]  // §9 erasure intake
+    [InlineData("/api/host/payout")]
+    [InlineData("/api/payment-methods")]
+    [InlineData("/api/payment-methods/4")]
+    [InlineData("/api/wallet/redeem")]
+    [InlineData("/api/wallet/gift-cards")]
+    [InlineData("/api/bookings")]
+    [InlineData("/api/bookings/9/cancel")]
+    [InlineData("/api/experiences/bookings/3/cancel")]
+    public void Every_route_that_carries_a_prohibition_is_matched(string path)
+    {
+        Assert.True(Impersonation.BlocksPath(path), $"{path} phải bị chặn trong chế độ thay mặt.");
+    }
+
+    [Theory]
+    [InlineData("/api/account/profile-options")]   // reading the language list
+    [InlineData("/api/bookings/9")]
+    [InlineData("/api/messages/4/reply")]          // answering the guest IS the support work
+    [InlineData("/api/host/listings/7")]
+    [InlineData("/api/resolutions")]
+    public void Ordinary_support_routes_are_left_alone(string path)
+    {
+        Assert.False(Impersonation.BlocksPath(path), $"{path} không nên bị chặn.");
+    }
+
+    [Fact]
+    public void A_trailing_slash_does_not_walk_past_the_guard()
+    {
+        Assert.True(Impersonation.BlocksPath("/api/account/profile/"));
+        Assert.True(Impersonation.BlocksPath("/API/Account/Profile"));
+    }
+
     [Fact]
     public void A_refusal_names_the_thing_that_was_refused()
     {

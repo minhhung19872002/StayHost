@@ -37,7 +37,10 @@ export function Admin() {
   }
 
   const publish = async (id, published) => {
-    try { await api.adminPublish(id, published); await loadAdmin(); toast('Đã cập nhật trạng thái chỗ nghỉ.'); }
+    // docs/08 §1.4 — gỡ hay duyệt tin đều là quyết định, phải có lý do đi kèm.
+    const reason = prompt(published ? 'Lý do duyệt hiển thị lại (≥10 ký tự)' : 'Lý do gỡ hiển thị (≥10 ký tự)');
+    if (!reason) return;
+    try { await api.adminPublish(id, published, reason.trim()); await loadAdmin(); toast('Đã cập nhật trạng thái chỗ nghỉ.'); }
     catch (err) { toast(err.message); }
   };
 

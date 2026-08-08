@@ -188,7 +188,30 @@ export const api = {
   adminImpersonationCurrent: () => request('/api/admin/impersonate/current'),
   adminEndImpersonation: () => request('/api/admin/impersonate/end', { method: 'POST' }),
   adminGrantScopes: body => request('/api/admin/admins', { method: 'POST', body: JSON.stringify(body) }),
+  adminMarkReviewed: (id, body) =>
+    request(`/api/admin/admins/${id}/reviewed`, { method: 'POST', body: JSON.stringify(body) }),
   adminMergeUsers: body => request('/api/admin/users/merge', { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/08 §5.6 — hồ sơ nghiêm trọng Quản trị tối cao phải xem lại trong 24h */
+  adminSevereReview: (id, body) =>
+    request(`/api/admin/sanctions/${id}/severe-review`, { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/08 §2 — sửa hồ sơ, đọc tin nhắn của đúng một đơn */
+  adminEditProfile: (id, body) =>
+    request(`/api/admin/users/${id}/profile`, { method: 'POST', body: JSON.stringify(body) }),
+  adminBookingThread: (bookingId, body) =>
+    request(`/api/admin/users/bookings/${bookingId}/thread`, { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/08 §9 — cấp liên kết tải dữ liệu có hạn */
+  adminFulfilExport: (id, body) =>
+    request(`/api/admin/data-requests/${id}/export`, { method: 'POST', body: JSON.stringify(body) }),
+
+  /* docs/08 §8 và §9 — phía người dùng: quyết định về mình, khiếu nại, dữ liệu cá nhân */
+  mySanctions: () => request('/api/account/sanctions'),
+  fileAppeal: (id, body) =>
+    request(`/api/account/sanctions/${id}/appeal`, { method: 'POST', body: JSON.stringify(body) }),
+  appealByToken: body =>
+    request('/api/account/sanctions/appeal-by-token', { method: 'POST', body: JSON.stringify(body) }),
+  myDataRequests: () => request('/api/account/data/requests'),
+  askDataRequest: kind =>
+    request('/api/account/data/requests', { method: 'POST', body: JSON.stringify({ kind }) }),
 
   /* docs/07 §7, §11 and §15 — the finance desk. */
   financeReport: () => request('/api/admin/finance'),
@@ -237,8 +260,10 @@ export const api = {
   /* ------------------------------------------------------- reports / admin */
   report: body => request('/api/reports', { method: 'POST', body: JSON.stringify(body) }),
   adminOverview: () => request('/api/admin/overview'),
-  adminPublish: (id, published) =>
-    request(`/api/admin/listings/${id}/publish?published=${published}`, { method: 'POST' }),
+  adminPublish: (id, published, reason) =>
+    request(`/api/admin/listings/${id}/publish?published=${published}`, {
+      method: 'POST', body: JSON.stringify({ reason }),
+    }),
   adminResolveReport: (id, status, resolution) =>
     request(`/api/admin/reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ status, resolution }) }),
 

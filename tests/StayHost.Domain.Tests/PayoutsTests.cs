@@ -215,4 +215,37 @@ public class PayoutsTests
         Assert.Contains("còn lại", Payouts.DeductionNote(1_000_000m, 500_000m));
         Assert.Contains("không còn nợ", Payouts.DeductionNote(1_000_000m, 0m));
     }
+
+    /* ---- docs/08 §5.2 and §6: an admin's hold on the whole account ---- */
+
+    [Fact]
+    public void An_account_under_review_outranks_every_other_reason()
+    {
+        // The sweep recomputes holds from live data every run. Before this the
+        // recomputation quietly undid the admin's hold on the very next tick.
+        var clean = new Payouts.Conditions(false, false, false, true, null, 0m, 5_000_000m);
+        var held = clean with { AccountUnderReview = true };
+
+        Assert.Equal(PayoutHoldReason.None, Payouts.HoldReason(clean, Now));
+        Assert.Equal(PayoutHoldReason.AccountUnderReview, Payouts.HoldReason(held, Now));
+        Assert.False(Payouts.CanPay(held, Now));
+    }
+
+    [Fact]
+    public void The_account_hold_is_named_first_even_when_a_dispute_is_open_too()
+    {
+        var both = new Payouts.Conditions(true, false, false, true, null, 0m, 5_000_000m, AccountUnderReview: true);
+
+        Assert.Equal(PayoutHoldReason.AccountUnderReview, Payouts.HoldReason(both, Now));
+    }
+
+    [Fact]
+    public void The_host_is_told_the_money_is_still_theirs()
+    {
+        // docs/08 §6 — "Giữ lại cho tới khi xử lý xong vi phạm; không tịch thu."
+        var label = Payouts.HoldLabel(PayoutHoldReason.AccountUnderReview);
+
+        Assert.Contains("xem xét", label);
+        Assert.Contains("vẫn là của bạn", label);
+    }
 }

@@ -98,6 +98,18 @@ public static class Appeals
             ? "Bạn đã khiếu nại quyết định này một lần rồi. Mỗi quyết định chỉ được khiếu nại một lần."
             : $"Hạn khiếu nại quyết định này là {WindowClosesAt(decidedAt):dd/MM/yyyy} và đã qua.";
 
+    /// <summary>
+    /// The least an argument can be and still argue something. Shorter than the
+    /// answer minimum on purpose: the person appealing is not the professional.
+    /// </summary>
+    public const int ArgumentMinLength = 20;
+
+    public static bool ArgumentIsUsable(string? argument) =>
+        (argument ?? "").Trim().Length >= ArgumentMinLength;
+
+    public static string CurtArgumentMessage() =>
+        $"Hãy nêu lý do bạn cho rằng quyết định sai, ít nhất {ArgumentMinLength} ký tự.";
+
     /* ------------------------------------------------------------ results */
 
     public static string StatusLabel(AppealStatus status) => status switch

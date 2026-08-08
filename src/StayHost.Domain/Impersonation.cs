@@ -85,22 +85,28 @@ public static class Impersonation
         $"Không được {Forbidden.GetValueOrDefault(capability, "làm việc này")} khi đang ở chế độ thay mặt người dùng.";
 
     /// <summary>
-    /// The route prefixes a session inside somebody's account may not reach. The
-    /// list above is what a person would say; this is what the server matches on,
-    /// and the two are checked against each other by test.
+    /// The route prefixes a write during a session may not reach (reads are the
+    /// point of the mode and pass). The list above is what a person would say;
+    /// this is what the server matches on, and the tests pin this method to the
+    /// application's real routes — not to the labels, which is how "đổi số điện
+    /// thoại" once sat on the list while PUT /api/account/profile walked past it.
     /// </summary>
     public static bool BlocksPath(string path)
     {
-        var p = (path ?? "").ToLowerInvariant();
+        var p = (path ?? "").ToLowerInvariant().TrimEnd('/');
 
-        return p.Contains("/api/account/change-password")
-               || p.Contains("/api/account/profile") && p.Contains("email")
-               || p.Contains("/api/host/payout")
-               || p.Contains("/api/payment-methods")
+        return p.Contains("/api/account/change-password")     // §7.6 password
+               || p.EndsWith("/reset-password") || p.EndsWith("/forgot-password")
+               || p == "/api/account/profile"                 // phone lives here
+               || p.EndsWith("/send-code") || p.EndsWith("/confirm-code")  // attaching identifiers
+               || p.StartsWith("/api/account/two-factor")     // the door behind the password
+               || p.Contains("/api/host/payout")              // payout account
+               || p.Contains("/api/payment-methods")          // cards
                || p.Contains("/api/account/delete")
-               || p.Contains("/api/wallet/withdraw")
-               || p.EndsWith("/cancel")
-               || p == "/api/bookings" ;
+               || p.StartsWith("/api/account/data-requests")  // §9 erase intake
+               || p.StartsWith("/api/wallet")                 // credits and gift cards are money
+               || p.EndsWith("/cancel")                       // cancelling anything
+               || p == "/api/bookings";                       // creating a booking
     }
 
     /* ------------------------------------------- §7.5 and §7.7, being seen */

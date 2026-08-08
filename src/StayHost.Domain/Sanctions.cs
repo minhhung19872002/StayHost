@@ -70,6 +70,13 @@ public class Sanction
     /// <summary>docs/08 §5.6 — jumped straight past the lighter steps.</summary>
     public bool Severe { get; set; }
 
+    /// <summary>
+    /// docs/08 §5.6 — a severe jump must be looked at by a Super within 24 hours.
+    /// Null while that has not happened; the oversight dashboard queues it.
+    /// </summary>
+    public DateTime? SevereReviewedAt { get; set; }
+    public int? SevereReviewedByUserId { get; set; }
+
     public bool IsActive(DateTime now) =>
         LiftedAt is null && !OverturnedOnAppeal && (ExpiresAt is null || ExpiresAt > now);
 }

@@ -108,6 +108,8 @@ public class BalanceCollector(
             : await db.Bookings.CountAsync(b =>
                 b.GuestUserId == booking.GuestUserId &&
                 b.Status == BookingStatus.CancelledByGuest &&
+                // docs/03 §4 pre-rule 2 counts the guest's own cancellations.
+                b.CancelledBy == CancelledBy.Guest &&
                 b.RefundedAmount > 0 &&
                 b.CreatedAt >= yearAgo, ct);
 

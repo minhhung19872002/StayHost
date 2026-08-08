@@ -35,6 +35,13 @@ public class DataRequest
 
     /// <summary>Why it could not be done, in words the person asking will understand.</summary>
     public string? Note { get; set; }
+
+    /// <summary>
+    /// docs/08 §9 — an export is delivered "qua đường dẫn có hạn". The token is
+    /// the whole link; when <see cref="LinkExpiresAt"/> passes it stops opening.
+    /// </summary>
+    public string? LinkToken { get; set; }
+    public DateTime? LinkExpiresAt { get; set; }
 }
 
 /// <summary>
@@ -50,6 +57,17 @@ public static class DataRequests
     public const int DueDays = 30;
 
     public static DateTime DueBy(DateTime askedAt) => askedAt.AddDays(DueDays);
+
+    /// <summary>
+    /// docs/08 §9 — "gửi qua đường dẫn có hạn". The link is the credential, so it
+    /// is short-lived: long enough to be read from an email at the weekend, short
+    /// enough that a forwarded message stops working.
+    /// </summary>
+    public static readonly TimeSpan LinkLifetime = TimeSpan.FromDays(7);
+
+    public static string ExportReadyNotice(DateTime expiresAt) =>
+        $"Bản sao dữ liệu cá nhân của bạn đã sẵn sàng. Liên kết tải có hạn tới " +
+        $"{expiresAt:HH:mm dd/MM/yyyy}, sau đó bạn cần yêu cầu lại.";
 
     public static bool Overdue(DataRequest r, DateTime now) =>
         r.Status == DataRequestStatus.Open && now > r.DueBy;

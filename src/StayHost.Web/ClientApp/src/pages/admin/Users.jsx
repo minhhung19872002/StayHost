@@ -101,6 +101,7 @@ function UserProfilePanel({ d, reload, close }) {
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [identity, setIdentity] = useState(null);
+  const [thread, setThread] = useState(null);
 
   const may = action => d.allowed.includes(action);
 
@@ -184,6 +185,36 @@ function UserProfilePanel({ d, reload, close }) {
     catch (err) { toast(err.message); }
   };
 
+  // docs/08 §2 — tin nhắn của đúng một đơn, có lý do và nhật ký riêng.
+  const viewThread = async bookingId => {
+    const reason = ask('Xem tin nhắn của đơn này');
+    if (!reason) return;
+    try { setThread(await api.adminBookingThread(bookingId, { reason })); }
+    catch (err) { toast(err.message); }
+  };
+
+  const editProfile = () => {
+    const reason = ask('Sửa thông tin hồ sơ người dùng');
+    if (!reason) return;
+    const fullName = prompt('Họ tên (để trống = giữ nguyên)', d.fullName) ?? '';
+    const phone = prompt('Số điện thoại (để trống = xoá)', d.phone ?? '') ?? '';
+    run(() => api.adminEditProfile(d.id, {
+      reason,
+      fullName: fullName.trim() || null,
+      phone: phone.trim()
+    }), 'Đã sửa hồ sơ người dùng.');
+  };
+
+  // docs/08 §7 — chỉ mở được từ một hồ sơ hỗ trợ đang mở của chính người này.
+  const impersonate = () => {
+    const ticket = prompt('Mã hồ sơ hỗ trợ đang mở (bắt buộc theo §7.1):');
+    if (!ticket || !Number(ticket)) return;
+    const reason = ask('Đăng nhập thay mặt người dùng');
+    if (!reason) return;
+    run(() => api.adminImpersonate({ userId: d.id, ticketId: Number(ticket), reason }),
+        'Đã vào chế độ thay mặt. Dải cảnh báo hiện ở đầu trang.');
+  };
+
   return (
     <div className="stat" style={{ marginTop: 20, padding: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
@@ -200,18 +231,35 @@ function UserProfilePanel({ d, reload, close }) {
         <span className={`badge ${d.isLocked ? 'cancelled' : 'confirmed'}`}>{d.statusLabel}</span>
         {d.identityVerified && <span className="badge confirmed">Đã xác minh danh tính</span>}
         {d.emailConfirmed && <span className="badge confirmed">Email đã xác thực</span>}
+        {d.phoneConfirmed && <span className="badge confirmed">SĐT đã xác thực</span>}
         {d.isHost && <span className="badge">{d.isSuperhost ? 'Siêu chủ nhà' : 'Chủ nhà'}</span>}
+        {d.isGuestFavoriteHost && <span className="badge">Khách yêu thích</span>}
+        {!!d.coHostOf.length && <span className="badge">Co-host ({d.coHostOf.length})</span>}
         {!!d.suspendedUntil && <span className="badge pending">Tới {dateTime(d.suspendedUntil)}</span>}
       </div>
 
       <div className="stat-grid" style={{ marginTop: 16 }}>
         <Cell label="Đơn đặt" value={String(d.bookings)} note={`${d.cancellations} huỷ · ${d.cancellationRate}%`} />
-        <Cell label="Đánh giá đã viết" value={String(d.reviewsWritten)} note={`${d.reportsAgainst} báo cáo bị nhận`} />
-        <Cell label="Số dư" value={money(d.balance)} note={d.cards.join(' · ') || 'Chưa lưu thẻ nào'} />
+        <Cell label="Đánh giá" value={`${d.reviewsWritten} / ${d.reviewsReceived}`}
+              note={`đã viết / đã nhận · ${d.reportsAgainst} báo cáo bị nhận`} />
+        <Cell label="Số dư" value={money(d.balance)}
+              note={d.giftCards ? `${d.cards.length} thẻ · ${d.giftCards} thẻ quà (${money(d.giftCardRemaining)})`
+                                : (d.cards.join(' · ') || 'Chưa lưu thẻ nào')} />
+        <Cell label="Tranh chấp" value={String(d.totalDisputes)}
+              note={d.openDisputes ? `${d.openDisputes} đang mở` : 'không có hồ sơ nào đang mở'} />
         <Cell label="Tài khoản nhận tiền"
               value={d.payoutAccountLast4 ? `•••• ${d.payoutAccountLast4}` : '—'}
               note={d.payoutBankName ?? 'Chỉ vai Tài chính xem được'} />
+        <Cell label="Hoạt động gần nhất"
+              value={d.lastSeenAt ? dateTime(d.lastSeenAt).slice(0, 10) : '—'}
+              note={`${d.listings.length} tin đăng`} />
       </div>
+
+      {!!d.coHostOf.length && (
+        <p className="field-note" style={{ marginTop: 12 }}>
+          <b>Co-host cho:</b> {d.coHostOf.join(' · ')}
+        </p>
+      )}
 
       {/* docs/08 §4 and QT-U-03 — same signal that catches fraud. */}
       {!!d.relatedAccounts.length && (
@@ -221,6 +269,87 @@ function UserProfilePanel({ d, reload, close }) {
             {d.relatedAccounts.map(r => (
               <div key={r.id} style={{ fontSize: 13 }}>
                 <b>{r.fullName}</b> · {r.email} · <span style={{ color: 'var(--ink-muted)' }}>{r.statusLabel}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* docs/08 §4 — tin đăng và tình trạng từng cái */}
+      {!!d.listings.length && (
+        <div style={{ marginTop: 18 }}>
+          <span className="cap">Tin đăng</span>
+          <div style={{ display: 'grid', gap: 5, marginTop: 8, fontSize: 13 }}>
+            {d.listings.map(l => (
+              <div key={l.id}>
+                <b>{l.title}</b> · {l.city} ·{' '}
+                <span className={`badge ${l.published ? 'confirmed' : 'pending'}`}>
+                  {l.published ? 'Đang hiển thị' : 'Đã ẩn'}
+                </span>
+                {' '}· {l.rating.toFixed(2)}★ ({l.reviewCount})
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* docs/08 §4 — lịch sử đơn đặt hai chiều, kèm cửa đọc tin nhắn của đúng một đơn */}
+      {!!d.recentBookings.length && (
+        <div style={{ marginTop: 18 }}>
+          <span className="cap">Đơn đặt gần đây</span>
+          <div className="table-wrap" style={{ marginTop: 8 }}>
+            <table className="admin-table">
+              <thead><tr><th>Mã</th><th>Vai</th><th>Chỗ nghỉ</th><th>Ngày</th><th>Trạng thái</th><th /></tr></thead>
+              <tbody>
+                {d.recentBookings.map(b => (
+                  <tr key={b.id}>
+                    <td><b>{b.reference}</b><span>{money(b.total)}</span></td>
+                    <td>{b.side}</td>
+                    <td>{b.listing}</td>
+                    <td>{longDate(b.checkIn)} – {longDate(b.checkOut)}</td>
+                    <td>{b.statusLabel}</td>
+                    <td>
+                      {may('ViewBookingThread') && (
+                        <button className="link-btn" onClick={() => viewThread(b.id)}>Tin nhắn</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!!thread && (
+        <div style={{ marginTop: 16 }}>
+          <span className="cap">Tin nhắn đơn {thread.reference}</span>
+          <p className="field-note" style={{ margin: '4px 0 8px' }}>
+            {thread.guestName} ↔ {thread.hostName} · {thread.listingTitle}. Lượt đọc này đã được ghi nhật ký riêng.
+          </p>
+          <div style={{ display: 'grid', gap: 6, maxHeight: 260, overflowY: 'auto', fontSize: 13 }}>
+            {thread.messages.length === 0 && <span className="field-note">Đơn này chưa có tin nhắn nào.</span>}
+            {thread.messages.map((m, i) => (
+              <div key={i}>
+                <b>{m.isSystem ? 'StayHost' : m.sender}</b>{' '}
+                <span style={{ color: 'var(--ink-muted)' }}>{dateTime(m.sentAt)}</span>
+                <div>{m.body}</div>
+              </div>
+            ))}
+          </div>
+          <button className="link-btn" onClick={() => setThread(null)}>Đóng tin nhắn</button>
+        </div>
+      )}
+
+      {/* docs/08 §4 — thiết bị và địa chỉ mạng đăng nhập gần đây */}
+      {!!d.sessions.length && (
+        <div style={{ marginTop: 18 }}>
+          <span className="cap">Thiết bị và địa chỉ mạng gần đây</span>
+          <div style={{ display: 'grid', gap: 4, marginTop: 8, fontSize: 12.5 }}>
+            {d.sessions.map((s, i) => (
+              <div key={i} style={{ color: s.active ? 'inherit' : 'var(--ink-muted)' }}>
+                {dateTime(s.at)} · {s.ip ?? 'IP không rõ'} · {(s.device || '—').slice(0, 80)}
+                {s.active ? '' : ' · đã kết thúc'}
               </div>
             ))}
           </div>
@@ -301,6 +430,10 @@ function UserProfilePanel({ d, reload, close }) {
           <button className="btn btn-primary btn-sm" disabled={busy} onClick={restore}>Khôi phục</button>}
         {may('ViewIdentityDocuments') &&
           <button className="btn btn-outline btn-sm" onClick={viewIdentity}>Xem giấy tờ</button>}
+        {may('EditProfile') &&
+          <button className="btn btn-outline btn-sm" disabled={busy} onClick={editProfile}>Sửa hồ sơ</button>}
+        {may('Impersonate') && !d.isLocked &&
+          <button className="btn btn-outline btn-sm" disabled={busy} onClick={impersonate}>Thay mặt người dùng</button>}
         {may('ForcePasswordReset') && (
           <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => {
             const reason = ask('Buộc đổi mật khẩu và huỷ mọi phiên');
@@ -425,6 +558,59 @@ export function OversightPanel() {
     finally { setBusy(false); }
   };
 
+  const act = async (fn, done) => {
+    setBusy(true);
+    try { await fn(); await load(); toast(done); }
+    catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
+  const withReason = label => {
+    const reason = prompt(`${label}\n\nLý do (bắt buộc, ít nhất 10 ký tự):`);
+    if (!reason || reason.trim().length < 10) {
+      if (reason !== null) toast('Cần ghi lý do ít nhất 10 ký tự.');
+      return null;
+    }
+    return reason.trim();
+  };
+
+  // docs/08 §5.6 — Quản trị tối cao ký xác nhận đã đọc hồ sơ nghiêm trọng.
+  const signOffSevere = id => {
+    const reason = withReason('Xác nhận đã xem lại hồ sơ nghiêm trọng này');
+    if (reason) act(() => api.adminSevereReview(id, { reason }), 'Đã ghi nhận xem lại.');
+  };
+
+  // docs/08 §3 — rà soát quyền định kỳ, và cấp/thu hồi quyền admin.
+  const markReviewed = id => {
+    const reason = withReason('Đánh dấu đã rà soát quyền của quản trị viên này');
+    if (reason) act(() => api.adminMarkReviewed(id, { reason }), 'Đã ghi nhận rà soát.');
+  };
+
+  const grantScopes = adminUserId => {
+    const scopes = prompt(
+      'Nhập các vai, cách nhau bằng dấu phẩy (support, moderation, finance, arbitration, super).\n' +
+      'Để trống = thu hồi toàn bộ quyền và huỷ mọi phiên đăng nhập.');
+    if (scopes === null) return;
+    const reason = withReason('Cấp hoặc thu hồi quyền quản trị');
+    if (!reason) return;
+    act(() => api.adminGrantScopes({
+      userId: adminUserId,
+      scopes: scopes.split(',').map(s => s.trim()).filter(Boolean),
+      reason
+    }), 'Đã cập nhật quyền quản trị.');
+  };
+
+  const mergeUsers = () => {
+    const from = prompt('ID tài khoản trùng (sẽ được đóng lại):');
+    if (!from || !Number(from)) return;
+    const into = prompt('ID tài khoản giữ lại:');
+    if (!into || !Number(into)) return;
+    const reason = withReason(`Hợp nhất #${from} vào #${into}`);
+    if (!reason) return;
+    act(() => api.adminMergeUsers({ fromUserId: Number(from), intoUserId: Number(into), reason }),
+        'Đã hợp nhất hai tài khoản.');
+  };
+
   return (
     <section style={{ marginTop: 40 }}>
       <h2 className="section-title" style={{ fontSize: 20 }}>Giám sát quản trị viên</h2>
@@ -437,6 +623,34 @@ export function OversightPanel() {
         <div className="book-alert is-error" style={{ marginTop: 14 }}>
           <b>{d.flags.length} cảnh báo cần xem</b>
           {d.flags.map((f, i) => <span key={i}>{f.adminName}: {f.label} — {f.detail}</span>)}
+        </div>
+      )}
+
+      {/* docs/08 §5.6 — hồ sơ nghiêm trọng phải được Tối cao xem lại trong 24 giờ */}
+      {!!d.severeQueue?.length && (
+        <div style={{ marginTop: 16 }}>
+          <span className="cap">Hồ sơ nghiêm trọng chờ Quản trị tối cao xem lại</span>
+          <div className="table-wrap" style={{ marginTop: 8 }}>
+            <table className="admin-table">
+              <thead><tr><th>Người dùng</th><th>Mức</th><th>Lý do</th><th>Hạn xem lại</th><th /></tr></thead>
+              <tbody>
+                {d.severeQueue.map(s => (
+                  <tr key={s.sanctionId}>
+                    <td><b>{s.userName}</b><span>{s.decidedBy} · {dateTime(s.decidedAt)}</span></td>
+                    <td>{s.level}</td>
+                    <td>{s.reason}<span>{s.ground}</span></td>
+                    <td className={s.overdue ? 'is-error' : ''}>
+                      {dateTime(s.dueBy)}{s.overdue ? ' · QUÁ HẠN' : ''}
+                    </td>
+                    <td>
+                      <button className="link-btn" disabled={busy}
+                              onClick={() => signOffSevere(s.sanctionId)}>Đã xem lại</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -472,10 +686,17 @@ export function OversightPanel() {
         </div>
       )}
 
-      <div className="table-wrap" style={{ marginTop: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 18 }}>
+        <span className="cap">Quản trị viên và quyền</span>
+        <button className="btn btn-outline btn-sm" disabled={busy} onClick={mergeUsers}>
+          Hợp nhất tài khoản trùng
+        </button>
+      </div>
+
+      <div className="table-wrap" style={{ marginTop: 8 }}>
         <table className="admin-table">
           <thead>
-            <tr><th>Quản trị viên</th><th>Quyền</th><th>Đã xem</th><th>Quyết định</th><th>Bị khiếu nại</th><th>Rà soát</th></tr>
+            <tr><th>Quản trị viên</th><th>Quyền</th><th>Đã xem</th><th>Quyết định</th><th>Bị khiếu nại</th><th>Rà soát</th><th /></tr>
           </thead>
           <tbody>
             {d.admins.map(a => (
@@ -494,6 +715,12 @@ export function OversightPanel() {
                 <td>
                   {a.accessReviewDue ? 'Tới hạn' : 'Đã rà soát'}
                   {a.scopeLooksUnused && <span>Chưa dùng quyền quá 90 ngày</span>}
+                </td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  <button className="link-btn" disabled={busy}
+                          onClick={() => grantScopes(a.adminUserId)}>Sửa quyền</button>
+                  <button className="link-btn" style={{ marginLeft: 8 }} disabled={busy}
+                          onClick={() => markReviewed(a.adminUserId)}>Đã rà soát</button>
                 </td>
               </tr>
             ))}
@@ -540,6 +767,16 @@ export function DataRequestsPanel() {
     finally { setBusy(false); }
   };
 
+  // docs/08 §9 — cấp đường dẫn tải có hạn rồi báo cho người yêu cầu.
+  const fulfilExport = async r => {
+    const reason = prompt('Lý do cấp liên kết tải dữ liệu (bắt buộc, ít nhất 10 ký tự):');
+    if (!reason || reason.trim().length < 10) return;
+    setBusy(true);
+    try { setRows(await api.adminFulfilExport(r.id, { reason })); toast('Đã gửi liên kết tải cho người dùng.'); }
+    catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
   return (
     <section style={{ marginTop: 40 }}>
       <h2 className="section-title" style={{ fontSize: 20 }}>Yêu cầu dữ liệu cá nhân</h2>
@@ -563,6 +800,11 @@ export function DataRequestsPanel() {
                 <td>
                   {r.kind === 'Erase' && r.status === 'Open' && r.mayErase && (
                     <button className="link-btn" disabled={busy} onClick={() => erase(r)}>Xoá</button>
+                  )}
+                  {r.kind === 'Export' && r.status === 'Open' && (
+                    <button className="link-btn" disabled={busy} onClick={() => fulfilExport(r)}>
+                      Cấp liên kết tải
+                    </button>
                   )}
                 </td>
               </tr>

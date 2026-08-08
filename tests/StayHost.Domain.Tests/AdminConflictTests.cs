@@ -35,11 +35,17 @@ public class AdminConflictTests
     }
 
     [Fact]
-    public void Having_already_ruled_on_somebody_bars_ruling_again()
+    public void Having_already_ruled_on_somebody_is_noticed_but_does_not_bar_the_next_step()
     {
+        // The §5 ladder is escalation: whoever wrote the warning is the one who
+        // has to be able to write the restriction next. Barring it here left a
+        // moderator unable to act on their own warning at all. The rule that
+        // does need a second reader is §8's, and Appeals.MayReview holds it.
         var kind = AdminConflict.Check(new AdminConflict.Links(false, false, AdminDecidedAgainstThem: true, false));
 
         Assert.Equal(ConflictKind.AlreadyDecided, kind);
+        Assert.False(AdminConflict.Blocks(kind));
+        Assert.False(Appeals.MayReview(reviewerUserId: 7, originalDeciderUserId: 7));
     }
 
     [Fact]

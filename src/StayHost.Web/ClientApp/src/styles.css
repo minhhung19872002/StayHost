@@ -1095,6 +1095,24 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
   transform: rotate(-18deg); text-align: center; padding: 0 8px; pointer-events: none;
 }
 
+/* docs/08 §7.5 — dải cảnh báo chế độ thay mặt.
+   Đỏ, dính đầu trang, không cuộn đi đâu được: rủi ro lớn nhất của chế độ này là
+   admin quên mất mình đang ở trong tài khoản của người khác. */
+.impersonation-banner {
+  position: sticky; top: 0; z-index: 60;
+  background: #7f1d1d; color: #fff; padding: 10px 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+.impersonation-banner .shell {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  font-size: 13px;
+}
+.impersonation-banner b { font-size: 14px; letter-spacing: 0.02em; }
+.impersonation-banner .impersonation-forbidden { opacity: 0.85; font-size: 12px; }
+.impersonation-banner .btn {
+  margin-left: auto; background: #fff; color: #7f1d1d; border-color: #fff; font-weight: 700;
+}
+
 /* ----------------------------------------------------------- account menu */
 /* Pinned, so a scrolled menu still says whose account it belongs to. */
 .menu-user {

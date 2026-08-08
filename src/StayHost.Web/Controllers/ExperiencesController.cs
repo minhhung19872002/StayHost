@@ -79,6 +79,11 @@ public class ExperiencesController(
         var user = await auth.CurrentUserAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
 
+        // docs/08 §5.2 — "không được đặt đơn mới" covers every kind of booking,
+        // or the restriction is a door with the window left open.
+        if (Restrictions.Has(user.RestrictionMask, RestrictionKind.NoNewBookings))
+            return StatusCode(403, new { message = Restrictions.Message(RestrictionKind.NoNewBookings) });
+
         var (booking, error) = await experiences.BookAsync(user, slotId, req, ct);
         if (booking is null) return BadRequest(new { message = error });
 
@@ -123,6 +128,10 @@ public class ExperiencesController(
     {
         var user = await auth.CurrentUserAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        // docs/08 §5.2 — an experience is a listing by another name.
+        if (Restrictions.Has(user.RestrictionMask, RestrictionKind.NoNewListings))
+            return StatusCode(403, new { message = Restrictions.Message(RestrictionKind.NoNewListings) });
 
         var (id, error) = await experiences.SaveAsync(user, req, ct);
         if (id is null) return BadRequest(new { message = error });

@@ -98,4 +98,32 @@ public class DataRequestsTests
         Assert.Contains("42", left);
         Assert.EndsWith(".invalid", left);
     }
+
+    /* ---- §9, the link an export is delivered by ---- */
+
+    [Fact]
+    public void The_download_link_expires_well_inside_the_answer_deadline()
+    {
+        // The link is the whole credential, so it outlives neither the request
+        // nor a forwarded email for long.
+        Assert.True(DataRequests.LinkLifetime < TimeSpan.FromDays(DataRequests.DueDays));
+        Assert.True(DataRequests.LinkLifetime >= TimeSpan.FromDays(1));
+    }
+
+    [Fact]
+    public void The_ready_notice_tells_them_when_the_link_dies()
+    {
+        var expires = new DateTime(2026, 8, 15, 9, 30, 0, DateTimeKind.Utc);
+
+        Assert.Contains("15/08/2026", DataRequests.ExportReadyNotice(expires));
+        Assert.Contains("yêu cầu lại", DataRequests.ExportReadyNotice(expires));
+    }
+
+    [Fact]
+    public void A_review_keeps_its_text_and_loses_its_author()
+    {
+        // docs/08 §9 — "đánh giá thuộc về cộng đồng. Chỉ ẩn tên người viết."
+        Assert.NotEqual("", DataRequests.AnonymousReviewerName());
+        Assert.DoesNotContain("#", DataRequests.AnonymousReviewerName());
+    }
 }

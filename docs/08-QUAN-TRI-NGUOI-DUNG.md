@@ -207,21 +207,21 @@ Ngoài nhật ký, cần theo dõi chủ động:
 | QT-U-05 | Áp và gỡ hạn chế một phần theo §5.2 — **đã làm**, chặn thật ở đặt đơn, đăng tin, đánh giá, nhắn tin, chuyển tiền |
 | QT-U-06 | Tạm khoá, khoá vĩnh viễn, khôi phục — **đã làm** (`Sanctions.cs`, thang bậc bắt buộc tuần tự) |
 | QT-U-07 | **Màn hình xem trước hậu quả** trước khi khoá — **đã làm** (`SuspensionImpact.cs`) |
-| QT-U-08 | Tự động xử lý đơn đang có theo §6, cho admin chọn phương án và ghi lý do — **đã làm** |
+| QT-U-08 | Tự động xử lý đơn đang có theo §6, cho admin chọn phương án và ghi lý do — **đã làm**, và **thực thi thật**: `UserAdminController.ExecuteFalloutAsync` chạy đúng bảng §6 qua chính đường huỷ đơn thường (`PostCancellation`), nên sổ sách vẫn cân. Đơn bị sàn huỷ ghi là `CancelledBy = Platform` và **không** tính vào lịch sử huỷ của khách |
 | QT-U-09 | Buộc đổi mật khẩu, huỷ mọi phiên đăng nhập — **đã làm** |
 | QT-U-10 | Buộc xác minh lại danh tính — **đã làm** |
-| QT-U-11 | Xem ảnh giấy tờ có kiểm soát: nhập lý do, đóng dấu mờ, ghi nhật ký riêng — **đã làm** |
-| QT-U-12 | Đăng nhập thay mặt theo đúng ràng buộc §7 — **đã làm** (`Impersonation.cs` + middleware chặn 9 thao tác cấm) |
+| QT-U-11 | Xem ảnh giấy tờ có kiểm soát: nhập lý do, đóng dấu mờ, ghi nhật ký riêng — **đã làm**. Ảnh **không** nằm trong thư mục công khai: `IdentityFilesController` chỉ mở cho chính chủ, hoặc cho admin vừa ghi lý do xem trong 15 phút gần nhất |
+| QT-U-12 | Đăng nhập thay mặt theo đúng ràng buộc §7 — **đã làm** (`Impersonation.cs` + middleware). Chặn theo **đường dẫn thật** của ứng dụng, có test khoá lại; mọi thao tác trong phiên ghi nhật ký "admin X thay mặt Y"; im lặng điều tra gian lận cần **một Tối cao khác** phê duyệt; dải cảnh báo hiện trên mọi trang |
 | QT-U-13 | Hợp nhất hai tài khoản trùng của cùng một người — **đã làm**, chuyển đơn/số dư/thẻ/tin đăng rồi ẩn danh tài khoản cũ |
-| QT-U-14 | Xử lý yêu cầu xuất và xoá dữ liệu cá nhân — **đã làm** (`DataRequests.cs`, ẩn danh tại chỗ) |
+| QT-U-14 | Xử lý yêu cầu xuất và xoá dữ liệu cá nhân — **đã làm** (`DataRequests.cs`, ẩn danh tại chỗ). Người dùng **tự gửi yêu cầu** trong phần Tài khoản; bản xuất giao bằng **đường dẫn có hạn 7 ngày**; ẩn danh cũng xoá tên trên đánh giá đã viết |
 | QT-U-15 | Hồ sơ vi phạm: lịch sử đầy đủ các lần bị xử lý và kết quả khiếu nại — **đã làm** |
-| QT-U-16 | Luồng khiếu nại: tiếp nhận, phân cho người khác, ra kết quả — **đã làm** (`Appeals.cs`) |
+| QT-U-16 | Luồng khiếu nại: tiếp nhận, phân cho người khác, ra kết quả — **đã làm** (`Appeals.cs`). Người dùng **nộp được thật**: còn đăng nhập thì vào `/account/sanctions`, đã bị khoá thì theo liên kết kèm mã trong thư (`/appeal?token=…`) |
 | QT-A-01 | Tạo, phân quyền, thu hồi tài khoản admin — **đã làm**, thu hồi hết quyền thì huỷ mọi phiên và giữ lại tài khoản để giữ nhật ký |
 | QT-A-02 | Bắt buộc bảo mật 2 lớp cho admin — **đã làm**, chặn ngay ở bước đăng nhập |
 | QT-A-03 | Nhật ký thao tác admin, không xoá được — **đã làm**, có trigger PostgreSQL nên psql cũng không xoá được |
-| QT-A-04 | Rà soát quyền định kỳ mỗi quý — **đã làm** (cột trong bảng giám sát: quyền chưa dùng 90 ngày, tới hạn rà soát) |
-| QT-A-05 | Bảng cảnh báo lạm quyền theo §10 — **đã làm** (`AdminOversight.cs`) |
-| QT-A-06 | Duyệt hai người cho thao tác vượt ngưỡng tiền — **đã làm**, hoàn tiền ≥ 10 triệu bị chặn lại chờ người thứ hai |
+| QT-A-04 | Rà soát quyền định kỳ mỗi quý — **đã làm** (cột trong bảng giám sát: quyền chưa dùng 90 ngày, tới hạn rà soát), có nút cấp/thu hồi quyền và ký rà soát ngay trên bảng |
+| QT-A-05 | Bảng cảnh báo lạm quyền theo §10 — **đã làm** (`AdminOversight.cs`), **cả bốn** cảnh báo của §3 đều bắn: xem nhiều hồ sơ trong một giờ, xem không gắn hồ sơ, tra cùng một người nhiều lần, thao tác ngoài giờ (giờ Việt Nam) |
+| QT-A-06 | Duyệt hai người cho thao tác vượt ngưỡng tiền — **đã làm**, hoàn tiền **và mở khoá khoản chuyển** ≥ 10 triệu đều chờ người thứ hai. Bàn tài chính đi qua `AdminGate` nên có cả kiểm tra xung đột §1.3 |
 | QT-A-07 | Chặn admin thao tác lên tài khoản có liên quan tới chính mình — **đã làm** (`AdminConflict.cs`) |
 
 ---
@@ -230,7 +230,7 @@ Ngoài nhật ký, cần theo dõi chủ động:
 
 | Mã | Tham số | Gợi ý | Giá trị chốt |
 |---|---|---|---|
-| QT-A | Phiên admin hết hạn sau bao lâu không hoạt động | 30 phút | 30 phút *(đang chạy theo gợi ý)* |
+| QT-A | Phiên admin hết hạn sau bao lâu không hoạt động | 30 phút | 30 phút *(đang chạy theo gợi ý — `AuthService.CurrentUserAsync` thu hồi phiên admin quá 30 phút không hoạt động; người dùng thường vẫn 30 ngày)* |
 | QT-B | Phiên đăng nhập thay mặt tối đa | 30 phút | 30 phút *(đang chạy theo gợi ý)* |
 | QT-C | Hạn khiếu nại quyết định | 30 ngày | 30 ngày *(đang chạy theo gợi ý)* |
 | QT-D | Hạn hoàn thành yêu cầu xuất dữ liệu | 30 ngày | 30 ngày *(đang chạy theo gợi ý)* |
@@ -277,6 +277,20 @@ của chính tài liệu này. Đổi ở một nơi: `AdminActions`, `Impersona
    dấu vân tay thiết bị sẽ làm nhân viên hỗ trợ không làm việc được; lượt đọc vẫn
    bị ghi và vẫn vào bảng cảnh báo §10.
 
+3. **"Đã từng ra quyết định với người này" không chặn bước kế tiếp.** §1.3 liệt kê
+   ba thứ: tài khoản của chính mình, người thân, và người mình có liên quan trong
+   đơn đặt — không có "đã từng xử lý". Chặn ở đây làm **thang bậc §5 không đi được**,
+   vì thang bậc chính là leo thang: người viết cảnh cáo phải là người viết được hạn
+   chế tiếp theo. Quy tắc thật sự cần người khác đọc là §8 (khiếu nại), và nó nằm
+   đúng chỗ của nó trong `Appeals.MayReview`. Dấu hiệu này vẫn được ghi để bảng
+   giám sát §10 nhìn thấy ai hay quyết định về cùng một người.
+
 **Nhật ký quản trị được khoá ở tầng cơ sở dữ liệu**, không chỉ ở ứng dụng: có
 trigger PostgreSQL chặn `update`/`delete`/`truncate` trên bảng `admin_audit`, nên
 "kể cả Quản trị tối cao" (§1.2) đúng cả khi có người vào thẳng psql.
+
+**Đơn bị sàn huỷ không phải là đơn khách huỷ.** Khi khoá một chủ nhà, các đơn sắp
+tới bị huỷ với `CancelledBy = Platform` và trạng thái nằm ở phía chủ nhà. Ghi sang
+phía khách sẽ làm khách mang tiếng huỷ đơn họ không huỷ, và tệ hơn là **tiêu mất
+quyền hoàn phí dịch vụ 3 lần/năm** của `docs/03 §4`. Mọi chỗ đếm số lần huỷ để
+đánh giá một người đều lọc theo `CancelledBy`.

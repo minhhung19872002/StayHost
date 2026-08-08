@@ -33,6 +33,14 @@ public static class AdminOversight
 
     public static readonly TimeSpan BrowsingWindow = TimeSpan.FromHours(1);
 
+    /// <summary>
+    /// Ticket-less profile views per month before it is worth a flag. Its own
+    /// number, not <see cref="BrowsingThreshold"/>: that one is calibrated for a
+    /// single hour, and borrowing it for a 30-day window once made the alert 720
+    /// times more sensitive than it was designed to be.
+    /// </summary>
+    public const int UntiedMonthlyThreshold = 25;
+
     /// <summary>The same person looked up this many times by one admin in a week.</summary>
     public const int RepeatLookupThreshold = 5;
 
@@ -42,10 +50,15 @@ public static class AdminOversight
     public static readonly TimeOnly WorkdayStart = new(7, 0);
     public static readonly TimeOnly WorkdayEnd = new(20, 0);
 
+    /// <summary>The platform runs on Vietnam time; the servers do not.</summary>
+    public static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
+
     public static bool IsOutOfHours(DateTime localTime) =>
         localTime.DayOfWeek is DayOfWeek.Sunday
         || TimeOnly.FromDateTime(localTime) < WorkdayStart
         || TimeOnly.FromDateTime(localTime) > WorkdayEnd;
+
+    public static bool IsOutOfHoursUtc(DateTime utc) => IsOutOfHours(utc + VietnamOffset);
 
     /* ------------------------------------------ §10, two pairs of eyes */
 

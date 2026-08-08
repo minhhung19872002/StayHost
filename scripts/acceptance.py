@@ -261,9 +261,20 @@ st10a, kase = call(owner, "/api/resolutions", {
     "bookingId": request['id'], "kind": "Damage", "amountClaimed": 1200000,
     "description": "Khách làm vỡ bàn kính, có ảnh chụp lúc dọn phòng sau khi trả phòng.",
     "evidenceUrls": []})
-st10b, disputed = call(guest, f"/api/resolutions/{kase['id']}/respond",
+case_id = (kase or {}).get("id")
+if case_id is None:
+    # A crash here used to hide the reason the case was refused; the run should
+    # say what happened and carry on to the summary line.
+    record(10, "Bồi thường, chủ nhà phản đối, admin phân xử, tiền chia đúng", False,
+           f"không mở được hồ sơ: {st10a} {str(kase)[:200]}")
+    print()
+    print("=" * 70)
+    print(f"KẾT QUẢ: {sum(RESULTS)}/{len(RESULTS)} tình huống nghiệm thu đạt")
+    raise SystemExit(1)
+
+st10b, disputed = call(guest, f"/api/resolutions/{case_id}/respond",
                        {"accept": False, "note": "Bàn đã nứt sẵn từ trước."})
-st10c, decided = call(admin, f"/api/resolutions/{kase['id']}/decide",
+st10c, decided = call(admin, f"/api/resolutions/{case_id}/decide",
                       {"amountAwarded": 500000, "decision": "Chia đôi trách nhiệm theo bằng chứng hai bên."})
 _, ov10 = call(admin, "/api/admin/overview")
 record(10, "Bồi thường, chủ nhà phản đối, admin phân xử, tiền chia đúng",

@@ -771,7 +771,9 @@ function IdentityPanel() {
     try {
       const body = new FormData();
       body.append('files', file);
-      const res = await fetch('/api/uploads/images', { method: 'POST', body, credentials: 'same-origin' });
+      // Giấy tờ tuỳ thân đi đường riêng: file không nằm trong thư mục công khai,
+      // chỉ chủ ảnh và admin đã ghi lý do xem mới mở được (docs/08 §4).
+      const res = await fetch('/api/uploads/identity', { method: 'POST', body, credentials: 'same-origin' });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(payload.message ?? 'Không tải được ảnh.');
       setShots(s => ({ ...s, [slot]: payload.urls[0] }));
@@ -1032,8 +1034,30 @@ function NotificationMatrix() {
   );
 }
 
-/** docs/01 TK-11 — one file, downloaded now, with everything held about them. */
+/**
+ * docs/01 TK-11 — one file, downloaded now, with everything held about them —
+ * and docs/08 §9, the formal requests that go to a person: a copy delivered by
+ * a time-limited link, or the account itself erased.
+ */
 function DataPanel() {
+  const [requests, setRequests] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  const load = () => api.myDataRequests().then(setRequests).catch(() => setRequests([]));
+  useEffect(() => { load(); }, []);
+
+  const ask = async kind => {
+    setBusy(true);
+    try {
+      await api.askDataRequest(kind);
+      await load();
+      toast(kind === 'Erase'
+        ? 'Đã gửi yêu cầu xoá tài khoản. Chúng tôi sẽ xử lý trong 30 ngày.'
+        : 'Đã gửi yêu cầu. Chúng tôi sẽ gửi liên kết tải trong 30 ngày.');
+    } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.6, color: 'var(--ink-body)' }}>
@@ -1046,6 +1070,38 @@ function DataPanel() {
       <p className="field-note" style={{ margin: 0 }}>
         Tệp gồm cả dữ liệu giao dịch mà sàn phải giữ cho nghĩa vụ kế toán.
       </p>
+
+      <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '4px 0' }} />
+
+      <p className="field-note" style={{ margin: 0 }}>
+        Bạn cũng có thể gửi yêu cầu chính thức. Xoá tài khoản là <b>ẩn danh hoá</b>:
+        tên, ảnh, email, số điện thoại và giấy tờ bị xoá; đơn đặt, giao dịch và sổ ghi
+        tiền được giữ lại theo nghĩa vụ kế toán và pháp lý. Đánh giá bạn đã viết không
+        bị xoá, chỉ ẩn tên người viết.
+      </p>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => ask('Export')}>
+          Yêu cầu bản sao qua liên kết
+        </button>
+        <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => ask('Erase')}>
+          Yêu cầu xoá tài khoản
+        </button>
+      </div>
+
+      {!!requests.length && (
+        <div style={{ display: 'grid', gap: 8, marginTop: 4 }}>
+          {requests.map(r => (
+            <div key={r.id} style={{ fontSize: 13 }}>
+              <b>{r.kindLabel}</b> · {r.statusLabel} · hạn {longDate(r.dueBy)}
+              {!!r.note && <div className="field-note" style={{ margin: 0 }}>{r.note}</div>}
+              {!!r.downloadUrl && (
+                <a className="link-btn" href={r.downloadUrl} download>Tải bản sao (liên kết có hạn)</a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

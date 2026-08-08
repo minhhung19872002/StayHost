@@ -43,6 +43,13 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
             (email.Length > 0 && await db.Users.AnyAsync(u => u.Email == email, ct))
             || (normalisedPhone is not null && await db.Users.AnyAsync(u => u.Phone == normalisedPhone, ct));
 
+        // docs/08 §5.4 — a permanent ban is a closed door, not a name change.
+        // Checked before the ordinary validation so the refusal stays vague:
+        // "Email này đã được đăng ký" would both confirm the account exists and
+        // point at exactly which detail to change next time.
+        if (await IsBannedComebackAsync(email.Length > 0 ? email : null, normalisedPhone, ct))
+            return new(false, BannedComebackMessage());
+
         var check = Identity.CanRegister(
             email.Length > 0 ? email : null,
             string.IsNullOrWhiteSpace(phone) ? null : phone,
@@ -99,6 +106,37 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
         return $"Tài khoản này đang tạm khoá{until}. " +
                "Bạn có thể khiếu nại quyết định này — hãy kiểm tra email chúng tôi đã gửi.";
     }
+
+    /// <summary>
+    /// The same lock, checked at every door. External sign-in has no password
+    /// step, but docs/08 §5.3 does not say "khoá, trừ khi đăng nhập bằng Google".
+    /// </summary>
+    public static string? LockedOutMessage(User user) => LockedOut(user);
+
+    /* ------------------------------------------------ §5.4, banned comebacks */
+
+    /// <summary>
+    /// docs/08 §5.4 — a ban blocks the same email, phone or browser from coming
+    /// back under a new name. The browser signal is the anonymous session cookie
+    /// the banned account once adopted — not the user-agent string, which half
+    /// the country shares. The refusal is deliberately vague: confirming a ban
+    /// to whoever is probing is confirming the account exists.
+    /// </summary>
+    public async Task<bool> IsBannedComebackAsync(string? email, string? phone, CancellationToken ct)
+    {
+        var sid = Ctx.SessionId();
+        var hasEmail = !string.IsNullOrEmpty(email);
+        var hasSid = !string.IsNullOrEmpty(sid);
+
+        return await db.Users.AnyAsync(u => u.IsBanned
+            && ((hasEmail && u.Email == email)
+                || (phone != null && u.Phone == phone)
+                || (hasSid && u.AdoptedSessionId == sid)), ct);
+    }
+
+    public static string BannedComebackMessage() =>
+        "Không thể tạo tài khoản với thông tin này. " +
+        "Nếu bạn cho rằng có nhầm lẫn, hãy liên hệ hỗ trợ StayHost.";
 
     public async Task<AuthResult> LoginAsync(string email, string password, CancellationToken ct)
     {
@@ -251,6 +289,7 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
             Token = token,
             UserId = user.Id,
             UserAgent = Truncate(Ctx.Request.Headers.UserAgent.ToString(), 300),
+            IpAddress = Truncate(Ctx.Connection.RemoteIpAddress?.ToString() ?? "", 60),
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         });
         await db.SaveChangesAsync(ct);
@@ -279,7 +318,34 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
                 .FirstOrDefaultAsync(s => s.Token == token, ct);
 
             if (session is not null && session.RevokedAt is null && session.ExpiresAt > DateTime.UtcNow)
-                user = session.User;
+            {
+                // docs/08 §3 QT-A — an admin session idles out after 30 minutes;
+                // everyone else keeps the flat 30-day cookie. ExecuteUpdate, not
+                // the change tracker: this runs before the request's real work
+                // and must not drag other tracked entities into an early save.
+                if (session.User is { Role: UserRole.Admin })
+                {
+                    var now = DateTime.UtcNow;
+                    var lastSeen = session.LastSeenAt ?? session.CreatedAt;
+
+                    if (AdminActions.SessionExpired(lastSeen, now))
+                    {
+                        await db.AuthSessions.Where(s => s.Id == session.Id && s.RevokedAt == null)
+                            .ExecuteUpdateAsync(s => s.SetProperty(x => x.RevokedAt, now), ct);
+                    }
+                    else
+                    {
+                        // One write a minute, not one per request.
+                        if (now - lastSeen > TimeSpan.FromMinutes(1))
+                        {
+                            await db.AuthSessions.Where(s => s.Id == session.Id)
+                                .ExecuteUpdateAsync(s => s.SetProperty(x => x.LastSeenAt, now), ct);
+                        }
+                        user = session.User;
+                    }
+                }
+                else user = session.User;
+            }
         }
 
         Ctx.Items["__sh_user"] = user;

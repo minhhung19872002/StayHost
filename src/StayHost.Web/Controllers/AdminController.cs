@@ -12,7 +12,8 @@ namespace StayHost.Web.Controllers;
 [ApiController]
 [Route("api")]
 public class AdminController(
-    StayHostDbContext db, AuthService auth, NotificationService notifications, AdminAudit audit)
+    StayHostDbContext db, AuthService auth, NotificationService notifications, AdminAudit audit,
+    AdminGate gate)
     : ControllerBase
 {
     /* ------------------------------------------------------------- reports */
@@ -343,19 +344,23 @@ public class AdminController(
     }
 
     [HttpPost("admin/listings/{id:int}/publish")]
-    public async Task<IActionResult> SetPublished(int id, [FromQuery] bool published, CancellationToken ct)
+    public async Task<IActionResult> SetPublished(
+        int id, [FromQuery] bool published, [FromBody] RestoreRequest? req, CancellationToken ct)
     {
-        var admin = await audit.RequireAsync(AdminScope.Moderation, ct);
-        if (admin is null)
-            return StatusCode(403, new { message = "Bạn không có quyền kiểm duyệt." });
-
         var listing = await db.Listings.Include(l => l.Host!).ThenInclude(h => h.User)
             .FirstOrDefaultAsync(l => l.Id == id, ct);
         if (listing is null) return NotFound();
 
+        // docs/08 §2 TakeDownContent and §1.4 — taking somebody's listing down is
+        // a decision, and decisions carry a reason and the conflict check.
+        var v = await gate.AllowAsync(AdminAction.TakeDownContent, req?.Reason, ct, listing.Host?.UserId);
+        if (!v.Ok) return StatusCode(v.Status ?? 403, new { message = v.Refusal });
+
+        var admin = v.Admin!;
+
         audit.Record(admin, "listing.publish", $"listing:{listing.Id}",
             listing.IsPublished ? "Đang hiển thị" : "Bản nháp",
-            published ? "Đang hiển thị" : "Đã gỡ hiển thị");
+            published ? "Đang hiển thị" : "Đã gỡ hiển thị", req?.Reason);
 
         listing.IsPublished = published;
 

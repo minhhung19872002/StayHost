@@ -41,7 +41,7 @@ thì **code sai**, không phải tài liệu sai.
 ## 3. Hiện trạng
 
 **10/10 tình huống nghiệm thu** của `docs/04` chạy được trên server thật
-(`scripts/acceptance.py`). **654 test nghiệp vụ** xanh, cộng **10/10 kịch bản quản trị** của `docs/08 §13`
+(`scripts/acceptance.py`). **690 test nghiệp vụ** xanh, cộng **10/10 kịch bản quản trị** của `docs/08 §13`
 (`scripts/admin_acceptance.py`).
 
 ### Nền
@@ -63,6 +63,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Thanh toán | Trả đủ, trả một phần (cọc ≥50% + tự thu trước 14 ngày), chia hoá đơn tối đa 16 người |
 | Đánh giá & tin nhắn | Đánh giá mù hai chiều, sửa trong 48h, gửi ảnh, thẻ đơn trong hội thoại, mẫu trả lời nhanh |
 | An toàn | Trung tâm giải quyết, trung tâm trợ giúp 14 bài, phát hiện bất thường, nhật ký quản trị chỉ-thêm |
+| Quản trị người dùng | Ma trận quyền §2, thang bậc §5 tuần tự, **khoá tài khoản thực thi đúng bảng §6** (huỷ + hoàn tiền + giữ tiền, khách đang ở không bị đụng), khiếu nại người dùng tự nộp được, ảnh giấy tờ không nằm ở thư mục công khai, phiên admin hết hạn sau 30 phút, cấm đăng ký lại sau khoá vĩnh viễn |
 | Tài khoản | Đăng ký bằng SĐT hoặc email + OTP 6 số, đăng nhập Google/Apple/Facebook, chặn dưới 18 tuổi |
 | Gửi email | Hàng đợi `EmailMessages` được `EmailWorker` gửi thật qua SMTP (MailKit) mỗi 15 giây. Retry 1-5-15-60-240 phút (`EmailDelivery.cs`); 5xx là từ chối vĩnh viễn, bỏ ngay. Mã OTP không bao giờ nằm trong subject. Chưa cấu hình `Email:Host` thì thư nằm chờ, không giả vờ gửi; mật khẩu đặt qua `Email__Password` |
 | Hồ sơ | Ảnh đại diện, tên hiển thị, ngôn ngữ nói, nơi ở, nghề nghiệp, sở thích; trang công khai `/users/:id` có huy hiệu xác minh và đánh giá hai chiều |
@@ -95,6 +96,17 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 - **Số dư đã cam kết lúc giữ chỗ phải được đưa vào lần tính giá lại lúc thanh toán**,
   nếu không đơn dùng số dư luôn trượt kiểm tra "giá có đổi không".
 - Vite 8 (rolldown) chỉ nhận `manualChunks` dạng hàm.
+- **Có file `.cs` không có nghĩa là có chạy.** Soát `docs/08` ngày 08/08 phát hiện
+  `SuspensionImpact` tính đúng cả bảng §6 mà chưa bao giờ được gọi khi khoá thật,
+  `Appeals` đủ luật mà người dùng không có đường nộp. Kiểm chứng bằng **kết quả
+  trong cơ sở dữ liệu**, đừng kiểm chứng bằng màn hình xem trước.
+- **Đơn do sàn huỷ đừng ghi sang phía khách.** `PostCancellation` map
+  Platform/ForceMajeure sang `CancelledByHost`; mọi chỗ đếm số lần huỷ để đánh giá
+  một người phải lọc thêm `CancelledBy`. Ghi nhầm là khách mất quyền hoàn phí dịch
+  vụ 3 lần/năm của `docs/03 §4` vì lỗi của người khác.
+- **Đừng mượn quy tắc §8 (khiếu nại phải người khác xét) áp cho §1.3.** Chặn admin
+  "đã từng ra quyết định với người này" làm thang bậc §5 không đi được: leo thang
+  bắt buộc phải cùng một người viết bước tiếp theo.
 
 ---
 

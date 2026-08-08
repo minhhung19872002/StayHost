@@ -1845,7 +1845,7 @@ public record AdminUserRowDto(
 
 public record AdminListingRowDto(int Id, string Title, string City, bool Published, double Rating, int ReviewCount);
 
-public record AdminSessionRowDto(string Device, DateTime At, bool Active);
+public record AdminSessionRowDto(string Device, DateTime At, bool Active, string? Ip = null);
 
 /// <summary>docs/08 §5 — one entry on somebody's record.</summary>
 public record SanctionRowDto(
@@ -1887,7 +1887,40 @@ public record AdminUserDto(
     IReadOnlyList<AdminSessionRowDto> Sessions,
     IReadOnlyList<AdminUserRowDto> RelatedAccounts,
     /// <summary>Which actions this particular admin may take, so the console offers only those.</summary>
-    IReadOnlyList<string> Allowed);
+    IReadOnlyList<string> Allowed,
+    /* ---- the rest of the §4 profile ---- */
+    bool IsGuestFavoriteHost,
+    /// <summary>Hosts this person co-hosts for, with their scopes.</summary>
+    IReadOnlyList<string> CoHostOf,
+    int ReviewsReceived,
+    int OpenDisputes,
+    int TotalDisputes,
+    int GiftCards,
+    decimal GiftCardRemaining,
+    IReadOnlyList<AdminBookingRowDto> RecentBookings);
+
+/// <summary>One line of the two-sided booking history docs/08 §4 asks for.</summary>
+public record AdminBookingRowDto(
+    int Id, string Reference, string Side, string Listing, string Status, string StatusLabel,
+    DateOnly CheckIn, DateOnly CheckOut, decimal Total);
+
+/// <summary>
+/// docs/08 §2 — the messages of ONE booking, never an inbox. Each view needs a
+/// reason and leaves its own audit line.
+/// </summary>
+public record AdminThreadDto(
+    int BookingId, string Reference, string ListingTitle,
+    string GuestName, string HostName,
+    IReadOnlyList<AdminThreadMessageDto> Messages);
+
+public record AdminThreadMessageDto(
+    string Sender, string Body, DateTime SentAt, bool IsSystem);
+
+/// <summary>docs/08 §2 — an admin correcting a field the person cannot fix themselves.</summary>
+public record AdminEditProfileRequest(
+    string? Reason,
+    string? FullName, string? DisplayName, string? Phone,
+    string? Location, string? Occupation);
 
 /// <summary>docs/08 §6 and QT-U-07 — the cost of a lock, before it happens.</summary>
 public record LockPreviewDto(
@@ -1918,6 +1951,27 @@ public record SanctionRequest(
 
 public record RestoreRequest(string? Reason);
 
+/// <summary>docs/08 §8 — a sanction as its subject sees it, with the appeal door.</summary>
+public record MySanctionDto(
+    int Id, string LevelLabel, string? RestrictionLabel,
+    string Policy, string Reason, string? LiftedWhen,
+    DateTime CreatedAt, DateTime? ExpiresAt, DateTime? LiftedAt,
+    bool OverturnedOnAppeal,
+    bool MayAppeal, string? WhyNotAppeal,
+    string? AppealStatusLabel, string? AppealOutcome, DateTime? AppealDueBy);
+
+public record FileAppealRequest(string? Argument);
+
+/// <summary>docs/08 §9 — a data request as the person who asked sees it.</summary>
+public record MyDataRequestDto(
+    int Id, string Kind, string KindLabel, string Status, string StatusLabel,
+    DateTime CreatedAt, DateTime DueBy, DateTime? CompletedAt, string? Note,
+    string? DownloadUrl, DateTime? LinkExpiresAt);
+
+public record DataRequestRequest(string Kind);
+
+public record AppealByTokenRequest(string? Token, string? Argument);
+
 /// <summary>docs/08 §7 — a live session inside somebody else's account.</summary>
 public record ImpersonationDto(
     int Id, int TargetUserId, string TargetName, string AdminName,
@@ -1930,7 +1984,13 @@ public record ImpersonationDto(
 public record ImpersonateRequest(
     int UserId, int TicketId, string? Reason,
     /// <summary>docs/08 §7.4 — the only case where the person is not told. Super only.</summary>
-    bool SilentFraudInvestigation = false);
+    bool SilentFraudInvestigation = false,
+    /// <summary>
+    /// docs/08 §7.4 — "có phê duyệt riêng": the OTHER Super who signed off on
+    /// staying quiet. Required with the flag; the same person cannot approve
+    /// their own silence.
+    /// </summary>
+    int? SilenceApprovedByUserId = null);
 
 /// <summary>docs/08 §8 — somebody says a decision about them was wrong.</summary>
 public record AppealDto(
@@ -1974,13 +2034,19 @@ public record MoneyApprovalDto(
 public record SampledDecisionDto(
     int Id, string UserName, string Level, string Reason, string DecidedBy, DateTime At);
 
+/// <summary>docs/08 §5.6 — a severe jump waiting for a Super to look at it within 24h.</summary>
+public record SevereReviewDto(
+    int SanctionId, string UserName, string Level, string Ground, string Reason,
+    string DecidedBy, DateTime DecidedAt, DateTime DueBy, bool Overdue);
+
 public record OversightDto(
     IReadOnlyList<ScorecardDto> Admins,
     IReadOnlyList<OversightFlagDto> Flags,
     IReadOnlyList<MoneyApprovalDto> PendingApprovals,
     IReadOnlyList<SampledDecisionDto> RandomSample,
     decimal TwoPersonThreshold,
-    int RandomReviewPercent);
+    int RandomReviewPercent,
+    IReadOnlyList<SevereReviewDto> SevereQueue);
 
 public record DecideApprovalRequest(bool Approve, string? Reason);
 

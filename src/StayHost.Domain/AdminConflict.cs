@@ -39,7 +39,20 @@ public static class AdminConflict
         return ConflictKind.None;
     }
 
-    public static bool Blocks(ConflictKind kind) => kind != ConflictKind.None;
+    /// <summary>
+    /// §1.3 lists three things: your own account, your relatives, and anyone you
+    /// share a booking with. Having decided about somebody before is not on that
+    /// list, and blocking on it made the §5 ladder unwalkable — the ladder is
+    /// built out of escalation, so the moderator who wrote the warning is
+    /// precisely the one who has to be able to write the restriction next. The
+    /// rule that really does need a different pair of eyes is §8's, and that one
+    /// is enforced where it belongs, in <see cref="Appeals.MayReview"/>.
+    ///
+    /// It stays a <see cref="ConflictKind"/> because the oversight board of §10
+    /// still wants to see who keeps deciding about the same person.
+    /// </summary>
+    public static bool Blocks(ConflictKind kind) =>
+        kind is not (ConflictKind.None or ConflictKind.AlreadyDecided);
 
     public static string Message(ConflictKind kind) => kind switch
     {

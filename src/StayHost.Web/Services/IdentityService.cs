@@ -157,6 +157,11 @@ public class IdentityService(
 
         if (existing?.User is not null)
         {
+            // docs/08 §5.3 — the lock holds at every door. A provider vouching
+            // for the identity says nothing about the account's standing here.
+            if (AuthService.LockedOutMessage(existing.User) is { } locked)
+                return new(false, locked);
+
             existing.LastUsedAt = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
             await auth.SignInAsync(existing.User, ct);
@@ -181,6 +186,15 @@ public class IdentityService(
                 user = match;
             }
         }
+
+        if (user is not null && AuthService.LockedOutMessage(user) is { } lockedMatch)
+            return new(false, lockedMatch);
+
+        // docs/08 §5.4 — the same email or browser behind a ban does not get a
+        // fresh account by arriving through a provider instead of the form.
+        if (user is null && await auth.IsBannedComebackAsync(
+                address.Length > 0 ? address : null, null, ct))
+            return new(false, AuthService.BannedComebackMessage());
 
         user ??= await auth.CreateExternalUserAsync(
             address, fullName ?? Identity.ProviderLabel(provider) + " user", ct);

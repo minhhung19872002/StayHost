@@ -117,7 +117,7 @@ moderation2, mod2_id = make_admin("mod2", "Kiểm duyệt Hai", 2)
 finance, fin_id = make_admin("fin", "Tài chính Test", 4)
 super_admin, super_id = make_admin("super", "Tối cao Test", 31)
 
-_, victim_id = register(f"victim{RUN}@stayhost.vn", "Người Dùng Test")
+victim_op, victim_id = register(f"victim{RUN}@stayhost.vn", "Người Dùng Test")
 
 
 # --- 1. Support tries to lock somebody out -----------------------------------
@@ -197,10 +197,67 @@ no_penalty = all("không tính phạt huỷ cho chủ nhà" in l["note"]
                  for l in (preview or {}).get("lines", [])
                  if l["action"] == "CancelRefundFull")
 
+# The preview is a promise. §6 is about what actually happens, so the lock is
+# pressed and the bookings are read back from the database afterwards: the whole
+# section used to pass on a screen that had never been acted on.
+ledger_before = float(sql_ok(
+    'select coalesce(sum(case when "Direction"=1 then "Amount" else -"Amount" end),0) from ledger_entries;'))
+
+# §5 — the ladder is walked properly: warning, then restriction, then the lock.
+# Jumping straight to a suspension is refused unless §5.6 applies, which is the
+# rule working, not a problem to route around.
+st3b, res3b = call(moderation, f"/api/admin/users/{host_id}/sanction",
+                   {"level": "Warning", "reason": REASON, "policy": "docs/08 §5.1"})
+call(moderation, f"/api/admin/users/{host_id}/sanction",
+     {"level": "Restriction", "restriction": "NoNewListings", "reason": REASON})
+st3c, res3c = call(moderation, f"/api/admin/users/{host_id}/sanction",
+                   {"level": "Suspension", "reason": REASON, "refundInFull": True})
+
+in_progress_id = booked[0]
+future_ids = booked[1:]
+
+still_running = sql_ok(f'select "Status" from bookings where "Id"={in_progress_id}')
+cancelled_rows = sql_ok(
+    f'select count(*) from bookings where "Id" in ({",".join(str(b) for b in future_ids)}) '
+    f'and "Status" in (6, 8, 9)')
+
+# §6 — the guest did nothing wrong, so none of this may land on their record.
+# CancelledBy: 0 Guest, 1 Host, 2 ForceMajeure, 3 Platform.
+blamed_on_guest = sql_ok(
+    f'select count(*) from bookings where "Id" in ({",".join(str(b) for b in future_ids)}) '
+    f'and ("Status" = 8 or "CancelledBy" = 0)')
+refunded_rows = sql_ok(
+    f'select count(*) from bookings where "Id" in ({",".join(str(b) for b in future_ids)}) '
+    f'and "RefundedAmount" > 0')
+hidden = sql_ok(f'select count(*) from listings where "HostId" = '
+                f'(select "Id" from hosts where "UserId"={host_id}) and "IsPublished" = true')
+held = sql_ok('select count(*) from payments p join bookings b on b."Id" = p."BookingId" '
+              f'where b."Id" in ({",".join(str(b) for b in booked)}) and p."PayoutStatus" = 2')
+
+ledger_after = float(sql_ok(
+    'select coalesce(sum(case when "Direction"=1 then "Amount" else -"Amount" end),0) from ledger_entries;'))
+
+executed = (st3c == 200
+            and still_running == "3"               # InProgress, untouched
+            and int(cancelled_rows) == len(future_ids)
+            and int(refunded_rows) == len(future_ids)
+            and int(blamed_on_guest) == 0
+            and hidden == "0"
+            and int(held) > 0
+            and abs(ledger_after) < 0.01 and abs(ledger_before) < 0.01)
+
 record(3, "Khoá chủ nhà có 1 khách đang ở và 5 đơn sắp tới",
-       st3 == 200 and staying == 1 and cancelled == len(booked) - 1 and full_refund and no_penalty,
-       f"{staying} khách đang ở không bị đụng, {cancelled} đơn huỷ hoàn 100%, "
-       f"không phạt chủ nhà: {no_penalty}")
+       st3 == 200 and staying == 1 and cancelled == len(booked) - 1 and full_refund
+       and no_penalty and executed,
+       f"xem trước: {staying} khách đang ở, {cancelled} đơn sẽ huỷ · "
+       f"khoá: cảnh cáo {st3b}, tạm khoá {st3c}"
+       f"{'' if st3c == 200 else ' — ' + str((res3c or {}).get('message', ''))[:90]} · "
+       f"sau khi khoá: khách đang ở còn nguyên, {cancelled_rows}/{len(future_ids)} đơn đã huỷ và hoàn tiền, "
+       f"{blamed_on_guest} đơn bị ghi là khách huỷ, "
+       f"{hidden} tin còn hiển thị, {held} khoản tiền bị giữ, sổ lệch {ledger_after}")
+
+# The lock is lifted again so the later scenarios still have a working host.
+call(moderation, f"/api/admin/users/{host_id}/restore", {"reason": REASON})
 
 
 # --- 4. Impersonation cannot change where the money goes ---------------------
@@ -269,8 +326,14 @@ st7a, _ = call(moderation, f"/api/admin/users/{victim_id}/sanction",
 
 sanction_id = int(sql_ok(f'select "Id" from sanctions where "UserId"={victim_id} order by "Id" desc limit 1'))
 
-sql_ok(f'insert into appeals ("SanctionId","UserId","Argument","Status","CreatedAt","DueBy") '
-       f"values ({sanction_id},{victim_id},'Toi khong dong y voi quyet dinh nay.',0,now(),now() + interval '7 days')")
+# §8 from the user's own side. This used to be an INSERT straight into the
+# table, which is exactly how the missing filing endpoint went unnoticed: the
+# admin half of appeals worked and nobody could reach it.
+st7_file, filed = call(victim_op, f"/api/account/sanctions/{sanction_id}/appeal",
+                       {"argument": "Toi khong dong y voi quyet dinh nay va xin duoc xem xet lai."})
+
+st7_twice, _ = call(victim_op, f"/api/account/sanctions/{sanction_id}/appeal",
+                    {"argument": "Toi muon khieu nai them mot lan nua cho chac chan."})
 
 appeal_id = int(sql_ok(f'select "Id" from appeals where "SanctionId"={sanction_id}'))
 
@@ -284,15 +347,19 @@ st7c, _ = call(moderation2, f"/api/admin/appeals/{appeal_id}/decide",
                {"result": "Upheld", "outcome": outcome})
 
 record(7, "Người dùng khiếu nại → không cho chính người ra quyết định xét lại",
-       st7a == 200 and st7b == 403 and st7c == 200,
-       f"người ra quyết định: {st7b} (403 = chặn đúng), người khác: {st7c}")
+       st7a == 200 and st7_file == 200 and st7_twice == 400 and st7b == 403 and st7c == 200,
+       f"người dùng tự nộp: {st7_file}, nộp lần hai: {st7_twice} (400 = một lần duy nhất), "
+       f"người ra quyết định xét: {st7b} (403 = chặn đúng), người khác: {st7c}")
 
 
 # --- 8. Looking at somebody's identity card ----------------------------------
 
 sql_ok(f'insert into identity_checks '
        f'("UserId","Document","DocumentLast4","FrontImageUrl","BackImageUrl","SelfieImageUrl","Status","SubmittedAt") '
-       f"values ({victim_id},0,'1234','/uploads/front.jpg','/uploads/back.jpg','/uploads/selfie.jpg',0,now())")
+       f"values ({victim_id},0,'1234','/api/identity-files/{victim_id}-"
+       f"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg','/api/identity-files/{victim_id}-"
+       f"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.jpg','/api/identity-files/{victim_id}-"
+       f"cccccccccccccccccccccccccccccccc.jpg',0,now())")
 
 st8a, res8a = call(moderation, f"/api/admin/users/{victim_id}/identity", {"reason": ""})
 st8b, res8b = call(moderation, f"/api/admin/users/{victim_id}/identity", {"reason": REASON})
@@ -327,21 +394,34 @@ if st in (200, 201):
 
 ledger_before = sql_ok(f'select count(*) from ledger_entries where "BookingId"={done_booking["id"]}')
 
-sql_ok(f'insert into data_requests ("UserId","Kind","Status","CreatedAt","DueBy") '
-       f"values ({erase_id},1,0,now(),now() + interval '30 days')")
-request_id = int(sql_ok(f'select "Id" from data_requests where "UserId"={erase_id}'))
+# §9 — "Xoá đánh giá đã viết: không xoá. Chỉ ẩn tên người viết." The name is
+# copied onto the review row, so a review is planted here to prove it goes.
+sql_ok(f'insert into reviews ("ListingId","AuthorUserId","AuthorName","AuthorInitials",'
+       f'"When","Text","Rating","Cleanliness","Accuracy","CheckIn","Communication","Location",'
+       f'"Value","CreatedAt","PublishedAt") '
+       f"values ({listing_ids[-1]},{erase_id},'Người Xoá Test','NX','Tháng 8 2026',"
+       f"'Cho nghi sach se, chu nha than thien.',5,5,5,5,5,5,5,now(),now())")
+
+# §9 — the request is filed the way a person actually files it.
+st9_ask, _ = call(erase_op, "/api/account/data/requests", {"kind": "Erase"})
+request_id = int(sql_ok(
+    f'select "Id" from data_requests where "UserId"={erase_id} order by "Id" desc limit 1'))
 
 st9, res9 = call(super_admin, f"/api/admin/data-requests/{request_id}/erase", {"reason": REASON})
 
 name_after = sql_ok(f'select "FullName" from users where "Id"={erase_id}')
 booking_after = sql_ok(f'select count(*) from bookings where "Id"={done_booking["id"]}')
 ledger_after = sql_ok(f'select count(*) from ledger_entries where "BookingId"={done_booking["id"]}')
+review_kept = sql_ok(f'select count(*) from reviews where "AuthorUserId"={erase_id}')
+review_name = sql_ok(f'select "AuthorName" from reviews where "AuthorUserId"={erase_id} limit 1')
 
 record(9, "Xoá tài khoản có đơn đã hoàn tất → ẩn danh, đơn và sổ tiền còn nguyên",
-       st9 == 200 and "Người Xoá Test" not in name_after
-       and int(booking_after or 0) == 1 and ledger_after == ledger_before,
+       st9_ask == 200 and st9 == 200 and "Người Xoá Test" not in name_after
+       and int(booking_after or 0) == 1 and ledger_after == ledger_before
+       and int(review_kept or 0) == 1 and "Người Xoá Test" not in review_name,
        f"{st9} | tên sau khi xoá: {name_after}, "
-       f"đơn còn: {booking_after}, bút toán {ledger_before} → {ledger_after}")
+       f"đơn còn: {booking_after}, bút toán {ledger_before} → {ledger_after}, "
+       f"đánh giá còn {review_kept} nhưng ký tên \"{review_name}\"")
 
 
 # --- 10. The audit log cannot be edited, by anyone ---------------------------

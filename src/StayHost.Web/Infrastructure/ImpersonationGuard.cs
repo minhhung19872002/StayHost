@@ -27,7 +27,7 @@ public class ImpersonationGuard(RequestDelegate next)
         }
 
         var path = ctx.Request.Path.Value ?? "";
-        if (!path.StartsWith("/api", StringComparison.OrdinalIgnoreCase) || !Impersonation.BlocksPath(path))
+        if (!path.StartsWith("/api", StringComparison.OrdinalIgnoreCase))
         {
             await next(ctx);
             return;
@@ -43,6 +43,7 @@ public class ImpersonationGuard(RequestDelegate next)
         var now = DateTime.UtcNow;
 
         var session = await db.ImpersonationSessions
+            .Include(s => s.TargetUser)
             .Where(s => s.AdminUserId == admin.Id && s.EndedAt == null && s.ExpiresAt > now)
             .FirstOrDefaultAsync(ctx.RequestAborted);
 
@@ -52,11 +53,31 @@ public class ImpersonationGuard(RequestDelegate next)
             return;
         }
 
-        ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
-        await ctx.Response.WriteAsJsonAsync(new
+        if (Impersonation.BlocksPath(path))
         {
-            message = "Không được thực hiện thao tác này khi đang ở chế độ thay mặt người dùng.",
-            forbidden = Impersonation.ForbiddenLabels
-        }, ctx.RequestAborted);
+            ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await ctx.Response.WriteAsJsonAsync(new
+            {
+                message = "Không được thực hiện thao tác này khi đang ở chế độ thay mặt người dùng.",
+                forbidden = Impersonation.ForbiddenLabels
+            }, ctx.RequestAborted);
+            return;
+        }
+
+        // docs/08 §7.7 — every write during the session is logged as "admin X
+        // thay mặt Y", never as though the person did it themselves. Written
+        // before the action runs, so even a request that then fails leaves the
+        // attempt on the record.
+        db.AdminAudit.Add(new AdminAuditEntry
+        {
+            ActorUserId = admin.Id,
+            Action = "impersonation.action",
+            Target = $"user:{session.TargetUserId}",
+            After = $"{method} {path}",
+            Note = Impersonation.ActorTag(admin.FullName, session.TargetUser?.FullName ?? $"#{session.TargetUserId}")
+        });
+        await db.SaveChangesAsync(ctx.RequestAborted);
+
+        await next(ctx);
     }
 }

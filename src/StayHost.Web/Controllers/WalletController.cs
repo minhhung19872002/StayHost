@@ -62,6 +62,11 @@ public class WalletController(StayHostDbContext db, AuthService auth, WalletServ
         var user = await auth.CurrentUserAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
 
+        // docs/08 §6 — "Số dư khuyến mãi: đóng băng, không xoá." The balance
+        // survives the lock; it just does not move while the account is locked.
+        if (user.IsSuspended)
+            return StatusCode(403, new { message = "Tài khoản đang bị tạm khoá nên ví bị đóng băng — số dư vẫn được giữ nguyên." });
+
         var (card, error) = await wallet.BuyAsync(
             user, req.Amount, req.RecipientEmail ?? "", req.RecipientName, req.Message, ct);
         if (card is null) return BadRequest(new { message = error });
@@ -77,6 +82,9 @@ public class WalletController(StayHostDbContext db, AuthService auth, WalletServ
     {
         var user = await auth.CurrentUserAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        if (user.IsSuspended)
+            return StatusCode(403, new { message = "Tài khoản đang bị tạm khoá nên ví bị đóng băng — số dư vẫn được giữ nguyên." });
 
         var (added, error) = await wallet.RedeemAsync(user, req.Code, ct);
         if (error is not null) return BadRequest(new { message = error });

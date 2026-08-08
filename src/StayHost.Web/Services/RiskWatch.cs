@@ -32,8 +32,11 @@ public class RiskWatch(StayHostDbContext db, ILogger<RiskWatch> log)
             .Distinct()
             .CountAsync(ct);
 
+        // Their own cancellations only: a stay the platform called off is not a
+        // fraud signal about the person who was booked into it.
         var cancellations = await db.Bookings.CountAsync(b =>
-            b.GuestUserId == userId && b.Status == BookingStatus.CancelledByGuest && b.CreatedAt >= quarterAgo, ct);
+            b.GuestUserId == userId && b.Status == BookingStatus.CancelledByGuest
+            && b.CancelledBy == CancelledBy.Guest && b.CreatedAt >= quarterAgo, ct);
 
         var today = await db.Bookings.CountAsync(b =>
             b.GuestUserId == userId && b.CreatedAt >= dayAgo

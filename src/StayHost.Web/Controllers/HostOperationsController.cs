@@ -468,6 +468,29 @@ public class HostOperationsController(
         if (digits.Length is > 0 and < 6)
             return BadRequest(new { message = "Số tài khoản không hợp lệ." });
 
+        // docs/08 §5.4 — a ban also blocks the payout account from coming back
+        // under a new name. Bank + tail is the strongest signal this build keeps.
+        if (digits.Length >= 6)
+        {
+            var tail = digits[^4..];
+            var bank = req.BankName?.Trim();
+
+            var bannedAccount = await db.Hosts.AnyAsync(
+                h => h.Id != profile.Id
+                     && h.PayoutAccountLast4 == tail
+                     && h.PayoutBankName == bank
+                     && h.User != null && h.User.IsBanned, ct);
+
+            if (bannedAccount)
+            {
+                return BadRequest(new
+                {
+                    message = "Không dùng được tài khoản nhận tiền này. " +
+                              "Nếu bạn cho rằng có nhầm lẫn, hãy liên hệ hỗ trợ StayHost."
+                });
+            }
+        }
+
         // docs/07 §12.2 — changing where the money goes freezes payouts for
         // three days and warns the address on file. Only a real change counts;
         // re-saving the same account is not an event.

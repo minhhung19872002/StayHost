@@ -56,6 +56,33 @@ public class AdminGate(StayHostDbContext db, AuthService auth, AdminAudit audit)
         // docs/08 §3 — the quarterly review needs to know who is still working.
         admin.AdminLastActiveAt = DateTime.UtcNow;
 
+        // docs/08 §10 — the top role has no permission above it, so it gets a
+        // witness instead: another Super is told about every decision a Super
+        // makes. The row rides the caller's SaveChanges, like the audit row does.
+        if (admin.AdminScope.HasFlag(AdminScope.Super) && AdminActions.Of(action).Decides)
+        {
+            var witness = await db.Users
+                .Where(u => u.Id != admin.Id && u.Role == UserRole.Admin
+                            && u.AdminScope.HasFlag(AdminScope.Super))
+                .OrderBy(u => u.Id)
+                .Select(u => (int?)u.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (witness is { } witnessId)
+            {
+                db.Notifications.Add(new Notification
+                {
+                    UserId = witnessId,
+                    Kind = NotificationKind.System,
+                    Title = "Quản trị tối cao vừa ra một quyết định",
+                    Body = $"{admin.FullName}: {AdminActions.Of(action).Label.ToLowerInvariant()}"
+                           + (targetUserId is { } t ? $" (người dùng #{t})" : "")
+                           + (reason is { Length: > 0 } ? $". Lý do: {reason.Trim()}" : "."),
+                    Link = "/admin"
+                });
+            }
+        }
+
         return new Verdict(admin, null);
     }
 

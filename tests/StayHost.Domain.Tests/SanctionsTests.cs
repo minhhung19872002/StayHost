@@ -129,4 +129,25 @@ public class SanctionsTests
 
         Assert.False(s.IsActive(now));
     }
+
+    /* ---- §5.6, the 24-hour look-back ---- */
+
+    [Fact]
+    public void A_severe_jump_is_due_on_a_supreme_admins_desk_within_a_day()
+    {
+        var decided = new DateTime(2026, 8, 8, 9, 0, 0, DateTimeKind.Utc);
+
+        Assert.Equal(decided.AddHours(24), Sanctions.SevereReviewDueBy(decided));
+        Assert.Equal(TimeSpan.FromHours(24), Sanctions.SevereReviewWindow);
+    }
+
+    [Fact]
+    public void A_ban_never_skips_the_ladder_however_severe_it_looked()
+    {
+        // §5.6 allows a jump "thẳng lên tạm khoá" and no further: a permanent
+        // ban still needs a suspension behind it.
+        Assert.True(Sanctions.MaySkipLadder(severe: true, SanctionLevel.Suspension));
+        Assert.False(Sanctions.MaySkipLadder(severe: true, SanctionLevel.Ban));
+        Assert.False(Sanctions.IsInOrder(null, SanctionLevel.Ban, severe: true));
+    }
 }

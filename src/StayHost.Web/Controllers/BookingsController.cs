@@ -75,6 +75,11 @@ public class BookingsController(
         if (Restrictions.Has(user.RestrictionMask, RestrictionKind.NoNewBookings))
             return StatusCode(403, new { message = Restrictions.Message(RestrictionKind.NoNewBookings) });
 
+        // docs/08 §6 — a suspended account kept open for a dispute is open for
+        // the dispute, not for booking holidays.
+        if (user.IsSuspended)
+            return StatusCode(403, new { message = "Tài khoản đang bị tạm khoá nên không đặt chỗ mới được." });
+
         // Quoting and booking go through the same builder so the guest is charged
         // exactly what the room page showed them (docs/00 §6.8).
         var quoteRequest = await catalog.BuildQuoteRequestAsync(
@@ -575,6 +580,8 @@ public class BookingsController(
             : await db.Bookings.CountAsync(b =>
                 b.GuestUserId == booking.GuestUserId &&
                 b.Status == BookingStatus.CancelledByGuest &&
+                // Only what they actually did counts against the three a year.
+                b.CancelledBy == CancelledBy.Guest &&
                 b.RefundedAmount > 0 &&
                 b.CreatedAt >= yearAgo, ct);
 
@@ -594,7 +601,15 @@ public class BookingsController(
     internal static void PostCancellation(
         StayHostDbContext db, Booking booking, Cancellation.Outcome outcome, CancelledBy by, string reason)
     {
-        var to = by == CancelledBy.Host ? BookingStatus.CancelledByHost : BookingStatus.CancelledByGuest;
+        // A cancellation the platform made is not the guest's. Recording it as
+        // theirs put five bookings a guest never touched on their record and,
+        // worse, spent the three service-fee refunds docs/03 §4 allows them in a
+        // year — a cost for somebody else's suspension. The CancelledBy column
+        // keeps the truth either way; this is only about which side of the
+        // ledger the terminal status sits on.
+        var to = by is CancelledBy.Host or CancelledBy.Platform or CancelledBy.ForceMajeure
+            ? BookingStatus.CancelledByHost
+            : BookingStatus.CancelledByGuest;
         var actor = by switch
         {
             CancelledBy.Host => "host",
