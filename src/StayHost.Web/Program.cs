@@ -102,6 +102,38 @@ await using (var scope = app.Services.CreateAsyncScope())
                     lockedOutAdmins);
             }
 
+            // The seeded console account is admin@stayhost.vn, a domain nobody
+            // owns — so the six-digit code of §3 is posted to an address that
+            // cannot be read. Setting Admin:Email (ADMIN_EMAIL in the deploy env
+            // file) moves the account to a real inbox, which is also the address
+            // it is then signed in with. Left unset, nothing changes.
+            var adminEmail = (builder.Configuration["Admin:Email"] ?? "").Trim().ToLowerInvariant();
+            if (adminEmail.Length > 0)
+            {
+                var console = await db.Users
+                    .Where(u => u.Role == UserRole.Admin)
+                    .OrderBy(u => u.Id)
+                    .FirstOrDefaultAsync();
+
+                if (console is null)
+                    log.LogWarning("Admin:Email được đặt nhưng chưa có tài khoản quản trị nào.");
+                else if (console.Email == adminEmail)
+                    log.LogInformation("Tài khoản quản trị đã dùng {Email}.", adminEmail);
+                else if (await db.Users.AnyAsync(u => u.Email == adminEmail && u.Id != console.Id))
+                    log.LogWarning("Không đổi được email quản trị: {Email} đã thuộc tài khoản khác.", adminEmail);
+                else
+                {
+                    var was = console.Email;
+                    console.Email = adminEmail;
+                    // The address is where the sign-in code goes, so control of
+                    // it is proved by the next sign-in rather than assumed here.
+                    console.EmailConfirmed = false;
+                    await db.SaveChangesAsync();
+
+                    log.LogWarning("Đã chuyển tài khoản quản trị từ {Was} sang {Now}.", was, adminEmail);
+                }
+            }
+
             // docs/01 AT-07 — help articles seed on their own, so adding one
             // later does not need the whole catalogue rebuilt.
             await HelpSeeder.SeedAsync(db);

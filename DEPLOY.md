@@ -29,14 +29,37 @@ tự sinh theo từng lần chạy.
 
 | Đường dẫn | Nội dung |
 |---|---|
-| `~/deploy/stayhost.env` | Mật khẩu Postgres + image mặc định. `chmod 600`, **không nằm trong git**. |
+| `~/deploy/stayhost.env` | Mật khẩu Postgres, image mặc định, SMTP và địa chỉ quản trị. `chmod 600`, **không nằm trong git**. |
 | `~/actions-runner/` | GitHub Actions self-hosted runner, chạy như systemd service. |
 | `~/actions-runner/_work/StayHost/StayHost/` | Bản checkout mà job deploy dùng để chạy compose. |
 | `/etc/nginx/sites-enabled/stayhost` | Reverse proxy + TLS. |
 | Docker volume `stayhost_pgdata` | Dữ liệu Postgres. |
 | Docker volume `stayhost_uploads` | Ảnh tin đăng (`wwwroot/uploads`). |
+| Docker volume `stayhost_identity` | Ảnh giấy tờ tuỳ thân (`protected/identity`). Cố tình nằm **ngoài** `wwwroot` để static files không phát tán được — `docs/08 §4`. |
 
-Hai volume nói trên tồn tại độc lập với container, nên deploy lại **không** mất dữ liệu.
+Ba volume nói trên tồn tại độc lập với container, nên deploy lại **không** mất dữ liệu.
+
+## 2.1. Đăng nhập trang quản trị
+
+`docs/08 §3` bắt tài khoản quản trị có bảo mật 2 lớp, không ngoại lệ, nên đăng nhập
+luôn đi qua **mã 6 số gửi tới email của chính tài khoản đó**. Hai biến trong
+`~/deploy/stayhost.env` quyết định mã có tới nơi hay không:
+
+- `ADMIN_EMAIL` — hòm thư thật của người quản trị. Bỏ trống thì tài khoản vẫn là
+  `admin@stayhost.vn`, một tên miền không ai sở hữu, nên **mã gửi vào hư không**.
+  Đặt giá trị rồi khởi động lại là tài khoản chuyển sang địa chỉ đó, và từ đó
+  đăng nhập cũng bằng địa chỉ đó.
+- `EMAIL_HOST` và bạn bè — chưa đặt thì **không có thư nào rời hàng đợi**. Với
+  Gmail cần *App Password* 16 ký tự ở `myaccount.google.com/apppasswords` (phải
+  bật xác minh 2 bước trước mới thấy mục này); mật khẩu tài khoản thường không
+  dùng được, và `EMAIL_FROM` phải trùng địa chỉ đã xác thực.
+
+Khi chưa cấu hình SMTP, mã vẫn đọc được từ hàng đợi:
+
+```bash
+docker exec stayhost-db psql -U stayhost -d stayhost -t -A \
+  -c "select \"Body\" from email_messages order by \"Id\" desc limit 1;"
+```
 
 ## 3. Các lệnh vận hành
 
