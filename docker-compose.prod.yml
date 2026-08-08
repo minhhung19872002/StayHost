@@ -50,6 +50,9 @@ services:
       # Which inbox the console account signs in with, and where its six-digit
       # code goes. Empty leaves the seeded admin@stayhost.vn alone.
       Admin__Email: ${ADMIN_EMAIL:-}
+      # docs/08 §3 says no exceptions. false is the exception, for a server that
+      # cannot post the code anywhere yet — see DEPLOY.md §2.1.
+      Admin__RequireTwoFactor: ${ADMIN_REQUIRE_2FA:-true}
     # Nginx terminates TLS on the host and proxies here, so the port stays on loopback.
     ports:
       - "127.0.0.1:8090:8080"

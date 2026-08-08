@@ -61,6 +61,20 @@ docker exec stayhost-db psql -U stayhost -d stayhost -t -A \
   -c "select \"Body\" from email_messages order by \"Id\" desc limit 1;"
 ```
 
+### Tắt tạm bảo mật 2 lớp — `ADMIN_REQUIRE_2FA=false`
+
+`docs/08 §3` nói "không có ngoại lệ", nên đây **là** ngoại lệ và cần hiểu nó đánh
+đổi cái gì: tắt đi thì **mật khẩu quản trị là thứ duy nhất** đứng giữa người lạ và
+hồ sơ, giấy tờ tuỳ thân, tiền của người dùng thật. Chỉ dùng khi máy chủ chưa gửi
+được email, và trong lúc đó:
+
+- **Đừng để mật khẩu quản trị ở chỗ công khai.** Hộp "Tài khoản dùng thử" trên màn
+  hình đăng nhập cố tình chỉ liệt kê khách và chủ nhà — tài khoản quản trị không
+  nằm ở đó, và đừng thêm vào.
+- Đổi mật khẩu quản trị sang một chuỗi không đoán được, đừng để `stayhost123`.
+- Bật lại (`ADMIN_REQUIRE_2FA=true`) ngay khi `EMAIL_HOST` chạy. Log khởi động in
+  rõ trạng thái mỗi lần lên, để không ai quên nó đang tắt.
+
 ## 3. Các lệnh vận hành
 
 Tất cả chạy với user `hung`:

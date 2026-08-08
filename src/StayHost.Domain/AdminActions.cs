@@ -158,8 +158,18 @@ public static class AdminActions
     /// docs/08 §3 — "Bắt buộc bảo mật 2 lớp. Không bật thì không đăng nhập được,
     /// không có ngoại lệ." The exception-free wording is the point: this is not a
     /// nag, it is a gate.
+    ///
+    /// The one way to stand it down is <c>Admin:RequireTwoFactor=false</c>, and it
+    /// exists for exactly one situation: a deployment where no mail can be sent
+    /// yet, so the code the gate demands has nowhere to arrive. It is a hole in
+    /// the wall, not a setting — with it off, the admin password is the only
+    /// thing between a stranger and every user's identity documents. Turn it back
+    /// on the moment mail works.
     /// </summary>
-    public static bool MayHoldAdminSession(bool twoFactorEnabled) => twoFactorEnabled;
+    public static bool RequireTwoFactor { get; set; } = true;
+
+    public static bool MayHoldAdminSession(bool twoFactorEnabled) =>
+        !RequireTwoFactor || twoFactorEnabled;
 
     public static string TwoFactorRequiredMessage() =>
         "Tài khoản quản trị bắt buộc bật bảo mật 2 lớp mới đăng nhập được. " +

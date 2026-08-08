@@ -217,7 +217,7 @@ Ngoài nhật ký, cần theo dõi chủ động:
 | QT-U-15 | Hồ sơ vi phạm: lịch sử đầy đủ các lần bị xử lý và kết quả khiếu nại — **đã làm** |
 | QT-U-16 | Luồng khiếu nại: tiếp nhận, phân cho người khác, ra kết quả — **đã làm** (`Appeals.cs`). Người dùng **nộp được thật**: còn đăng nhập thì vào `/account/sanctions`, đã bị khoá thì theo liên kết kèm mã trong thư (`/appeal?token=…`) |
 | QT-A-01 | Tạo, phân quyền, thu hồi tài khoản admin — **đã làm**, thu hồi hết quyền thì huỷ mọi phiên và giữ lại tài khoản để giữ nhật ký |
-| QT-A-02 | Bắt buộc bảo mật 2 lớp cho admin — **đã làm**, chặn ngay ở bước đăng nhập |
+| QT-A-02 | Bắt buộc bảo mật 2 lớp cho admin — **đã làm**, chặn ngay ở bước đăng nhập. Một ngoại lệ có ý thức: `Admin:RequireTwoFactor=false` hạ tường xuống cho máy chủ **chưa gửi được email**, vì không có nó thì mã 6 số gửi vào hư không và không ai vào được trang quản trị nữa. Log khởi động cảnh báo mỗi lần lên; xem `DEPLOY.md §2.1` |
 | QT-A-03 | Nhật ký thao tác admin, không xoá được — **đã làm**, có trigger PostgreSQL nên psql cũng không xoá được |
 | QT-A-04 | Rà soát quyền định kỳ mỗi quý — **đã làm** (cột trong bảng giám sát: quyền chưa dùng 90 ngày, tới hạn rà soát), có nút cấp/thu hồi quyền và ký rà soát ngay trên bảng |
 | QT-A-05 | Bảng cảnh báo lạm quyền theo §10 — **đã làm** (`AdminOversight.cs`), **cả bốn** cảnh báo của §3 đều bắn: xem nhiều hồ sơ trong một giờ, xem không gắn hồ sơ, tra cùng một người nhiều lần, thao tác ngoài giờ (giờ Việt Nam) |

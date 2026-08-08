@@ -140,4 +140,33 @@ public class AdminActionsTests
         Assert.Contains("Kiểm duyệt", AdminActions.RequiredRoles(AdminAction.Suspend));
         Assert.Equal("Quản trị tối cao", AdminActions.RequiredRoles(AdminAction.Ban));
     }
+
+    /* ---- §3, the gate and its one escape hatch ---- */
+
+    [Fact]
+    public void An_admin_without_two_factor_holds_no_session()
+    {
+        Assert.True(AdminActions.RequireTwoFactor);
+        Assert.False(AdminActions.MayHoldAdminSession(twoFactorEnabled: false));
+        Assert.True(AdminActions.MayHoldAdminSession(twoFactorEnabled: true));
+    }
+
+    [Fact]
+    public void Standing_the_gate_down_is_the_only_way_past_it()
+    {
+        // Admin:RequireTwoFactor=false exists for a server that cannot post the
+        // code anywhere yet. Restored immediately: leaving it off would leak
+        // into every later test in the run.
+        try
+        {
+            AdminActions.RequireTwoFactor = false;
+            Assert.True(AdminActions.MayHoldAdminSession(twoFactorEnabled: false));
+        }
+        finally
+        {
+            AdminActions.RequireTwoFactor = true;
+        }
+
+        Assert.False(AdminActions.MayHoldAdminSession(twoFactorEnabled: false));
+    }
 }

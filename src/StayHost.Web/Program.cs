@@ -70,6 +70,10 @@ builder.Services.AddControllers();
 builder.Services.AddResponseCompression(o => o.EnableForHttps = true);
 builder.Services.AddHealthChecks().AddDbContextCheck<StayHostDbContext>();
 
+// docs/08 §3 — the admin two-factor gate. Configurable only so a server with no
+// mail configured is not locked out of its own console; see AdminActions.
+AdminActions.RequireTwoFactor = builder.Configuration.GetValue("Admin:RequireTwoFactor", true);
+
 var app = builder.Build();
 
 // The web container starts alongside Postgres; retry until the database answers, then migrate + seed.
@@ -91,15 +95,30 @@ await using (var scope = app.Services.CreateAsyncScope())
             // against everyone: turning two-factor on requires signing in, and
             // signing in requires two-factor. Nobody can climb out of that from
             // the UI, so the invalid state is repaired here instead.
-            var lockedOutAdmins = await db.Users
-                .Where(u => u.Role == UserRole.Admin && !u.TwoFactorEnabled)
-                .ExecuteUpdateAsync(s => s.SetProperty(u => u.TwoFactorEnabled, true));
-
-            if (lockedOutAdmins > 0)
+            //
+            // Admin:RequireTwoFactor=false stands the whole gate down for a
+            // deployment that cannot send the code yet. The flag on the rows
+            // follows the setting, because a live TwoFactorEnabled would still
+            // send a code nobody can read.
+            if (AdminActions.RequireTwoFactor)
             {
+                var repaired = await db.Users
+                    .Where(u => u.Role == UserRole.Admin && !u.TwoFactorEnabled)
+                    .ExecuteUpdateAsync(s => s.SetProperty(u => u.TwoFactorEnabled, true));
+
+                if (repaired > 0)
+                    log.LogWarning("Đã bật bảo mật 2 lớp cho {Count} tài khoản quản trị (docs/08 §3).", repaired);
+            }
+            else
+            {
+                var stoodDown = await db.Users
+                    .Where(u => u.Role == UserRole.Admin && u.TwoFactorEnabled)
+                    .ExecuteUpdateAsync(s => s.SetProperty(u => u.TwoFactorEnabled, false));
+
                 log.LogWarning(
-                    "Đã bật bảo mật 2 lớp cho {Count} tài khoản quản trị chưa bật (docs/08 §3).",
-                    lockedOutAdmins);
+                    "BẢO MẬT 2 LỚP CHO QUẢN TRỊ ĐANG TẮT (Admin:RequireTwoFactor=false) — {Count} tài khoản. " +
+                    "Mật khẩu là thứ duy nhất chặn người lạ vào trang quản trị. " +
+                    "Bật lại ngay khi gửi được email.", stoodDown);
             }
 
             // The seeded console account is admin@stayhost.vn, a domain nobody
