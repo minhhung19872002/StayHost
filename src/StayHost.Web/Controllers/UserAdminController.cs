@@ -740,7 +740,18 @@ public class UserAdminController(
             $"Lý do: {req.Reason!.Trim()}",
             $"/reset-password?token={token}", ct);
 
-        return Ok(new { message = "Đã huỷ mọi phiên và gửi yêu cầu đặt lại mật khẩu." });
+        // The link comes back to the admin as well, because on a server with no
+        // mail configured the email above goes nowhere and the person is simply
+        // locked out. This is the controlled route the public forgot-password
+        // endpoint must not be: a named admin, a permission, a written reason
+        // and an audit line. The admin still never learns the password — the
+        // person sets their own at the other end of the link.
+        return Ok(new
+        {
+            message = "Đã huỷ mọi phiên và tạo liên kết đặt lại mật khẩu.",
+            resetLink = $"/reset-password?token={token}",
+            note = "Gửi liên kết này cho người dùng. Liên kết sống 2 giờ và chỉ dùng được một lần."
+        });
     }
 
     /* ------------------------------------------------------------ QT-U-11 */

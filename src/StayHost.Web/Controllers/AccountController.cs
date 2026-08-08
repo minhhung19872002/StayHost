@@ -11,7 +11,8 @@ namespace StayHost.Web.Controllers;
 [Route("api/account")]
 public class AccountController(
     AuthService auth, StayHostDbContext db, WalletService wallet, IdentityService identity,
-    ExternalTokenVerifier verifier, ExternalLoginSettings externalLogin)
+    ExternalTokenVerifier verifier, ExternalLoginSettings externalLogin,
+    IWebHostEnvironment env)
     : ControllerBase
 {
     /// <summary>204 when nobody is signed in, so clients get an unambiguous empty response.</summary>
@@ -487,10 +488,36 @@ public class AccountController(
     {
         var token = await auth.BeginPasswordResetAsync(req.Email, ct);
 
+        if (token is not null)
+        {
+            var user = await db.Users.FirstOrDefaultAsync(
+                u => u.Email == req.Email.Trim().ToLowerInvariant(), ct);
+
+            if (user is not null)
+            {
+                db.EmailMessages.Add(new EmailMessage
+                {
+                    ToEmail = user.Email,
+                    ToName = user.FullName,
+                    Subject = "Đặt lại mật khẩu StayHost",
+                    Body = "Bạn vừa yêu cầu đặt lại mật khẩu. Mở liên kết sau trong 2 giờ:\n" +
+                           $"/reset-password?token={token}\n\n" +
+                           "Nếu không phải bạn yêu cầu, hãy bỏ qua thư này — mật khẩu hiện tại vẫn nguyên."
+                });
+                await db.SaveChangesAsync(ct);
+            }
+        }
+
+        // The link goes to the mailbox and nowhere else. Handing it back in the
+        // response made this endpoint a takeover tool: anyone could post any
+        // address, read the token out of the reply, set a new password and sign
+        // in. Development keeps it so the flow can be walked without a mail
+        // server; an admin who needs to reset somebody has a route of their own
+        // in UserAdminController, which is permissioned, reasoned and audited.
         return Ok(new
         {
             message = "Nếu email tồn tại, chúng tôi đã gửi liên kết đặt lại mật khẩu.",
-            resetLink = token is null ? null : $"/reset-password?token={token}"
+            resetLink = token is not null && env.IsDevelopment() ? $"/reset-password?token={token}" : null
         });
     }
 

@@ -97,16 +97,51 @@ export function UserAdminPanel() {
         </div>
       )}
 
-      {!!open && <UserProfilePanel d={open} reload={() => load(open.id)} close={() => setOpen(null)} />}
+      {!!open && (
+        <AdminModal title={`Hồ sơ · ${open.fullName}`} onClose={() => setOpen(null)}>
+          <UserProfilePanel d={open} reload={() => load(open.id)} />
+        </AdminModal>
+      )}
     </section>
   );
 }
 
-function UserProfilePanel({ d, reload, close }) {
+/**
+ * Cùng lớp giao diện với các hộp thoại khác của sàn, nhưng tự đóng bằng state của
+ * trang quản trị chứ không đi qua overlay chung — trang này không nằm trong luồng
+ * overlay của ứng dụng.
+ */
+function AdminModal({ title, onClose, children }) {
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
+
+  return (
+    <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal wide" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="modal-head">
+          <button className="modal-close" onClick={onClose} aria-label="Đóng">✕</button>
+          <h2>{title}</h2>
+          <span style={{ width: 32 }} />
+        </div>
+        <div className="modal-body">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function UserProfilePanel({ d, reload }) {
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [identity, setIdentity] = useState(null);
   const [thread, setThread] = useState(null);
+  const [resetLink, setResetLink] = useState(null);
 
   const may = action => d.allowed.includes(action);
 
@@ -190,6 +225,24 @@ function UserProfilePanel({ d, reload, close }) {
     catch (err) { toast(err.message); }
   };
 
+  /*
+   * Máy chủ chưa cấu hình email thì thư đặt lại mật khẩu không tới đâu cả, nên
+   * liên kết được trả về cho chính admin để chuyển tay cho người dùng. Admin
+   * không biết mật khẩu mới — người dùng tự đặt ở đầu bên kia liên kết.
+   */
+  const resetPassword = async () => {
+    const reason = ask('Đặt lại mật khẩu và huỷ mọi phiên đăng nhập');
+    if (!reason) return;
+    setBusy(true);
+    try {
+      const res = await api.adminForcePasswordReset(d.id, { reason });
+      setResetLink(res.resetLink ?? null);
+      toast('Đã huỷ mọi phiên và tạo liên kết đặt lại mật khẩu.');
+      await reload();
+    } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
   // docs/08 §2 — tin nhắn của đúng một đơn, có lý do và nhật ký riêng.
   const viewThread = async bookingId => {
     const reason = ask('Xem tin nhắn của đơn này');
@@ -221,15 +274,12 @@ function UserProfilePanel({ d, reload, close }) {
   };
 
   return (
-    <div className="stat" style={{ marginTop: 20, padding: 20 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <b style={{ fontSize: 17 }}>{d.fullName}</b>
-          <div style={{ fontSize: 13, color: 'var(--ink-muted)' }}>
-            {d.email}{d.phone ? ` · ${d.phone}` : ''} · tham gia {longDate(d.joinedAt)}
-          </div>
+    <div>
+      <div>
+        <b style={{ fontSize: 17 }}>{d.fullName}</b>
+        <div style={{ fontSize: 13, color: 'var(--ink-muted)' }}>
+          {d.email}{d.phone ? ` · ${d.phone}` : ''} · tham gia {longDate(d.joinedAt)}
         </div>
-        <button className="link-btn" onClick={close}>Đóng</button>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
@@ -404,6 +454,21 @@ function UserProfilePanel({ d, reload, close }) {
         </div>
       )}
 
+      {!!resetLink && (
+        <div className="book-alert" style={{ marginTop: 16 }}>
+          <b>Liên kết đặt lại mật khẩu — gửi cho người dùng</b>
+          <span>Sống 2 giờ, chỉ dùng được một lần. Mọi phiên đăng nhập của họ đã bị huỷ.</span>
+          <code style={{ display: 'block', wordBreak: 'break-all', marginTop: 6, fontSize: 12 }}>
+            {window.location.origin}{resetLink}
+          </code>
+          <button className="btn btn-outline btn-sm" style={{ marginTop: 8 }}
+                  onClick={() => {
+                    navigator.clipboard?.writeText(`${window.location.origin}${resetLink}`);
+                    toast('Đã chép liên kết.');
+                  }}>Chép liên kết</button>
+        </div>
+      )}
+
       {!!identity && (
         <div style={{ marginTop: 16 }}>
           <span className="cap">{identity.documentLabel} •••• {identity.documentLast4}</span>
@@ -440,10 +505,9 @@ function UserProfilePanel({ d, reload, close }) {
         {may('Impersonate') && !d.isLocked &&
           <button className="btn btn-outline btn-sm" disabled={busy} onClick={impersonate}>Thay mặt người dùng</button>}
         {may('ForcePasswordReset') && (
-          <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => {
-            const reason = ask('Buộc đổi mật khẩu và huỷ mọi phiên');
-            if (reason) run(() => api.adminForcePasswordReset(d.id, { reason }), 'Đã huỷ mọi phiên.');
-          }}>Buộc đổi mật khẩu</button>
+          <button className="btn btn-outline btn-sm" disabled={busy} onClick={resetPassword}>
+            Đặt lại mật khẩu
+          </button>
         )}
         {may('ForceIdentityRecheck') && (
           <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => {
