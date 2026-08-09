@@ -476,6 +476,84 @@ public class AdminController(
         return NoContent();
     }
 
+    /* ------------------------------------------ docs/01 AT-01, review queue */
+
+    /// <summary>
+    /// docs/01 AT-01 — the places waiting on review before they can be seen. Empty
+    /// unless <c>Moderation:NewListingsRequireApproval</c> is on, since nothing
+    /// enters the queue otherwise.
+    /// </summary>
+    [HttpGet("admin/listings/pending")]
+    public async Task<ActionResult<IReadOnlyList<PendingListingDto>>> PendingListings(CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Moderation, ct);
+        if (admin is null) return StatusCode(403, new { message = "Bạn không có quyền kiểm duyệt." });
+
+        var rows = await db.Listings
+            .Where(l => l.ReviewStatus == ListingReviewStatus.Pending)
+            .OrderBy(l => l.SubmittedForReviewAt)
+            .Include(l => l.Images)
+            .Include(l => l.Host!).ThenInclude(h => h.User)
+            .Select(l => new PendingListingDto(
+                l.Id, l.Slug, l.Title, l.City,
+                l.Host!.User!.DisplayName, l.Host.UserId ?? 0,
+                l.PricePerNight,
+                l.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).FirstOrDefault(),
+                l.SubmittedForReviewAt))
+            .ToListAsync(ct);
+
+        return Ok(rows);
+    }
+
+    /// <summary>
+    /// docs/01 AT-01 — approve a listing so the public can see it, or reject it
+    /// with a reason the host can act on. Both are moderation decisions, so they
+    /// go through the same gate and audit line as any takedown (docs/08 §2, §1.4).
+    /// <paramref name="decision"/> is "approve" or "reject"; {decision} rather than
+    /// {action} because ASP.NET treats {action} as the method name.
+    /// </summary>
+    [HttpPost("admin/listings/{id:int}/review/{decision}")]
+    public async Task<IActionResult> ReviewListing(
+        int id, string decision, [FromBody] ModerationDecisionRequest? req, CancellationToken ct)
+    {
+        var approve = decision.Equals("approve", StringComparison.OrdinalIgnoreCase);
+        if (!approve && !decision.Equals("reject", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Quyết định phải là approve hoặc reject." });
+
+        var listing = await db.Listings.Include(l => l.Host!).ThenInclude(h => h.User)
+            .FirstOrDefaultAsync(l => l.Id == id, ct);
+        if (listing is null) return NotFound();
+
+        if (listing.ReviewStatus != ListingReviewStatus.Pending)
+            return BadRequest(new { message = "Tin này không nằm trong hàng chờ duyệt." });
+
+        var v = await gate.AllowAsync(AdminAction.TakeDownContent, req?.Reason, ct, listing.Host?.UserId);
+        if (!v.Ok) return StatusCode(v.Status ?? 403, new { message = v.Refusal });
+        var admin = v.Admin!;
+
+        audit.Record(admin, "listing.review", $"listing:{listing.Id}",
+            ListingModeration.Label(listing.ReviewStatus),
+            approve ? "Đã duyệt" : "Bị từ chối", req?.Reason);
+
+        listing.ReviewStatus = approve ? ListingReviewStatus.Approved : ListingReviewStatus.Rejected;
+        listing.ReviewNote = approve ? null : req?.Reason?.Trim();
+        listing.ReviewedAt = DateTime.UtcNow;
+        listing.ReviewedByUserId = admin.Id;
+
+        await notifications.QueueWithEmailAsync(
+            listing.Host?.User,
+            approve ? NotificationKind.ListingApproved : NotificationKind.ListingRejected,
+            approve ? "Chỗ nghỉ đã được duyệt" : "Chỗ nghỉ cần chỉnh sửa",
+            approve
+                ? $"\"{listing.Title}\" đã qua kiểm duyệt và hiển thị công khai."
+                : $"\"{listing.Title}\" chưa được duyệt. Lý do: {req?.Reason?.Trim()}. " +
+                  "Bạn có thể chỉnh sửa và gửi lại để duyệt.",
+            "/hosting", ct);
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     [HttpPost("admin/reports/{id:int}/resolve")]
     public async Task<IActionResult> ResolveReport(int id, [FromBody] ResolveReportRequest req, CancellationToken ct)
     {

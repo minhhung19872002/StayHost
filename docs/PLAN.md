@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **174 xong · 0 làm một phần · 27 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **175 xong · 0 làm một phần · 26 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,7 +350,7 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (27 mã)
+### 9.1 Chưa có (26 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -360,7 +360,6 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `TĐ-03` · `TN-06` | Dịch mô tả tin đăng (**P0**) · dịch tin nhắn (P1) — cần nhà cung cấp dịch thuật | P0/P1 |
 | `TK-07` · `TK-13` | Xác minh email công ty · liên hệ khẩn cấp | P2 |
 | `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
-| `AT-01` | Kiểm duyệt tin đăng mới **trước** khi hiển thị | P1 |
 | `AT-03` · `AT-08` · `AT-10` · `AT-12` | Kênh hàng xóm · trợ lý tự động · danh sách chặn · chống phân biệt đối xử | P2 |
 | `QT-07` · `QT-08` | Quản lý bài trợ giúp · bật tính năng theo tỉ lệ | P2 |
 | `YT-06` · `YT-07` · `YT-08` | Bình chọn nhóm · so sánh 2–5 chỗ · báo khi chỗ đã lưu giảm giá | P2 |
@@ -383,6 +382,17 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`AT-01` (kiểm duyệt tin đăng mới trước khi hiển thị) làm xong 10/08/2026. Cổng tắt
+mặc định (`Moderation:NewListingsRequireApproval`, theo tiền lệ `TC-07`/đăng nhập
+mạng xã hội): không bật thì host đăng là hiển thị ngay, đúng hành vi cũ, nên 690 test
+và cả 20 kịch bản nghiệm thu vẫn xanh. Bật lên thì tin mới vào trạng thái
+`ReviewStatus=Pending` (`ListingModeration.cs`), bị loại khỏi tìm kiếm/rails thành
+phố/hồ sơ công khai và **không đặt được** (`Availability.Check`) cho tới khi admin
+duyệt; hàng đợi + duyệt/từ chối kèm lý do ở `AdminController` (dùng chung gate
+`TakeDownContent` và nhật ký §1.4), host thấy trạng thái + lý do và sửa để gửi lại.
+Xác minh sống với cổng **bật**: đăng tin → Pending, không thấy trong search, admin
+duyệt → hiện; từ chối có lý do → host sửa gửi lại → Pending. Sổ vẫn cân = 0.
 
 `TC-03` (đơn ≥28 đêm trả theo tháng, `docs/07 §12.3`) làm xong 10/08/2026. Lịch chia
 theo tháng ở `Payouts.MonthlySchedule` (khối 30 đêm, tháng đầu gánh phần lớn, tháng

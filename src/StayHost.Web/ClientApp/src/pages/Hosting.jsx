@@ -179,6 +179,15 @@ function ListingCard({ listing: l, navigate }) {
       </div>
       <div className="host-listing-body">
         <h3>{l.title}</h3>
+        {/* docs/01 AT-01 — a place still in review is not yet public. */}
+        {l.reviewStatus === 'Pending' && (
+          <div className="badge pending" style={{ marginBottom: 6 }}>Đang chờ duyệt</div>
+        )}
+        {l.reviewStatus === 'Rejected' && (
+          <div className="meta" style={{ color: 'var(--danger, #c0392b)', marginBottom: 6 }}>
+            Bị từ chối{l.reviewNote ? `: ${l.reviewNote}` : ''}. Chỉnh sửa và lưu để gửi lại duyệt.
+          </div>
+        )}
         <div className="meta">{l.city} · {l.bedrooms} phòng ngủ · {l.maxGuests} khách</div>
         <div className="meta">
           <b style={{ color: 'var(--ink)' }}>{money(l.pricePerNight)}</b> / đêm

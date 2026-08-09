@@ -870,6 +870,9 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.BedLayoutJson).HasColumnType("jsonb");
             e.Property(x => x.LicenseNumber).HasMaxLength(80);
             e.Property(x => x.SecurityCameraNote).HasMaxLength(500);
+            // docs/01 AT-01 — review stance and the reason a rejection carries.
+            e.Property(x => x.ReviewNote).HasMaxLength(500);
+            e.HasIndex(x => x.ReviewStatus);
             // docs/01 CĐ-03 and CĐ-04 — the arrival guide.
             e.Property(x => x.AddressLine).HasMaxLength(CheckInGuide.LineMax * 2);
             e.Property(x => x.WifiName).HasMaxLength(CheckInGuide.LineMax);

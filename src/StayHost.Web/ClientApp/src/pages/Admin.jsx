@@ -122,6 +122,8 @@ export function Admin() {
 
       <SupportQueue />
 
+      <ModerationQueue />
+
       <section style={{ marginTop: 40 }}>
         <h2 className="section-title" style={{ fontSize: 20 }}>Chỗ nghỉ mới nhất</h2>
         <div className="table-wrap">
@@ -154,6 +156,70 @@ export function Admin() {
         </div>
       </section>
     </div>
+  );
+}
+
+/**
+ * docs/01 AT-01 — new listings held for review before the public can see them.
+ * Empty unless the review gate (Moderation:NewListingsRequireApproval) is on, so
+ * on a platform that publishes straight away this panel simply says so.
+ */
+function ModerationQueue() {
+  const navigate = useNavigate();
+  const [rows, setRows] = useState(null);
+
+  const load = async () => {
+    try { setRows(await api.adminPendingListings()); }
+    catch { setRows([]); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const decide = async (id, decision) => {
+    // docs/08 §1.4 — duyệt hay từ chối đều là quyết định, phải có lý do.
+    const reason = prompt(decision === 'approve'
+      ? 'Lý do duyệt hiển thị (≥10 ký tự)'
+      : 'Lý do từ chối, gửi cho chủ nhà (≥10 ký tự)');
+    if (!reason) return;
+    try {
+      await api.adminReviewListing(id, decision, reason.trim());
+      await load();
+      toast(decision === 'approve' ? 'Đã duyệt tin đăng.' : 'Đã từ chối tin đăng.');
+    } catch (err) { toast(err.message); }
+  };
+
+  if (!rows) return null;
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>Chờ duyệt trước khi hiển thị</h2>
+      <p className="section-sub">
+        {rows.length ? `${rows.length} tin đăng đang chờ kiểm duyệt` : 'Không có tin nào đang chờ duyệt'}
+      </p>
+      {rows.length > 0 && (
+        <div className="table-wrap" style={{ marginTop: 16 }}>
+          <table className="admin-table">
+            <thead>
+              <tr><th>Chỗ nghỉ</th><th>Chủ nhà</th><th>Giá</th><th>Gửi lúc</th><th /></tr>
+            </thead>
+            <tbody>
+              {rows.map(l => (
+                <tr key={l.id}>
+                  <td><b>{l.title}</b><span>{l.city}</span></td>
+                  <td>{l.hostName}</td>
+                  <td>{money(l.pricePerNight)}</td>
+                  <td>{l.submittedForReviewAt ? dateTime(l.submittedForReviewAt) : '—'}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <button className="btn btn-primary btn-sm" onClick={() => decide(l.id, 'approve')}>Duyệt</button>
+                    <button className="btn btn-outline btn-sm" onClick={() => decide(l.id, 'reject')}>Từ chối</button>
+                    <button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${l.slug}`)}>Xem</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 

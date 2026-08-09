@@ -59,8 +59,9 @@ public static class Availability
         if (nights < 1)
             return Result.Fail(Reason.InvalidRange, "Ngày trả phòng phải sau ngày nhận phòng.");
 
-        // 1 — the listing is on sale at all.
-        if (!l.IsPublished)
+        // 1 — the listing is on sale at all. docs/01 AT-01: a place still waiting
+        // on review (or rejected) is published but not yet public, so not bookable.
+        if (!ListingModeration.IsPubliclyVisible(l.IsPublished, l.ReviewStatus))
             return Result.Fail(Reason.NotBookable, "Chỗ nghỉ này hiện không nhận đặt.");
 
         // 2 — capacity. Infants do not count.

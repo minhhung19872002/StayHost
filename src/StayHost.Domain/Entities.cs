@@ -269,6 +269,20 @@ public class Listing
     public bool IsPublished { get; set; } = true;
 
     /// <summary>
+    /// docs/01 AT-01 — the platform's review stance on this listing. Defaults to
+    /// <see cref="ListingReviewStatus.Approved"/> so existing and seeded places
+    /// are live without a back-fill; only new listings published under an active
+    /// gate (<see cref="ModerationSettings.NewListingsRequireApproval"/>) start
+    /// <see cref="ListingReviewStatus.Pending"/>.
+    /// </summary>
+    public ListingReviewStatus ReviewStatus { get; set; } = ListingReviewStatus.Approved;
+    /// <summary>Reason an admin gave when rejecting, shown back to the host.</summary>
+    public string? ReviewNote { get; set; }
+    public DateTime? SubmittedForReviewAt { get; set; }
+    public DateTime? ReviewedAt { get; set; }
+    public int? ReviewedByUserId { get; set; }
+
+    /// <summary>
     /// docs/08 §5.2 and §5.5 — set when a sanction unpublished this listing, so
     /// restoring the account republishes exactly these and not the ones the host
     /// had chosen to keep offline. While set, the host cannot republish.

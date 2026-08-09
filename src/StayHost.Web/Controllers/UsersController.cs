@@ -33,9 +33,11 @@ public class UsersController(StayHostDbContext db, CatalogService catalog) : Con
         // queries below run once rather than being written twice around a null.
         var hostId = host?.Id ?? 0;
 
-        // docs/02 C6 — "tin đăng đang có", so drafts and paused listings stay out.
+        // docs/02 C6 — "tin đăng đang có", so drafts and paused listings stay out;
+        // docs/01 AT-01 keeps places still awaiting review off the public profile too.
         var listings = await db.Listings
-            .Where(l => l.HostId == hostId && l.IsPublished)
+            .Where(l => l.HostId == hostId && l.IsPublished
+                        && l.ReviewStatus == ListingReviewStatus.Approved)
             .Include(l => l.Images)
             .Include(l => l.Amenities).ThenInclude(la => la.Amenity)
             .AsSplitQuery()

@@ -125,6 +125,14 @@ public class HostController(
         var listing = new Listing { HostId = profile.Id, Slug = await UniqueSlugAsync(req.Title, ct) };
         await ApplyAsync(listing, req, user, ct);
 
+        // docs/01 AT-01 — a new place published under an active review gate waits
+        // for an admin before the public sees it. With the gate off it is approved
+        // outright, so search behaves exactly as before.
+        listing.ReviewStatus = ListingModeration.StatusForNew(
+            listing.IsPublished, ModerationSettings.Current.NewListingsRequireApproval);
+        if (listing.ReviewStatus == ListingReviewStatus.Pending)
+            listing.SubmittedForReviewAt = DateTime.UtcNow;
+
         db.Listings.Add(listing);
         await db.SaveChangesAsync(ct);
 
@@ -150,6 +158,18 @@ public class HostController(
         if (error is not null) return BadRequest(new { message = error });
 
         await ApplyAsync(listing, req, user, ct);
+
+        // docs/01 AT-01 — editing an approved place keeps it live; a rejected place
+        // the host publishes again is a resubmission and goes back to the queue.
+        var newStatus = ListingModeration.StatusOnSave(
+            listing.ReviewStatus, listing.IsPublished, ModerationSettings.Current.NewListingsRequireApproval);
+        if (newStatus == ListingReviewStatus.Pending && listing.ReviewStatus != ListingReviewStatus.Pending)
+        {
+            listing.SubmittedForReviewAt = DateTime.UtcNow;
+            listing.ReviewNote = null;
+        }
+        listing.ReviewStatus = newStatus;
+
         await db.SaveChangesAsync(ct);
 
         return Ok(ToHostListing(listing, 0, 0));
@@ -808,7 +828,8 @@ public class HostController(
             l.AddressLine, l.Directions, l.WifiName, l.WifiPassword,
             l.ApplianceNotes, l.DoorCode, l.HostPhone),
         l.InstantBookRequiresVerified, l.InstantBookRequiresGoodReviews,
-        l.RequireGuestPhoto, l.RequireVerifiedToBook);
+        l.RequireGuestPhoto, l.RequireVerifiedToBook,
+        l.ReviewStatus.ToString(), l.ReviewNote);
 
     private static readonly System.Text.Json.JsonSerializerOptions LayoutJson =
         new(System.Text.Json.JsonSerializerDefaults.Web);

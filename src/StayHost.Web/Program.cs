@@ -18,6 +18,12 @@ if (pricing is not null) PricingSettings.Current = pricing;
 var credits = builder.Configuration.GetSection("Credits").Get<CreditSettings>();
 if (credits is not null) CreditSettings.Current = credits;
 
+// docs/01 AT-01 — pre-publish review of new listings. Off by default (a host
+// publishes and the place is live at once), which is how the platform shipped;
+// the queue and search gate are built and wait only on this switch.
+var moderation = builder.Configuration.GetSection("Moderation").Get<ModerationSettings>();
+if (moderation is not null) ModerationSettings.Current = moderation;
+
 // docs/01 TK-02 — the provider client ids live in configuration so one build can
 // run against a test project on a laptop and the real one on the server. Nothing
 // here is a secret except the Facebook app secret, which comes from the

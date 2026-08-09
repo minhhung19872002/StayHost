@@ -294,6 +294,12 @@ export const api = {
     }),
   adminResolveReport: (id, status, resolution) =>
     request(`/api/admin/reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ status, resolution }) }),
+  // docs/01 AT-01 — the pre-publish review queue.
+  adminPendingListings: () => request('/api/admin/listings/pending'),
+  adminReviewListing: (id, decision, reason) =>
+    request(`/api/admin/listings/${id}/review/${decision}`, {
+      method: 'POST', body: JSON.stringify({ reason }),
+    }),
 
   threads: filter => request(`/api/messages/threads${filter && filter !== 'all' ? `?filter=${filter}` : ''}`),
   archiveThread: (id, on) => request(`/api/messages/threads/${id}/archive?on=${on}`, { method: 'POST' }),

@@ -209,7 +209,10 @@ public record HostListingDto(
     bool InstantBookRequiresGoodReviews = false,
     /// <summary>docs/01 ĐP-10 — hard preconditions, so the editor round-trips them.</summary>
     bool RequireGuestPhoto = false,
-    bool RequireVerifiedToBook = false);
+    bool RequireVerifiedToBook = false,
+    /// <summary>docs/01 AT-01 — review stance, so the host sees "Đang chờ duyệt" / "Bị từ chối".</summary>
+    string ReviewStatus = "Approved",
+    string? ReviewNote = null);
 
 /// <summary>The host-settable half of docs/03 §1 — discounts and surcharges.</summary>
 public record PricingRulesDto(
@@ -579,6 +582,14 @@ public record LedgerAccountDto(string Account, string Label, decimal Debits, dec
 public record AdminListingDto(
     int Id, string Slug, string Title, string City, string HostName,
     bool IsPublished, double Rating, int ReviewCount, decimal PricePerNight, DateTime CreatedAt);
+
+/// <summary>docs/01 AT-01 — one listing waiting in the pre-publish review queue.</summary>
+public record PendingListingDto(
+    int Id, string Slug, string Title, string City, string HostName, int HostUserId,
+    decimal PricePerNight, string? CoverImage, DateTime? SubmittedForReviewAt);
+
+/// <summary>docs/01 AT-01 — an admin's decision on a listing in review.</summary>
+public record ModerationDecisionRequest(string? Reason);
 
 /* ---------------------------------------------------------------- wishlists */
 

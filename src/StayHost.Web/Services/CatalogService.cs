@@ -128,7 +128,8 @@ public class CatalogService(StayHostDbContext db)
         string sessionId, DateOnly? checkIn, DateOnly? checkOut, int guests, CancellationToken ct)
     {
         var all = await db.Listings
-            .Where(l => l.IsPublished)
+            // docs/01 AT-01 — only published *and* approved places reach the public.
+            .Where(l => l.IsPublished && l.ReviewStatus == ListingReviewStatus.Approved)
             .Include(l => l.Images)
             .Include(l => l.Amenities).ThenInclude(la => la.Amenity)
             .ToListAsync(ct);
@@ -193,7 +194,7 @@ public class CatalogService(StayHostDbContext db)
     /// <summary>Destination autocomplete: cities first, then matching listings.</summary>
     public async Task<IReadOnlyList<SuggestionDto>> SuggestAsync(string? term, CancellationToken ct)
     {
-        var published = db.Listings.Where(l => l.IsPublished);
+        var published = db.Listings.Where(l => l.IsPublished && l.ReviewStatus == ListingReviewStatus.Approved);
 
         var cities = await published
             .GroupBy(l => l.City)
@@ -271,7 +272,8 @@ public class CatalogService(StayHostDbContext db)
     /// </summary>
     private IQueryable<Listing> BaseQuery(SearchQuery q)
     {
-        IQueryable<Listing> query = db.Listings.Where(l => l.IsPublished);
+        IQueryable<Listing> query = db.Listings.Where(
+            l => l.IsPublished && l.ReviewStatus == ListingReviewStatus.Approved);
 
         // docs/03 §6: "da lat" must find Đà Lạt and "hcm" must find Thành phố Hồ
         // Chí Minh, so the match runs against the normalised column and every

@@ -28,7 +28,8 @@ public class CitiesController(StayHostDbContext db) : ControllerBase
         // stored name carries diacritics the key strips; fine at this scale, and a
         // stored key column is the answer if a city ever holds thousands.
         var listings = await db.Listings
-            .Where(l => l.IsPublished)
+            // docs/01 AT-01 — a city page counts only places the public can see.
+            .Where(l => l.IsPublished && l.ReviewStatus == ListingReviewStatus.Approved)
             .Include(l => l.Images)
             .Include(l => l.Host)
             .ToListAsync(ct);
