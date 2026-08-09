@@ -885,6 +885,9 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
   border: 1px solid var(--line); border-radius: var(--r-field); padding: 14px; text-align: left; background: #fff;
 }
 .opt:hover { border-color: var(--ink); }
+/* docs/01 TĐ-18 — the share targets are anchors, and an anchor left to itself
+   renders brand-red among identical-looking buttons. */
+a.opt { color: inherit; text-decoration: none; display: block; }
 .opt.is-on { border-color: var(--ink); background: #f7f7f7; box-shadow: inset 0 0 0 1px var(--ink); }
 .opt b { display: block; font-size: 14px; font-weight: 700; }
 .opt span { font-size: 12.5px; color: var(--ink-muted); line-height: 1.4; }

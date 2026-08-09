@@ -3,7 +3,8 @@ import { useStore } from '../../lib/useStore.js';
 import {
   set, state as store, activeFilterCount, resetFilters, totalGuests,
   toggleAmenity, bumpCount, bumpGuest, applyDatePreset, clearDates, setStayShape,
-  applyCurrency, applyLanguage, closeOverlay, settleDates, toast
+  applyCurrency, applyLanguage, closeOverlay, settleDates, toast,
+  shareViaDevice, copyShareLink
 } from '../../lib/store.js';
 import { api } from '../../lib/api.js';
 import { applySearch } from '../../lib/nav.js';
@@ -462,6 +463,61 @@ export function ReportModal() {
           </button>
         </>
       )}
+    </Modal>
+  );
+}
+
+/**
+ * docs/01 TĐ-18 — "qua link, mạng xã hội, email".
+ *
+ * Every destination is an ordinary link the browser opens. No provider script is
+ * embedded: a share button that loads Facebook's SDK reports every visitor who
+ * merely looked at the listing page, whether or not they ever shared anything.
+ */
+const SHARE_TARGETS = [
+  ['Facebook', u => `https://www.facebook.com/sharer/sharer.php?u=${u}`],
+  ['X (Twitter)', (u, t) => `https://twitter.com/intent/tweet?url=${u}&text=${t}`],
+  ['WhatsApp', (u, t) => `https://wa.me/?text=${t}%20${u}`],
+  ['Telegram', (u, t) => `https://t.me/share/url?url=${u}&text=${t}`],
+  ['Messenger', u => `https://www.facebook.com/dialog/send?link=${u}&app_id=0&redirect_uri=${u}`]
+];
+
+export function ShareModal() {
+  const state = useStore();
+  const share = state.share;
+  if (!share) return null;
+
+  const u = encodeURIComponent(share.url);
+  const t = encodeURIComponent(share.title);
+
+  const email = `mailto:?subject=${t}&body=${encodeURIComponent(`${share.title}
+
+${share.url}`)}`;
+
+  return (
+    <Modal title="Chia sẻ chỗ nghỉ này" size="narrow">
+      <p style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 600 }}>{share.title}</p>
+
+      <div style={{ display: 'grid', gap: 8 }}>
+        <button className="opt" onClick={() => copyShareLink(share.url)}>
+          <b>Sao chép liên kết</b>
+        </button>
+
+        <a className="opt" href={email}><b>Gửi qua email</b></a>
+
+        {SHARE_TARGETS.map(([label, build]) => (
+          <a className="opt" key={label} target="_blank" rel="noreferrer noopener"
+             href={build(u, t)}><b>{label}</b></a>
+        ))}
+
+        {/* The device's own sheet reaches apps a link never will, but only some
+            browsers have it, so it is offered rather than relied on. */}
+        {typeof navigator !== 'undefined' && navigator.share && (
+          <button className="opt" onClick={() => shareViaDevice(share)}>
+            <b>Ứng dụng khác trên máy…</b>
+          </button>
+        )}
+      </div>
     </Modal>
   );
 }

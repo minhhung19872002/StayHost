@@ -92,6 +92,8 @@ export const state = {
   suggestOpen: false,
   inspirationTab: null,
   photoIndex: null,
+  // docs/01 TĐ-18 — what the share dialog is currently offering.
+  share: null,
   /**
    * The arrival chosen on the first click, before a check-out exists.
    *
@@ -263,15 +265,23 @@ export function toast(message) {
  * Sharing a listing, from the page header and from the photo viewer. Both offer
  * it, so both had better do the same thing.
  */
-export async function shareListing(card) {
-  const url = location.href;
+/**
+ * docs/01 TĐ-18 — "qua link, mạng xã hội, email". The sheet the device offers is
+ * still the best answer on a phone, so it stays first; the dialog behind it is
+ * what gives a desktop browser somewhere to go, since navigator.share is absent
+ * on most of them and the button did nothing but copy.
+ */
+export function shareListing(card) {
+  set({ share: { title: card.title, url: location.href }, overlay: 'share', menu: null });
+}
 
-  // The share sheet is the better offer where there is one; a dismissal is not
-  // a failure, so it falls through to the clipboard either way.
-  if (navigator.share) {
-    try { await navigator.share({ title: card.title, url }); return; } catch { /* dismissed */ }
-  }
+export async function shareViaDevice(share) {
+  if (!navigator.share) return;
+  // A dismissal is not a failure — the dialog stays open behind it either way.
+  try { await navigator.share({ title: share.title, url: share.url }); } catch { /* dismissed */ }
+}
 
+export async function copyShareLink(url) {
   try { await navigator.clipboard.writeText(url); toast('Đã sao chép liên kết chỗ nghỉ'); }
   catch { toast(url); }
 }
@@ -923,7 +933,7 @@ export const openOverlay = kind =>
 export const openReport = (target, subjectId, title) =>
   set({ report: { target, subjectId, title }, overlay: 'report', menu: null });
 
-export const closeOverlay = () => set({ overlay: null, photoIndex: null, report: null });
+export const closeOverlay = () => set({ overlay: null, photoIndex: null, report: null, share: null });
 export const openMenu = kind => set({ menu: state.menu === kind ? null : kind });
 
 /** Signed-out guests get the login modal instead of the action they asked for. */

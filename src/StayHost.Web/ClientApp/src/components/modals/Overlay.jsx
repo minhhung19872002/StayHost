@@ -1,7 +1,7 @@
 import { useStore } from '../../lib/useStore.js';
 import {
   FiltersModal, DatesModal, GuestsModal, LanguageModal,
-  HelpModal, ReportModal, ContactHostModal
+  HelpModal, ReportModal, ShareModal, ContactHostModal
 } from './SearchModals.jsx';
 import { AuthModal, ProfileModal, ReviewModal, CancelTripModal } from './AccountModals.jsx';
 import { PhotosModal, AmenitiesModal, ReviewsModal, CheckoutModal } from './ListingModals.jsx';
@@ -16,6 +16,7 @@ const REGISTRY = {
   language: LanguageModal,
   help: HelpModal,
   report: ReportModal,
+  share: ShareModal,
   'contact-host': ContactHostModal,
   login: AuthModal,
   profile: ProfileModal,
