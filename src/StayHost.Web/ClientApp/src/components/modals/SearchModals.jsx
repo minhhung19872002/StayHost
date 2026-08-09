@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useStore } from '../../lib/useStore.js';
 import {
   set, state as store, activeFilterCount, resetFilters, totalGuests,
-  toggleAmenity, bumpCount, bumpGuest, applyDatePreset, clearDates, setStayShape,
+  toggleAmenity, toggleHostLanguage, bumpCount, bumpGuest, applyDatePreset, clearDates, setStayShape,
   applyCurrency, applyLanguage, closeOverlay, settleDates, toast,
   shareViaDevice, copyShareLink
 } from '../../lib/store.js';
@@ -21,6 +21,12 @@ const SORTS = [
 export function FiltersModal() {
   const state = useStore();
   const meta = state.meta;
+
+  // docs/01 TM-18 — the spoken-language set hosts choose from, for the filter chips.
+  // Declared before the early return so the hook order never changes.
+  const [spokenLangs, setSpokenLangs] = useState([]);
+  useEffect(() => { api.profileOptions().then(setSpokenLangs).catch(() => setSpokenLangs([])); }, []);
+
   if (!meta) return <Modal title="Bộ lọc"><p>Đang tải…</p></Modal>;
 
   const span = Math.max(1, meta.maxPrice - meta.minPrice);
@@ -162,6 +168,21 @@ export function FiltersModal() {
                   onClick={() => { set({ guestFavoriteOnly: !state.guestFavoriteOnly }); applySearch(); }}>♥ Khách yêu thích</button>
         </div>
       </section>
+
+      {/* docs/01 TM-18 — lọc theo ngôn ngữ chủ nhà nói được. */}
+      {spokenLangs.length > 0 && (
+        <section className="modal-section">
+          <h3>Ngôn ngữ chủ nhà</h3>
+          <div className="pill-row" style={{ marginTop: 14 }}>
+            {spokenLangs.map(l => (
+              <button key={l.code}
+                      className={`pill ${state.hostLanguages.includes(l.code) ? 'is-on' : ''}`}
+                      aria-pressed={state.hostLanguages.includes(l.code)}
+                      onClick={() => { toggleHostLanguage(l.code); applySearch(); }}>{l.label}</button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="modal-section">
         <h3>Sắp xếp kết quả</h3>

@@ -260,7 +260,9 @@ public class CatalogService(StayHostDbContext db)
         /// </summary>
         IReadOnlySet<int>? Unavailable = null,
         /// <summary>The stay each listing was matched on, when the dates were flexible.</summary>
-        IReadOnlyDictionary<int, StayWindow>? Matched = null);
+        IReadOnlyDictionary<int, StayWindow>? Matched = null,
+        /// <summary>docs/01 TM-18 — language codes the host must speak at least one of.</summary>
+        IReadOnlyList<string>? HostLanguages = null);
 
     /// <summary>The visible map rectangle, when the guest is searching by moving it.</summary>
     public readonly record struct MapBounds(double South, double West, double North, double East);
@@ -329,6 +331,32 @@ public class CatalogService(StayHostDbContext db)
         {
             var k = key;
             query = query.Where(l => l.Amenities.Any(la => la.Amenity!.Key == k));
+        }
+
+        // docs/01 TM-18 — filter by a language the host speaks. The host's spoken
+        // languages come from their own profile (TĐ-14); a listing matches when the
+        // host speaks at least one of the chosen codes. Built as a UNION so each
+        // Contains stays a SQL predicate rather than an untranslatable Any-lambda.
+        if (q.HostLanguages is { Count: > 0 } hostLangs)
+        {
+            var wanted = hostLangs.Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim()).Distinct().ToList();
+            if (wanted.Count == 1)
+            {
+                var code = wanted[0];
+                query = query.Where(l => l.Host!.User!.SpokenLanguages.Contains(code));
+            }
+            else if (wanted.Count > 1)
+            {
+                IQueryable<Listing>? combined = null;
+                foreach (var w in wanted)
+                {
+                    var code = w;
+                    var part = query.Where(l => l.Host!.User!.SpokenLanguages.Contains(code));
+                    combined = combined is null ? part : combined.Union(part);
+                }
+                query = combined!;
+            }
         }
 
         // Dates are a filter like any other: a place with someone already in it
@@ -615,6 +643,7 @@ public class CatalogService(StayHostDbContext db)
         if (q.Bedrooms is > 0 || q.Beds is > 0 || q.Bathrooms is > 0) candidates.Add(("rooms", "Số phòng và giường"));
         if (!string.IsNullOrWhiteSpace(q.RoomType) && q.RoomType != "any") candidates.Add(("roomType", "Loại nơi ở"));
         if (!string.IsNullOrWhiteSpace(q.Category) && q.Category != "all") candidates.Add(("category", "Loại chỗ ở"));
+        if (q.HostLanguages is { Count: > 0 }) candidates.Add(("hostLanguages", "Ngôn ngữ chủ nhà"));
         if (q.Guests > 0) candidates.Add(("guests", $"Sức chứa {q.Guests} khách"));
 
         // First pass: which single filter, dropped on its own, unlocks results.
@@ -675,6 +704,7 @@ public class CatalogService(StayHostDbContext db)
         "instantBook" => q with { InstantBookOnly = false },
         "freeCancellation" => q with { FreeCancellationOnly = false },
         "category" => q with { Category = "all" },
+        "hostLanguages" => q with { HostLanguages = null },
         _ => q
     };
 

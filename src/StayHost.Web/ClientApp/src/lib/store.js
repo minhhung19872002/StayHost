@@ -32,6 +32,7 @@ export const state = {
   guestFavoriteOnly: false,
   instantBookOnly: false,
   freeCancellationOnly: false,
+  hostLanguages: [],   // docs/01 TM-18
 
   // reference data
   meta: null,
@@ -215,6 +216,7 @@ export function isDiscovery() {
     && !state.bedrooms && !state.beds && !state.bathrooms
     && !state.superhostOnly && !state.guestFavoriteOnly
     && !state.instantBookOnly && !state.freeCancellationOnly
+    && state.hostLanguages.length === 0
     && (!state.meta || (state.minPrice <= state.meta.minPrice && state.maxPrice >= state.meta.maxPrice));
 }
 
@@ -232,6 +234,7 @@ export function activeFilterCount() {
   if (state.guestFavoriteOnly) n++;
   if (state.instantBookOnly) n++;
   if (state.freeCancellationOnly) n++;
+  if (state.hostLanguages.length) n++;
   return n;
 }
 
@@ -248,6 +251,7 @@ export function resetFilters() {
     guestFavoriteOnly: false,
     instantBookOnly: false,
     freeCancellationOnly: false,
+    hostLanguages: [],
     minPrice: meta ? meta.minPrice : 0,
     maxPrice: meta ? meta.maxPrice : 0
   });
@@ -345,6 +349,7 @@ export function searchParams(page = 1) {
     guestFavorite: state.guestFavoriteOnly || undefined,
     instantBook: state.instantBookOnly || undefined,
     freeCancellation: state.freeCancellationOnly || undefined,
+    hostLanguages: state.hostLanguages.length ? state.hostLanguages : undefined,
     page,
     pageSize: 24
   };
@@ -1207,5 +1212,13 @@ export function toggleAmenity(key) {
 
 export function bumpCount(key, delta) {
   state[key] = Math.max(0, Math.min(8, (state[key] || 0) + delta));
+  notify();
+}
+
+// docs/01 TM-18 — toggle a host-language filter code.
+export function toggleHostLanguage(code) {
+  state.hostLanguages = state.hostLanguages.includes(code)
+    ? state.hostLanguages.filter(c => c !== code)
+    : [...state.hostLanguages, code];
   notify();
 }

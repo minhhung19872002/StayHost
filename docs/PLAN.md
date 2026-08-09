@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **181 xong · 0 làm một phần · 20 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **182 xong · 0 làm một phần · 19 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,11 +350,10 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (20 mã)
+### 9.1 Chưa có (19 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
-| `TM-18` | Lọc theo ngôn ngữ chủ nhà | P2 |
 | `TM-23` | Lưu bộ tìm kiếm + thông báo khi có chỗ mới phù hợp | P2 |
 | `TM-24` | Vẽ vùng tìm kiếm trên bản đồ | P2 |
 | `TĐ-03` · `TN-06` | Dịch mô tả tin đăng (**P0**) · dịch tin nhắn (P1) — cần nhà cung cấp dịch thuật | P0/P1 |
@@ -380,6 +379,14 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`TM-18` (lọc theo ngôn ngữ chủ nhà) làm xong 10/08/2026. Thêm `HostLanguages` vào
+`SearchQuery`; `CatalogService.BaseQuery` khớp tin khi chủ nhà nói **ít nhất một** mã đã
+chọn, đọc từ `Host.User.SpokenLanguages` (nguồn TĐ-14) — dựng bằng `UNION` để mỗi
+`Contains` là một vị từ SQL, không phải Any-lambda không dịch được; cũng thêm vào danh
+sách "bỏ bớt bộ lọc" của TM-22. UI là hàng chip trong bộ lọc, lấy mã từ `profile-options`.
+Xác minh sống: lọc `ko` ra đúng tin của host nói Hàn, `vi` ra tất cả, `ja` ra 0, và OR
+nhiều mã (`ko,ja`) đúng; 10/10 nghiệm thu vẫn xanh.
 
 `TK-07` · `TK-13` làm xong 10/08/2026. TK-07 (xác minh email công ty): thêm
 `IdentifierKind.WorkEmail`, tái dùng cơ chế OTP `OneTimeCode`; `WorkEmail.cs` (thuần,
