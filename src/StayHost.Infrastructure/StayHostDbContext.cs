@@ -52,6 +52,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<CouponRedemption> CouponRedemptions => Set<CouponRedemption>();
     public DbSet<SpecialOffer> SpecialOffers => Set<SpecialOffer>();
+    public DbSet<ListingCancellationNote> ListingCancellationNotes => Set<ListingCancellationNote>();
     public DbSet<GiftCard> GiftCards => Set<GiftCard>();
     public DbSet<Referral> Referrals => Set<Referral>();
     public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
@@ -549,6 +550,15 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Booking).WithMany()
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ListingCancellationNote>(e =>
+        {
+            e.ToTable("listing_cancellation_notes");
+            e.HasIndex(x => new { x.ListingId, x.CreatedAt });
+            e.Property(x => x.Note).HasMaxLength(200);
+            e.HasOne(x => x.Listing).WithMany()
+                .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<SpecialOffer>(e =>

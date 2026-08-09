@@ -1091,6 +1091,10 @@ a.opt { color: inherit; text-decoration: none; display: block; }
 /* docs/01 DP-03 - a labelled checkbox row in the listing wizard. */
 .check-row { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
 .check-row input { width: 17px; height: 17px; }
+/* docs/01 DG-12 - the host cancellation history block on a listing. */
+.cancel-notes { margin-top: 20px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: #fff7e6; }
+.cancel-notes h3 { margin: 0 0 8px; font-size: 14.5px; color: #96690a; }
+.cancel-notes ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--ink-body); line-height: 1.7; }
 
 /* docs/01 ĐP-17 — private offer cards and the host's send form in a thread. */
 .offer-panel { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }

@@ -956,7 +956,15 @@ public class CatalogService(StayHostDbContext db)
             // docs/01 TĐ-13 — how far the places a guest came for actually are.
             Landmarks.Near(listing.City, listing.Latitude, listing.Longitude)
                 .Select(l => new LandmarkDto(l.Name, Landmarks.DistanceLabel(l.DistanceKm)))
-                .ToList());
+                .ToList(),
+            // docs/01 ĐG-12 — host cancellations still worth showing, newest first.
+            await db.ListingCancellationNotes
+                .Where(n => n.ListingId == listing.Id
+                            && n.CreatedAt >= DateTime.UtcNow - Domain.CancellationNotes.Visibility)
+                .OrderByDescending(n => n.CreatedAt)
+                .Take(5)
+                .Select(n => n.Note)
+                .ToListAsync(ct));
     }
 
     /// <summary>

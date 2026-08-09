@@ -581,6 +581,14 @@ function ThingsToKnow({ detail }) {
           <ul><li>{detail.cancellationPolicy}</li></ul>
         </div>
       </div>
+
+      {/* docs/01 ĐG-12 — public record of the host pulling out of confirmed stays. */}
+      {!!detail.cancellationNotes?.length && (
+        <div className="cancel-notes">
+          <h3>Lịch sử huỷ đơn của chủ nhà</h3>
+          <ul>{detail.cancellationNotes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+        </div>
+      )}
     </section>
   );
 }

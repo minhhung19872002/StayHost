@@ -151,6 +151,17 @@ public class HostOperationsController(
             db, booking, outcome, CancelledBy.Host,
             (req?.Reason ?? "Chủ nhà huỷ đơn").Trim());
 
+        // docs/01 ĐG-12 — a public note on the listing, so the next guest sees the
+        // host has pulled out of a confirmed stay before. Not a review: no rating,
+        // no effect on the score.
+        var daysBefore = CancellationNotes.DaysBefore(booking.CheckIn, DateTime.UtcNow);
+        db.ListingCancellationNotes.Add(new ListingCancellationNote
+        {
+            ListingId = booking.ListingId,
+            Note = CancellationNotes.Compose(daysBefore),
+            DaysBeforeCheckIn = daysBefore
+        });
+
         await db.SaveChangesAsync(ct);
 
         await shield.OpenHostCancellationAsync(booking, ct);

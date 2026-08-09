@@ -895,7 +895,9 @@ public record ListingDetailDto(
     /// </summary>
     string CheckInWindow = "",
     /// <summary>docs/01 TĐ-13 — nearest landmarks, closest first.</summary>
-    IReadOnlyList<LandmarkDto>? Landmarks = null);
+    IReadOnlyList<LandmarkDto>? Landmarks = null,
+    /// <summary>docs/01 ĐG-12 — public notes about host cancellations in the last year.</summary>
+    IReadOnlyList<string>? CancellationNotes = null);
 
 public record HotelRoomDto(
     int Id,
