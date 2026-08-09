@@ -553,6 +553,28 @@ public class BookingsController(
         return NoContent();
     }
 
+    /// <summary>
+    /// docs/01 ĐP-14, CĐ-09 — the booking as an invoice the guest can keep. It is
+    /// an HTML document rather than a PDF: the browser's own "save as PDF" turns it
+    /// into one, and it avoids a rendering dependency for a page that is, in the
+    /// end, a table of the numbers already on the booking.
+    /// </summary>
+    [HttpGet("{id:int}/invoice")]
+    public async Task<IActionResult> Invoice(int id, CancellationToken ct)
+    {
+        var booking = await FindOwnedAsync(id, ct, includeListing: true);
+        if (booking is null) return NotFound();
+
+        var lines = DeserializeLines(booking.PriceLinesJson);
+        var html = InvoiceHtml.Render(booking, lines);
+
+        // Inline so it opens in the tab and the guest can read it or print it;
+        // the download comes from the browser, and the filename is set for it.
+        Response.Headers.ContentDisposition =
+            $"inline; filename=\"stayhost-{Invoices.Number(booking)}.html\"";
+        return Content(html, "text/html; charset=utf-8");
+    }
+
     /// <summary>What the guest would get back if they cancelled right now.</summary>
     [HttpGet("{id:int}/refund-preview")]
     public async Task<ActionResult<RefundPreviewDto>> RefundPreview(int id, CancellationToken ct)

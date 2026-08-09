@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả: **152 xong · 0 làm một phần · 49 chưa có.** Con số 105 mã "không thấy
+Kết quả: **153 xong · 0 làm một phần · 48 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,13 +350,12 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (49 mã)
+### 9.1 Chưa có (48 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
 | `ĐP-03` | Điều kiện Đặt ngay: chỉ khách đã xác minh / có đánh giá tốt | P1 |
 | `ĐP-10` | Yêu cầu bắt buộc trước khi đặt (có ảnh hồ sơ, đã xác minh, đồng ý nội quy) | P1 |
-| `ĐP-14` | Hoá đơn tải về được | P1 |
 | `ĐP-17` · `QL-14` | Chủ nhà gửi ưu đãi riêng trong tin nhắn, hiệu lực 24h | P1 |
 | `CĐ-06` | Yêu cầu đổi ngày / số khách sau khi đặt, chủ nhà duyệt, tự tính chênh lệch | P1 |
 | `CĐ-12` | Nút xin trợ giúp gắn với đúng đơn đang gặp vấn đề | P1 |

@@ -394,9 +394,12 @@ function Receipt({ booking: b }) {
         {b.cardLast4 && <div>Thẻ •••• {b.cardLast4}</div>}
       </div>
 
-      <button className="btn btn-dark btn-block btn-sm" style={{ marginTop: 18 }} onClick={() => window.print()}>
-        In hoặc lưu PDF
-      </button>
+      {/* docs/01 ĐP-14 — a proper invoice document, opened in its own tab so it
+          can be saved or printed on its own rather than the whole trip page. */}
+      <a className="btn btn-dark btn-block btn-sm" style={{ marginTop: 18 }}
+         href={`/api/bookings/${b.id}/invoice`} target="_blank" rel="noreferrer">
+        Tải hoá đơn
+      </a>
     </aside>
   );
 }
