@@ -157,6 +157,9 @@ public class HostController(
         var error = Validate(req);
         if (error is not null) return BadRequest(new { message = error });
 
+        // docs/01 YT-08 — remember the price before the edit so a drop can be told apart.
+        var oldPrice = listing.PricePerNight;
+
         await ApplyAsync(listing, req, user, ct);
 
         // docs/01 AT-01 — editing an approved place keeps it live; a rejected place
@@ -171,6 +174,35 @@ public class HostController(
         listing.ReviewStatus = newStatus;
 
         await db.SaveChangesAsync(ct);
+
+        // docs/01 YT-08 — a saved place got cheaper: tell whoever saved it. Only a
+        // real drop on a listing the public can see, and only signed-in savers
+        // (an anonymous session has nowhere to receive it). It is the one marketing
+        // notification, so the preference matrix can silence it (docs/03 §11).
+        if (listing.PricePerNight < oldPrice
+            && ListingModeration.IsPubliclyVisible(listing.IsPublished, listing.ReviewStatus))
+        {
+            var savers = await db.Favorites
+                .Where(f => f.ListingId == listing.Id && f.UserId != null)
+                .Select(f => f.UserId!.Value)
+                .Distinct()
+                .ToListAsync(ct);
+
+            if (savers.Count > 0)
+            {
+                var users = await db.Users.Where(u => savers.Contains(u.Id)).ToListAsync(ct);
+                foreach (var saver in users)
+                {
+                    // Not to the host themselves, even if they saved their own place.
+                    if (saver.Id == user.Id) continue;
+                    await notifications.QueueWithEmailAsync(saver, NotificationKind.PriceDrop,
+                        "Chỗ bạn đã lưu vừa giảm giá",
+                        $"\"{listing.Title}\" giảm từ {oldPrice:#,##0}₫ còn {listing.PricePerNight:#,##0}₫ mỗi đêm.",
+                        $"/rooms/{listing.Slug}", ct);
+                }
+                await db.SaveChangesAsync(ct);
+            }
+        }
 
         return Ok(ToHostListing(listing, 0, 0));
     }

@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **186 xong · 0 làm một phần · 15 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **187 xong · 0 làm một phần · 14 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,7 +350,7 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (15 mã)
+### 9.1 Chưa có (14 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -358,7 +358,7 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `TĐ-03` · `TN-06` | Dịch mô tả tin đăng (**P0**) · dịch tin nhắn (P1) — cần nhà cung cấp dịch thuật | P0/P1 |
 | `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
 | `AT-03` · `AT-08` · `AT-12` | Kênh hàng xóm · trợ lý tự động · chống phân biệt đối xử | P2 |
-| `YT-06` · `YT-07` · `YT-08` | Bình chọn nhóm · so sánh 2–5 chỗ · báo khi chỗ đã lưu giảm giá | P2 |
+| `YT-06` · `YT-07` | Bình chọn nhóm · so sánh 2–5 chỗ | P2 |
 | `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
 
 ### 9.2 Làm một phần — **không còn mã nào** (dọn xong 10/08/2026)
@@ -377,6 +377,12 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`YT-08` (báo khi chỗ đã lưu giảm giá) làm xong 10/08/2026. Khi host lưu tin với giá thấp
+hơn giá cũ (bắt ngay trong `HostController.Update`, so `oldPrice` trước `ApplyAsync`) và tin
+đang hiển thị công khai, gửi thông báo `PriceDrop` (đã có sẵn, topic Marketing → tắt được)
+cho từng user **đã đăng nhập** có lưu tin (bỏ chính chủ nhà). Không entity/migration mới.
+Xác minh sống: lưu tin→hạ 3,2tr→2,7tr→1 thông báo; nâng giá lại→không báo thêm.
 
 `TM-23` (lưu bộ tìm kiếm + báo khi có chỗ mới) làm xong 10/08/2026. Entity `SavedSearch`
 lưu các bộ lọc thành cột (bỏ ngày — tin mới có lịch mở), `LastNotifiedListingId` là mốc
