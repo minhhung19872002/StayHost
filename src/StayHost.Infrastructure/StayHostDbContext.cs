@@ -21,6 +21,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<MessageThread> MessageThreads => Set<MessageThread>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
+    public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
     public DbSet<CalendarBlock> CalendarBlocks => Set<CalendarBlock>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AbuseReport> AbuseReports => Set<AbuseReport>();
@@ -336,6 +337,15 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.HasOne(x => x.GuestUser).WithMany().HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.HostUser).WithMany().HasForeignKey(x => x.HostUserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Booking).WithMany().HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // docs/01 QT-08 — feature flags with percentage rollout.
+        b.Entity<FeatureFlag>(e =>
+        {
+            e.ToTable("feature_flags");
+            e.HasIndex(x => x.Key).IsUnique();
+            e.Property(x => x.Key).HasMaxLength(80).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(300);
         });
 
         // docs/01 AT-10 — the block list. One row per (blocker, blocked) pair.

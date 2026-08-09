@@ -300,6 +300,9 @@ export const api = {
     }),
   adminResolveReport: (id, status, resolution) =>
     request(`/api/admin/reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ status, resolution }) }),
+  // docs/01 QT-08 — feature flags.
+  adminFeatureFlags: () => request('/api/admin/feature-flags'),
+  saveFeatureFlag: body => request('/api/admin/feature-flags', { method: 'POST', body: JSON.stringify(body) }),
   // docs/01 AT-01 — the pre-publish review queue.
   adminPendingListings: () => request('/api/admin/listings/pending'),
   adminReviewListing: (id, decision, reason) =>

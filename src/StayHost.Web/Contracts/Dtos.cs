@@ -64,6 +64,13 @@ public record WorkEmailRequest(string? Email);
 public record BlockedUserDto(int UserId, string Name, string Initials, string? AvatarUrl, DateTime CreatedAt);
 public record BlockRequest(int UserId);
 
+/// <summary>docs/01 QT-08 — a feature flag as the admin console sees it.</summary>
+public record FeatureFlagDto(
+    string Key, string Description, bool Enabled, int RolloutPercent, DateTime UpdatedAt);
+
+/// <summary>docs/01 QT-08 — create or update a feature flag.</summary>
+public record FeatureFlagRequest(string Key, string? Description, bool Enabled, int RolloutPercent);
+
 /// <summary>One of the languages the profile editor offers (docs/01 TK-04).</summary>
 public record SpokenLanguageDto(string Code, string Label);
 

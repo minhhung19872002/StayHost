@@ -554,6 +554,57 @@ public class AdminController(
         return NoContent();
     }
 
+    /* ------------------------------------------ docs/01 QT-08, feature flags */
+
+    /// <summary>docs/01 QT-08 — the feature flags and their rollout percentages.</summary>
+    [HttpGet("admin/feature-flags")]
+    public async Task<ActionResult<IReadOnlyList<FeatureFlagDto>>> FeatureFlags(CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Super, ct);
+        if (admin is null) return StatusCode(403, new { message = "Chỉ quản trị tối cao mới quản lý được tính năng." });
+
+        var rows = await db.FeatureFlags
+            .OrderBy(f => f.Key)
+            .Select(f => new FeatureFlagDto(f.Key, f.Description, f.Enabled, f.RolloutPercent, f.UpdatedAt))
+            .ToListAsync(ct);
+        return Ok(rows);
+    }
+
+    /// <summary>
+    /// docs/01 QT-08 — turn a feature on or off and set the share of users who see
+    /// it. Creates the flag if it does not exist yet.
+    /// </summary>
+    [HttpPost("admin/feature-flags")]
+    public async Task<ActionResult<FeatureFlagDto>> SaveFeatureFlag(
+        [FromBody] FeatureFlagRequest req, CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Super, ct);
+        if (admin is null) return StatusCode(403, new { message = "Chỉ quản trị tối cao mới quản lý được tính năng." });
+
+        var key = (req.Key ?? "").Trim();
+        if (key.Length == 0) return BadRequest(new { message = "Thiếu mã tính năng." });
+
+        var flag = await db.FeatureFlags.FirstOrDefaultAsync(f => f.Key == key, ct);
+        var percent = FeatureRollout.ClampPercent(req.RolloutPercent);
+        var before = flag is null ? "chưa có" : $"{(flag.Enabled ? "bật" : "tắt")} {flag.RolloutPercent}%";
+
+        if (flag is null)
+        {
+            flag = new FeatureFlag { Key = key };
+            db.FeatureFlags.Add(flag);
+        }
+        flag.Description = (req.Description ?? "").Trim();
+        flag.Enabled = req.Enabled;
+        flag.RolloutPercent = percent;
+        flag.UpdatedAt = DateTime.UtcNow;
+
+        audit.Record(admin, "feature.rollout", $"feature:{key}",
+            before, $"{(req.Enabled ? "bật" : "tắt")} {percent}%", null);
+
+        await db.SaveChangesAsync(ct);
+        return Ok(new FeatureFlagDto(flag.Key, flag.Description, flag.Enabled, flag.RolloutPercent, flag.UpdatedAt));
+    }
+
     [HttpPost("admin/reports/{id:int}/resolve")]
     public async Task<IActionResult> ResolveReport(int id, [FromBody] ResolveReportRequest req, CancellationToken ct)
     {

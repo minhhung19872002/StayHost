@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **183 xong · 0 làm một phần · 18 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **184 xong · 0 làm một phần · 17 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,7 +350,7 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (18 mã)
+### 9.1 Chưa có (17 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -359,7 +359,7 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `TĐ-03` · `TN-06` | Dịch mô tả tin đăng (**P0**) · dịch tin nhắn (P1) — cần nhà cung cấp dịch thuật | P0/P1 |
 | `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
 | `AT-03` · `AT-08` · `AT-12` | Kênh hàng xóm · trợ lý tự động · chống phân biệt đối xử | P2 |
-| `QT-07` · `QT-08` | Quản lý bài trợ giúp · bật tính năng theo tỉ lệ | P2 |
+| `QT-07` | Quản lý bài trợ giúp · nội dung trang giới thiệu | P2 |
 | `YT-06` · `YT-07` · `YT-08` | Bình chọn nhóm · so sánh 2–5 chỗ · báo khi chỗ đã lưu giảm giá | P2 |
 | `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
 
@@ -379,6 +379,14 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`QT-08` (bật tính năng theo tỉ lệ người dùng) làm xong 10/08/2026. `FeatureRollout.cs`
+(thuần, có test) chia người dùng vào 100 nhóm bằng FNV-1a trên `khoá-tính-năng:khoá-người`
+— tất định, ổn định qua tiến trình/khởi động lại (không dùng `GetHashCode` ngẫu nhiên theo
+run), trộn khoá tính năng nên một người không nằm cùng lát cắt cho mọi tính năng. Entity
+`FeatureFlag` (công tắc tổng + %). Admin (scope Super) quản lý ở panel; `GET /api/features`
+trả map bật/tắt theo user (bucket theo id) hoặc theo session cho khách vãng lai. Xác minh
+sống: bật 100%→thấy, 0%→ẩn, tạo mã mới, clamp 150→100, khách vãng lai cũng nhận map.
 
 `AT-10` (danh sách chặn) làm xong 10/08/2026. Entity `UserBlock` (cặp blocker/blocked,
 unique), `Blocks.cs` cho thông điệp; khi gửi tin (`MessagesController.Send`) chặn cả hai

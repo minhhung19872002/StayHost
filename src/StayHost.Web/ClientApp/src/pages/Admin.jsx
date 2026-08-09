@@ -124,6 +124,8 @@ export function Admin() {
 
       <ModerationQueue />
 
+      <FeatureFlags />
+
       <section style={{ marginTop: 40 }}>
         <h2 className="section-title" style={{ fontSize: 20 }}>Chỗ nghỉ mới nhất</h2>
         <div className="table-wrap">
@@ -219,6 +221,71 @@ function ModerationQueue() {
           </table>
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * docs/01 QT-08 — turn features on for a share of users. Each flag has a master
+ * switch and a 0–100 rollout; changes take effect on the next page load for the
+ * users who fall in the slice.
+ */
+function FeatureFlags() {
+  const [rows, setRows] = useState(null);
+
+  const load = async () => {
+    try { setRows(await api.adminFeatureFlags()); }
+    catch { setRows([]); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const save = async (flag, changes) => {
+    try {
+      await api.saveFeatureFlag({
+        key: flag.key,
+        description: flag.description,
+        enabled: changes.enabled ?? flag.enabled,
+        rolloutPercent: changes.rolloutPercent ?? flag.rolloutPercent
+      });
+      await load();
+      toast('Đã cập nhật tính năng.');
+    } catch (err) { toast(err.message); }
+  };
+
+  if (!rows) return null;
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>Bật tính năng theo tỉ lệ</h2>
+      <p className="section-sub">{rows.length} tính năng · thay đổi áp dụng ở lần tải trang kế tiếp</p>
+      <div className="table-wrap" style={{ marginTop: 16 }}>
+        <table className="admin-table">
+          <thead>
+            <tr><th>Tính năng</th><th>Trạng thái</th><th>Tỉ lệ (%)</th></tr>
+          </thead>
+          <tbody>
+            {rows.map(f => (
+              <tr key={f.key}>
+                <td><b>{f.key}</b><span>{f.description}</span></td>
+                <td>
+                  <button className={`pill ${f.enabled ? 'is-on' : ''}`}
+                          onClick={() => save(f, { enabled: !f.enabled })}>
+                    {f.enabled ? 'Đang bật' : 'Đang tắt'}
+                  </button>
+                </td>
+                <td>
+                  <input type="number" min={0} max={100} defaultValue={f.rolloutPercent}
+                         style={{ width: 90 }}
+                         onBlur={e => {
+                           const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                           if (v !== f.rolloutPercent) save(f, { rolloutPercent: v });
+                         }} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
