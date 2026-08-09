@@ -96,6 +96,12 @@ export const api = {
 
   cancelBooking: id => request(`/api/bookings/${id}/cancel`, { method: 'POST' }),
 
+  // docs/01 CĐ-06 — request/withdraw a date-or-guest change; host responds elsewhere.
+  requestChange: (id, body) => request(`/api/bookings/${id}/change-request`, { method: 'POST', body: JSON.stringify(body) }),
+  withdrawChange: (id, reqId) => request(`/api/bookings/${id}/change-request/${reqId}/withdraw`, { method: 'POST' }),
+  respondChange: (id, reqId, accept) =>
+    request(`/api/host/bookings/${id}/change-request/${reqId}/respond`, { method: 'POST', body: JSON.stringify({ accept }) }),
+
   review: (bookingId, body) =>
     request(`/api/bookings/${bookingId}/review`, { method: 'POST', body: JSON.stringify(body) }),
 

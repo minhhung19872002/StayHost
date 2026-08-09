@@ -100,6 +100,8 @@ export function Trip() {
             )}
           </section>
 
+          <ChangeTrip booking={b} />
+
           <ShieldPanel booking={b} />
 
           <Balance booking={b} />
@@ -238,6 +240,70 @@ const ACTOR = { system: 'Hệ thống', guest: 'Bạn', host: 'Chủ nhà', admi
  * from check-in until 72 hours after it. Outside that window the guest still
  * has the resolution centre, so the button says so rather than vanishing.
  */
+/**
+ * docs/01 CĐ-06, docs/04 QT-4 — ask the host to move the stay to new dates or a
+ * new guest count. The request shows the price difference; the old dates stay
+ * held until the host accepts.
+ */
+function ChangeTrip({ booking }) {
+  const [open, setOpen] = useState(false);
+  const [checkIn, setCheckIn] = useState(booking.checkIn);
+  const [checkOut, setCheckOut] = useState(booking.checkOut);
+  const [guests, setGuests] = useState(booking.guests);
+  const [pending, setPending] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const canChange = booking.status === 'Confirmed' || booking.status === 'PendingHostApproval';
+  if (!canChange) return null;
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const r = await api.requestChange(booking.id, {
+        checkIn, checkOut, guests: Number(guests), adults: Number(guests)
+      });
+      setPending(r);
+      toast('Đã gửi yêu cầu đổi lịch, chờ chủ nhà duyệt trong 24 giờ.');
+    } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
+  const withdraw = async () => {
+    try { await api.withdrawChange(booking.id, pending.id); setPending(null); toast('Đã rút yêu cầu.'); }
+    catch (err) { toast(err.message); }
+  };
+
+  return (
+    <section className="trip-section">
+      <h2>Đổi ngày hoặc số khách</h2>
+      {pending ? (
+        <div>
+          <p style={{ fontSize: 14.5 }}>
+            Đã gửi: {longDate(pending.newCheckIn)} → {longDate(pending.newCheckOut)} · {pending.newGuests} khách.
+            <br />{pending.differenceLabel}
+          </p>
+          <button className="btn btn-outline btn-sm" style={{ marginTop: 10 }} onClick={withdraw}>Rút yêu cầu</button>
+        </div>
+      ) : !open ? (
+        <button className="btn btn-outline btn-sm" onClick={() => setOpen(true)}>Yêu cầu đổi lịch</button>
+      ) : (
+        <div style={{ display: 'grid', gap: 10, maxWidth: 360 }}>
+          <label className="form-field"><span className="cap">Nhận phòng</span>
+            <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} /></label>
+          <label className="form-field"><span className="cap">Trả phòng</span>
+            <input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} /></label>
+          <label className="form-field"><span className="cap">Số khách</span>
+            <input type="number" min="1" value={guests} onChange={e => setGuests(e.target.value)} /></label>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button className="btn btn-outline btn-sm" onClick={() => setOpen(false)}>Huỷ</button>
+            <button className="btn btn-primary btn-sm" disabled={busy} onClick={submit}>Gửi yêu cầu</button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ShieldPanel({ booking }) {
   const navigate = useNavigate();
   const [claims, setClaims] = useState(null);

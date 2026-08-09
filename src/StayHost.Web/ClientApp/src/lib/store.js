@@ -844,6 +844,15 @@ export async function respondBooking(id, action) {
   } catch (err) { toast(err.message); }
 }
 
+/** docs/01 CĐ-06 — the host accepts or rejects a guest's change request. */
+export async function respondChange(bookingId, reqId, accept) {
+  try {
+    await api.respondChange(bookingId, reqId, accept);
+    toast(accept ? 'Đã đổi lịch cho khách.' : 'Đã từ chối yêu cầu đổi lịch.');
+    await loadHosting();
+  } catch (err) { toast(err.message); }
+}
+
 /**
  * docs/01 QL-13 — a host cancelling a confirmed stay is shown what follows
  * before they confirm, not after: the refund, the automatic StayShield case

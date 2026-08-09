@@ -53,6 +53,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<CouponRedemption> CouponRedemptions => Set<CouponRedemption>();
     public DbSet<SpecialOffer> SpecialOffers => Set<SpecialOffer>();
     public DbSet<ListingCancellationNote> ListingCancellationNotes => Set<ListingCancellationNote>();
+    public DbSet<BookingChangeRequest> BookingChangeRequests => Set<BookingChangeRequest>();
     public DbSet<GiftCard> GiftCards => Set<GiftCard>();
     public DbSet<Referral> Referrals => Set<Referral>();
     public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
@@ -548,6 +549,16 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.CouponId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.User).WithMany()
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<BookingChangeRequest>(e =>
+        {
+            e.ToTable("booking_change_requests");
+            e.HasIndex(x => new { x.BookingId, x.Status });
+            e.Property(x => x.NewTotal).HasColumnType("numeric(12,2)");
+            e.Property(x => x.Difference).HasColumnType("numeric(12,2)");
             e.HasOne(x => x.Booking).WithMany()
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
         });

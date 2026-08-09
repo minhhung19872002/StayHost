@@ -178,6 +178,50 @@ public static class Ledger
     }
 
     /// <summary>
+    /// docs/01 CĐ-06 — a confirmed booking changed dates or guests, so the money
+    /// already recognised moves by the difference. Each account is adjusted by
+    /// new − old: the host's payout, the two fees and the tax shift, and the guest
+    /// either pays the extra (cash in) or is owed a refund. Coupon and balance are
+    /// left as they were — a change re-prices the stay, not the one-off discount —
+    /// so the difference is exactly the change in the recognised gross, and the
+    /// transaction balances the same way the original capture did.
+    /// </summary>
+    public static List<LedgerEntry> AdjustBooking(
+        Booking booking, Pricing.Breakdown price, DateTime at)
+    {
+        var legs = new List<Leg>();
+
+        Delta(legs, LedgerAccount.HostPayable, price.HostPayout - booking.HostPayout,
+            increaseIs: LedgerDirection.Credit, "Điều chỉnh phần chủ nhà");
+        Delta(legs, LedgerAccount.GuestServiceFeeRevenue, price.GuestServiceFee - booking.ServiceFee,
+            increaseIs: LedgerDirection.Credit, "Điều chỉnh phí dịch vụ khách");
+        Delta(legs, LedgerAccount.HostServiceFeeRevenue, price.HostServiceFee - booking.HostServiceFee,
+            increaseIs: LedgerDirection.Credit, "Điều chỉnh phí dịch vụ chủ nhà");
+        Delta(legs, LedgerAccount.TaxPayable, price.Tax - booking.Tax,
+            increaseIs: LedgerDirection.Credit, "Điều chỉnh thuế");
+
+        var diff = price.Total - booking.Total;
+        if (diff >= 0)
+            Delta(legs, LedgerAccount.GuestFunds, diff, increaseIs: LedgerDirection.Debit, "Khách trả thêm khi đổi lịch");
+        else
+            // Money owed back to the guest, held like any other refund payable.
+            legs.Add(new Leg(LedgerAccount.GuestRefundPayable, LedgerDirection.Credit, -diff, "Hoàn bớt khi đổi lịch"));
+
+        return Post("booking-adjusted", booking.Id, at, [.. legs]);
+    }
+
+    /// <summary>Adds a signed delta as a leg, flipping direction when it is negative.</summary>
+    private static void Delta(
+        List<Leg> legs, LedgerAccount account, decimal delta, LedgerDirection increaseIs, string memo)
+    {
+        if (delta == 0) return;
+        var dir = delta > 0
+            ? increaseIs
+            : increaseIs == LedgerDirection.Credit ? LedgerDirection.Debit : LedgerDirection.Credit;
+        legs.Add(new Leg(account, dir, Math.Abs(delta), memo));
+    }
+
+    /// <summary>
     /// docs/01 MR-03 — a seat at a session. Same accounts as a stay: the money
     /// engine does not care what was sold, only how it splits.
     /// </summary>

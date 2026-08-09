@@ -18,8 +18,115 @@ namespace StayHost.Web.Controllers;
 [Route("api/host")]
 public class HostOperationsController(
     StayHostDbContext db, AuthService auth, HostAccess access, ShieldService shield,
-    BadgeService badges, NotificationService notifications, PaymentGateway gateway) : ControllerBase
+    BadgeService badges, NotificationService notifications, PaymentGateway gateway,
+    CatalogService catalog) : ControllerBase
 {
+    /// <summary>
+    /// docs/01 CĐ-06, docs/04 QT-4 — the host answers a guest's request to change
+    /// dates or guests. Accepting moves the booking, frees the old dates and
+    /// settles the difference in the ledger; rejecting leaves the booking as it was.
+    /// </summary>
+    [HttpPost("bookings/{id:int}/change-request/{reqId:int}/respond")]
+    public async Task<IActionResult> RespondChange(
+        int id, int reqId, [FromBody] RespondChangeRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var booking = await db.Bookings.Include(b => b.Listing)
+            .FirstOrDefaultAsync(b => b.Id == id, ct);
+        if (booking is null) return NotFound();
+
+        if (await access.ListingAsync(user, booking.ListingId, CoHostScope.Bookings, ct) is null)
+            return this.Denied("Bạn không có quyền với đơn này.");
+
+        var change = await db.BookingChangeRequests
+            .FirstOrDefaultAsync(r => r.Id == reqId && r.BookingId == booking.Id, ct);
+        if (change is null) return NotFound();
+        if (!ChangeRequests.IsLive(change, DateTime.UtcNow))
+            return BadRequest(new { message = "Yêu cầu đổi lịch này không còn hiệu lực." });
+
+        if (!req.Accept)
+        {
+            change.Status = ChangeRequestStatus.Rejected;
+            change.RespondedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+            await notifications.QueueWithEmailAsync(
+                await GuestOf(booking, ct), NotificationKind.System, "Yêu cầu đổi lịch bị từ chối",
+                $"Chủ nhà không đổi được lịch đơn {booking.Reference}. Đơn giữ nguyên như cũ.",
+                $"/trips/{booking.Id}", ct);
+            return NoContent();
+        }
+
+        // The dates could have been taken in the meantime; the same exclusion
+        // check runs again before anything moves.
+        var clash = await db.Bookings.AnyAsync(b =>
+            b.ListingId == booking.ListingId && b.Id != booking.Id
+            && BookingLifecycle.BlocksDates.Contains(b.Status)
+            && b.CheckIn < change.NewCheckOut && change.NewCheckIn < b.CheckOut, ct);
+        if (clash) return Conflict(new { message = "Ngày mới vừa có người khác đặt. Không đổi được." });
+
+        var party = new PartySize(change.NewAdults, change.NewChildren, change.NewInfants, change.NewPets);
+        var fresh = await catalog.BuildQuoteRequestAsync(
+            booking.ListingId, change.NewCheckIn, change.NewCheckOut, party, ct, booking.Id,
+            booking.RoomTypeId, nightlyOverride: booking.NightlyOverride);
+        if (fresh is null) return NotFound();
+        if (booking.CouponDiscount > 0) fresh = fresh with { CouponAmount = booking.CouponDiscount, CouponLabel = "Mã giảm giá" };
+        if (booking.CreditUsed > 0) fresh = fresh with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư StayHost" };
+        var price = Pricing.Quote(fresh);
+
+        // docs/01 CĐ-06 — the money already recognised shifts by the difference.
+        db.LedgerEntries.AddRange(Ledger.AdjustBooking(booking, price, DateTime.UtcNow));
+
+        // Move the booking onto the new stay.
+        booking.CheckIn = change.NewCheckIn;
+        booking.CheckOut = change.NewCheckOut;
+        booking.Nights = price.Nights;
+        booking.Guests = party.Counted;
+        booking.Adults = change.NewAdults;
+        booking.Children = change.NewChildren;
+        booking.Infants = change.NewInfants;
+        booking.Pets = change.NewPets;
+        booking.RoomBeforeDiscount = price.RoomBeforeDiscount;
+        booking.RoomDiscount = price.RoomDiscount;
+        booking.DiscountPercent = price.DiscountPercent;
+        booking.ExtraGuestFee = price.ExtraGuestFee;
+        booking.PetFee = price.PetFee;
+        booking.CleaningFee = price.CleaningFee;
+        booking.Subtotal = price.Subtotal;
+        booking.ServiceFee = price.GuestServiceFee;
+        booking.Tax = price.Tax;
+        booking.Total = price.Total;
+        booking.HostServiceFee = price.HostServiceFee;
+        booking.HostPayout = price.HostPayout;
+
+        change.Status = ChangeRequestStatus.Accepted;
+        change.RespondedAt = DateTime.UtcNow;
+
+        db.BookingEvents.Add(BookingLifecycle.Note(booking, $"host:{user.Id}",
+            $"Đổi lịch sang {change.NewCheckIn:dd/MM}–{change.NewCheckOut:dd/MM}, "
+            + ChangeRequests.DiffLabel(change.Difference)));
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (BookingsController.IsOverlapViolation(ex))
+        {
+            return Conflict(new { message = "Ngày mới vừa có người khác đặt. Không đổi được." });
+        }
+
+        await notifications.QueueWithEmailAsync(
+            await GuestOf(booking, ct), NotificationKind.System, "Đổi lịch được chấp nhận",
+            $"Đơn {booking.Reference} đã chuyển sang {change.NewCheckIn:dd/MM}–{change.NewCheckOut:dd/MM}. "
+            + ChangeRequests.DiffLabel(change.Difference), $"/trips/{booking.Id}", ct);
+
+        return Ok(new { newTotal = booking.Total, difference = change.Difference });
+    }
+
+    private async Task<User?> GuestOf(Booking b, CancellationToken ct) =>
+        b.GuestUserId is { } gid ? await db.Users.FirstOrDefaultAsync(u => u.Id == gid, ct) : null;
+
     /// <summary>
     /// A host walking away from a confirmed booking. docs/03 §4 gives the guest
     /// everything back plus a credit, and docs/06 §2.1 K1 opens a StayShield

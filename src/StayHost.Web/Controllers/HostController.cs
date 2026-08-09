@@ -53,6 +53,16 @@ public class HostController(
             .OrderByDescending(b => b.CreatedAt)
             .ToListAsync(ct);
 
+        // docs/01 CĐ-06 — pending change requests the host still has to answer.
+        var bookingIds = bookings.Select(b => b.Id).ToList();
+        var nowUtc = DateTime.UtcNow;
+        var pendingChanges = (await db.BookingChangeRequests
+                .Where(r => bookingIds.Contains(r.BookingId)
+                            && r.Status == ChangeRequestStatus.Pending && r.ExpiresAt > nowUtc)
+                .ToListAsync(ct))
+            .GroupBy(r => r.BookingId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.CreatedAt).First());
+
         var live = bookings.Where(b => BookingLifecycle.BlocksDates.Contains(b.Status)).ToList();
         var past = live.Where(b => b.CheckOut <= today).ToList();
         var upcoming = live.Where(b => b.CheckOut > today).ToList();
@@ -91,7 +101,7 @@ public class HostController(
             listings.Sum(l => l.ReviewCount),
             unread,
             dtoListings,
-            bookings.Select(ToHostBooking).ToList(),
+            bookings.Select(b => ToHostBooking(b, pendingChanges.GetValueOrDefault(b.Id))).ToList(),
             byMonth));
     }
 
@@ -844,7 +854,7 @@ public class HostController(
         Nightly = []
     };
 
-    private static HostBookingDto ToHostBooking(Booking b) => new(
+    private static HostBookingDto ToHostBooking(Booking b, BookingChangeRequest? change = null) => new(
         b.Id, b.Reference, b.ListingId, b.Listing?.Title ?? "",
         b.GuestUser?.FullName ?? b.GuestName ?? "Khách",
         b.GuestEmail ?? b.GuestUser?.Email,
@@ -856,5 +866,8 @@ public class HostController(
         BookingLifecycle.BadgeClass(b.Status),
         b.Payment?.Status.ToString() ?? "Pending",
         b.RequestExpiresAt,
-        b.CreatedAt);
+        b.CreatedAt,
+        change is null ? null : new PendingChangeDto(
+            change.Id, change.NewCheckIn, change.NewCheckOut, change.NewGuests,
+            change.Difference, ChangeRequests.DiffLabel(change.Difference)));
 }

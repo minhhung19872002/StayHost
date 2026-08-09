@@ -22,7 +22,7 @@ public class BookingsController(
     /// the only thing that can decide between two simultaneous checkouts, so its
     /// violation is a normal outcome, not a server error.
     /// </summary>
-    private static bool IsOverlapViolation(DbUpdateException ex) =>
+    internal static bool IsOverlapViolation(DbUpdateException ex) =>
         ex.InnerException?.Message.Contains("bookings_no_overlap", StringComparison.OrdinalIgnoreCase) == true;
 
     [HttpGet]
@@ -644,6 +644,111 @@ public class BookingsController(
         Response.Headers.ContentDisposition =
             $"inline; filename=\"stayhost-{Invoices.Number(booking)}.html\"";
         return Content(html, "text/html; charset=utf-8");
+    }
+
+    /// <summary>
+    /// docs/01 CĐ-06, docs/04 QT-4 — the guest asks to move a confirmed booking to
+    /// new dates or a new guest count. The old dates stay held; nothing changes
+    /// until the host accepts. The difference is quoted now so the guest sees it.
+    /// </summary>
+    [HttpPost("{id:int}/change-request")]
+    public async Task<ActionResult<ChangeRequestDto>> RequestChange(
+        int id, [FromBody] ChangeBookingRequest req, CancellationToken ct)
+    {
+        var booking = await FindOwnedAsync(id, ct, includeListing: true);
+        if (booking is null) return NotFound();
+
+        if (booking.Status is not (BookingStatus.Confirmed or BookingStatus.PendingHostApproval))
+            return BadRequest(new { message = "Chỉ đổi được đơn đã xác nhận hoặc đang chờ duyệt." });
+
+        var adults = req.Adults ?? Math.Max(1, req.Guests);
+        if (ChangeRequests.Validate(req.CheckIn, req.CheckOut, adults) is { } invalid)
+            return BadRequest(new { message = invalid });
+
+        var party = new PartySize(adults, req.Children, req.Infants, req.Pets);
+        if (party.Counted > booking.Listing!.MaxGuests)
+            return BadRequest(new { message = $"Chỗ nghỉ này nhận tối đa {booking.Listing.MaxGuests} khách." });
+
+        // The new dates must be free of every other booking — this one's own held
+        // dates are excluded, since it keeps them until the change is accepted.
+        var clash = await db.Bookings.AnyAsync(b =>
+            b.ListingId == booking.ListingId && b.Id != booking.Id
+            && BookingLifecycle.BlocksDates.Contains(b.Status)
+            && b.CheckIn < req.CheckOut && req.CheckIn < b.CheckOut, ct);
+        if (clash) return Conflict(new { message = "Ngày mới đã có người đặt. Vui lòng chọn ngày khác." });
+
+        var newPrice = await RequoteAsync(booking, req.CheckIn, req.CheckOut, party, ct);
+        if (newPrice is null) return NotFound();
+
+        var now = DateTime.UtcNow;
+        // One live request at a time: a new one supersedes any still pending.
+        var stale = await db.BookingChangeRequests
+            .Where(r => r.BookingId == booking.Id && r.Status == ChangeRequestStatus.Pending)
+            .ToListAsync(ct);
+        foreach (var r in stale) r.Status = ChangeRequestStatus.Withdrawn;
+
+        var change = new BookingChangeRequest
+        {
+            BookingId = booking.Id,
+            NewCheckIn = req.CheckIn,
+            NewCheckOut = req.CheckOut,
+            NewGuests = party.Counted,
+            NewAdults = adults,
+            NewChildren = req.Children,
+            NewInfants = req.Infants,
+            NewPets = req.Pets,
+            NewTotal = newPrice.Total,
+            Difference = newPrice.Total - booking.Total,
+            CreatedAt = now,
+            ExpiresAt = ChangeRequests.ExpiryFrom(now)
+        };
+        db.BookingChangeRequests.Add(change);
+        await db.SaveChangesAsync(ct);
+
+        return Ok(ToChangeDto(change));
+    }
+
+    /// <summary>Re-prices a stay for new dates/guests, keeping the booking's own
+    /// coupon and balance so the difference is only the change in the stay.</summary>
+    private async Task<Pricing.Breakdown?> RequoteAsync(
+        Booking booking, DateOnly checkIn, DateOnly checkOut, PartySize party, CancellationToken ct)
+    {
+        var fresh = await catalog.BuildQuoteRequestAsync(
+            booking.ListingId, checkIn, checkOut, party, ct, booking.Id, booking.RoomTypeId,
+            nightlyOverride: booking.NightlyOverride);
+        if (fresh is null) return null;
+
+        if (booking.CouponDiscount > 0)
+            fresh = fresh with { CouponAmount = booking.CouponDiscount, CouponLabel = "Mã giảm giá" };
+        if (booking.CreditUsed > 0)
+            fresh = fresh with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư StayHost" };
+
+        return Pricing.Quote(fresh);
+    }
+
+    private static ChangeRequestDto ToChangeDto(BookingChangeRequest r) => new(
+        r.Id, r.NewCheckIn, r.NewCheckOut, r.NewGuests, r.NewTotal, r.Difference,
+        ChangeRequests.DiffLabel(r.Difference), r.Status.ToString(),
+        ChangeRequests.IsLive(r, DateTime.UtcNow), r.ExpiresAt);
+
+    /// <summary>docs/01 CĐ-06 — the guest calls off a still-pending change.</summary>
+    [HttpPost("{id:int}/change-request/{reqId:int}/withdraw")]
+    public async Task<IActionResult> WithdrawChange(int id, int reqId, CancellationToken ct)
+    {
+        var booking = await FindOwnedAsync(id, ct);
+        if (booking is null) return NotFound();
+
+        var change = await db.BookingChangeRequests
+            .FirstOrDefaultAsync(r => r.Id == reqId && r.BookingId == booking.Id, ct);
+        if (change is null) return NotFound();
+
+        if (change.Status == ChangeRequestStatus.Pending)
+        {
+            change.Status = ChangeRequestStatus.Withdrawn;
+            change.RespondedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
+        return NoContent();
     }
 
     /// <summary>What the guest would get back if they cancelled right now.</summary>

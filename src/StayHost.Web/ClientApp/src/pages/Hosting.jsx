@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
-  set, loadHosting, loadHostCalendar, respondBooking, requireAuth, toast
+  set, loadHosting, loadHostCalendar, respondBooking, respondChange, requireAuth, toast
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate } from '../lib/format.js';
@@ -239,6 +239,18 @@ function BookingRow({ booking: b, navigate }) {
           <span className={`badge ${b.statusBadge}`}>{b.statusLabel}</span>
           {awaitingHost && b.requestExpiresAt && <RespondDeadline at={b.requestExpiresAt} />}
         </div>
+
+        {/* docs/01 CĐ-06 — a change the guest asked for, with accept/reject. */}
+        {b.pendingChange && (
+          <div className="notice notice-warn" style={{ marginTop: 10 }}>
+            <b>Yêu cầu đổi lịch:</b> {longDate(b.pendingChange.newCheckIn)} → {longDate(b.pendingChange.newCheckOut)} ·
+            {' '}{b.pendingChange.newGuests} khách · {b.pendingChange.differenceLabel}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button className="btn btn-primary btn-sm" onClick={() => respondChange(b.id, b.pendingChange.id, true)}>Chấp nhận đổi</button>
+              <button className="btn btn-outline btn-sm" onClick={() => respondChange(b.id, b.pendingChange.id, false)}>Từ chối</button>
+            </div>
+          </div>
+        )}
       </div>
       <div className="host-booking-actions">
         {awaitingHost && <>

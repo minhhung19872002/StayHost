@@ -346,7 +346,13 @@ public record HostBookingDto(
     string PaymentStatus,
     /// <summary>Set while a request is still inside its 24-hour window.</summary>
     DateTime? RequestExpiresAt,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    /// <summary>docs/01 CĐ-06 — a change the guest asked for, awaiting the host.</summary>
+    PendingChangeDto? PendingChange = null);
+
+public record PendingChangeDto(
+    int Id, DateOnly NewCheckIn, DateOnly NewCheckOut, int NewGuests,
+    decimal Difference, string DifferenceLabel);
 
 public record HostDashboardDto(
     int ListingCount,
@@ -944,6 +950,19 @@ public record SubmitPriceMatchRequest(string? CompetitorUrl, decimal CompetitorN
 
 /// <summary>One row of the price breakdown, already rounded. Negative means a reduction.</summary>
 public record PriceLineDto(string Key, string Label, decimal Amount);
+
+/* ------------------------------------------------------ CĐ-06 change request */
+
+public record ChangeBookingRequest(
+    DateOnly CheckIn, DateOnly CheckOut, int Guests,
+    int? Adults = null, int Children = 0, int Infants = 0, int Pets = 0);
+
+public record ChangeRequestDto(
+    int Id, DateOnly NewCheckIn, DateOnly NewCheckOut, int NewGuests,
+    decimal NewTotal, decimal Difference, string DifferenceLabel,
+    string Status, bool IsLive, DateTime ExpiresAt);
+
+public record RespondChangeRequest(bool Accept);
 
 /* ------------------------------------------------------- TM-26 city landing */
 
