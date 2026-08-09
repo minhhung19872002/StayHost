@@ -48,6 +48,23 @@ public class PaymentCompletion(
 
         db.LedgerEntries.AddRange(
             Ledger.CaptureBooking(booking, price, DateTime.UtcNow, charged, booking.CreditUsed));
+
+        // docs/01 TC-03, docs/07 §12.3 — a stay of 28+ nights pays the host month
+        // by month. The single-shot payout is stood down (PayoutDueOn nulled so the
+        // ordinary sweep skips it) and a monthly schedule takes over. Only set up
+        // once, in case this confirm runs twice from the rescue sweep.
+        var schedule = Payouts.MonthlySchedule(price.HostPayout, booking.CheckIn, booking.Nights);
+        if (schedule.Count > 0 && booking.Payment is not null
+            && !await db.PayoutInstallments.AnyAsync(i => i.BookingId == booking.Id, ct))
+        {
+            booking.Payment.PayoutDueOn = null;
+            foreach (var inst in schedule)
+                db.PayoutInstallments.Add(new PayoutInstallment
+                {
+                    BookingId = booking.Id, Amount = inst.Amount, DueOn = inst.DueOn
+                });
+        }
+
         await db.SaveChangesAsync(ct);
 
         var listing = booking.Listing!;

@@ -55,6 +55,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<ListingCancellationNote> ListingCancellationNotes => Set<ListingCancellationNote>();
     public DbSet<BookingChangeRequest> BookingChangeRequests => Set<BookingChangeRequest>();
     public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
+    public DbSet<PayoutInstallment> PayoutInstallments => Set<PayoutInstallment>();
     public DbSet<GiftCard> GiftCards => Set<GiftCard>();
     public DbSet<Referral> Referrals => Set<Referral>();
     public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
@@ -550,6 +551,15 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.CouponId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.User).WithMany()
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<PayoutInstallment>(e =>
+        {
+            e.ToTable("payout_installments");
+            e.HasIndex(x => new { x.Paid, x.DueOn });
+            e.Property(x => x.Amount).HasColumnType("numeric(12,2)");
             e.HasOne(x => x.Booking).WithMany()
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
         });

@@ -29,6 +29,27 @@ public enum PayoutHoldReason
 /// platform is holding it on somebody's behalf either way; the question is only
 /// whose behalf, and for how long.
 /// </summary>
+/// <summary>
+/// docs/01 TC-03 — one month's share of a long stay's host payout, with its own
+/// due date and lifecycle. Kept apart from the single-shot Payment path so the
+/// ordinary payout engine is untouched.
+/// </summary>
+public class PayoutInstallment
+{
+    public int Id { get; set; }
+
+    public int BookingId { get; set; }
+    public Booking? Booking { get; set; }
+
+    public decimal Amount { get; set; }
+    public DateOnly DueOn { get; set; }
+
+    public bool Paid { get; set; }
+    public DateTime? PaidAt { get; set; }
+    public int Attempts { get; set; }
+    public DateOnly? LastAttemptOn { get; set; }
+}
+
 public static class Payouts
 {
     /* ------------------------------------------------------ §12.2, the wait */
@@ -202,4 +223,51 @@ public static class Payouts
     public static string ExhaustedNotice() =>
         "Chúng tôi đã thử chuyển tiền nhiều lần nhưng không thành công. " +
         "Vui lòng kiểm tra lại tài khoản nhận tiền — tiền vẫn được giữ nguyên cho bạn.";
+
+    /* -------------------------------------------- §12.3, long-stay monthly payout */
+
+    /// <summary>docs/07 §12.3, docs/01 TC-03 — a stay this long is paid out monthly.</summary>
+    public const int MonthlyPayoutThreshold = 28;
+
+    /// <summary>A payout month is 30 nights for scheduling.</summary>
+    private const int NightsPerMonth = 30;
+
+    public readonly record struct PayoutInstalment(decimal Amount, DateOnly DueOn);
+
+    /// <summary>
+    /// docs/07 §12.3, docs/01 TC-03 — for a stay of 28 nights or more the host is
+    /// paid month by month rather than all at once: a guest committing to a long
+    /// stay is protected, and the host earns as the stay is delivered. The first
+    /// instalment falls due 24 hours after check-in, each next one a month on.
+    ///
+    /// The amounts follow the nights in each month and sum to exactly the payout —
+    /// the last instalment carries the rounding remainder, so nothing is lost or
+    /// invented. A stay under the threshold returns nothing: it uses the ordinary
+    /// single payout.
+    /// </summary>
+    public static IReadOnlyList<PayoutInstalment> MonthlySchedule(
+        decimal hostPayout, DateOnly checkIn, int nights)
+    {
+        if (nights < MonthlyPayoutThreshold || hostPayout <= 0) return [];
+
+        var schedule = new List<PayoutInstalment>();
+        var allocated = 0m;
+        var monthIndex = 0;
+
+        for (var start = 0; start < nights; start += NightsPerMonth)
+        {
+            var blockNights = Math.Min(NightsPerMonth, nights - start);
+            var isLast = start + blockNights >= nights;
+
+            var amount = isLast
+                ? hostPayout - allocated   // the remainder, so the total is exact
+                : Math.Round(hostPayout * blockNights / nights, 0, MidpointRounding.AwayFromZero);
+            allocated += amount;
+
+            schedule.Add(new PayoutInstalment(amount, checkIn.AddDays(1 + monthIndex * NightsPerMonth)));
+            monthIndex++;
+        }
+
+        return schedule;
+    }
 }

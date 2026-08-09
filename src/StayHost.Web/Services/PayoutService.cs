@@ -178,6 +178,83 @@ public class PayoutService(
         return new Result(paid, held, failed);
     }
 
+    /// <summary>
+    /// docs/01 TC-03, docs/07 §12.3 — the monthly payout for long stays. Each due
+    /// instalment is paid on its own, held by the same conditions as any payout,
+    /// with the same retry backoff. When the last one settles, the booking's
+    /// payment is marked paid so the reports agree.
+    /// </summary>
+    public async Task<Result> InstallmentSweepAsync(CancellationToken ct, DateOnly? asOf = null)
+    {
+        var today = asOf ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var now = DateTime.UtcNow;
+
+        var due = await db.PayoutInstallments
+            .Where(i => !i.Paid && i.DueOn <= today)
+            .Include(i => i.Booking!).ThenInclude(b => b.Listing!).ThenInclude(l => l.Host!).ThenInclude(h => h.User)
+            .Include(i => i.Booking!).ThenInclude(b => b.Payment)
+            .Take(200)
+            .ToListAsync(ct);
+
+        int paid = 0, held = 0, failed = 0;
+
+        foreach (var inst in due)
+        {
+            var booking = inst.Booking;
+            var host = booking?.Listing?.Host;
+            if (booking is null || host is null || booking.Payment?.Status != PaymentStatus.Captured) continue;
+
+            // Same retry cadence as an ordinary payout.
+            if (inst.Attempts > 0 && inst.LastAttemptOn is { } last)
+            {
+                var next = Payouts.NextAttemptOn(last, inst.Attempts);
+                if (next is null || next > today) continue;
+            }
+
+            var reason = Payouts.HoldReason(await ConditionsAsync(booking, host, inst.Amount, ct), now);
+            if (reason != PayoutHoldReason.None) { held++; continue; }
+
+            inst.Attempts++;
+            inst.LastAttemptOn = today;
+
+            var deduction = Payouts.Deduct(inst.Amount, host.OwedToPlatform);
+            var transfer = gateway.Charge(deduction.Transfer, "bank-transfer", host.PayoutAccountLast4);
+            if (!transfer.Ok) { failed++; continue; }
+
+            host.OwedToPlatform = deduction.StillOwed;
+            inst.Paid = true;
+            inst.PaidAt = now;
+
+            db.LedgerEntries.AddRange(Ledger.RecoverFromHost(booking, deduction.Applied, now));
+            db.LedgerEntries.AddRange(Ledger.PayoutHost(booking, inst.Amount - deduction.Applied, now));
+            paid++;
+
+            // When the final instalment lands, the payment itself is settled so the
+            // finance report stops showing this stay as still-to-pay.
+            var remaining = await db.PayoutInstallments
+                .CountAsync(x => x.BookingId == booking.Id && !x.Paid && x.Id != inst.Id, ct);
+            if (remaining == 0 && booking.Payment is not null)
+            {
+                booking.Payment.PayoutStatus = PayoutStatus.Paid;
+                booking.Payment.PaidOutAt = now;
+            }
+
+            await notifications.QueueWithEmailAsync(host.User, NotificationKind.PayoutSent,
+                "Đã chuyển đợt tiền theo tháng",
+                $"{deduction.Transfer:#,##0}₫ cho đơn {booking.Reference} (đơn dài, trả theo tháng).",
+                "/hosting/earnings", ct);
+        }
+
+        if (paid + held + failed > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            log.LogInformation("Trả theo tháng {Today}: {Paid} đợt đã chuyển, {Held} giữ, {Failed} lỗi.",
+                today, paid, held, failed);
+        }
+
+        return new Result(paid, held, failed);
+    }
+
     /// <summary>docs/07 §12.4 — the five questions, answered from live data.</summary>
     private async Task<Payouts.Conditions> ConditionsAsync(
         Booking booking, HostProfile host, decimal payable, CancellationToken ct)

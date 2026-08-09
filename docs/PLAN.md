@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả: **169 xong · 0 làm một phần · 31 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **174 xong · 0 làm một phần · 27 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,7 +350,7 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (31 mã)
+### 9.1 Chưa có (27 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -358,7 +358,6 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `TM-23` | Lưu bộ tìm kiếm + thông báo khi có chỗ mới phù hợp | P2 |
 | `TM-24` | Vẽ vùng tìm kiếm trên bản đồ | P2 |
 | `TĐ-03` · `TN-06` | Dịch mô tả tin đăng (**P0**) · dịch tin nhắn (P1) — cần nhà cung cấp dịch thuật | P0/P1 |
-| `TC-03` | Đơn từ 28 đêm trở lên thu theo từng tháng | P1 |
 | `TK-07` · `TK-13` | Xác minh email công ty · liên hệ khẩn cấp | P2 |
 | `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
 | `AT-01` | Kiểm duyệt tin đăng mới **trước** khi hiển thị | P1 |
@@ -385,6 +384,15 @@ các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, k�
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
 
+`TC-03` (đơn ≥28 đêm trả theo tháng, `docs/07 §12.3`) làm xong 10/08/2026. Lịch chia
+theo tháng ở `Payouts.MonthlySchedule` (khối 30 đêm, tháng đầu gánh phần lớn, tháng
+cuối lấy phần dư — tổng khớp đến từng đồng); `PaymentCompletion` dựng `PayoutInstallment`
+lúc xác nhận và tắt payout một lần (nulls `PayoutDueOn`); `PayoutService.InstallmentSweepAsync`
+(chạy trong vòng quét 60s của `BookingService`) trả từng đợt đến hạn, dùng chung năm điều
+kiện giữ tiền `§12.4` và nhịp thử lại `§12.5`, đợt cuối trả xong thì đánh dấu `Payment`
+là đã trả. Xác minh sống: đơn 30 đêm → 1 đợt = đúng `HostPayout`, sweep chi ra, sổ cân
+bằng = 0, `PayoutStatus=Paid`.
+
 Một dạng thiếu không hiện ra khi tìm theo tên mã: **dữ liệu được ghi mà không ai
 đọc.** `QL-16` là ví dụ — bảng `ListingViews` nhận lượt xem thật từ
 `CatalogService.cs:451`, nhưng không controller nào truy vấn nó, nên chủ nhà không
@@ -402,8 +410,8 @@ dùng / tin nhắn / đánh giá) · `TC-07` (hạn dùng số dư) · `TC-04` (
 thuế) · `TĐ-18` (nút chia sẻ) · `TM-02` (tab "Tất cả").
 
 **Đợt 2 — tiền và chuyển đổi.** `ĐP-09`+`TC-09` mã giảm giá · `ĐP-14` hoá đơn tải
-về · `ĐP-17`+`QL-14` ưu đãi riêng trong tin nhắn · `TC-03` thu theo tháng cho đơn
-≥28 đêm · `TC-11` tranh chấp thẻ.
+về · `ĐP-17`+`QL-14` ưu đãi riêng trong tin nhắn. (`TC-03` thu theo tháng cho đơn
+≥28 đêm và `TC-11` tranh chấp thẻ đã xong — xem `§9.3`.)
 
 **Đợt 3 — giữ chân sau khi đặt.** `CĐ-06` đổi ngày/số khách có chủ nhà duyệt ·
 `CĐ-12` nút trợ giúp gắn đúng đơn · `ĐG-10` báo cáo đánh giá vi phạm · `ĐG-12` ghi
