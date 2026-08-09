@@ -563,7 +563,11 @@ function ProfileForm() {
       languages,
       location: f.location.value.trim() || null,
       occupation: f.occupation.value.trim() || null,
-      interests
+      interests,
+      // docs/01 TK-13 — emergency contact for trip incidents.
+      emergencyContactName: f.emergencyContactName.value.trim() || null,
+      emergencyContactPhone: f.emergencyContactPhone.value.trim() || null,
+      emergencyContactRelation: f.emergencyContactRelation.value.trim() || null
     });
     setSaving(false);
   };
@@ -643,6 +647,23 @@ function ProfileForm() {
       <label className="form-field"><span className="cap">Giới thiệu</span>
         <textarea name="bio" rows={4} defaultValue={u.bio ?? ''} maxLength={700}
           style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} /></label>
+
+      {/* docs/01 TK-13 — liên hệ khẩn cấp, dùng khi có sự cố trong chuyến đi. */}
+      <div className="form-field" style={{ marginTop: 4 }}>
+        <span className="cap">Liên hệ khẩn cấp</span>
+        <p className="field-note" style={{ marginTop: 0 }}>Chỉ dùng khi có sự cố trong chuyến đi.</p>
+      </div>
+      <div className="field-grid">
+        <label className="form-field"><span className="cap">Tên người liên hệ</span>
+          <input type="text" name="emergencyContactName" defaultValue={u.emergencyContactName ?? ''}
+                 maxLength={80} placeholder="Nguyễn Văn A" /></label>
+        <label className="form-field"><span className="cap">Số điện thoại</span>
+          <input type="tel" name="emergencyContactPhone" defaultValue={u.emergencyContactPhone ?? ''}
+                 maxLength={80} placeholder="09xx xxx xxx" /></label>
+      </div>
+      <label className="form-field"><span className="cap">Quan hệ</span>
+        <input type="text" name="emergencyContactRelation" defaultValue={u.emergencyContactRelation ?? ''}
+               maxLength={80} placeholder="Người thân, bạn bè…" /></label>
 
       <button type="submit" className="btn btn-primary btn-block" disabled={saving}>
         {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
@@ -1192,6 +1213,12 @@ function Verification() {
       {row('phone', v.phone, v.phoneConfirmed)}
       {!v.email && !v.phone && <p className="section-sub">Tài khoản chưa có email hay số điện thoại nào.</p>}
 
+      <h4 style={{ margin: '22px 0 4px', fontSize: 14.5, fontWeight: 800 }}>Email công ty</h4>
+      <p className="section-sub" style={{ marginTop: 0 }}>
+        Dành cho công tác. Dùng tên miền tổ chức, không dùng email cá nhân.
+      </p>
+      <WorkEmailPanel codeLength={v.codeLength} />
+
       <h4 style={{ margin: '22px 0 4px', fontSize: 14.5, fontWeight: 800 }}>Tài khoản đã liên kết</h4>
       {v.linked.length ? v.linked.map(l => (
         <div className="verify-row" key={l.provider}>
@@ -1202,6 +1229,74 @@ function Verification() {
           <button className="btn btn-outline btn-sm" onClick={() => unlink(l.provider)}>Bỏ liên kết</button>
         </div>
       )) : <p className="section-sub">Chưa liên kết Google, Apple hay Facebook nào.</p>}
+    </div>
+  );
+}
+
+/** docs/01 TK-07 — set and verify a company email, earning the work-verified badge. */
+function WorkEmailPanel({ codeLength }) {
+  const state = useStore();
+  const u = state.user;
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [stage, setStage] = useState('idle');   // idle | code
+  const [busy, setBusy] = useState(false);
+
+  if (!u) return null;
+
+  const send = async () => {
+    setBusy(true);
+    try {
+      const res = await api.setWorkEmail(email.trim());
+      if (res.devCode) setCode(res.devCode);
+      setStage('code');
+      toast(res.devCode ? `${res.message} Mã thử nghiệm: ${res.devCode}` : res.message);
+    } catch (err) { toast(err.message); } finally { setBusy(false); }
+  };
+
+  const confirm = async () => {
+    setBusy(true);
+    try { await api.confirmWorkEmail(code); await loadMe(); setStage('idle'); setCode(''); toast('Đã xác thực email công ty.'); }
+    catch (err) { toast(err.message); } finally { setBusy(false); }
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    try { await api.removeWorkEmail(); await loadMe(); toast('Đã gỡ email công ty.'); }
+    catch (err) { toast(err.message); } finally { setBusy(false); }
+  };
+
+  if (u.workEmail && u.workEmailConfirmed) {
+    return (
+      <div className="verify-row">
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <b>{u.workEmail}</b>
+          <div className="meta">Đã xác thực · huy hiệu công tác</div>
+        </div>
+        <span className="badge confirmed">Xong</span>
+        <button className="btn btn-outline btn-sm" disabled={busy} onClick={remove}>Gỡ</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="verify-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+      <input className="form-field" style={{ flex: 1, minWidth: 180 }} type="email"
+             placeholder="ban@congty.com.vn" value={email}
+             onChange={e => setEmail(e.target.value)} />
+      {stage === 'code' && (
+        <input className="verify-code" inputMode="numeric" maxLength={codeLength}
+               placeholder="000000" value={code}
+               onChange={e => setCode(e.target.value.replace(/\D/g, ''))} />
+      )}
+      <button className="btn btn-outline btn-sm" disabled={busy || !email.trim()} onClick={send}>
+        {stage === 'code' ? 'Gửi lại' : 'Gửi mã'}
+      </button>
+      {stage === 'code' && (
+        <button className="btn btn-primary btn-sm" disabled={busy || code.length !== codeLength} onClick={confirm}>
+          Xác nhận
+        </button>
+      )}
     </div>
   );
 }

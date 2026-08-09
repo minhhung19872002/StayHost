@@ -24,7 +24,12 @@ public class IdentityService(
     /// </summary>
     public async Task<CodeResult> SendCodeAsync(User user, IdentifierKind kind, CancellationToken ct)
     {
-        var sentTo = kind == IdentifierKind.Phone ? user.Phone : user.Email;
+        var sentTo = kind switch
+        {
+            IdentifierKind.Phone => user.Phone,
+            IdentifierKind.WorkEmail => user.WorkEmail,
+            _ => user.Email
+        };
         if (string.IsNullOrWhiteSpace(sentTo))
             return new(false, $"Tài khoản chưa có {Identity.KindLabel(kind)}.");
 
@@ -64,7 +69,7 @@ public class IdentityService(
             ExpiresAt = now + Identity.CodeLifetime
         });
 
-        if (kind == IdentifierKind.Email)
+        if (kind != IdentifierKind.Phone)
         {
             db.EmailMessages.Add(new EmailMessage
             {
@@ -127,6 +132,7 @@ public class IdentityService(
 
         record.UsedAt = now;
         if (kind == IdentifierKind.Phone) user.PhoneConfirmed = true;
+        else if (kind == IdentifierKind.WorkEmail) user.WorkEmailConfirmed = true;
         else user.EmailConfirmed = true;
 
         await db.SaveChangesAsync(ct);

@@ -338,6 +338,11 @@ export const api = {
   sendCode: kind => request('/api/account/send-code', { method: 'POST', body: JSON.stringify({ kind }) }),
   confirmCode: (kind, code) =>
     request('/api/account/confirm-code', { method: 'POST', body: JSON.stringify({ kind, code }) }),
+  // docs/01 TK-07 — company email verification.
+  setWorkEmail: email => request('/api/account/work-email', { method: 'POST', body: JSON.stringify({ email }) }),
+  confirmWorkEmail: code =>
+    request('/api/account/work-email/confirm', { method: 'POST', body: JSON.stringify({ kind: 'workemail', code }) }),
+  removeWorkEmail: () => request('/api/account/work-email', { method: 'DELETE' }),
   externalConfig: () => request('/api/account/external/config'),
   externalSignIn: (provider, credential) =>
     request('/api/account/external', { method: 'POST', body: JSON.stringify({ provider, credential }) }),

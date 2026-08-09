@@ -115,6 +115,11 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Bio).HasMaxLength(Profiles.BioMax);
             e.Property(x => x.SpokenLanguages).HasMaxLength(Profiles.MaxLanguages * (Profiles.TagMax + 1));
             e.Property(x => x.Interests).HasMaxLength(Profiles.MaxInterests * (Profiles.TagMax + 1));
+            // docs/01 TK-07 and TK-13.
+            e.Property(x => x.WorkEmail).HasMaxLength(200);
+            e.Property(x => x.EmergencyContactName).HasMaxLength(Profiles.LineMax);
+            e.Property(x => x.EmergencyContactPhone).HasMaxLength(Profiles.LineMax);
+            e.Property(x => x.EmergencyContactRelation).HasMaxLength(Profiles.LineMax);
             e.Ignore(x => x.HostProfileId);
         });
 

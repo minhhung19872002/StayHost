@@ -98,6 +98,22 @@ public class User
     public string? Interests { get; set; }
 
     /// <summary>
+    /// docs/01 TK-07 — a company email, proved with a code, so business travellers
+    /// carry a work-verified badge. Held separately from the sign-in email; a free
+    /// consumer mailbox never earns it (<see cref="Domain.WorkEmail"/>).
+    /// </summary>
+    public string? WorkEmail { get; set; }
+    public bool WorkEmailConfirmed { get; set; }
+
+    /// <summary>
+    /// docs/01 TK-13 — who to reach if something goes wrong on a trip. Private to
+    /// the account; surfaced to support only when an incident is open.
+    /// </summary>
+    public string? EmergencyContactName { get; set; }
+    public string? EmergencyContactPhone { get; set; }
+    public string? EmergencyContactRelation { get; set; }
+
+    /// <summary>
     /// docs/01 TK-10 — the whole notification matrix as one bitmask. Read it
     /// through <see cref="NotificationPrefs"/>, never directly.
     /// </summary>

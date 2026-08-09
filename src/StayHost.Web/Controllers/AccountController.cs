@@ -287,9 +287,64 @@ public class AccountController(
     }
 
     private static IdentifierKind ParseKind(string? kind) =>
-        string.Equals(kind, "phone", StringComparison.OrdinalIgnoreCase)
-            ? IdentifierKind.Phone
-            : IdentifierKind.Email;
+        string.Equals(kind, "phone", StringComparison.OrdinalIgnoreCase) ? IdentifierKind.Phone
+        : string.Equals(kind, "workemail", StringComparison.OrdinalIgnoreCase) ? IdentifierKind.WorkEmail
+        : IdentifierKind.Email;
+
+    /* --------------------------------------- docs/01 TK-07: company email */
+
+    /// <summary>
+    /// docs/01 TK-07 — start verifying a company email. The address is stored
+    /// unconfirmed and a six-digit code is sent to it; a free consumer mailbox is
+    /// refused because the badge is about belonging to an organisation.
+    /// </summary>
+    [HttpPost("work-email")]
+    public async Task<IActionResult> SetWorkEmail([FromBody] WorkEmailRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var normalised = WorkEmail.Normalise(req.Email);
+        if (WorkEmail.Domain(normalised) is null)
+            return BadRequest(new { message = WorkEmail.InvalidMessage() });
+        if (!WorkEmail.IsCompanyEmail(normalised))
+            return BadRequest(new { message = WorkEmail.FreeProviderMessage() });
+
+        user.WorkEmail = normalised;
+        user.WorkEmailConfirmed = false;
+        await db.SaveChangesAsync(ct);
+
+        var result = await identity.SendCodeAsync(user, IdentifierKind.WorkEmail, ct);
+        return result.Ok
+            ? Ok(new { message = $"Đã gửi mã tới {normalised}.", devCode = result.DevCode })
+            : BadRequest(new { message = result.Error });
+    }
+
+    /// <summary>docs/01 TK-07 — confirm the company email with the code just sent.</summary>
+    [HttpPost("work-email/confirm")]
+    public async Task<ActionResult<CurrentUserDto>> ConfirmWorkEmail(
+        [FromBody] ConfirmCodeRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var result = await identity.ConfirmCodeAsync(user, IdentifierKind.WorkEmail, req.Code, ct);
+        if (!result.Ok) return BadRequest(new { message = result.Error });
+        return Ok(await ToDtoAsync(user, ct));
+    }
+
+    /// <summary>docs/01 TK-07 — remove the company email and its badge.</summary>
+    [HttpDelete("work-email")]
+    public async Task<ActionResult<CurrentUserDto>> RemoveWorkEmail(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        user.WorkEmail = null;
+        user.WorkEmailConfirmed = false;
+        await db.SaveChangesAsync(ct);
+        return Ok(await ToDtoAsync(user, ct));
+    }
 
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(CancellationToken ct)
@@ -316,6 +371,11 @@ public class AccountController(
         user.Occupation = Profiles.Tidy(req.Occupation, Profiles.LineMax);
         user.SpokenLanguages = Profiles.PackLanguages(req.Languages);
         user.Interests = Profiles.PackInterests(req.Interests) is { Length: > 0 } packed ? packed : null;
+
+        // docs/01 TK-13 — emergency contact, trimmed and capped like the rest.
+        user.EmergencyContactName = Profiles.Tidy(req.EmergencyContactName, Profiles.LineMax);
+        user.EmergencyContactPhone = Profiles.Tidy(req.EmergencyContactPhone, Profiles.LineMax);
+        user.EmergencyContactRelation = Profiles.Tidy(req.EmergencyContactRelation, Profiles.LineMax);
 
         if (string.IsNullOrWhiteSpace(req.AvatarUrl)) user.AvatarUrl = null;
         else if (Profiles.IsOwnUpload(req.AvatarUrl)) user.AvatarUrl = req.AvatarUrl.Trim();
@@ -610,6 +670,11 @@ public class AccountController(
             Profiles.UnpackLanguages(user.SpokenLanguages),
             user.Location,
             user.Occupation,
-            Profiles.UnpackInterests(user.Interests));
+            Profiles.UnpackInterests(user.Interests),
+            user.WorkEmail,
+            user.WorkEmailConfirmed,
+            user.EmergencyContactName,
+            user.EmergencyContactPhone,
+            user.EmergencyContactRelation);
     }
 }

@@ -51,7 +51,14 @@ public record UpdateProfileRequest(
     IReadOnlyList<string>? Languages = null,
     string? Location = null,
     string? Occupation = null,
-    IReadOnlyList<string>? Interests = null);
+    IReadOnlyList<string>? Interests = null,
+    // docs/01 TK-13 — emergency contact for trip incidents.
+    string? EmergencyContactName = null,
+    string? EmergencyContactPhone = null,
+    string? EmergencyContactRelation = null);
+
+/// <summary>docs/01 TK-07 — request to verify a company email.</summary>
+public record WorkEmailRequest(string? Email);
 
 /// <summary>One of the languages the profile editor offers (docs/01 TK-04).</summary>
 public record SpokenLanguageDto(string Code, string Label);
@@ -165,7 +172,14 @@ public record CurrentUserDto(
     IReadOnlyList<string>? Languages = null,
     string? Location = null,
     string? Occupation = null,
-    IReadOnlyList<string>? Interests = null);
+    IReadOnlyList<string>? Interests = null,
+    /* ------------------------------------------------------ docs/01 TK-07 */
+    string? WorkEmail = null,
+    bool WorkEmailConfirmed = false,
+    /* ------------------------------------------------------ docs/01 TK-13 */
+    string? EmergencyContactName = null,
+    string? EmergencyContactPhone = null,
+    string? EmergencyContactRelation = null);
 
 /* ------------------------------------------------------------------ hosting */
 

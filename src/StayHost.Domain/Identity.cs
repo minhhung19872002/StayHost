@@ -4,7 +4,9 @@ namespace StayHost.Domain;
 public enum IdentifierKind
 {
     Email = 0,
-    Phone = 1
+    Phone = 1,
+    /// <summary>docs/01 TK-07 — a company email, proved with the same six-digit code.</summary>
+    WorkEmail = 2
 }
 
 /// <summary>docs/01 TK-02 — the three the spec names, and nothing else.</summary>
@@ -203,6 +205,10 @@ public static class Identity
         _ => "Facebook"
     };
 
-    public static string KindLabel(IdentifierKind kind) =>
-        kind == IdentifierKind.Phone ? "số điện thoại" : "email";
+    public static string KindLabel(IdentifierKind kind) => kind switch
+    {
+        IdentifierKind.Phone => "số điện thoại",
+        IdentifierKind.WorkEmail => "email công ty",
+        _ => "email"
+    };
 }
