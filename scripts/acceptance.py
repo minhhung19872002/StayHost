@@ -158,19 +158,29 @@ record(4, "Yêu cầu đặt, chủ nhà chấp nhận, trừ tiền, xác nhậ
        f"{len(after['history'])} dòng lịch sử")
 
 # --- 5 ---------------------------------------------------------------------
-_, s5 = call(guest, f"/api/listings?pageSize=60&checkIn={future(80)}&checkOut={future(83)}")
+# docs/03 §4 gives a guest the service fee back at most three times a year. The
+# shared demo account runs out of those after a few runs on the same database,
+# and then a correct partial refund reads as a failure of "hoàn 100%". A guest
+# created for this scenario has spent none of its three, so the number under test
+# is the cancellation policy rather than the yearly cap.
+canceller = opener()
+call(canceller, "/api/account/register",
+     {"email": f"acceptance-huy{int(time.time())}@stayhost.vn", "password": "stayhost123",
+      "fullName": "Khách Huỷ Nghiệm Thu", "phone": None, "dateOfBirth": "1993-04-02"})
+
+_, s5 = call(canceller, f"/api/listings?pageSize=60&checkIn={future(80)}&checkOut={future(83)}")
 mod = None
 for i in s5['items']:
     if not i['instantBook']:
         continue
-    _, d = call(guest, f"/api/listings/{i['slug']}")
+    _, d = call(canceller, f"/api/listings/{i['slug']}")
     if d['cancellationPolicy'].startswith("Huỷ miễn phí đến 5 ngày"):
         mod = i
         break
 mod = mod or next(i for i in s5['items'] if i['instantBook'])
 
-st5, booked5 = book_and_pay(guest, mod, 80)
-st5b, refund = call(guest, f"/api/bookings/{booked5['id']}/cancel", {}, m="POST")
+st5, booked5 = book_and_pay(canceller, mod, 80)
+st5b, refund = call(canceller, f"/api/bookings/{booked5['id']}/cancel", {}, m="POST")
 
 admin = opener()
 admin_login()
@@ -269,7 +279,7 @@ if case_id is None:
            f"không mở được hồ sơ: {st10a} {str(kase)[:200]}")
     print()
     print("=" * 70)
-    print(f"KẾT QUẢ: {sum(RESULTS)}/{len(RESULTS)} tình huống nghiệm thu đạt")
+    print(f"KẾT QUẢ: {sum(1 for r in results if r[2])}/{len(results)} tình huống nghiệm thu đạt")
     raise SystemExit(1)
 
 st10b, disputed = call(guest, f"/api/resolutions/{case_id}/respond",

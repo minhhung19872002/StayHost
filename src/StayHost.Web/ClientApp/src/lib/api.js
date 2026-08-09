@@ -258,6 +258,8 @@ export const api = {
     request(`/api/admin/tax-rules/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   /* ------------------------------------------------------- reports / admin */
+  // docs/01 TC-04 — the host's tax year. No year asked for means the newest one.
+  taxReport: year => request(`/api/host/tax-report${year ? `?year=${year}` : ''}`),
   report: body => request('/api/reports', { method: 'POST', body: JSON.stringify(body) }),
   // docs/01 AT-02 — the reasons live on the server so a listing and a review are
   // never offered the same list by two copies drifting apart.

@@ -896,6 +896,29 @@ public record SubmitPriceMatchRequest(string? CompetitorUrl, decimal CompetitorN
 /// <summary>One row of the price breakdown, already rounded. Negative means a reduction.</summary>
 public record PriceLineDto(string Key, string Label, decimal Amount);
 
+/* ------------------------------------------------------- TC-04 tax report */
+
+public record TaxReportMonthDto(
+    int Month, string Label, int Stays,
+    decimal GuestPaid, decimal Tax, decimal HostServiceFee, decimal HostPayout);
+
+public record TaxReportLineDto(string Name, decimal Amount, int Stays);
+
+public record TaxReportDto(
+    int Year,
+    /// <summary>Years with anything in them, newest first, for the picker.</summary>
+    IReadOnlyList<int> Years,
+    IReadOnlyList<TaxReportMonthDto> Months,
+    IReadOnlyList<TaxReportLineDto> Taxes,
+    int Stays,
+    decimal GuestPaid,
+    decimal RoomSubtotal,
+    decimal GuestServiceFee,
+    decimal Tax,
+    decimal HostServiceFee,
+    decimal HostPayout,
+    string Note);
+
 public record QuoteDto(
     int ListingId,
     int Nights,

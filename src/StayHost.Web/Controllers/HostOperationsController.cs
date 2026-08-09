@@ -444,6 +444,161 @@ public class HostOperationsController(
         static string Escape(string v) => v.Replace(';', ',').Replace('\n', ' ');
     }
 
+    /* ------------------------------------------------------------- TC-04 */
+
+    /// <summary>
+    /// docs/01 TC-04, docs/02 G7 — "báo cáo thuế theo năm". Only completed stays
+    /// count: a tax year is a record of what was delivered, and a booking still
+    /// running has not finished happening.
+    /// </summary>
+    [HttpGet("tax-report")]
+    public async Task<ActionResult<TaxReportDto>> TaxReport([FromQuery] int? year, CancellationToken ct)
+    {
+        var (user, profile) = await ResolveAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+        if (profile is null) return NotFound();
+
+        var stays = await CompletedStaysAsync(profile.Id, ct);
+        var years = TaxReports.YearsCovered(stays);
+        var chosen = year ?? years.FirstOrDefault(DateTime.UtcNow.Year);
+
+        var report = TaxReports.Build(stays, chosen);
+
+        return Ok(new TaxReportDto(
+            report.Year,
+            years,
+            report.Months
+                .Select(m => new TaxReportMonthDto(
+                    m.Month, TaxReports.MonthLabel(m.Month), m.Stays,
+                    m.GuestPaid, m.Tax, m.HostServiceFee, m.HostPayout))
+                .ToList(),
+            report.Taxes.Select(t => new TaxReportLineDto(t.Name, t.Amount, t.Stays)).ToList(),
+            report.Stays, report.GuestPaid, report.RoomSubtotal, report.GuestServiceFee,
+            report.Tax, report.HostServiceFee, report.HostPayout,
+            TaxReports.RemittanceNote));
+    }
+
+    /// <summary>The same year, as a file to hand an accountant.</summary>
+    [HttpGet("tax-report.csv")]
+    public async Task<IActionResult> TaxReportCsv([FromQuery] int? year, CancellationToken ct)
+    {
+        var (user, profile) = await ResolveAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+        if (profile is null) return NotFound();
+
+        var stays = await CompletedStaysAsync(profile.Id, ct);
+        var chosen = year ?? TaxReports.YearsCovered(stays).FirstOrDefault(DateTime.UtcNow.Year);
+        var report = TaxReports.Build(stays, chosen);
+
+        var vn = CultureInfo.GetCultureInfo("vi-VN");
+        var csv = new StringBuilder();
+
+        csv.AppendLine($"Báo cáo thuế năm {chosen}");
+        csv.AppendLine(TaxReports.RemittanceNote.Replace(';', ','));
+        csv.AppendLine();
+
+        csv.AppendLine("Tháng;Số đơn;Khách trả;Thuế;Phí dịch vụ chủ nhà;Bạn nhận");
+        foreach (var m in report.Months)
+            csv.Append(TaxReports.MonthLabel(m.Month)).Append(';')
+               .Append(m.Stays).Append(';')
+               .Append(m.GuestPaid.ToString("0", vn)).Append(';')
+               .Append(m.Tax.ToString("0", vn)).Append(';')
+               .Append(m.HostServiceFee.ToString("0", vn)).Append(';')
+               .Append(m.HostPayout.ToString("0", vn))
+               .AppendLine();
+
+        csv.Append("Cả năm;").Append(report.Stays).Append(';')
+           .Append(report.GuestPaid.ToString("0", vn)).Append(';')
+           .Append(report.Tax.ToString("0", vn)).Append(';')
+           .Append(report.HostServiceFee.ToString("0", vn)).Append(';')
+           .Append(report.HostPayout.ToString("0", vn))
+           .AppendLine();
+
+        if (report.Taxes.Count > 0)
+        {
+            csv.AppendLine();
+            csv.AppendLine("Loại thuế;Số đơn;Số tiền");
+            foreach (var t in report.Taxes)
+                csv.Append(t.Name.Replace(';', ',')).Append(';')
+                   .Append(t.Stays).Append(';')
+                   .Append(t.Amount.ToString("0", vn))
+                   .AppendLine();
+        }
+
+        // Every stay behind the totals, so the file can be checked rather than
+        // trusted — and so a cash-basis reader has the payout dates to re-cut by.
+        csv.AppendLine();
+        csv.AppendLine("Mã đơn;Chỗ nghỉ;Nhận phòng;Trả phòng;Khách trả;Thuế;Phí dịch vụ chủ nhà;Bạn nhận;Ngày nhận tiền");
+        foreach (var s in stays.Where(s => s.CheckOut.Year == chosen).OrderBy(s => s.CheckOut))
+            csv.Append(s.Reference).Append(';')
+               .Append(s.ListingTitle.Replace(';', ',').Replace('\n', ' ')).Append(';')
+               .Append(s.CheckIn.ToString("dd/MM/yyyy")).Append(';')
+               .Append(s.CheckOut.ToString("dd/MM/yyyy")).Append(';')
+               .Append(s.GuestPaid.ToString("0", vn)).Append(';')
+               .Append(s.Tax.ToString("0", vn)).Append(';')
+               .Append(s.HostServiceFee.ToString("0", vn)).Append(';')
+               .Append(s.HostPayout.ToString("0", vn)).Append(';')
+               .Append(s.PaidOutOn?.ToString("dd/MM/yyyy") ?? "")
+               .AppendLine();
+
+        var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv.ToString())).ToArray();
+        return File(bytes, "text/csv", $"stayhost-bao-cao-thue-{chosen}.csv");
+    }
+
+    /// <summary>
+    /// docs/03 §1 step 8 — the tax a guest paid is recorded on the booking as the
+    /// rows they were shown, so the breakdown comes back out of those rather than
+    /// from today's tax rules. A rule renamed or retired since must not rewrite
+    /// what somebody was already charged.
+    /// </summary>
+    private async Task<List<TaxReports.Stay>> CompletedStaysAsync(int hostId, CancellationToken ct)
+    {
+        var bookings = await db.Bookings
+            .Where(b => b.Listing!.HostId == hostId && b.Status == BookingStatus.Completed)
+            .Include(b => b.Listing)
+            .Include(b => b.Payment)
+            .ToListAsync(ct);
+
+        return bookings.Select(b => new TaxReports.Stay(
+            b.Reference,
+            b.Listing?.Title ?? "",
+            b.CheckIn,
+            b.CheckOut,
+            // The day the money actually left, when it has; otherwise the day it
+            // is due, which is the best answer available for a stay not paid yet.
+            b.Payment?.PaidOutAt is { } paid ? DateOnly.FromDateTime(paid) : b.Payment?.PayoutDueOn,
+            b.Total,
+            b.Subtotal,
+            b.ServiceFee,
+            b.HostServiceFee,
+            b.Payment?.HostPayout ?? b.HostPayout,
+            TaxLinesOf(b))).ToList();
+    }
+
+    private static readonly System.Text.Json.JsonSerializerOptions TaxLineJson =
+        new(System.Text.Json.JsonSerializerDefaults.Web);
+
+    private static IReadOnlyList<PriceLine> TaxLinesOf(Booking booking)
+    {
+        try
+        {
+            var lines = System.Text.Json.JsonSerializer
+                .Deserialize<List<PriceLineDto>>(booking.PriceLinesJson, TaxLineJson) ?? [];
+
+            return lines
+                .Where(l => l.Key.StartsWith("tax-", StringComparison.Ordinal))
+                .Select(l => new PriceLine(l.Key, l.Label, l.Amount))
+                .ToList();
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // A booking whose stored rows cannot be read still belongs in the
+            // totals; it just cannot say which tax it was. Losing the whole stay
+            // would understate the year.
+            return booking.Tax > 0 ? [new PriceLine("tax-0", "Thuế", booking.Tax)] : [];
+        }
+    }
+
     /* ------------------------------------------------------------- QL-20 */
 
     [HttpGet("payout")]

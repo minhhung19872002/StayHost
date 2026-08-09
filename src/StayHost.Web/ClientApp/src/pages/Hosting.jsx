@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
-  set, loadHosting, loadHostCalendar, respondBooking, requireAuth
+  set, loadHosting, loadHostCalendar, respondBooking, requireAuth, toast
 } from '../lib/store.js';
+import { api } from '../lib/api.js';
 import { money, longDate } from '../lib/format.js';
 import { Icon } from '../components/Icon.jsx';
 import { Today } from './hosting/Today.jsx';
@@ -310,6 +311,8 @@ function Earnings({ d }) {
         </div>
       </section>
 
+      <TaxReport />
+
       <section style={{ marginTop: 34 }}>
         <h2 className="section-title" style={{ fontSize: 20 }}>Cách StayHost tính tiền</h2>
         <div className="know-grid" style={{ marginTop: 16 }}>
@@ -328,5 +331,103 @@ function Earnings({ d }) {
         </div>
       </section>
     </div>
+  );
+}
+
+/**
+ * docs/01 TC-04, docs/02 G7 — the year written down for whoever does the host's
+ * tax. Only completed stays are in it, counted by the year they ended; the CSV
+ * carries every stay behind the totals so the file can be checked rather than
+ * trusted.
+ */
+function TaxReport() {
+  const [report, setReport] = useState(null);
+  const [year, setYear] = useState(null);
+
+  useEffect(() => {
+    api.taxReport(year).then(setReport).catch(err => toast(err.message));
+  }, [year]);
+
+  if (!report) return null;
+
+  const rows = report.months.filter(m => m.stays > 0);
+
+  return (
+    <section style={{ marginTop: 34 }}>
+      <div className="page-head" style={{ marginBottom: 0 }}>
+        <h2 className="section-title" style={{ fontSize: 20 }}>Báo cáo thuế</h2>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {report.years.length > 1 && (
+            <select value={report.year} onChange={e => setYear(Number(e.target.value))}
+                    style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 14 }}>
+              {report.years.map(y => <option key={y} value={y}>Năm {y}</option>)}
+            </select>
+          )}
+          <a className="btn btn-outline btn-sm" download
+             href={`/api/host/tax-report.csv?year=${report.year}`}>Tải báo cáo thuế</a>
+        </div>
+      </div>
+
+      <p className="section-sub">{report.note}</p>
+
+      {report.stays === 0 ? (
+        <p className="section-sub" style={{ marginTop: 12 }}>Năm {report.year} chưa có đơn nào hoàn tất.</p>
+      ) : (
+        <>
+          <div className="table-wrap" style={{ marginTop: 16 }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Tháng</th><th>Số đơn</th>
+                  <th style={{ textAlign: 'right' }}>Khách trả</th>
+                  <th style={{ textAlign: 'right' }}>Thuế</th>
+                  <th style={{ textAlign: 'right' }}>Phí dịch vụ</th>
+                  <th style={{ textAlign: 'right' }}>Bạn nhận</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(m => (
+                  <tr key={m.month}>
+                    <td>{m.label}</td>
+                    <td>{m.stays}</td>
+                    <td style={{ textAlign: 'right' }}>{money(m.guestPaid)}</td>
+                    <td style={{ textAlign: 'right' }}>{money(m.tax)}</td>
+                    <td style={{ textAlign: 'right' }}>{money(m.hostServiceFee)}</td>
+                    <td style={{ textAlign: 'right' }}>{money(m.hostPayout)}</td>
+                  </tr>
+                ))}
+                <tr>
+                  <td><b>Cả năm {report.year}</b></td>
+                  <td><b>{report.stays}</b></td>
+                  <td style={{ textAlign: 'right' }}><b>{money(report.guestPaid)}</b></td>
+                  <td style={{ textAlign: 'right' }}><b>{money(report.tax)}</b></td>
+                  <td style={{ textAlign: 'right' }}><b>{money(report.hostServiceFee)}</b></td>
+                  <td style={{ textAlign: 'right' }}><b>{money(report.hostPayout)}</b></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {!!report.taxes.length && (
+            <div className="table-wrap" style={{ marginTop: 16 }}>
+              <table className="admin-table">
+                <thead>
+                  <tr><th>Loại thuế</th><th>Số đơn</th><th style={{ textAlign: 'right' }}>Số tiền</th></tr>
+                </thead>
+                <tbody>
+                  {report.taxes.map(t => (
+                    <tr key={t.name}>
+                      <td>{t.name}</td>
+                      <td>{t.stays}</td>
+                      <td style={{ textAlign: 'right' }}>{money(t.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </section>
   );
 }
