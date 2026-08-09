@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { set, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
@@ -19,9 +20,12 @@ export function Resolutions() {
   const state = useStore();
   const [cases, setCases] = useState(null);
   const [opening, setOpening] = useState(false);
+  // docs/01 CĐ-12 — arriving from a trip's "Cần trợ giúp" opens the form on that booking.
+  const preBooking = useLocation().state?.bookingId ?? null;
 
   const load = () => api.resolutions().then(setCases).catch(e => toast(e.message));
   useEffect(() => { if (state.user) load(); }, [state.user]);
+  useEffect(() => { if (preBooking) setOpening(true); }, [preBooking]);
 
   if (!state.user) {
     return (
@@ -49,7 +53,7 @@ export function Resolutions() {
         <button className="btn btn-primary btn-sm" onClick={() => setOpening(true)}>+ Mở hồ sơ</button>
       </div>
 
-      {opening && <OpenCase onClose={() => setOpening(false)} onDone={() => { setOpening(false); load(); }} />}
+      {opening && <OpenCase preBooking={preBooking} onClose={() => setOpening(false)} onDone={() => { setOpening(false); load(); }} />}
 
       {cases === null && <div className="stat skeleton" style={{ height: 160, border: 0, marginTop: 24 }} />}
 
@@ -179,7 +183,7 @@ function History({ events }) {
   );
 }
 
-function OpenCase({ onClose, onDone }) {
+function OpenCase({ onClose, onDone, preBooking }) {
   const state = useStore();
   const [busy, setBusy] = useState(false);
   const [kind, setKind] = useState('Damage');
@@ -215,7 +219,7 @@ function OpenCase({ onClose, onDone }) {
         <form onSubmit={submit} style={{ marginTop: 14 }}>
           <label className="form-field">
             <span className="cap">Chuyến đi</span>
-            <select name="bookingId" required>
+            <select name="bookingId" required defaultValue={preBooking ?? ''}>
               {eligible.map(b => (
                 <option key={b.id} value={b.id}>
                   {b.reference} · {b.listingTitle} · {longDate(b.checkIn)}

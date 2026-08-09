@@ -94,10 +94,17 @@ export function Trip() {
                 Đã hoàn {money(b.refundedAmount)} về phương thức thanh toán ban đầu.
               </p>
             )}
-            {b.canCancel && (
-              <button className="btn btn-outline btn-sm" style={{ marginTop: 16 }}
-                      onClick={() => previewCancel(b.id)}>Huỷ chuyến đi</button>
-            )}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
+              {b.canCancel && (
+                <button className="btn btn-outline btn-sm"
+                        onClick={() => previewCancel(b.id)}>Huỷ chuyến đi</button>
+              )}
+              {/* docs/01 CĐ-12 — get help scoped to this exact booking. */}
+              <button className="btn btn-outline btn-sm"
+                      onClick={() => navigate('/resolutions', { state: { bookingId: b.id } })}>
+                Cần trợ giúp với đơn này
+              </button>
+            </div>
           </section>
 
           <ChangeTrip booking={b} />
