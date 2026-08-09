@@ -1841,6 +1841,12 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
 }
 .wallet-balance span { font-size: 13px; color: var(--ink-muted); }
 .wallet-balance b { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; }
+/* docs/01 TC-07 — a warning, so it does not read like the balance itself. */
+.wallet-expiry {
+  display: inline-block; margin-top: 8px; padding: 4px 10px;
+  border-radius: 999px; background: #fff4e5; color: #8a5a00;
+  font-size: 12.5px; font-weight: 600;
+}
 
 /* ---- StayShield (docs/06) ----------------------------------------------- */
 

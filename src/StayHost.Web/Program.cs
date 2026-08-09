@@ -11,6 +11,13 @@ var builder = WebApplication.CreateBuilder(args);
 var pricing = builder.Configuration.GetSection("Pricing").Get<PricingSettings>();
 if (pricing is not null) PricingSettings.Current = pricing;
 
+// docs/01 TC-07 — how long promotional balance lasts. Every value is unset by
+// default, meaning nothing expires, which is the behaviour the platform shipped
+// with; docs/07 §15.1 leaves the number to the customer. Filling one in here is
+// all it takes to switch expiry on.
+var credits = builder.Configuration.GetSection("Credits").Get<CreditSettings>();
+if (credits is not null) CreditSettings.Current = credits;
+
 // docs/01 TK-02 — the provider client ids live in configuration so one build can
 // run against a test project on a laptop and the real one on the server. Nothing
 // here is a secret except the Facebook app secret, which comes from the

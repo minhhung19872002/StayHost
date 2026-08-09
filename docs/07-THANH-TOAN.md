@@ -305,10 +305,16 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
 
 ### 15.1. Hai chỗ của §3 cần khách xác nhận
 
-1. **"Ưu tiên khoản sắp hết hạn trước"** — số dư StayHost hiện **không có hạn sử dụng**:
-   nó là tổng của một sổ chỉ-thêm, không phải nhiều gói riêng lẻ. Không có gì để xếp thứ
-   tự nên quy tắc này đang rỗng. Nếu khách muốn số dư có hạn thì đó là một thay đổi về
-   thực thể, không phải về thanh toán.
+1. **"Ưu tiên khoản sắp hết hạn trước"** — **đã dựng xong phần máy móc (09/08/2026),
+   còn chờ khách chốt con số.** `CreditEntry` giờ có cột `ExpiresAt`, và
+   `CreditLedger` đọc sổ chỉ-thêm ra từng gói: tiêu tiền lấy gói sắp hết hạn trước
+   đúng như dòng này đòi, gói không hạn để cuối. Số dư đã hết hạn **không tiêu được
+   ngay tại thời điểm hết hạn**, không đợi tác vụ quét; tác vụ quét chỉ ghi thêm một
+   dòng âm để sổ vẫn là tổng các dòng.
+
+   Nhưng **thời hạn bao lâu thì chưa ai chọn**, nên toàn bộ `Credits:` trong
+   `appsettings.json` để trống và **không gì hết hạn cả** — y hệt hành vi trước đây.
+   Chốt con số ở §16 là bật được, không cần sửa mã. Xem `TC-07` ở bảng §16.
 
 2. **"Số dư đủ trả toàn bộ thì vẫn bắt buộc gắn phương thức dự phòng"** — luật đã cài
    (`PaymentMethods.NeedsFallbackMethod`, có test, máy chủ chặn thật). Nhưng theo
@@ -325,6 +331,10 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
 | TT-A | Trả một phần: cách ngày nhận tối thiểu bao nhiêu ngày | 14 ngày | |
 | TT-B | Trả một phần: giá trị đơn tối thiểu | 5 triệu ₫ | |
 | TT-C | Chủ nhà mới bị giữ thêm bao nhiêu ngày | 3 ngày | |
+| TC-07a | Số dư bù đắp (Goodwill) hết hạn sau bao lâu | 12 tháng | |
+| TC-07b | Thưởng giới thiệu bạn hết hạn sau bao lâu | 12 tháng | |
+| TC-07c | Số dư hoàn lại khi huỷ đơn hết hạn sau bao lâu | 12 tháng | |
+| TC-07d | Thẻ quà tặng hết hạn sau bao lâu | **không hết hạn** — khách đã trả tiền thật cho nó | |
 | — | Chọn phương án pháp lý A, B hay C (§13) | A | |
 | — | Cổng thanh toán chính | | |
 | — | Có nhận khách quốc tế ngay từ đầu không? | không | |

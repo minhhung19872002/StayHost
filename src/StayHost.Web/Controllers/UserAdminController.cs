@@ -171,8 +171,9 @@ public class UserAdminController(
             .Select(c => c.Status)
             .ToListAsync(ct);
 
-        var balance = await db.CreditEntries.Where(c => c.UserId == id)
-            .SumAsync(c => (decimal?)c.Amount, ct) ?? 0m;
+        // docs/01 TC-07 — spendable balance, not the raw sum of the rows.
+        var balance = CreditLedger.Available(
+            await db.CreditEntries.Where(c => c.UserId == id).ToListAsync(ct), DateTime.UtcNow);
 
         // §4 lists gift cards next to the balance: they are money this person
         // holds that never passes through the credit ledger until redeemed.

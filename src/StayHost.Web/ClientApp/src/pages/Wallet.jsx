@@ -36,6 +36,13 @@ export function Wallet() {
       <div className="wallet-balance">
         <span>Bạn đang có</span>
         <b>{money(w.balance)}</b>
+        {/* docs/01 TC-07 — said before it happens, not after. Absent entirely
+            while nothing on the account has a hạn dùng. */}
+        {w.nextExpiryAt && (
+          <span className="wallet-expiry">
+            {money(w.expiringAmount)} hết hạn ngày {longDate(w.nextExpiryAt.slice(0, 10))}
+          </span>
+        )}
         {w.balance > 0 && (
           <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }}
                   onClick={() => navigate('/')}>Dùng cho chuyến tới</button>
@@ -57,7 +64,12 @@ export function Wallet() {
                   <tr key={e.id}>
                     <td>{longDate(e.createdAt.slice(0, 10))}</td>
                     <td>{e.reasonLabel}</td>
-                    <td>{e.memo}</td>
+                    <td>
+                      {e.memo}
+                      {e.expiresAt && (
+                        <span className="meta"> · dùng đến {longDate(e.expiresAt.slice(0, 10))}</span>
+                      )}
+                    </td>
                     <td style={{ textAlign: 'right', color: e.amount < 0 ? 'var(--ink-muted)' : 'var(--brand-dark)' }}>
                       {e.amount > 0 ? '+' : ''}{money(e.amount)}
                     </td>

@@ -1440,7 +1440,9 @@ public record CreditEntryDto(
     string ReasonLabel,
     string Memo,
     int? BookingId,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    /// <summary>docs/01 TC-07 — set on a grant that lapses; null means it does not.</summary>
+    DateTime? ExpiresAt);
 
 public record GiftCardDto(
     int Id,
@@ -1474,7 +1476,11 @@ public record WalletDto(
     decimal ReferrerReward,
     decimal InviteeReward,
     decimal MinGiftCard,
-    decimal MaxGiftCard);
+    decimal MaxGiftCard,
+    /// <summary>docs/01 TC-07 — the next date something lapses, and how much.
+    /// Both null while nothing on the account expires.</summary>
+    DateTime? NextExpiryAt,
+    decimal ExpiringAmount);
 
 public record BuyGiftCardRequest(decimal Amount, string? RecipientEmail, string? RecipientName, string? Message);
 public record RedeemGiftCardRequest(string? Code);

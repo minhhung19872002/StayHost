@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả: **146 xong · 4 làm một phần · 51 chưa có.** Con số 105 mã "không thấy
+Kết quả: **147 xong · 3 làm một phần · 51 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -385,14 +385,13 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `QL-09` · `QL-18` · `CN-14` · `CN-15` | Gợi ý giá thị trường · gợi ý cải thiện · ước lượng thu nhập · nhân bản tin | P2 |
 | `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
 
-### 9.2 Làm một phần (4 mã) — có phần lõi, thiếu một nhánh
+### 9.2 Làm một phần (3 mã) — có phần lõi, thiếu một nhánh
 
 | Mã | Đã có | Còn thiếu |
 |---|---|---|
 | `TM-02` | 3 tab Chỗ ở / Trải nghiệm / Dịch vụ | Không có tab "Tất cả"; bấm 2 tab kia chỉ hiện toast, chưa đổi dòng tìm |
 | `TĐ-18` | Chia sẻ link + share sheet của máy | Nút mạng xã hội, gửi email |
 | `TC-04` | Thuế theo khu vực, nhiều loại chồng nhau | Xuất báo cáo thuế |
-| `TC-07` | Số dư khuyến mãi là sổ chỉ-thêm | **Hạn sử dụng** — `CreditEntry` không có cột hết hạn |
 
 ### 9.3 Ghi chú về cách soát
 
@@ -433,7 +432,9 @@ thành phố cho tìm kiếm ngoài sàn · `AT-01` kiểm duyệt tin trước 
 chuyển tiếp nhân viên hỗ trợ · `TN-05` lọc hộp thư.
 
 **Chờ khách quyết, không chờ code:** `TĐ-03` (P0) và `TN-06` cần khoá API dịch
-thuật. **Đợt cuối:** nhóm P2 còn lại — mạng xã hội `XH-01`→`XH-03`, so sánh và
+thuật. `TC-07` đã dựng xong máy móc hạn dùng số dư nhưng **thời hạn bao lâu thì
+chưa ai chọn** — bảng tham số `docs/07 §16`. Để trống thì không gì hết hạn, đúng
+hành vi cũ; chốt số là bật được mà không sửa mã. **Đợt cuối:** nhóm P2 còn lại — mạng xã hội `XH-01`→`XH-03`, so sánh và
 bình chọn danh sách yêu thích, gợi ý giá cho chủ nhà, trợ lý tự động.
 
 ---

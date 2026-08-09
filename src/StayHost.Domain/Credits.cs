@@ -12,7 +12,13 @@ public enum CreditReason
     /// <summary>Spent on a booking. Negative.</summary>
     Spent = 3,
     /// <summary>Given back when the booking it was spent on was cancelled.</summary>
-    Returned = 4
+    Returned = 4,
+    /// <summary>
+    /// docs/01 TC-07 — a grant reached its expiry with something left on it.
+    /// Negative, written by the sweep rather than by anything the guest did, so
+    /// the balance stays the sum of its rows instead of quietly shrinking.
+    /// </summary>
+    Expired = 5
 }
 
 /// <summary>
@@ -34,6 +40,14 @@ public class CreditEntry
 
     public int? BookingId { get; set; }
     public Booking? Booking { get; set; }
+
+    /// <summary>
+    /// docs/01 TC-07 — when this grant lapses. Only meaningful on a positive
+    /// entry, and null means it never lapses, which is what every row written
+    /// before this column existed says. Spending draws on whichever grant lapses
+    /// soonest, per docs/07 §3.
+    /// </summary>
+    public DateTime? ExpiresAt { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
@@ -159,6 +173,7 @@ public static class CreditRules
         CreditReason.Goodwill => "Bù đắp từ StayHost",
         CreditReason.Referral => "Thưởng giới thiệu bạn",
         CreditReason.Spent => "Dùng cho đơn đặt",
+        CreditReason.Expired => "Hết hạn sử dụng",
         _ => "Hoàn lại số dư"
     };
 }

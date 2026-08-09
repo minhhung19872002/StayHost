@@ -497,9 +497,10 @@ public class AdminOversightController(
             .Select(u => u.HostProfile!.OwedToPlatform)
             .FirstOrDefaultAsync(ct) > 0;
 
-        var creditBalance = await db.CreditEntries
-            .Where(c => c.UserId == userId)
-            .SumAsync(c => (decimal?)c.Amount, ct) ?? 0m;
+        // docs/01 TC-07 — what they can actually spend, so lapsed balance is not
+        // read as money this person still holds.
+        var creditBalance = CreditLedger.Available(
+            await db.CreditEntries.Where(c => c.UserId == userId).ToListAsync(ct), DateTime.UtcNow);
 
         var owes = hostOwes || creditBalance < 0;
 

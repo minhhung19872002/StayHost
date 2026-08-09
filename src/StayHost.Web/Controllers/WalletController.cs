@@ -24,14 +24,20 @@ public class WalletController(StayHostDbContext db, AuthService auth, WalletServ
 
         var balance = await wallet.BalanceAsync(user.Id, ct);
 
-        var entries = await db.CreditEntries
-            .Where(c => c.UserId == user.Id)
+        // docs/01 TC-07 — the whole run, because what is about to lapse is worked
+        // out by replaying it; the 50 newest are what gets shown.
+        var all = await db.CreditEntries.Where(c => c.UserId == user.Id).ToListAsync(ct);
+
+        var entries = all
             .OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id)
             .Take(50)
             .Select(c => new CreditEntryDto(
                 c.Id, c.Amount, c.Reason.ToString(), CreditRules.ReasonLabel(c.Reason),
-                c.Memo, c.BookingId, c.CreatedAt))
-            .ToListAsync(ct);
+                c.Memo, c.BookingId, c.CreatedAt, c.ExpiresAt))
+            .ToList();
+
+        var nextExpiry = CreditLedger.NextExpiry(all, DateTime.UtcNow);
+        var expiring = nextExpiry is { } when ? CreditLedger.ExpiringOn(all, when) : 0m;
 
         var bought = await db.GiftCards
             .Where(g => g.PurchasedByUserId == user.Id)
@@ -53,7 +59,8 @@ public class WalletController(StayHostDbContext db, AuthService auth, WalletServ
         return Ok(new WalletDto(
             balance, entries, bought, referrals,
             CreditRules.ReferrerReward, CreditRules.InviteeReward,
-            CreditRules.MinGiftCard, CreditRules.MaxGiftCard));
+            CreditRules.MinGiftCard, CreditRules.MaxGiftCard,
+            nextExpiry, expiring));
     }
 
     [HttpPost("gift-cards")]

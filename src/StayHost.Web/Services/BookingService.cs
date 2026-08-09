@@ -400,6 +400,12 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var rewarded = await wallet.RewardCompletedStaysAsync(stoppingToken);
                 if (rewarded > 0) log.LogInformation("Đã thưởng {Count} lượt giới thiệu.", rewarded);
 
+                // docs/01 TC-07 — retires balance that has reached its expiry.
+                // Returns immediately while no kind of grant expires, which is
+                // the shipped default until the customer picks a lifetime.
+                var lapsed = await wallet.ExpireLapsedCreditAsync(stoppingToken);
+                if (lapsed > 0) log.LogInformation("Số dư hết hạn: {Count} khoản.", lapsed);
+
                 // docs/06 §6 — cases nobody answered inside 24 hours, and the
                 // monthly top-up of the StayShield fund.
                 var shield = scope.ServiceProvider.GetRequiredService<ShieldService>();

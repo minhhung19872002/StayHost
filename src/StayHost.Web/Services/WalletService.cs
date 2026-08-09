@@ -12,14 +12,28 @@ namespace StayHost.Web.Services;
 /// </summary>
 public class WalletService(StayHostDbContext db, NotificationService notifications, ILogger<WalletService> log)
 {
-    public Task<decimal> BalanceAsync(int userId, CancellationToken ct) =>
-        db.CreditEntries.Where(c => c.UserId == userId).SumAsync(c => (decimal?)c.Amount, ct)
-            .ContinueWith(t => t.Result ?? 0m, ct);
+    /// <summary>
+    /// What the guest can spend. docs/01 TC-07 — a grant that has lapsed is still
+    /// a row in the run, so the sum of the rows is not the answer on its own; the
+    /// lapsed part is left out here rather than waiting for the sweep to retire
+    /// it, or the balance would be spendable for up to an hour after it expired.
+    /// </summary>
+    public async Task<decimal> BalanceAsync(int userId, CancellationToken ct)
+    {
+        var entries = await db.CreditEntries.Where(c => c.UserId == userId).ToListAsync(ct);
+        return CreditLedger.Available(entries, DateTime.UtcNow);
+    }
 
-    /// <summary>Adds a movement without saving; the caller commits it with the rest.</summary>
+    /// <summary>
+    /// Adds a movement without saving; the caller commits it with the rest. A
+    /// positive amount is a grant, so it picks up whatever lifetime its kind
+    /// carries — none at all, unless the customer has chosen one (docs/07 §15.1).
+    /// </summary>
     public void Add(int userId, decimal amount, CreditReason reason, string memo, int? bookingId = null)
     {
         if (amount == 0) return;
+
+        var now = DateTime.UtcNow;
 
         db.CreditEntries.Add(new CreditEntry
         {
@@ -27,8 +41,58 @@ public class WalletService(StayHostDbContext db, NotificationService notificatio
             Amount = amount,
             Reason = reason,
             Memo = memo,
-            BookingId = bookingId
+            BookingId = bookingId,
+            CreatedAt = now,
+            ExpiresAt = amount > 0 ? CreditSettings.Current.ExpiryFor(reason, now) : null
         });
+    }
+
+    /// <summary>
+    /// docs/01 TC-07 — retires grants that have lapsed, one row per grant so the
+    /// guest's history says which promotion ended rather than showing a single
+    /// unexplained subtraction. Runs from the same sweep as the rest of the
+    /// lifecycle work, and does nothing at all while no kind of grant expires.
+    /// </summary>
+    public async Task<int> ExpireLapsedCreditAsync(CancellationToken ct)
+    {
+        if (CreditSettings.Current.NothingExpires) return 0;
+
+        var now = DateTime.UtcNow;
+
+        // Only users holding something that has already lapsed are worth loading.
+        var candidates = await db.CreditEntries
+            .Where(c => c.ExpiresAt != null && c.ExpiresAt <= now)
+            .Select(c => c.UserId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var written = 0;
+
+        foreach (var userId in candidates)
+        {
+            var entries = await db.CreditEntries.Where(c => c.UserId == userId).ToListAsync(ct);
+
+            foreach (var lot in CreditLedger.DueToExpire(entries, now))
+            {
+                db.CreditEntries.Add(new CreditEntry
+                {
+                    UserId = userId,
+                    Amount = -lot.Remaining,
+                    Reason = CreditReason.Expired,
+                    Memo = $"Hết hạn sử dụng {lot.ExpiresAt:dd/MM/yyyy}",
+                    CreatedAt = now
+                });
+                written++;
+            }
+        }
+
+        if (written > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            log.LogInformation("Retired {Count} lapsed credit grant(s).", written);
+        }
+
+        return written;
     }
 
     /* -------------------------------------------------------- gift cards */
