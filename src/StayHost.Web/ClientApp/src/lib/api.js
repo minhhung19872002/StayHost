@@ -69,6 +69,9 @@ export const api = {
   deleteWishlist: id => request(`/api/wishlists/${id}`, { method: 'DELETE' }),
   moveToWishlist: (listId, listingId) =>
     request(`/api/wishlists/${listId}/items/${listingId}`, { method: 'POST' }),
+  // docs/01 YT-03 — the guest's private note on a saved place.
+  setWishlistNote: (listId, listingId, note) =>
+    request(`/api/wishlists/${listId}/items/${listingId}/note`, { method: 'PUT', body: JSON.stringify({ note }) }),
 
   bookings: () => request('/api/bookings'),
 

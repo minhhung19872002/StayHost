@@ -72,13 +72,34 @@ public class WishlistsController(StayHostDbContext db, AuthService auth) : Contr
         if (list is null) return NotFound();
 
         var favIds = list.Items.Select(i => i.ListingId).ToHashSet();
-        var cards = list.Items
+        var entries = list.Items
             .Where(i => i.Listing is not null)
             .OrderByDescending(i => i.CreatedAt)
-            .Select(i => CatalogService.ToCard(i.Listing!, favIds))
+            .Select(i => new WishlistEntryDto(CatalogService.ToCard(i.Listing!, favIds), i.Note))
             .ToList();
 
-        return Ok(new WishlistDetailDto(ToSummary(list), cards));
+        return Ok(new WishlistDetailDto(ToSummary(list), entries));
+    }
+
+    /// <summary>docs/01 YT-03 — the guest's private note on one saved place.</summary>
+    [HttpPut("{id:int}/items/{listingId:int}/note")]
+    public async Task<IActionResult> SetNote(
+        int id, int listingId, [FromBody] SaveWishlistNoteRequest req, CancellationToken ct)
+    {
+        var (userId, sid) = await ScopeAsync(ct);
+
+        var item = await Owned(userId, sid)
+            .Where(w => w.Id == id)
+            .SelectMany(w => w.Items)
+            .FirstOrDefaultAsync(f => f.ListingId == listingId, ct);
+
+        if (item is null) return NotFound();
+
+        var note = (req.Note ?? "").Trim();
+        item.Note = note.Length == 0 ? null : note.Length > 500 ? note[..500] : note;
+        await db.SaveChangesAsync(ct);
+
+        return NoContent();
     }
 
     [HttpPost]

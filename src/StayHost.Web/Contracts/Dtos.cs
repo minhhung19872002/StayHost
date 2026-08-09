@@ -583,9 +583,14 @@ public record WishlistDto(
     int Count,
     IReadOnlyList<string> CoverImages);
 
-public record WishlistDetailDto(WishlistDto List, IReadOnlyList<ListingCardDto> Items);
+public record WishlistDetailDto(WishlistDto List, IReadOnlyList<WishlistEntryDto> Items);
+
+/// <summary>docs/01 YT-03 — a saved place plus the guest's private note on it.</summary>
+public record WishlistEntryDto(ListingCardDto Card, string? Note);
 
 public record SaveWishlistRequest(string Name);
+
+public record SaveWishlistNoteRequest(string? Note);
 
 /* ----------------------------------------------------------------- messages */
 

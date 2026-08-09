@@ -1,10 +1,44 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { set, loadFavorites, loadWishlists, openWishlist, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { Card } from '../components/Card.jsx';
 import { Icon } from '../components/Icon.jsx';
+
+/** docs/01 YT-03 — a private note the guest keeps on a saved place. */
+function WishlistNote({ listId, listingId, note, onSaved }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(note ?? '');
+
+  const save = async () => {
+    try {
+      await api.setWishlistNote(listId, listingId, text.trim() || null);
+      setEditing(false);
+      onSaved?.();
+    } catch (err) { toast(err.message); }
+  };
+
+  if (!editing) {
+    return (
+      <button className="wishlist-note-btn" onClick={() => { setText(note ?? ''); setEditing(true); }}>
+        {note ? `📝 ${note}` : '+ Thêm ghi chú'}
+      </button>
+    );
+  }
+
+  return (
+    <div className="wishlist-note-edit">
+      <textarea rows={2} value={text} maxLength={500} autoFocus
+                placeholder="Ghi chú cho riêng bạn về chỗ này…"
+                onChange={e => setText(e.target.value)} />
+      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 6 }}>
+        <button className="btn btn-outline btn-sm" onClick={() => setEditing(false)}>Huỷ</button>
+        <button className="btn btn-dark btn-sm" onClick={save}>Lưu</button>
+      </div>
+    </div>
+  );
+}
 
 export function Wishlists() {
   const state = useStore();
@@ -114,7 +148,13 @@ function One() {
 
       {detail.items.length ? (
         <div className="card-grid" style={{ marginTop: 20 }}>
-          {detail.items.map(c => <Card key={c.id} card={c} lazy />)}
+          {detail.items.map(e => (
+            <div key={e.card.id}>
+              <Card card={e.card} lazy />
+              <WishlistNote listId={list.id} listingId={e.card.id} note={e.note}
+                            onSaved={() => openWishlist(list.id)} />
+            </div>
+          ))}
         </div>
       ) : (
         <div className="empty-state" style={{ marginTop: 24 }}>
