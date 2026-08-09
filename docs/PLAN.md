@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **182 xong · 0 làm một phần · 19 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **183 xong · 0 làm một phần · 18 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,7 +350,7 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (19 mã)
+### 9.1 Chưa có (18 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -358,7 +358,7 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `TM-24` | Vẽ vùng tìm kiếm trên bản đồ | P2 |
 | `TĐ-03` · `TN-06` | Dịch mô tả tin đăng (**P0**) · dịch tin nhắn (P1) — cần nhà cung cấp dịch thuật | P0/P1 |
 | `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
-| `AT-03` · `AT-08` · `AT-10` · `AT-12` | Kênh hàng xóm · trợ lý tự động · danh sách chặn · chống phân biệt đối xử | P2 |
+| `AT-03` · `AT-08` · `AT-12` | Kênh hàng xóm · trợ lý tự động · chống phân biệt đối xử | P2 |
 | `QT-07` · `QT-08` | Quản lý bài trợ giúp · bật tính năng theo tỉ lệ | P2 |
 | `YT-06` · `YT-07` · `YT-08` | Bình chọn nhóm · so sánh 2–5 chỗ · báo khi chỗ đã lưu giảm giá | P2 |
 | `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
@@ -379,6 +379,13 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`AT-10` (danh sách chặn) làm xong 10/08/2026. Entity `UserBlock` (cặp blocker/blocked,
+unique), `Blocks.cs` cho thông điệp; khi gửi tin (`MessagesController.Send`) chặn cả hai
+chiều nếu tồn tại block giữa hai bên — áp cho cả thread cũ lẫn thread mới vì kiểm tra đặt
+sau khi resolve thread. Endpoint `account/blocks` (GET/POST/DELETE), UI nút chặn/bỏ chặn ở
+hồ sơ công khai. Xác minh sống: trước chặn gửi được, sau chặn cả hai chiều 403, tự chặn
+400, bỏ chặn xong gửi lại được; 20/20 nghiệm thu xanh, sổ cân = 0.
 
 `TM-18` (lọc theo ngôn ngữ chủ nhà) làm xong 10/08/2026. Thêm `HostLanguages` vào
 `SearchQuery`; `CatalogService.BaseQuery` khớp tin khi chủ nhà nói **ít nhất một** mã đã

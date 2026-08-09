@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
-import { loadPublicProfile, openOverlay, openReport } from '../lib/store.js';
+import { loadPublicProfile, openOverlay, openReport, toast } from '../lib/store.js';
+import { api } from '../lib/api.js';
 import { Avatar } from '../components/Avatar.jsx';
 import { Card } from '../components/Card.jsx';
 import { Icon } from '../components/Icon.jsx';
@@ -19,6 +20,20 @@ export function UserProfile() {
 
   const p = state.publicProfile;
   const isMe = state.user?.id === Number(id);
+
+  // docs/01 AT-10 — is this person on my block list?
+  const [blocked, setBlocked] = useState(false);
+  useEffect(() => {
+    if (!state.user || isMe) { setBlocked(false); return; }
+    api.blocks().then(list => setBlocked(list.some(b => b.userId === Number(id)))).catch(() => {});
+  }, [id, state.user, isMe]);
+
+  const toggleBlock = async () => {
+    try {
+      if (blocked) { await api.unblockUser(Number(id)); setBlocked(false); toast('Đã bỏ chặn.'); }
+      else { await api.blockUser(Number(id)); setBlocked(true); toast('Đã chặn người dùng này.'); }
+    } catch (err) { toast(err.message); }
+  };
 
   if (state.publicProfileLoading || !p) {
     return (
@@ -86,12 +101,20 @@ export function UserProfile() {
           {isMe
             ? <button className="btn" style={{ marginTop: 18 }}
                       onClick={() => openOverlay('profile')}>Chỉnh sửa hồ sơ</button>
-            : p.isHost && p.listings.length > 0 && (
-                <button className="btn" style={{ marginTop: 18 }}
-                        onClick={() => navigate(`/rooms/${p.listings[0].slug}`)}>
-                  Xem chỗ nghỉ để nhắn tin
-                </button>
-              )}
+            : <div style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
+                {p.isHost && p.listings.length > 0 && (
+                  <button className="btn"
+                          onClick={() => navigate(`/rooms/${p.listings[0].slug}`)}>
+                    Xem chỗ nghỉ để nhắn tin
+                  </button>
+                )}
+                {/* docs/01 AT-10 — chặn hoặc bỏ chặn người dùng này. */}
+                {state.user && (
+                  <button className="btn btn-outline" onClick={toggleBlock}>
+                    {blocked ? 'Bỏ chặn' : 'Chặn người dùng'}
+                  </button>
+                )}
+              </div>}
         </div>
       </div>
 

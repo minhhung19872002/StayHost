@@ -20,6 +20,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<MessageThread> MessageThreads => Set<MessageThread>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
     public DbSet<CalendarBlock> CalendarBlocks => Set<CalendarBlock>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AbuseReport> AbuseReports => Set<AbuseReport>();
@@ -335,6 +336,18 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.HasOne(x => x.GuestUser).WithMany().HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.HostUser).WithMany().HasForeignKey(x => x.HostUserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Booking).WithMany().HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // docs/01 AT-10 — the block list. One row per (blocker, blocked) pair.
+        b.Entity<UserBlock>(e =>
+        {
+            e.ToTable("user_blocks");
+            e.HasIndex(x => new { x.BlockerUserId, x.BlockedUserId }).IsUnique();
+            e.HasIndex(x => x.BlockedUserId);
+            e.HasOne(x => x.Blocker).WithMany()
+                .HasForeignKey(x => x.BlockerUserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Blocked).WithMany()
+                .HasForeignKey(x => x.BlockedUserId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<Message>(e =>

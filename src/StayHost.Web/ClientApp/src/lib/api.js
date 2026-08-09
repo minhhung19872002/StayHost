@@ -343,6 +343,10 @@ export const api = {
   confirmWorkEmail: code =>
     request('/api/account/work-email/confirm', { method: 'POST', body: JSON.stringify({ kind: 'workemail', code }) }),
   removeWorkEmail: () => request('/api/account/work-email', { method: 'DELETE' }),
+  // docs/01 AT-10 — block list.
+  blocks: () => request('/api/account/blocks'),
+  blockUser: userId => request('/api/account/blocks', { method: 'POST', body: JSON.stringify({ userId }) }),
+  unblockUser: userId => request(`/api/account/blocks/${userId}`, { method: 'DELETE' }),
   externalConfig: () => request('/api/account/external/config'),
   externalSignIn: (provider, credential) =>
     request('/api/account/external', { method: 'POST', body: JSON.stringify({ provider, credential }) }),

@@ -142,6 +142,15 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
             }
         }
 
+        // docs/01 AT-10 — a block stops the conversation in both directions,
+        // whichever side raised it. Existing threads and new ones are both covered
+        // because the check sits after the thread is resolved.
+        var counterpart = thread.GuestUserId == user.Id ? thread.HostUserId : thread.GuestUserId;
+        var blocked = await db.UserBlocks.AnyAsync(
+            bk => (bk.BlockerUserId == user.Id && bk.BlockedUserId == counterpart)
+                  || (bk.BlockerUserId == counterpart && bk.BlockedUserId == user.Id), ct);
+        if (blocked) return StatusCode(403, new { message = Blocks.BlockedMessage() });
+
         // docs/01 TN-02 — photos ride along with the text, capped so one message
         // cannot become an album.
         var attachments = string.Join('\n',

@@ -314,6 +314,21 @@ public class MessageThread
     public List<Message> Messages { get; set; } = [];
 }
 
+/// <summary>
+/// docs/01 AT-10 — one person has blocked another. The pair is directional (who
+/// blocked whom) but its effect on messaging is mutual: once a block exists in
+/// either direction, neither side can send the other a new message.
+/// </summary>
+public class UserBlock
+{
+    public int Id { get; set; }
+    public int BlockerUserId { get; set; }
+    public User? Blocker { get; set; }
+    public int BlockedUserId { get; set; }
+    public User? Blocked { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
 public class Message
 {
     public int Id { get; set; }

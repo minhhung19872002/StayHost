@@ -346,6 +346,66 @@ public class AccountController(
         return Ok(await ToDtoAsync(user, ct));
     }
 
+    /* ------------------------------------------- docs/01 AT-10: block list */
+
+    /// <summary>docs/01 AT-10 — the people this account has blocked.</summary>
+    [HttpGet("blocks")]
+    public async Task<ActionResult<IReadOnlyList<BlockedUserDto>>> Blocks(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var rows = await db.UserBlocks
+            .Where(b => b.BlockerUserId == user.Id)
+            .OrderByDescending(b => b.CreatedAt)
+            .Select(b => new BlockedUserDto(
+                b.BlockedUserId,
+                Profiles.DisplayNameOf(b.Blocked!.DisplayName, b.Blocked.FullName),
+                b.Blocked!.Initials, b.Blocked.AvatarUrl, b.CreatedAt))
+            .ToListAsync(ct);
+
+        return Ok(rows);
+    }
+
+    /// <summary>docs/01 AT-10 — block a user; neither side can message the other after.</summary>
+    [HttpPost("blocks")]
+    public async Task<IActionResult> Block([FromBody] BlockRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        if (req.UserId == user.Id) return BadRequest(new { message = StayHost.Domain.Blocks.CannotBlockSelf() });
+
+        var target = await db.Users.FirstOrDefaultAsync(u => u.Id == req.UserId, ct);
+        if (target is null) return NotFound(new { message = "Không tìm thấy người dùng." });
+
+        var already = await db.UserBlocks.AnyAsync(
+            b => b.BlockerUserId == user.Id && b.BlockedUserId == req.UserId, ct);
+        if (!already)
+        {
+            db.UserBlocks.Add(new UserBlock { BlockerUserId = user.Id, BlockedUserId = req.UserId });
+            await db.SaveChangesAsync(ct);
+        }
+        return Ok(new { message = StayHost.Domain.Blocks.Blocked() });
+    }
+
+    /// <summary>docs/01 AT-10 — lift a block this account raised.</summary>
+    [HttpDelete("blocks/{userId:int}")]
+    public async Task<IActionResult> Unblock(int userId, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var block = await db.UserBlocks
+            .FirstOrDefaultAsync(b => b.BlockerUserId == user.Id && b.BlockedUserId == userId, ct);
+        if (block is not null)
+        {
+            db.UserBlocks.Remove(block);
+            await db.SaveChangesAsync(ct);
+        }
+        return Ok(new { message = StayHost.Domain.Blocks.Unblocked() });
+    }
+
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(CancellationToken ct)
     {

@@ -60,6 +60,10 @@ public record UpdateProfileRequest(
 /// <summary>docs/01 TK-07 — request to verify a company email.</summary>
 public record WorkEmailRequest(string? Email);
 
+/// <summary>docs/01 AT-10 — the block list.</summary>
+public record BlockedUserDto(int UserId, string Name, string Initials, string? AvatarUrl, DateTime CreatedAt);
+public record BlockRequest(int UserId);
+
 /// <summary>One of the languages the profile editor offers (docs/01 TK-04).</summary>
 public record SpokenLanguageDto(string Code, string Label);
 
