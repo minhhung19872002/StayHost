@@ -143,6 +143,26 @@ jobs:
           docker compose -p "$COMPOSE_PROJECT" -f docker-compose.prod.yml --env-file "$ENV_FILE" logs --tail=200
           exit 1
 
+      - name: Record the deployed image in the env file
+        env:
+          STAYHOST_IMAGE: ${{ env.IMAGE }}:sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # STAYHOST_IMAGE in the env file is what a deploy run by hand on the box
+          # resolves to, because only this job passes the tag in the environment.
+          # Left unwritten it drifts away from reality: it shipped as :latest, a tag
+          # this box never pulls, so a hand-run `up -d` died at the pull with
+          # `denied`. Pinning it once would only trade that loud failure for a quiet
+          # one -- the next hand-run deploy would roll production back to whichever
+          # commit was written last, from an image already on disk, without a word.
+          # Written after every healthy deploy, the file always names what is running.
+          if grep -q '^STAYHOST_IMAGE=' "$ENV_FILE"; then
+            sed -i "s|^STAYHOST_IMAGE=.*|STAYHOST_IMAGE=${STAYHOST_IMAGE}|" "$ENV_FILE"
+          else
+            echo "STAYHOST_IMAGE=${STAYHOST_IMAGE}" >> "$ENV_FILE"
+          fi
+          grep '^STAYHOST_IMAGE=' "$ENV_FILE"
+
       - name: Reclaim disk from superseded images
         if: always()
         run: docker image prune -f

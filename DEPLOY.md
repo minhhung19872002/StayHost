@@ -29,7 +29,7 @@ tự sinh theo từng lần chạy.
 
 | Đường dẫn | Nội dung |
 |---|---|
-| `~/deploy/stayhost.env` | Mật khẩu Postgres, image mặc định, SMTP và địa chỉ quản trị. `chmod 600`, **không nằm trong git**. |
+| `~/deploy/stayhost.env` | Mật khẩu Postgres, image đang chạy, SMTP và địa chỉ quản trị. `chmod 600`, **không nằm trong git**. Dòng `STAYHOST_IMAGE` do job deploy ghi lại sau mỗi lần lên khoẻ mạnh, nên nó luôn đúng bằng bản đang chạy. |
 | `~/actions-runner/` | GitHub Actions self-hosted runner, chạy như systemd service. |
 | `~/actions-runner/_work/StayHost/StayHost/` | Bản checkout mà job deploy dùng để chạy compose. |
 | `/etc/nginx/sites-enabled/stayhost` | Reverse proxy + TLS. |
@@ -98,6 +98,12 @@ STAYHOST_IMAGE=ghcr.io/minhhung19872002/stayhost:sha-<commit đầy đủ> shc u
 ```
 
 Hoặc chạy lại workflow của commit đó trong tab Actions trên GitHub.
+
+Rollback bằng tay **không** sửa `~/deploy/stayhost.env` — chỉ job deploy mới ghi vào
+đó. Nên sau khi lùi bản, file vẫn đang trỏ bản mới, và một lệnh `shc up -d` trần sau
+đó sẽ kéo prod trở lại bản mới ấy. Muốn giữ bản đã lùi thì sửa luôn dòng
+`STAYHOST_IMAGE` trong file cho khớp. Lùi bằng cách chạy lại workflow cũ thì không
+vướng chuyện này, vì job deploy ghi lại file.
 
 ### Sao lưu cơ sở dữ liệu
 
