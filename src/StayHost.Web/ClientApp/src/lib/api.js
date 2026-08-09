@@ -75,6 +75,9 @@ export const api = {
   // docs/01 YT-03 — the guest's private note on a saved place.
   setWishlistNote: (listId, listingId, note) =>
     request(`/api/wishlists/${listId}/items/${listingId}/note`, { method: 'PUT', body: JSON.stringify({ note }) }),
+  // docs/01 YT-05 — share a wishlist by link.
+  shareWishlist: (id, on) => request(`/api/wishlists/${id}/share?on=${on}`, { method: 'POST' }),
+  sharedWishlist: token => request(`/api/shared-wishlists/${encodeURIComponent(token)}`),
 
   bookings: () => request('/api/bookings'),
 

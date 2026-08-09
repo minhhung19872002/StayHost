@@ -581,7 +581,9 @@ public record WishlistDto(
     string Name,
     bool IsDefault,
     int Count,
-    IReadOnlyList<string> CoverImages);
+    IReadOnlyList<string> CoverImages,
+    /// <summary>docs/01 YT-05 — set when the list has a live share link.</summary>
+    string? ShareToken = null);
 
 public record WishlistDetailDto(WishlistDto List, IReadOnlyList<WishlistEntryDto> Items);
 

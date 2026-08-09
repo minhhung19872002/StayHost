@@ -81,6 +81,53 @@ public class WishlistsController(StayHostDbContext db, AuthService auth) : Contr
         return Ok(new WishlistDetailDto(ToSummary(list), entries));
     }
 
+    /// <summary>
+    /// docs/01 YT-05 — turn a shareable link on or off. On mints a token if there
+    /// is not one; off drops it, so an old link stops resolving.
+    /// </summary>
+    [HttpPost("{id:int}/share")]
+    public async Task<ActionResult<object>> Share(int id, [FromQuery] bool on, CancellationToken ct)
+    {
+        var (userId, sid) = await ScopeAsync(ct);
+        var list = await Owned(userId, sid).FirstOrDefaultAsync(w => w.Id == id, ct);
+        if (list is null) return NotFound();
+
+        if (on) list.ShareToken ??= Guid.NewGuid().ToString("N");
+        else list.ShareToken = null;
+
+        await db.SaveChangesAsync(ct);
+        return Ok(new { shareToken = list.ShareToken });
+    }
+
+    /// <summary>
+    /// docs/01 YT-05 — a shared list, read-only, for anyone with the link. No
+    /// sign-in: the token is the permission. Notes stay private to the owner and
+    /// are not returned here.
+    /// </summary>
+    [HttpGet("/api/shared-wishlists/{token}")]
+    public async Task<ActionResult<WishlistDetailDto>> Shared(string token, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return NotFound();
+
+        var list = await db.Wishlists
+            .Include(w => w.Items).ThenInclude(f => f.Listing!).ThenInclude(l => l.Images)
+            .Include(w => w.Items).ThenInclude(f => f.Listing!).ThenInclude(l => l.Amenities).ThenInclude(a => a.Amenity)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(w => w.ShareToken == token, ct);
+
+        if (list is null) return NotFound();
+
+        var favIds = list.Items.Select(i => i.ListingId).ToHashSet();
+        var entries = list.Items
+            .Where(i => i.Listing is not null)
+            .OrderByDescending(i => i.CreatedAt)
+            // The viewer is not the owner, so the private note is left out.
+            .Select(i => new WishlistEntryDto(CatalogService.ToCard(i.Listing!, favIds), null))
+            .ToList();
+
+        return Ok(new WishlistDetailDto(ToSummary(list), entries));
+    }
+
     /// <summary>docs/01 YT-03 — the guest's private note on one saved place.</summary>
     [HttpPut("{id:int}/items/{listingId:int}/note")]
     public async Task<IActionResult> SetNote(
@@ -186,5 +233,6 @@ public class WishlistsController(StayHostDbContext db, AuthService auth) : Contr
             .Select(i => i.Listing!.Images.OrderBy(im => im.SortOrder).Select(im => im.Url).FirstOrDefault() ?? "")
             .Where(url => url.Length > 0)
             .Take(4)
-            .ToList());
+            .ToList(),
+        w.ShareToken);
 }

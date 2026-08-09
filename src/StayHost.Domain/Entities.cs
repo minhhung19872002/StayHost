@@ -435,6 +435,13 @@ public class Wishlist
     public bool IsDefault { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// docs/01 YT-05 — a token in the share link. Null until the owner turns
+    /// sharing on; anyone holding it can view the list read-only, and turning
+    /// sharing off drops the token so the old link stops working.
+    /// </summary>
+    public string? ShareToken { get; set; }
+
     public List<Favorite> Items { get; set; } = [];
 }
 

@@ -6,6 +6,34 @@ import { api } from '../lib/api.js';
 import { Card } from '../components/Card.jsx';
 import { Icon } from '../components/Icon.jsx';
 
+/** docs/01 YT-05 — turn a shareable link on/off and copy it. */
+function ShareWishlist({ list, onChanged }) {
+  const shared = !!list.shareToken;
+
+  const toggle = async () => {
+    try {
+      await api.shareWishlist(list.id, !shared);
+      onChanged?.();
+      if (!shared) toast('Đã bật chia sẻ. Sao chép liên kết để gửi bạn bè.');
+    } catch (err) { toast(err.message); }
+  };
+
+  const copy = async () => {
+    const url = `${location.origin}/wishlist/${list.shareToken}`;
+    try { await navigator.clipboard.writeText(url); toast('Đã sao chép liên kết chia sẻ.'); }
+    catch { toast(url); }
+  };
+
+  return (
+    <>
+      <button className="btn btn-outline btn-sm" onClick={toggle}>
+        {shared ? 'Tắt chia sẻ' : 'Chia sẻ'}
+      </button>
+      {shared && <button className="btn btn-dark btn-sm" onClick={copy}>Sao chép liên kết</button>}
+    </>
+  );
+}
+
 /** docs/01 YT-03 — a private note the guest keeps on a saved place. */
 function WishlistNote({ listId, listingId, note, onSaved }) {
   const [editing, setEditing] = useState(false);
@@ -142,6 +170,7 @@ function One() {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn btn-outline btn-sm" onClick={rename}>Đổi tên</button>
+          <ShareWishlist list={list} onChanged={() => openWishlist(list.id)} />
           {!list.isDefault && <button className="btn btn-outline btn-sm" onClick={remove}>Xoá danh sách</button>}
         </div>
       </div>
