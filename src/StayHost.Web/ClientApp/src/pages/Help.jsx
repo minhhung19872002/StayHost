@@ -7,6 +7,58 @@ import { longDate } from '../lib/format.js';
 const AUDIENCES = [['all', 'Tất cả'], ['guest', 'Khách'], ['host', 'Chủ nhà']];
 
 /**
+ * docs/01 AT-09 — reach a human support agent when the articles do not settle it.
+ * A safety topic is flagged urgent and jumps the support queue.
+ */
+function ContactSupport() {
+  const [topics, setTopics] = useState([]);
+  const [topic, setTopic] = useState('booking');
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(null);
+
+  useEffect(() => { api.supportTopics().then(setTopics).catch(() => {}); }, []);
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const r = await api.createSupportTicket({ topic, subject, message });
+      setSent(r.message); setSubject(''); setMessage('');
+    } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <section style={{ marginTop: 44, borderTop: '1px solid var(--divider)', paddingTop: 28, maxWidth: 640 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>Vẫn cần trợ giúp?</h2>
+      <p className="section-sub">Chuyển tiếp lên nhân viên hỗ trợ. Vấn đề an toàn khẩn cấp được ưu tiên cao nhất.</p>
+
+      {sent ? (
+        <div className="notice notice-ok" style={{ marginTop: 12 }}>{sent}</div>
+      ) : (
+        <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+          <label className="form-field"><span className="cap">Loại vấn đề</span>
+            <select value={topic} onChange={e => setTopic(e.target.value)}
+                    style={{ padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10 }}>
+              {topics.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+            </select>
+          </label>
+          <label className="form-field"><span className="cap">Tiêu đề</span>
+            <input value={subject} maxLength={150} onChange={e => setSubject(e.target.value)}
+                   placeholder="Tóm tắt ngắn gọn vấn đề" /></label>
+          <label className="form-field"><span className="cap">Mô tả</span>
+            <textarea rows={4} value={message} maxLength={4000} onChange={e => setMessage(e.target.value)}
+                      placeholder="Kể chi tiết để nhân viên hỗ trợ nắm được." /></label>
+          <button className="btn btn-primary" disabled={busy || !subject.trim() || !message.trim()}
+                  onClick={submit} style={{ justifySelf: 'start' }}>Gửi cho nhân viên hỗ trợ</button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
  * docs/01 AT-07 — a help centre with real articles, a search that copes with
  * missing accents, and guest content kept apart from host content.
  */
@@ -80,6 +132,8 @@ function Index() {
           <p>Thử một từ khoá khác, hoặc bỏ bớt bộ lọc bên trên.</p>
         </div>
       )}
+
+      <ContactSupport />
     </div>
   );
 }

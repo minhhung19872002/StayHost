@@ -43,6 +43,12 @@ export const api = {
   // docs/01 TM-26 — a city landing page.
   city: key => request(`/api/cities/${encodeURIComponent(key)}`),
 
+  // docs/01 AT-09 — reach a human support agent.
+  supportTopics: () => request('/api/support/topics'),
+  createSupportTicket: body => request('/api/support/tickets', { method: 'POST', body: JSON.stringify(body) }),
+  supportTickets: () => request('/api/support/tickets'),
+  resolveSupportTicket: (id, reply) => request(`/api/support/tickets/${id}/resolve`, { method: 'POST', body: JSON.stringify({ reply }) }),
+
   home: params => request(`/api/home${qs(params ?? {})}`),
 
   suggest: q => request(`/api/suggest${q ? `?q=${encodeURIComponent(q)}` : ''}`),

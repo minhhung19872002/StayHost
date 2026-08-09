@@ -54,6 +54,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<SpecialOffer> SpecialOffers => Set<SpecialOffer>();
     public DbSet<ListingCancellationNote> ListingCancellationNotes => Set<ListingCancellationNote>();
     public DbSet<BookingChangeRequest> BookingChangeRequests => Set<BookingChangeRequest>();
+    public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
     public DbSet<GiftCard> GiftCards => Set<GiftCard>();
     public DbSet<Referral> Referrals => Set<Referral>();
     public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
@@ -551,6 +552,18 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Booking).WithMany()
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<SupportTicket>(e =>
+        {
+            e.ToTable("support_tickets");
+            e.HasIndex(x => new { x.Status, x.Priority, x.CreatedAt });
+            e.Property(x => x.Subject).HasMaxLength(StayHost.Domain.SupportTickets.SubjectMax);
+            e.Property(x => x.Message).HasMaxLength(StayHost.Domain.SupportTickets.MessageMax);
+            e.Property(x => x.AdminReply).HasMaxLength(StayHost.Domain.SupportTickets.MessageMax);
+            e.Property(x => x.SessionId).HasMaxLength(64);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.Booking).WithMany().HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.SetNull);
         });
 
         b.Entity<BookingChangeRequest>(e =>

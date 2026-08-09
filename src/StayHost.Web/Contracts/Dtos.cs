@@ -951,6 +951,14 @@ public record SubmitPriceMatchRequest(string? CompetitorUrl, decimal CompetitorN
 /// <summary>One row of the price breakdown, already rounded. Negative means a reduction.</summary>
 public record PriceLineDto(string Key, string Label, decimal Amount);
 
+/* ------------------------------------------------------------ AT-09 support */
+
+public record CreateSupportTicketRequest(string? Topic, string Subject, string Message, int? BookingId = null);
+public record ResolveSupportTicketRequest(string? Reply);
+public record SupportTicketDto(
+    int Id, string Subject, string Message, bool Urgent,
+    string RequesterName, string? BookingReference, DateTime CreatedAt);
+
 /* ------------------------------------------------------ CĐ-06 change request */
 
 public record ChangeBookingRequest(

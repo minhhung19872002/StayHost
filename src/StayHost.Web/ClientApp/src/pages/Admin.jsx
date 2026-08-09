@@ -120,6 +120,8 @@ export function Admin() {
         ) : <p className="section-sub">Chưa có báo cáo nào.</p>}
       </section>
 
+      <SupportQueue />
+
       <section style={{ marginTop: 40 }}>
         <h2 className="section-title" style={{ fontSize: 20 }}>Chỗ nghỉ mới nhất</h2>
         <div className="table-wrap">
@@ -638,5 +640,45 @@ function Stat({ label, value, note }) {
       <div className="label">{label}</div>
       <div className="note">{note}</div>
     </div>
+  );
+}
+
+/** docs/01 AT-09 — the support desk queue, urgent tickets first. */
+function SupportQueue() {
+  const [tickets, setTickets] = useState(null);
+  const load = () => api.supportTickets().then(setTickets).catch(() => setTickets([]));
+  useEffect(() => { load(); }, []);
+
+  const resolve = async t => {
+    const reply = prompt(`Trả lời cho "${t.subject}" (không bắt buộc):`) ?? '';
+    try { await api.resolveSupportTicket(t.id, reply.trim() || null); load(); toast('Đã xử lý phiếu hỗ trợ.'); }
+    catch (err) { toast(err.message); }
+  };
+
+  if (!tickets) return null;
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>Phiếu hỗ trợ ({tickets.length})</h2>
+      {tickets.length ? (
+        <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+          {tickets.map(t => (
+            <article className="host-booking" key={t.id}>
+              <div style={{ minWidth: 0 }}>
+                <h3>
+                  {t.urgent && <span className="badge cancelled" style={{ marginRight: 8 }}>Khẩn cấp</span>}
+                  {t.subject}
+                </h3>
+                <div className="meta">{t.requesterName}{t.bookingReference ? ` · đơn ${t.bookingReference}` : ''} · {longDate(t.createdAt.slice(0, 10))}</div>
+                <div className="meta" style={{ whiteSpace: 'pre-wrap' }}>{t.message}</div>
+              </div>
+              <div className="host-booking-actions">
+                <button className="btn btn-primary btn-sm" onClick={() => resolve(t)}>Xử lý</button>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : <p className="section-sub">Không có phiếu hỗ trợ nào đang mở.</p>}
+    </section>
   );
 }
