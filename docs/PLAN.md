@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả: **167 xong · 0 làm một phần · 33 chưa có.** Con số 105 mã "không thấy
+Kết quả: **168 xong · 0 làm một phần · 32 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,7 +350,7 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (33 mã)
+### 9.1 Chưa có (32 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -359,7 +359,6 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `TM-24` | Vẽ vùng tìm kiếm trên bản đồ | P2 |
 | `TĐ-03` · `TN-06` | Dịch mô tả tin đăng (**P0**) · dịch tin nhắn (P1) — cần nhà cung cấp dịch thuật | P0/P1 |
 | `TC-03` | Đơn từ 28 đêm trở lên thu theo từng tháng | P1 |
-| `TC-11` | Xử lý tranh chấp thẻ và giao dịch nghi ngờ gian lận | P1 |
 | `TK-07` · `TK-13` | Xác minh email công ty · liên hệ khẩn cấp | P2 |
 | `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
 | `AT-01` | Kiểm duyệt tin đăng mới **trước** khi hiển thị | P1 |
@@ -381,6 +380,11 @@ Năm mã của lần soát trước đã làm nốt: `AT-02`, `TC-07`, `TC-04`, 
 Kết luận dựa trên đọc mã nguồn, không dựa trên việc mã yêu cầu có xuất hiện trong
 comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `TM-25`,
 `TC-02`, `TN-01` đều **chạy được** dù không chỗ nào trong code viết tên mã ra.
+
+`TC-11` (tranh chấp thẻ + theo dõi gian lận) đã dựng đủ từ trước — domain `Chargebacks`,
+các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
+và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
+endpoint (10/08/2026) rồi đánh dấu xong.
 
 Một dạng thiếu không hiện ra khi tìm theo tên mã: **dữ liệu được ghi mà không ai
 đọc.** `QL-16` là ví dụ — bảng `ListingViews` nhận lượt xem thật từ
