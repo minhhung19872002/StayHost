@@ -49,6 +49,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<RoomTypeOption> RoomTypes => Set<RoomTypeOption>();
     public DbSet<PriceMatchClaim> PriceMatchClaims => Set<PriceMatchClaim>();
     public DbSet<CreditEntry> CreditEntries => Set<CreditEntry>();
+    public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<CouponRedemption> CouponRedemptions => Set<CouponRedemption>();
     public DbSet<GiftCard> GiftCards => Set<GiftCard>();
     public DbSet<Referral> Referrals => Set<Referral>();
     public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
@@ -523,6 +525,31 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.SetNull);
         });
 
+        b.Entity<Coupon>(e =>
+        {
+            e.ToTable("coupons");
+            e.HasIndex(x => x.Code).IsUnique();
+            e.Property(x => x.Code).HasMaxLength(32).IsRequired();
+            e.Property(x => x.Campaign).HasMaxLength(120);
+            e.Property(x => x.Value).HasColumnType("numeric(14,2)");
+            e.Property(x => x.MaxDiscount).HasColumnType("numeric(14,2)");
+            e.Property(x => x.MinBookingTotal).HasColumnType("numeric(14,2)");
+        });
+
+        b.Entity<CouponRedemption>(e =>
+        {
+            e.ToTable("coupon_redemptions");
+            e.HasIndex(x => new { x.CouponId, x.Voided });
+            e.HasIndex(x => new { x.CouponId, x.UserId, x.Voided });
+            e.Property(x => x.Amount).HasColumnType("numeric(14,2)");
+            e.HasOne(x => x.Coupon).WithMany()
+                .HasForeignKey(x => x.CouponId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         b.Entity<GiftCard>(e =>
         {
             e.ToTable("gift_cards");
@@ -882,11 +909,17 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                          nameof(Booking.Subtotal), nameof(Booking.ServiceFee), nameof(Booking.Tax),
                          nameof(Booking.Promotion), nameof(Booking.Total),
                          nameof(Booking.HostServiceFee), nameof(Booking.HostPayout),
-                         nameof(Booking.RefundedAmount), nameof(Booking.GoodwillCredit)
+                         nameof(Booking.RefundedAmount), nameof(Booking.GoodwillCredit),
+                         nameof(Booking.CreditUsed), nameof(Booking.CouponDiscount)
                      })
             {
                 e.Property(money).HasPrecision(12, 2);
             }
+
+            // A coupon deleted by an admin must not take the bookings that used
+            // it with it: the discount already happened and the record stands.
+            e.HasOne(x => x.Coupon).WithMany()
+                .HasForeignKey(x => x.CouponId).OnDelete(DeleteBehavior.SetNull);
 
             e.Property(x => x.PriceLinesJson).HasColumnType("jsonb");
             e.Property(x => x.GuestNote).HasMaxLength(1000);

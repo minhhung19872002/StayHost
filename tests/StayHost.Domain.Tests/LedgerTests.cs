@@ -16,7 +16,7 @@ public class LedgerTests
         PricePerNight = 1_000_000m, CleaningFee = 500_000m, WeekendSurchargeRate = 0m
     };
 
-    private static (Booking Booking, Pricing.Breakdown Price) Sell(decimal promotion = 0m)
+    private static (Booking Booking, Pricing.Breakdown Price) Sell(decimal promotion = 0m, decimal coupon = 0m)
     {
         var checkIn = new DateOnly(2026, 9, 7);
         var price = Pricing.Quote(new Pricing.Request
@@ -26,7 +26,8 @@ public class LedgerTests
             CheckOut = checkIn.AddDays(5),
             Party = new PartySize(2),
             TaxRules = [new TaxRule { Id = 1, City = "Đà Lạt", Name = "VAT", Method = TaxMethod.Percentage, Value = 0.08m }],
-            PromotionAmount = promotion
+            PromotionAmount = promotion,
+            CouponAmount = coupon
         });
 
         var booking = new Booking
@@ -64,11 +65,12 @@ public class LedgerTests
     [Fact]
     public void Capturing_a_discounted_booking_still_balances()
     {
-        var (booking, price) = Sell(promotion: 400_000m);
+        var (booking, price) = Sell(coupon: 400_000m);
         var entries = Ledger.CaptureBooking(booking, price, At);
 
         Assert.Equal(0m, Ledger.Imbalance(entries));
-        // The promotion is the platform's cost, not a smaller payout to the host.
+        // docs/01 TC-09 — the code is the platform's cost, not a smaller payout to
+        // the host: the host is still paid on the full subtotal.
         Assert.Contains(entries, e => e.Account == LedgerAccount.PlatformExpense && e.Amount == 400_000m);
         Assert.Equal(price.HostPayout,
             entries.Single(e => e.Account == LedgerAccount.HostPayable).Amount);

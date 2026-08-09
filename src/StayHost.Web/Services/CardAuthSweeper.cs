@@ -102,6 +102,13 @@ public class CardAuthSweeper(
 
         if (fresh is null) return;
 
+        // The bank already took the money, so this reproduces the exact total the
+        // guest agreed to rather than re-pricing it. The promo discount is the
+        // figure frozen on the booking, not a fresh evaluation: a campaign that
+        // ended since must not change a total that has already been charged.
+        if (booking.CouponDiscount > 0)
+            fresh = fresh with { CouponAmount = booking.CouponDiscount, CouponLabel = "Mã giảm giá" };
+
         if (booking.CreditUsed > 0)
             fresh = fresh with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư StayHost" };
 

@@ -276,6 +276,18 @@ public class BookingService(StayHostDbContext db)
             result.RequestsExpired++;
         }
 
+        // docs/01 TC-09 — a hold or request that lapsed hands its promo code back
+        // to the campaign, so a limited run is not eaten by stays that fell
+        // through. Marked, not deleted: the redemption row is history.
+        var endedIds = staleHolds.Select(b => b.Id).Concat(staleRequests.Select(b => b.Id)).ToList();
+        if (endedIds.Count > 0)
+        {
+            var toVoid = await db.CouponRedemptions
+                .Where(r => endedIds.Contains(r.BookingId) && !r.Voided)
+                .ToListAsync(ct);
+            foreach (var r in toVoid) r.Voided = true;
+        }
+
         // Check-in and check-out roll over in the listing's own time zone, so
         // these two need the listing rather than a single server-side date.
         var movable = await db.Bookings

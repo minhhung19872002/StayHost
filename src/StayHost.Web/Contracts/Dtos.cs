@@ -452,6 +452,20 @@ public record NotificationDto(
 
 public record NotificationFeedDto(int Unread, IReadOnlyList<NotificationDto> Items);
 
+/* ------------------------------------------------------------ TC-09 coupons */
+
+public record CouponDto(
+    int Id, string Code, string Campaign, string Kind, decimal Value,
+    decimal? MaxDiscount, decimal? MinBookingTotal,
+    DateTime? StartsAt, DateTime? EndsAt,
+    int? MaxRedemptions, int? MaxPerUser, int TimesUsed, bool IsActive, DateTime CreatedAt);
+
+public record SaveCouponRequest(
+    string Code, string? Campaign, string Kind, decimal Value,
+    decimal? MaxDiscount = null, decimal? MinBookingTotal = null,
+    DateTime? StartsAt = null, DateTime? EndsAt = null,
+    int? MaxRedemptions = null, int? MaxPerUser = null);
+
 /* ------------------------------------------------------------------ reports */
 
 /// <summary>docs/01 AT-02 — Target is Listing, User, Message or Review.</summary>
@@ -943,7 +957,11 @@ public record QuoteDto(
     int MinNights,
     bool BelowMinNights,
     string CancellationTier,
-    string CancellationSummary);
+    string CancellationSummary,
+    /// <summary>docs/01 ĐP-09 — set when a code was applied; CouponError when one was refused.</summary>
+    bool CouponApplied = false,
+    decimal CouponDiscount = 0,
+    string? CouponError = null);
 
 /// <summary>Card details captured when the guest actually pays, not when the hold started.</summary>
 public record PayBookingRequest(
@@ -1016,7 +1034,9 @@ public record CreateBookingRequest(
     string? DisplayCurrency = null,
     decimal? DisplayRate = null,
     /// <summary>Spend the guest's balance on this booking, up to the room charge.</summary>
-    bool UseCredit = false);
+    bool UseCredit = false,
+    /// <summary>docs/01 ĐP-09 — a promo code, applied before the balance.</summary>
+    string? CouponCode = null);
 
 public record BookingDto(
     int Id,

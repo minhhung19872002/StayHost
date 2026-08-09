@@ -8,7 +8,8 @@ namespace StayHost.Web.Controllers;
 
 [ApiController]
 [Route("api")]
-public class ListingsController(CatalogService catalog, BookingService bookings) : ControllerBase
+public class ListingsController(
+    CatalogService catalog, BookingService bookings, AuthService auth, CouponService coupons) : ControllerBase
 {
     /// <summary>
     /// Nightly rates and availability for the date picker (docs/01 TM-05), plus
@@ -206,6 +207,7 @@ public class ListingsController(CatalogService catalog, BookingService bookings)
         [FromQuery] int infants = 0,
         [FromQuery] int pets = 0,
         [FromQuery] int? roomTypeId = null,
+        [FromQuery] string? couponCode = null,
         CancellationToken ct = default)
     {
         // `guests` is the legacy single number; adults/children win when supplied.
@@ -214,6 +216,26 @@ public class ListingsController(CatalogService catalog, BookingService bookings)
             : new PartySize(Math.Max(1, adults.Value), children, infants, pets);
 
         var quote = await catalog.QuoteAsync(listingId, checkIn, checkOut, party, ct, roomTypeId);
-        return quote is null ? NotFound() : Ok(quote);
+        if (quote is null) return NotFound();
+
+        // docs/01 ĐP-09 — the quote is where a code is checked, so the guest sees
+        // the discount before committing. A signed-out visitor cannot, since the
+        // per-guest limit needs to know who they are.
+        if (!string.IsNullOrWhiteSpace(couponCode))
+        {
+            var user = await auth.CurrentUserAsync(ct);
+            if (user is null)
+                return Ok(quote with { CouponError = "Đăng nhập để dùng mã giảm giá." });
+
+            var gross = quote.Subtotal + quote.ServiceFee + quote.Tax;
+            var check = await coupons.EvaluateAsync(couponCode, user.Id, gross, DateTime.UtcNow, ct: ct);
+
+            quote = check.Ok
+                ? await catalog.QuoteAsync(listingId, checkIn, checkOut, party, ct, roomTypeId,
+                    check.Discount, check.Label)
+                : quote with { CouponError = check.Error };
+        }
+
+        return Ok(quote);
     }
 }

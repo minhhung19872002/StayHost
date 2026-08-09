@@ -65,7 +65,7 @@ public class CreditTests
     [Fact]
     public void Spending_balance_discharges_the_liability_instead_of_costing_twice()
     {
-        var (booking, price) = Sell(promotion: 500_000m);
+        var (booking, price) = Sell(balance: 500_000m);
 
         var entries = Ledger.CaptureBooking(booking, price, At, paidNow: null, creditUsed: 500_000m);
 
@@ -78,9 +78,11 @@ public class CreditTests
     }
 
     [Fact]
-    public void A_promo_code_the_platform_gives_up_is_still_an_expense()
+    public void A_promo_code_the_platform_gives_up_is_an_expense()
     {
-        var (booking, price) = Sell(promotion: 500_000m);
+        // docs/01 TC-09 — a coupon is money the platform gives up now, so it lands
+        // in PlatformExpense. Balance does not: it was expensed when granted.
+        var (booking, price) = Sell(coupon: 500_000m);
 
         var entries = Ledger.CaptureBooking(booking, price, At);
 
@@ -90,9 +92,11 @@ public class CreditTests
     }
 
     [Fact]
-    public void Part_balance_and_part_promo_split_between_the_two()
+    public void A_coupon_and_the_balance_land_in_different_accounts()
     {
-        var (booking, price) = Sell(promotion: 500_000m);
+        // docs/03 §1 step 9 — both are step-9 reductions but they are not the same
+        // money: the code is an expense, the balance discharges a prior liability.
+        var (booking, price) = Sell(balance: 200_000m, coupon: 300_000m);
 
         var entries = Ledger.CaptureBooking(booking, price, At, paidNow: null, creditUsed: 200_000m);
 
@@ -102,9 +106,9 @@ public class CreditTests
     }
 
     [Fact]
-    public void Credit_claimed_beyond_the_promotion_is_ignored_rather_than_unbalancing()
+    public void Credit_claimed_beyond_the_balance_line_is_ignored_rather_than_unbalancing()
     {
-        var (booking, price) = Sell(promotion: 200_000m);
+        var (booking, price) = Sell(balance: 200_000m);
 
         var entries = Ledger.CaptureBooking(booking, price, At, paidNow: null, creditUsed: 900_000m);
 
@@ -130,7 +134,7 @@ public class CreditTests
         Assert.True(CreditRules.MinGiftCard < CreditRules.MaxGiftCard);
     }
 
-    private static (Booking Booking, Pricing.Breakdown Price) Sell(decimal promotion)
+    private static (Booking Booking, Pricing.Breakdown Price) Sell(decimal balance = 0, decimal coupon = 0)
     {
         var checkIn = new DateOnly(2026, 10, 7);
         var listing = new Listing
@@ -145,7 +149,8 @@ public class CreditTests
             CheckIn = checkIn,
             CheckOut = checkIn.AddDays(5),
             Party = new PartySize(2),
-            PromotionAmount = promotion
+            PromotionAmount = balance,
+            CouponAmount = coupon
         });
 
         var booking = new Booking { Id = 1, Reference = "SH-1", Total = price.Total };

@@ -527,6 +527,15 @@ public class Booking
     /// <summary>How much of the guest's balance went into this booking.</summary>
     public decimal CreditUsed { get; set; }
 
+    /// <summary>
+    /// docs/01 ĐP-09, TC-09 — the promo code applied, and how much it took off.
+    /// Both null when no code was used. Kept so the discount can be re-priced at
+    /// payment exactly as it was quoted, the same way credit is.
+    /// </summary>
+    public int? CouponId { get; set; }
+    public Coupon? Coupon { get; set; }
+    public decimal CouponDiscount { get; set; }
+
     /// <summary>docs/01 MR-09 — which kind of room, for a hotel booking.</summary>
     public int? RoomTypeId { get; set; }
     public RoomTypeOption? RoomType { get; set; }

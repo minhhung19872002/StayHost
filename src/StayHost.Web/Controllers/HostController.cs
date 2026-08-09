@@ -829,6 +829,7 @@ public class HostController(
         GuestServiceFee = b.ServiceFee,
         Tax = b.Tax,
         TaxLines = [],
+        Coupon = b.CouponDiscount,
         Promotion = b.Promotion,
         Total = b.Total,
         HostServiceFee = b.HostServiceFee,

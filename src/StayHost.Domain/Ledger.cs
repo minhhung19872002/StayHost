@@ -166,9 +166,10 @@ public static class Ledger
             new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, cash, $"Khách trả đơn {booking.Reference}"),
             new Leg(LedgerAccount.GuestReceivable, LedgerDirection.Debit, price.Total - cash, "Phần khách còn nợ"),
             new Leg(LedgerAccount.PromotionalCredit, LedgerDirection.Debit, credit, "Khách dùng số dư"),
-            // A promo code is money the platform gives up; balance already cost it
-            // once, when it was granted, so only the difference is an expense here.
-            new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Debit, price.Promotion - credit,
+            // docs/01 TC-09 — a promo code is money the platform gives up now, so it
+            // is an expense on capture. Balance is not: it already cost the platform
+            // once, when it was granted, and spending it only discharges that.
+            new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Debit, price.Coupon,
                 "Mã giảm giá sàn chịu"),
             new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, price.HostPayout, "Phần chủ nhà nhận"),
             new Leg(LedgerAccount.GuestServiceFeeRevenue, LedgerDirection.Credit, price.GuestServiceFee, "Phí dịch vụ khách"),

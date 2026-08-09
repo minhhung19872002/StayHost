@@ -343,4 +343,53 @@ public class PricingTests
         var huge = Pricing.Quote(Request(MakeListing(), nights: 3) with { PromotionAmount = 99_000_000m });
         Assert.Equal(0m, huge.Total);
     }
+
+    /* ---- docs/01 ĐP-09 — a promo code alongside the balance ---- */
+
+    [Fact]
+    public void A_coupon_and_the_balance_are_two_separate_lines()
+    {
+        // docs/03 §1 step 9, docs/07 §3 — a code and the guest's balance are
+        // different money and a receipt shows them apart, not merged into one row.
+        var price = Pricing.Quote(Request(MakeListing(), nights: 3) with
+        {
+            CouponAmount = 300_000m,
+            PromotionAmount = 200_000m
+        });
+
+        Assert.Equal(300_000m, price.Coupon);
+        Assert.Equal(200_000m, price.Promotion);
+        Assert.Equal(500_000m, price.Coupon + price.Promotion);
+
+        Assert.Contains(price.Lines, l => l.Key == "coupon" && l.Amount == -300_000m);
+        Assert.Contains(price.Lines, l => l.Key == "promotion" && l.Amount == -200_000m);
+    }
+
+    [Fact]
+    public void The_coupon_comes_off_before_the_balance_so_the_balance_covers_less()
+    {
+        // With a code applied, the balance only has to cover what is left, so a
+        // guest keeps more of it than if the two stacked in the other order.
+        var gross = Pricing.Quote(Request(MakeListing(), nights: 3));
+        var whole = gross.Subtotal + gross.GuestServiceFee + gross.Tax;
+
+        var price = Pricing.Quote(Request(MakeListing(), nights: 3) with
+        {
+            CouponAmount = 300_000m,
+            PromotionAmount = 99_000_000m   // more balance than the stay could ever use
+        });
+
+        // Coupon takes its 300k; the balance is capped at the remainder, never more.
+        Assert.Equal(300_000m, price.Coupon);
+        Assert.Equal(whole - 300_000m, price.Promotion);
+        Assert.Equal(0m, price.Total);
+    }
+
+    [Fact]
+    public void A_coupon_alone_never_takes_the_total_negative()
+    {
+        var huge = Pricing.Quote(Request(MakeListing(), nights: 3) with { CouponAmount = 99_000_000m });
+        Assert.Equal(0m, huge.Total);
+        Assert.Equal(0m, huge.Promotion);
+    }
 }

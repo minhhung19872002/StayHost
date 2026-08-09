@@ -1077,11 +1077,14 @@ public class CatalogService(StayHostDbContext db)
 
     public async Task<QuoteDto?> QuoteAsync(
         int listingId, DateOnly checkIn, DateOnly checkOut, PartySize party, CancellationToken ct,
-        int? roomTypeId = null)
+        int? roomTypeId = null, decimal couponAmount = 0, string? couponLabel = null, string? couponError = null)
     {
         var request = await BuildQuoteRequestAsync(
             listingId, checkIn, checkOut, party, ct, roomTypeId: roomTypeId);
         if (request is null) return null;
+
+        if (couponAmount > 0)
+            request = request with { CouponAmount = couponAmount, CouponLabel = couponLabel ?? "Mã giảm giá" };
 
         var l = request.Listing;
         var b = Pricing.Quote(request);
@@ -1096,6 +1099,9 @@ public class CatalogService(StayHostDbContext db)
             party.Counted > l.MaxGuests, l.MaxGuests,
             l.MinNights, b.Nights < l.MinNights,
             Cancellation.Label(l.CancellationTier),
-            Cancellation.Summary(l.CancellationTier));
+            Cancellation.Summary(l.CancellationTier),
+            CouponApplied: b.Coupon > 0,
+            CouponDiscount: b.Coupon,
+            CouponError: couponError);
     }
 }

@@ -1087,6 +1087,7 @@ a.opt { color: inherit; text-decoration: none; display: block; }
   margin: 12px 0 0;
 }
 .notice-warn { background: #fff7e6; color: #96690a; }
+.notice-ok { background: #e8f6ee; color: #1a7f43; }
 
 /* docs/08 §4 — an identity document, under the name of whoever asked to see it.
    A screenshot that leaves this building carries that name with it. */

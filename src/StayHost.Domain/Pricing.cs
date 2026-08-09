@@ -27,9 +27,18 @@ public static class Pricing
         /// <summary>Stays already sold for this listing, for the new-listing discount.</summary>
         public int ListingBookingCount { get; init; } = int.MaxValue;
 
-        /// <summary>Promo code or credit applied last, on its own line (step 9).</summary>
+        /// <summary>The guest's own balance applied last, on its own line (step 9).</summary>
         public decimal PromotionAmount { get; init; }
-        public string PromotionLabel { get; init; } = "Mã giảm giá";
+        public string PromotionLabel { get; init; } = "Số dư StayHost";
+
+        /// <summary>
+        /// docs/01 ĐP-09, TC-09 — a promo code's discount. Its own step-9 line,
+        /// separate from the guest's balance (docs/03 §1 step 9, docs/07 §3): the
+        /// two are different money and a receipt shows them apart. Applied before
+        /// the balance so a code spares the balance rather than stacking under it.
+        /// </summary>
+        public decimal CouponAmount { get; init; }
+        public string CouponLabel { get; init; } = "Mã giảm giá";
 
         /// <summary>
         /// docs/01 MR-09 — the nightly rate of the room type the guest picked.
@@ -65,6 +74,7 @@ public static class Pricing
         public required decimal GuestServiceFee { get; init; }
         public required decimal Tax { get; init; }
         public required IReadOnlyList<PriceLine> TaxLines { get; init; }
+        public required decimal Coupon { get; init; }
         public required decimal Promotion { get; init; }
         public required decimal Total { get; init; }
 
@@ -194,12 +204,15 @@ public static class Pricing
         var taxLines = TaxLinesFor(req, nights, roomAfterDiscount, subtotal, guestServiceFee);
         var tax = taxLines.Sum(t => t.Amount);
 
-        // Step 9 — reductions, never below zero overall.
+        // Step 9 — reductions, never below zero overall. A promo code goes first,
+        // then the guest's balance covers what is left: taking the code off first
+        // means a code spends none of the balance the guest is keeping.
         var gross = subtotal + guestServiceFee + tax;
-        var promotion = Math.Min(Round(req.PromotionAmount), gross);
+        var coupon = Math.Min(Round(req.CouponAmount), gross);
+        var promotion = Math.Min(Round(req.PromotionAmount), gross - coupon);
 
         // Step 10.
-        var total = gross - promotion;
+        var total = gross - coupon - promotion;
 
         // Step 11 — the host's side of the same subtotal.
         var hostServiceFee = Round(subtotal * s.HostServiceFeeRate);
@@ -225,6 +238,7 @@ public static class Pricing
 
         lines.Add(new("guest-service-fee", "Phí dịch vụ StayHost", guestServiceFee));
         lines.AddRange(taxLines);
+        if (coupon > 0) lines.Add(new("coupon", req.CouponLabel, -coupon));
         if (promotion > 0) lines.Add(new("promotion", req.PromotionLabel, -promotion));
 
         return new Breakdown
@@ -242,6 +256,7 @@ public static class Pricing
             GuestServiceFee = guestServiceFee,
             Tax = tax,
             TaxLines = taxLines,
+            Coupon = coupon,
             Promotion = promotion,
             Total = total,
             HostServiceFee = hostServiceFee,

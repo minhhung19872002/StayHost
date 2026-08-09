@@ -505,6 +505,22 @@ public static class DbSeeder
 
         db.TaxRules.AddRange(TaxRuleSeeds());
 
+        // docs/01 TC-09 — two demo campaigns so the code path is exercisable: one
+        // percentage with a cap and a per-guest limit, one flat with a total cap.
+        db.Coupons.AddRange(
+            new Coupon
+            {
+                Code = "CHAOMUNG10", Campaign = "Chào mừng khách mới",
+                Kind = CouponKind.Percentage, Value = 10m, MaxDiscount = 500_000m,
+                MaxPerUser = 1
+            },
+            new Coupon
+            {
+                Code = "HE2026", Campaign = "Ưu đãi mùa hè 2026",
+                Kind = CouponKind.Fixed, Value = 300_000m, MinBookingTotal = 2_000_000m,
+                MaxRedemptions = 100
+            });
+
         await db.SaveChangesAsync(ct);
     }
 

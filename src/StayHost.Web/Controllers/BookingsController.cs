@@ -13,7 +13,8 @@ namespace StayHost.Web.Controllers;
 public class BookingsController(
     StayHostDbContext db, AuthService auth, NotificationService notifications,
     CatalogService catalog, BookingService rules, ReviewService reviews, ThreadMessenger messenger,
-    PaymentGateway gateway, RiskWatch risk, WalletService wallet, PaymentCompletion completion)
+    PaymentGateway gateway, RiskWatch risk, WalletService wallet, PaymentCompletion completion,
+    CouponService coupons)
     : ControllerBase
 {
     /// <summary>
@@ -85,6 +86,26 @@ public class BookingsController(
         var quoteRequest = await catalog.BuildQuoteRequestAsync(
             listing.Id, req.CheckIn, req.CheckOut, party, ct, roomTypeId: req.RoomTypeId);
 
+        // docs/01 ĐP-09 — a promo code first, evaluated against the stay's total
+        // before any reduction. It is refused loudly rather than silently ignored:
+        // a guest who typed a code and saw full price would think the site was
+        // broken. Applied before balance so the code spares the balance.
+        Coupons.Check couponCheck = new(false);
+        if (!string.IsNullOrWhiteSpace(req.CouponCode))
+        {
+            var dry = Pricing.Quote(quoteRequest!);
+            var gross = dry.Subtotal + dry.GuestServiceFee + dry.Tax;
+            couponCheck = await coupons.EvaluateAsync(req.CouponCode, user.Id, gross, DateTime.UtcNow, ct: ct);
+            if (!couponCheck.Ok)
+                return BadRequest(new { message = couponCheck.Error });
+
+            quoteRequest = quoteRequest! with
+            {
+                CouponAmount = couponCheck.Discount,
+                CouponLabel = couponCheck.Label ?? "Mã giảm giá"
+            };
+        }
+
         // Balance comes off the room charge, never off the fees or the tax: it
         // is money towards a stay, not a discount on what is owed elsewhere.
         var creditUsed = 0m;
@@ -103,6 +124,9 @@ public class BookingsController(
         }
 
         var price = Pricing.Quote(quoteRequest!);
+        var couponId = couponCheck.Ok
+            ? (await db.Coupons.FirstAsync(c => c.Code == Coupons.Normalize(req.CouponCode), ct)).Id
+            : (int?)null;
 
         var booking = new Booking
         {
@@ -135,6 +159,8 @@ public class BookingsController(
             PriceLinesJson = SerializeLines(price.Lines),
             RoomTypeId = req.RoomTypeId,
             CreditUsed = creditUsed,
+            CouponId = couponId,
+            CouponDiscount = price.Coupon,
             // docs/07 §6 — kept so "the price I was shown" can be settled from
             // the record. Only a rate that could have been real is stored.
             DisplayCurrency = string.IsNullOrWhiteSpace(req.DisplayCurrency) ? null : req.DisplayCurrency.Trim(),
@@ -180,6 +206,13 @@ public class BookingsController(
                 reason = nameof(Availability.Reason.DatesTaken)
             });
         }
+
+        // docs/01 TC-09 — the redemption is written once the booking has an id.
+        // A held booking counts against the campaign straight away; if it lapses
+        // or is cancelled the redemption is released so the limit is not spent on
+        // a stay that never happened.
+        if (couponId is { } cid && price.Coupon > 0)
+            coupons.Redeem(cid, user.Id, booking.Id, price.Coupon);
 
         db.BookingEvents.Add(BookingLifecycle.Created(booking, $"guest:{user.Id}",
             listing.InstantBook ? "Giữ chỗ 15 phút để thanh toán" : "Gửi yêu cầu đặt"));
@@ -324,6 +357,25 @@ public class BookingsController(
         var party = new PartySize(booking.Adults, booking.Children, booking.Infants, booking.Pets);
         var fresh = await catalog.BuildQuoteRequestAsync(
             booking.ListingId, booking.CheckIn, booking.CheckOut, party, ct, booking.Id, booking.RoomTypeId);
+
+        // docs/01 ĐP-09 — the promo code committed at the hold is part of the
+        // shown price too, so the re-price carries it exactly as quoted. The
+        // discount is re-derived from today's rules rather than trusting the
+        // stored figure: a campaign ended between hold and payment should stop the
+        // stale figure sailing through, and CouponDiscount was only ever a cache
+        // of the number the guest saw.
+        if (booking.CouponId is { } couponId)
+        {
+            var couponEntity = await db.Coupons.FindAsync([couponId], ct);
+            var dry = Pricing.Quote(fresh!);
+            var gross = dry.Subtotal + dry.GuestServiceFee + dry.Tax;
+            var recheck = await coupons.EvaluateAsync(
+                couponEntity?.Code, booking.GuestUserId!.Value, gross, DateTime.UtcNow,
+                excludeBookingId: booking.Id, ct: ct);
+
+            if (recheck.Ok)
+                fresh = fresh! with { CouponAmount = recheck.Discount, CouponLabel = recheck.Label ?? "Mã giảm giá" };
+        }
 
         // The balance the guest committed at the hold is part of the price they
         // were shown, so the re-price has to include it or every credit booking
@@ -494,6 +546,9 @@ public class BookingsController(
 
         db.BookingEvents.Add(BookingLifecycle.Transition(
             booking, BookingStatus.CancelledByGuest, "guest", "Khách rời bước thanh toán."));
+        // A hold never paid for spent no balance, so only the promo code needs
+        // handing back (docs/01 TC-09).
+        await coupons.ReleaseAsync(booking.Id, ct);
         await db.SaveChangesAsync(ct);
         return NoContent();
     }
@@ -692,6 +747,9 @@ public class BookingsController(
         Booking booking, Cancellation.Outcome outcome, CancelledBy by, string reason, CancellationToken ct)
     {
         PostCancellation(db, booking, outcome, by, reason);
+        // docs/01 TC-09 — a cancelled stay hands its promo code back to the
+        // campaign so a limited run is not spent on a booking that did not happen.
+        await coupons.ReleaseAsync(booking.Id, ct);
         await db.SaveChangesAsync(ct);
     }
 

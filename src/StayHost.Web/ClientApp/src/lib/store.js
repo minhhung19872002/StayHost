@@ -135,6 +135,8 @@ export const state = {
   shieldSide: 'guest',
   // Spend the guest's balance on this booking.
   useCredit: false,
+  // docs/01 ĐP-09 — the promo code the guest typed at checkout.
+  couponCode: '',
   // docs/01 MR-09 — the room type chosen on a hotel listing.
   roomTypeId: null,
   // docs/01 ĐP-07 — let other people pay their share instead of paying it all.
@@ -614,12 +616,22 @@ export async function refreshQuote() {
       children: state.guests.children,
       infants: state.guests.infants,
       pets: state.guests.pets,
-      roomTypeId: state.roomTypeId
+      roomTypeId: state.roomTypeId,
+      // docs/01 ĐP-09 — the code is priced server-side so the guest sees the
+      // discount, or the reason it did not apply, before committing.
+      couponCode: state.couponCode || undefined
     });
   } catch {
     state.quote = null;
   }
   notify();
+}
+
+/** docs/01 ĐP-09 — apply or clear a promo code, then re-price. */
+export function applyCoupon(code) {
+  state.couponCode = (code ?? '').trim();
+  notify();
+  return refreshQuote();
 }
 
 /** docs/01 MR-09 — picking a room re-prices the panel against that room. */
@@ -650,6 +662,8 @@ export async function holdDates(extra = {}) {
       // docs/01 MR-09 — a hotel booking carries the room the guest picked.
       roomTypeId: state.roomTypeId,
       useCredit: state.useCredit,
+      // docs/01 ĐP-09 — the code committed at the hold, re-checked at payment.
+      couponCode: state.couponCode || undefined,
       ...extra
     });
     set({ held });
@@ -933,7 +947,8 @@ export const openOverlay = kind =>
 export const openReport = (target, subjectId, title) =>
   set({ report: { target, subjectId, title }, overlay: 'report', menu: null });
 
-export const closeOverlay = () => set({ overlay: null, photoIndex: null, report: null, share: null });
+export const closeOverlay = () =>
+  set({ overlay: null, photoIndex: null, report: null, share: null, couponCode: '' });
 export const openMenu = kind => set({ menu: state.menu === kind ? null : kind });
 
 /** Signed-out guests get the login modal instead of the action they asked for. */

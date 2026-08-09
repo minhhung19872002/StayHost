@@ -2,7 +2,7 @@ import { useStore } from '../../lib/useStore.js';
 import { useEffect, useRef, useState } from 'react';
 import {
   set, holdDates, payHeld, releaseHold, openSplit, openOverlay, closeOverlay,
-  shareListing, toggleFavorite
+  shareListing, toggleFavorite, applyCoupon
 } from '../../lib/store.js';
 import { money, longDate, parseIso, isoOf } from '../../lib/format.js';
 import { AmenityIcon } from '../Icon.jsx';
@@ -393,6 +393,51 @@ function StepTrip({ q }) {
   </>;
 }
 
+/**
+ * docs/01 ĐP-09 — a promo code field. The code is priced by the server, so the
+ * discount and any refusal both come back on the quote; this only sends what the
+ * guest typed and shows what came back.
+ */
+function CouponField({ q }) {
+  const state = useStore();
+  const [code, setCode] = useState(state.couponCode ?? '');
+  const [busy, setBusy] = useState(false);
+
+  const apply = async () => {
+    setBusy(true);
+    await applyCoupon(code);
+    setBusy(false);
+  };
+
+  const clear = async () => {
+    setCode('');
+    await applyCoupon('');
+  };
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <label className="cap" htmlFor="coupon-code">Mã giảm giá</label>
+      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+        <input id="coupon-code" value={code} disabled={busy}
+               onChange={e => setCode(e.target.value.toUpperCase())}
+               placeholder="VD: CHAOMUNG10"
+               style={{ flex: 1, padding: '11px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
+        {q.couponApplied
+          ? <button type="button" className="btn btn-outline btn-sm" onClick={clear}>Bỏ mã</button>
+          : <button type="button" className="btn btn-dark btn-sm" disabled={busy || !code.trim()} onClick={apply}>Áp dụng</button>}
+      </div>
+      {q.couponApplied && (
+        <p className="notice notice-ok" style={{ marginTop: 8 }}>
+          Đã áp mã, giảm {money(q.couponDiscount)}.
+        </p>
+      )}
+      {q.couponError && (
+        <p className="notice notice-warn" style={{ marginTop: 8 }}>{q.couponError}</p>
+      )}
+    </div>
+  );
+}
+
 /** Spend the guest's balance on this booking, against the room charge only. */
 function CreditChoice({ q }) {
   const state = useStore();
@@ -559,6 +604,7 @@ function StepPayment({ q }) {
         </p>
       </>}
 
+      <CouponField q={q} />
       <CreditChoice q={q} />
       <DepositChoice q={q} />
       <SplitChoice q={q} />
