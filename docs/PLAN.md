@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả: **155 xong · 0 làm một phần · 46 chưa có.** Con số 105 mã "không thấy
+Kết quả: **156 xong · 0 làm một phần · 45 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,7 +350,7 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (46 mã)
+### 9.1 Chưa có (45 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -369,7 +369,6 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `TC-03` | Đơn từ 28 đêm trở lên thu theo từng tháng | P1 |
 | `TC-11` | Xử lý tranh chấp thẻ và giao dịch nghi ngờ gian lận | P1 |
 | `TK-07` · `TK-13` | Xác minh email công ty · liên hệ khẩn cấp | P2 |
-| `ĐG-10` | Báo cáo đánh giá vi phạm | P1 |
 | `ĐG-12` | Đơn bị chủ nhà huỷ thì tự sinh ghi chú công khai trên tin đăng | P1 |
 | `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
 | `AT-01` | Kiểm duyệt tin đăng mới **trước** khi hiển thị | P1 |

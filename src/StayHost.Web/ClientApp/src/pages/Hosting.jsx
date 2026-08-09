@@ -311,6 +311,7 @@ function Earnings({ d }) {
         </div>
       </section>
 
+      <PerformanceReport />
       <TaxReport />
 
       <section style={{ marginTop: 34 }}>
@@ -427,6 +428,67 @@ function TaxReport() {
             </div>
           )}
         </>
+      )}
+    </section>
+  );
+}
+
+/**
+ * docs/01 QL-16, docs/02 G7 — how each listing is doing. The view counts have
+ * been recorded all along; this is the screen that finally reads them back, next
+ * to saves, bookings and the two rates derived from them.
+ */
+function PerformanceReport() {
+  const [rows, setRows] = useState(null);
+  const [days, setDays] = useState(30);
+
+  useEffect(() => {
+    api.performance(days).then(setRows).catch(err => toast(err.message));
+  }, [days]);
+
+  if (!rows) return null;
+
+  return (
+    <section style={{ marginTop: 34 }}>
+      <div className="page-head" style={{ marginBottom: 0 }}>
+        <h2 className="section-title" style={{ fontSize: 20 }}>Hiệu suất tin đăng</h2>
+        <select value={days} onChange={e => setDays(Number(e.target.value))}
+                style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 14 }}>
+          <option value={7}>7 ngày qua</option>
+          <option value={30}>30 ngày qua</option>
+          <option value={90}>90 ngày qua</option>
+        </select>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="section-sub" style={{ marginTop: 12 }}>Bạn chưa có tin đăng nào.</p>
+      ) : (
+        <div className="table-wrap" style={{ marginTop: 16 }}>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Tin đăng</th>
+                <th style={{ textAlign: 'right' }}>Lượt xem</th>
+                <th style={{ textAlign: 'right' }}>Lượt lưu</th>
+                <th style={{ textAlign: 'right' }}>Lượt đặt</th>
+                <th style={{ textAlign: 'right' }}>Xem → đặt</th>
+                <th style={{ textAlign: 'right' }}>Lấp đầy</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r => (
+                <tr key={r.listingId}>
+                  <td>{r.title}{!r.isPublished && <span className="meta"> · ẩn</span>}</td>
+                  <td style={{ textAlign: 'right' }}>{r.views}</td>
+                  <td style={{ textAlign: 'right' }}>{r.saves}</td>
+                  <td style={{ textAlign: 'right' }}>{r.bookings}</td>
+                  <td style={{ textAlign: 'right' }}>{r.conversionPercent}%</td>
+                  <td style={{ textAlign: 'right' }}>{r.occupancyPercent}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );

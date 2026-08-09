@@ -444,6 +444,87 @@ public class HostOperationsController(
         static string Escape(string v) => v.Replace(';', ',').Replace('\n', ' ');
     }
 
+    /* ------------------------------------------------------------- QL-16 */
+
+    /// <summary>
+    /// docs/01 QL-16, docs/02 G7 — how each of a host's listings is doing over a
+    /// window: views, saves, bookings, the conversion between them, and occupancy.
+    /// The view counts have been collected all along (listing_views); this is the
+    /// first thing that reads them back.
+    /// </summary>
+    [HttpGet("performance")]
+    public async Task<ActionResult<IReadOnlyList<ListingPerformanceDto>>> Performance(
+        [FromQuery] int days, CancellationToken ct)
+    {
+        var (user, profile) = await ResolveAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+        if (profile is null) return NotFound();
+
+        var window = days is >= 7 and <= 365 ? days : 30;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var from = today.AddDays(-window);
+        // Npgsql compares against a timestamptz, which must be UTC-kinded.
+        var fromUtc = DateTime.SpecifyKind(from.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+
+        var listings = await db.Listings
+            .Where(l => l.HostId == profile.Id)
+            .Select(l => new { l.Id, l.Title, l.IsPublished })
+            .ToListAsync(ct);
+        if (listings.Count == 0) return Ok(Array.Empty<ListingPerformanceDto>());
+
+        var ids = listings.Select(l => l.Id).ToList();
+
+        var views = await db.ListingViews
+            .Where(v => ids.Contains(v.ListingId) && v.Day >= from)
+            .GroupBy(v => v.ListingId)
+            .Select(g => new { ListingId = g.Key, Views = g.Sum(x => x.Views) })
+            .ToDictionaryAsync(x => x.ListingId, x => x.Views, ct);
+
+        var saves = await db.Favorites
+            .Where(f => ids.Contains(f.ListingId))
+            .GroupBy(f => f.ListingId)
+            .Select(g => new { ListingId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ListingId, x => x.Count, ct);
+
+        // Bookings made in the window that actually took the dates — a hold that
+        // lapsed is not a booking the listing earned.
+        var madeInWindow = await db.Bookings
+            .Where(b => ids.Contains(b.ListingId)
+                        && BookingLifecycle.BlocksDates.Contains(b.Status)
+                        && b.CreatedAt >= fromUtc)
+            .Select(b => new { b.ListingId })
+            .ToListAsync(ct);
+        var bookingCounts = madeInWindow
+            .GroupBy(b => b.ListingId)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        // Nights actually occupied inside the window, for occupancy.
+        var staying = await db.Bookings
+            .Where(b => ids.Contains(b.ListingId)
+                        && BookingLifecycle.BlocksDates.Contains(b.Status)
+                        && b.CheckOut > from && b.CheckIn < today)
+            .Select(b => new { b.ListingId, b.CheckIn, b.CheckOut })
+            .ToListAsync(ct);
+        var nightsBooked = staying
+            .GroupBy(b => b.ListingId)
+            .ToDictionary(g => g.Key,
+                g => g.Sum(b => Domain.Performance.NightsInWindow(b.CheckIn, b.CheckOut, from, today)));
+
+        var rows = listings.Select(l =>
+        {
+            var v = views.GetValueOrDefault(l.Id);
+            var bk = bookingCounts.GetValueOrDefault(l.Id);
+            var nights = nightsBooked.GetValueOrDefault(l.Id);
+            return new ListingPerformanceDto(
+                l.Id, l.Title, l.IsPublished,
+                v, saves.GetValueOrDefault(l.Id), bk,
+                Math.Round(Domain.Performance.ConversionRate(bk, v) * 100, 1),
+                Math.Round(Domain.Performance.OccupancyRate(nights, window) * 100, 1));
+        }).OrderByDescending(r => r.Views).ToList();
+
+        return Ok(rows);
+    }
+
     /* ------------------------------------------------------------- TC-04 */
 
     /// <summary>
