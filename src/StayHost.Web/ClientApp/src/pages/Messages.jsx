@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
   set, loadThreads, openThread, sendMessage, respondBooking, openReport, toast,
-  sendOffer, withdrawOffer, bookOffer
+  sendOffer, withdrawOffer, bookOffer, setInboxFilter, archiveThread
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate } from '../lib/format.js';
@@ -38,34 +38,58 @@ export function Messages() {
 
   const threads = state.threads;
   const active = state.activeThread;
+  const filter = state.inboxFilter;
+
+  // docs/01 TN-05 — the inbox filters.
+  const FILTERS = [
+    ['all', 'Tất cả'], ['unread', 'Chưa đọc'], ['needsreply', 'Cần trả lời'], ['archived', 'Đã lưu trữ']
+  ];
 
   return (
     <div className="shell" style={{ paddingBlock: '26px 60px' }}>
       <h1 className="section-title">Tin nhắn</h1>
       <p className="section-sub">{threads.length} cuộc trò chuyện</p>
 
+      <div className="pill-row" style={{ marginBottom: 16 }}>
+        {FILTERS.map(([key, label]) => (
+          <button key={key} className={`pill ${filter === key ? 'is-on' : ''}`}
+                  onClick={() => setInboxFilter(key)}>{label}</button>
+        ))}
+      </div>
+
       {threads.length ? (
         <div className="inbox">
           <aside className="inbox-list">
             {threads.map(t => (
-              <button key={t.id} className={`inbox-row ${active?.summary.id === t.id ? 'is-active' : ''}`}
-                      onClick={() => openThread(t.id)}>
-                <img src={t.listingImage} alt="" loading="lazy" decoding="async" />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div className="inbox-row-head">
-                    <b>{t.counterpartName}</b>
-                    {!!t.unreadCount && <span className="fav-count">{t.unreadCount}</span>}
+              <div key={t.id} className={`inbox-row ${active?.summary.id === t.id ? 'is-active' : ''}`}>
+                <button className="inbox-row-main" onClick={() => openThread(t.id)}>
+                  <img src={t.listingImage} alt="" loading="lazy" decoding="async" />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="inbox-row-head">
+                      <b>{t.counterpartName}</b>
+                      {!!t.unreadCount && <span className="fav-count">{t.unreadCount}</span>}
+                      {t.needsReply && <span className="badge pending" style={{ marginLeft: 6 }}>Cần trả lời</span>}
+                    </div>
+                    <div className="inbox-row-sub">{t.listingTitle}</div>
+                    <div className="inbox-row-last">{t.lastMessage ?? 'Chưa có tin nhắn'}</div>
                   </div>
-                  <div className="inbox-row-sub">{t.listingTitle}</div>
-                  <div className="inbox-row-last">{t.lastMessage ?? 'Chưa có tin nhắn'}</div>
-                </div>
-              </button>
+                </button>
+                <button className="inbox-archive" title={t.isArchived ? 'Bỏ lưu trữ' : 'Lưu trữ'}
+                        onClick={() => archiveThread(t.id, !t.isArchived)}>
+                  {t.isArchived ? '↩' : '🗄'}
+                </button>
+              </div>
             ))}
           </aside>
           <section className="inbox-pane">
             {active ? <Conversation thread={active} onOpenListing={slug => navigate(`/rooms/${slug}`)} />
               : <div className="inbox-empty"><p>Chọn một cuộc trò chuyện để xem nội dung.</p></div>}
           </section>
+        </div>
+      ) : filter !== 'all' ? (
+        <div className="empty-state" style={{ marginTop: 24 }}>
+          <h3>Không có cuộc trò chuyện nào</h3>
+          <p>Không có tin nhắn nào khớp bộ lọc này.</p>
         </div>
       ) : (
         <div className="empty-state" style={{ marginTop: 24 }}>

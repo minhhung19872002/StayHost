@@ -74,6 +74,7 @@ export const state = {
   hostingLoading: false,
   hostCalendar: null,
   threads: [],
+  inboxFilter: 'all',
   activeThread: null,
   notifications: { unread: 0, items: [] },
   admin: null,
@@ -874,9 +875,24 @@ export async function confirmHostCancel(id, reason) {
 export async function loadThreads() {
   if (!state.user) return;
   try {
-    state.threads = await api.threads();
+    state.threads = await api.threads(state.inboxFilter);
   } catch (err) { toast(err.message); }
   notify();
+}
+
+/** docs/01 TN-05 — switch the inbox filter and reload. */
+export function setInboxFilter(filter) {
+  state.inboxFilter = filter;
+  notify();
+  return loadThreads();
+}
+
+/** docs/01 TN-05 — archive or restore a thread for the viewer, then refresh. */
+export async function archiveThread(id, on) {
+  try {
+    await api.archiveThread(id, on);
+    await loadThreads();
+  } catch (err) { toast(err.message); }
 }
 
 export async function openThread(id) {

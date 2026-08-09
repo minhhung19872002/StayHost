@@ -15,10 +15,14 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
     : ControllerBase
 {
     [HttpGet("threads")]
-    public async Task<ActionResult<IReadOnlyList<ThreadSummaryDto>>> Threads(CancellationToken ct)
+    public async Task<ActionResult<IReadOnlyList<ThreadSummaryDto>>> Threads(
+        [FromQuery] string? filter, CancellationToken ct)
     {
         var user = await auth.CurrentUserAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        if (!InboxFilters.TryParse(filter, out var view))
+            return BadRequest(new { message = "Bộ lọc hộp thư không hợp lệ." });
 
         var threads = await db.MessageThreads
             .Where(t => t.GuestUserId == user.Id || t.HostUserId == user.Id)
@@ -32,7 +36,34 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
 
         // The preview line in the list obeys the same masking as the thread itself.
         var unlocked = await UnlockedThreadIdsAsync(threads, ct);
-        return Ok(threads.Select(t => Summarize(t, user.Id, unlocked.Contains(t.Id))).ToList());
+
+        // docs/01 TN-05 — filter by unread, awaiting-reply, or archived.
+        var rows = threads
+            .Select(t => Summarize(t, user.Id, unlocked.Contains(t.Id)))
+            .Where(s => InboxFilters.Matches(view, s.UnreadCount, s.NeedsReply, s.IsArchived))
+            .ToList();
+
+        return Ok(rows);
+    }
+
+    /// <summary>docs/01 TN-05 — archive or restore a thread, for the viewer only.</summary>
+    [HttpPost("threads/{id:int}/archive")]
+    public async Task<IActionResult> Archive(int id, [FromQuery] bool on, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var thread = await db.MessageThreads.FirstOrDefaultAsync(t => t.Id == id, ct);
+        if (thread is null) return NotFound();
+
+        // Each side archives its own view; a guest tidying up does not hide the
+        // conversation from the host.
+        if (thread.GuestUserId == user.Id) thread.ArchivedByGuest = on;
+        else if (thread.HostUserId == user.Id) thread.ArchivedByHost = on;
+        else return this.Denied();
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     [HttpGet("threads/{id:int}")]
@@ -367,6 +398,11 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
         var other = viewerIsHost ? t.GuestUser : t.HostUser;
         var last = t.Messages.OrderByDescending(m => m.SentAt).FirstOrDefault();
 
+        // docs/01 TN-05 — awaiting reply when the other side spoke last (a system
+        // line is not somebody waiting on an answer); archive state is per side.
+        var needsReply = last is not null && !last.IsSystem && last.SenderUserId != viewerId;
+        var isArchived = viewerIsHost ? t.ArchivedByHost : t.ArchivedByGuest;
+
         return new ThreadSummaryDto(
             t.Id,
             t.ListingId,
@@ -378,7 +414,9 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
             viewerIsHost,
             last is null ? null : Visible(last, contactsUnlocked),
             t.LastMessageAt,
-            t.Messages.Count(m => m.SenderUserId != viewerId && m.ReadAt is null));
+            t.Messages.Count(m => m.SenderUserId != viewerId && m.ReadAt is null),
+            needsReply,
+            isArchived);
     }
 
     private static MessageDto ToDto(Message m, int viewerId, bool contactsUnlocked) => new(

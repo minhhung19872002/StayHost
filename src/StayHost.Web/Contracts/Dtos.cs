@@ -600,7 +600,10 @@ public record ThreadSummaryDto(
     bool ViewerIsHost,
     string? LastMessage,
     DateTime LastMessageAt,
-    int UnreadCount);
+    int UnreadCount,
+    /// <summary>docs/01 TN-05 — the other side spoke last; awaiting the viewer.</summary>
+    bool NeedsReply = false,
+    bool IsArchived = false);
 
 public record MessageDto(
     int Id, int SenderUserId, string SenderName, string Body, DateTime SentAt, bool Mine,

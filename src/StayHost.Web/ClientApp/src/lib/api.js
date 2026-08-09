@@ -274,7 +274,8 @@ export const api = {
   adminResolveReport: (id, status, resolution) =>
     request(`/api/admin/reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ status, resolution }) }),
 
-  threads: () => request('/api/messages/threads'),
+  threads: filter => request(`/api/messages/threads${filter && filter !== 'all' ? `?filter=${filter}` : ''}`),
+  archiveThread: (id, on) => request(`/api/messages/threads/${id}/archive?on=${on}`, { method: 'POST' }),
   thread: id => request(`/api/messages/threads/${id}`),
   sendMessage: body => request('/api/messages', { method: 'POST', body: JSON.stringify(body) }),
 

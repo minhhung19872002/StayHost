@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả: **160 xong · 0 làm một phần · 41 chưa có.** Con số 105 mã "không thấy
+Kết quả: **161 xong · 0 làm một phần · 40 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,7 +350,7 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (41 mã)
+### 9.1 Chưa có (40 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -371,7 +371,6 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `AT-09` | Chuyển tiếp lên nhân viên hỗ trợ | P1 |
 | `AT-03` · `AT-08` · `AT-10` · `AT-12` | Kênh hàng xóm · trợ lý tự động · danh sách chặn · chống phân biệt đối xử | P2 |
 | `QT-07` · `QT-08` | Quản lý bài trợ giúp · bật tính năng theo tỉ lệ | P2 |
-| `TN-05` | Lọc hộp thư: chưa đọc, cần trả lời, đã lưu trữ | P1 |
 | `YT-03` · `YT-05` | Ghi chú riêng cho mục đã lưu · chia sẻ và cùng sửa danh sách | P1 |
 | `YT-06` · `YT-07` · `YT-08` | Bình chọn nhóm · so sánh 2–5 chỗ · báo khi chỗ đã lưu giảm giá | P2 |
 | `QL-09` · `QL-18` · `CN-14` · `CN-15` | Gợi ý giá thị trường · gợi ý cải thiện · ước lượng thu nhập · nhân bản tin | P2 |

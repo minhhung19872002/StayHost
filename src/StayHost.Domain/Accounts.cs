@@ -291,6 +291,10 @@ public class MessageThread
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastMessageAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>docs/01 TN-05 — archived independently by each side of the thread.</summary>
+    public bool ArchivedByGuest { get; set; }
+    public bool ArchivedByHost { get; set; }
+
     public List<Message> Messages { get; set; } = [];
 }
 
