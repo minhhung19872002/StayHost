@@ -136,11 +136,13 @@ public class IdentityService(
     /* ------------------------------------------------------------- TK-02 */
 
     /// <summary>
-    /// docs/01 TK-02. A real deployment verifies the provider's ID token before
-    /// this point; without client secrets the handshake is a stand-in, the same
-    /// way payments are. What is real is everything after: how an identity is
-    /// matched to an account, when it may attach to an existing one, and when a
-    /// new account is created.
+    /// docs/01 TK-02. Nothing reaches this method on the browser's word: the
+    /// subject and email below came out of a token whose signature
+    /// ExternalTokenVerifier checked against the provider's own published keys,
+    /// with the issuer, the audience and the expiry checked alongside it. What is
+    /// decided here is everything after that — how an identity is matched to an
+    /// account, when it may attach to one that already exists, and when a new
+    /// account is created instead.
     /// </summary>
     public async Task<AuthService.AuthResult> SignInWithAsync(
         ExternalProvider provider, string? providerUserId, string? email, string? fullName,

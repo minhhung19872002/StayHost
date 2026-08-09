@@ -75,6 +75,27 @@ hồ sơ, giấy tờ tuỳ thân, tiền của người dùng thật. Chỉ dù
 - Bật lại (`ADMIN_REQUIRE_2FA=true`) ngay khi `EMAIL_HOST` chạy. Log khởi động in
   rõ trạng thái mỗi lần lên, để không ai quên nó đang tắt.
 
+## 2.2. Bật đăng nhập / đăng ký bằng Google, Apple, Facebook
+
+`docs/01 TK-02`. Toàn bộ luồng đã dựng sẵn trong mã nguồn — kiểm chữ ký token, tạo
+tài khoản mới ở lần bấm đầu tiên, ghép vào tài khoản cũ, bỏ liên kết. Việc còn lại
+chỉ là **điền mã của nhà cung cấp** vào `~/deploy/stayhost.env` rồi khởi động lại;
+xem khối `GOOGLE_CLIENT_ID` trong `deploy/stayhost.env.example` để biết lấy ở đâu.
+
+Bỏ trống thì nút của nhà cung cấp đó **không hiện** trên hộp đăng nhập — cố ý như
+vậy, thà thiếu nút còn hơn có nút bấm vào không chạy. Bỏ trống cả ba thì cả cụm nút
+lẫn gạch ngang "hoặc" đều biến mất, hộp đăng nhập trở lại chỉ có email và mật khẩu.
+
+Với máy chủ hiện tại, "Authorised JavaScript origins" của Google phải có đúng
+`https://staylio.bluestar.com.vn` (không dấu `/` ở cuối). Kiểm tra sau khi bật:
+
+```bash
+curl -s https://staylio.bluestar.com.vn/api/account/external/config
+```
+
+Trả về `googleClientId` khác `null` là máy chủ đã nhận cấu hình; còn `null` nghĩa là
+biến chưa tới được container — soát lại chính tả tên biến trong env file.
+
 ## 3. Các lệnh vận hành
 
 Tất cả chạy với user `hung`:

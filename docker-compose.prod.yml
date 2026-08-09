@@ -53,6 +53,17 @@ services:
       # docs/08 §3 says no exceptions. false is the exception, for a server that
       # cannot post the code anywhere yet — see DEPLOY.md §2.1.
       Admin__RequireTwoFactor: ${ADMIN_REQUIRE_2FA:-true}
+      # docs/01 TK-02 — signing in with Google, Apple or Facebook. appsettings.json
+      # is baked into the image, so without these lines the only way to configure a
+      # provider in production would be to rebuild. A provider left empty keeps its
+      # button off the sign-in modal, so unset is a working state rather than a
+      # broken one. The client ids are public — they reach the browser regardless —
+      # but the Facebook app secret is not, which is why it comes from the env file.
+      ExternalLogin__GoogleClientId: ${GOOGLE_CLIENT_ID:-}
+      ExternalLogin__AppleServicesId: ${APPLE_SERVICES_ID:-}
+      ExternalLogin__AppleRedirectUri: ${APPLE_REDIRECT_URI:-}
+      ExternalLogin__FacebookAppId: ${FACEBOOK_APP_ID:-}
+      ExternalLogin__FacebookAppSecret: ${FACEBOOK_APP_SECRET:-}
     # Nginx terminates TLS on the host and proxies here, so the port stays on loopback.
     ports:
       - "127.0.0.1:8090:8080"
