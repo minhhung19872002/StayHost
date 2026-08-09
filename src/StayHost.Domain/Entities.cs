@@ -536,6 +536,14 @@ public class Booking
     public Coupon? Coupon { get; set; }
     public decimal CouponDiscount { get; set; }
 
+    /// <summary>
+    /// docs/01 ĐP-17 — the nightly rate a private offer set for this booking, kept
+    /// so the re-price at payment reproduces the total instead of falling back to
+    /// the listing's normal rate and failing its own "did the price move" check.
+    /// Null for an ordinary booking, whose rate the re-price derives on its own.
+    /// </summary>
+    public decimal? NightlyOverride { get; set; }
+
     /// <summary>docs/01 MR-09 — which kind of room, for a hotel booking.</summary>
     public int? RoomTypeId { get; set; }
     public RoomTypeOption? RoomType { get; set; }

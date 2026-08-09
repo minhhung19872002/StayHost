@@ -607,7 +607,18 @@ public record ThreadDetailDto(
     /// <summary>docs/01 TN-03 — the order this conversation is about, if there is one.</summary>
     ThreadBookingDto? Booking,
     /// <summary>docs/01 TN-08 — the host's saved phrases; empty for a guest.</summary>
-    IReadOnlyList<QuickReplyDto> QuickReplies);
+    IReadOnlyList<QuickReplyDto> QuickReplies,
+    /// <summary>docs/01 ĐP-17 — private offers on this thread, newest first.</summary>
+    IReadOnlyList<SpecialOfferDto> Offers);
+
+/* ---------------------------------------------------------- ĐP-17 offers */
+
+public record SpecialOfferDto(
+    int Id, DateOnly CheckIn, DateOnly CheckOut, int Guests, int Nights,
+    decimal NightlyRate, decimal StayTotal, string Status, string StatusLabel,
+    bool IsLive, DateTime ExpiresAt, int? BookingId);
+
+public record SendOfferRequest(DateOnly CheckIn, DateOnly CheckOut, int Guests, decimal NightlyRate);
 
 /// <summary>docs/01 TN-03 — a compact order card, with the actions worth taking from here.</summary>
 public record ThreadBookingDto(
@@ -1036,7 +1047,9 @@ public record CreateBookingRequest(
     /// <summary>Spend the guest's balance on this booking, up to the room charge.</summary>
     bool UseCredit = false,
     /// <summary>docs/01 ĐP-09 — a promo code, applied before the balance.</summary>
-    string? CouponCode = null);
+    string? CouponCode = null,
+    /// <summary>docs/01 ĐP-17 — a host's private offer being booked at its price.</summary>
+    int? OfferId = null);
 
 public record BookingDto(
     int Id,

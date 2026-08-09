@@ -137,6 +137,8 @@ export const state = {
   useCredit: false,
   // docs/01 ĐP-09 — the promo code the guest typed at checkout.
   couponCode: '',
+  // docs/01 ĐP-17 — the private offer being booked, if the guest came from one.
+  offerId: null,
   // docs/01 MR-09 — the room type chosen on a hotel listing.
   roomTypeId: null,
   // docs/01 ĐP-07 — let other people pay their share instead of paying it all.
@@ -664,6 +666,8 @@ export async function holdDates(extra = {}) {
       useCredit: state.useCredit,
       // docs/01 ĐP-09 — the code committed at the hold, re-checked at payment.
       couponCode: state.couponCode || undefined,
+      // docs/01 ĐP-17 — the private offer whose price this booking is taking.
+      offerId: state.offerId || undefined,
       ...extra
     });
     set({ held });
@@ -892,6 +896,35 @@ export async function sendMessage(body) {
   }
 }
 
+/** docs/01 QL-14 — the host sends a private offer, then the thread reloads with it. */
+export async function sendOffer(threadId, body) {
+  state.activeThread = await api.sendOffer(threadId, body);
+  await loadThreads();
+  notify();
+}
+
+/** docs/01 ĐP-17 — the host withdraws a still-pending offer. */
+export async function withdrawOffer(offerId) {
+  try {
+    await api.withdrawOffer(offerId);
+    if (state.activeThread) await openThread(state.activeThread.summary.id);
+  } catch (err) { toast(err.message); }
+}
+
+/**
+ * docs/01 ĐP-17 — the guest books a private offer. It carries the offer's dates,
+ * guests and id into the normal checkout, so the one booking path prices it,
+ * holds it and takes the money exactly as any other stay.
+ */
+export async function bookOffer(thread, offer) {
+  state.checkIn = offer.checkIn;
+  state.checkOut = offer.checkOut;
+  state.guests = { adults: Math.max(1, offer.guests), children: 0, infants: 0, pets: 0 };
+  state.offerId = offer.id;
+  await loadDetail(thread.summary.listingSlug);
+  set({ overlay: 'checkout', checkoutStep: 0, menu: null });
+}
+
 /* ----------------------------------------------------------- notifications */
 
 export async function loadNotifications() {
@@ -948,7 +981,7 @@ export const openReport = (target, subjectId, title) =>
   set({ report: { target, subjectId, title }, overlay: 'report', menu: null });
 
 export const closeOverlay = () =>
-  set({ overlay: null, photoIndex: null, report: null, share: null, couponCode: '' });
+  set({ overlay: null, photoIndex: null, report: null, share: null, couponCode: '', offerId: null });
 export const openMenu = kind => set({ menu: state.menu === kind ? null : kind });
 
 /** Signed-out guests get the login modal instead of the action they asked for. */

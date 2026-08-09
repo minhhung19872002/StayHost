@@ -161,6 +161,12 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
                 .ToListAsync(ct)
             : [];
 
+        var now = DateTime.UtcNow;
+        var offers = await db.SpecialOffers
+            .Where(o => o.ThreadId == thread.Id)
+            .OrderByDescending(o => o.CreatedAt)
+            .ToListAsync(ct);
+
         return new ThreadDetailDto(
             Summarize(thread, viewer.Id, open),
             thread.Messages.OrderBy(m => m.SentAt).Select(m => ToDto(m, viewer.Id, open)).ToList(),
@@ -170,7 +176,92 @@ public class MessagesController(StayHostDbContext db, AuthService auth, Notifica
                 booking.Nights, booking.Guests, booking.Total,
                 BookingLifecycle.Label(booking.Status), BookingLifecycle.BadgeClass(booking.Status),
                 viewerIsHost && booking.Status == BookingStatus.PendingHostApproval),
-            quickReplies);
+            quickReplies,
+            offers.Select(o => ToOfferDto(o, now)).ToList());
+    }
+
+    private static SpecialOfferDto ToOfferDto(SpecialOffer o, DateTime now)
+    {
+        var nights = Math.Max(1, o.CheckOut.DayNumber - o.CheckIn.DayNumber);
+        return new SpecialOfferDto(
+            o.Id, o.CheckIn, o.CheckOut, o.Guests, nights,
+            o.NightlyRate, o.NightlyRate * nights,
+            o.Status.ToString(), SpecialOffers.StatusLabel(o.Status),
+            SpecialOffers.IsLive(o, now), o.ExpiresAt, o.BookingId);
+    }
+
+    /* ------------------------------------------------------ ĐP-17, QL-14 */
+
+    /// <summary>
+    /// docs/01 QL-14 — the host offers this guest a private price on the thread's
+    /// listing, good for 24 hours (docs/04 §5c). A message card announces it.
+    /// </summary>
+    [HttpPost("threads/{id:int}/offer")]
+    public async Task<ActionResult<ThreadDetailDto>> SendOffer(
+        int id, [FromBody] SendOfferRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var thread = await LoadThreadAsync(id, ct);
+        if (thread is null) return NotFound();
+
+        // Only the host of this conversation may make an offer on it.
+        if (thread.HostUserId != user.Id) return this.Denied();
+
+        if (SpecialOffers.Validate(req.CheckIn, req.CheckOut, req.NightlyRate, req.Guests) is { } invalid)
+            return BadRequest(new { message = invalid });
+
+        var now = DateTime.UtcNow;
+        var offer = new SpecialOffer
+        {
+            ThreadId = thread.Id,
+            ListingId = thread.ListingId,
+            HostUserId = thread.HostUserId,
+            GuestUserId = thread.GuestUserId,
+            CheckIn = req.CheckIn,
+            CheckOut = req.CheckOut,
+            Guests = req.Guests,
+            NightlyRate = req.NightlyRate,
+            CreatedAt = now,
+            ExpiresAt = SpecialOffers.ExpiryFrom(now)
+        };
+        db.SpecialOffers.Add(offer);
+
+        var nights = Math.Max(1, req.CheckOut.DayNumber - req.CheckIn.DayNumber);
+        db.Messages.Add(new Message
+        {
+            ThreadId = thread.Id,
+            SenderUserId = user.Id,
+            IsSystem = true,
+            Body = $"Ưu đãi riêng: {req.NightlyRate:#,##0}₫/đêm cho {nights} đêm " +
+                   $"({req.CheckIn:dd/MM}–{req.CheckOut:dd/MM}). Hiệu lực 24 giờ."
+        });
+        thread.LastMessageAt = now;
+
+        await db.SaveChangesAsync(ct);
+        return Ok(await DetailAsync((await LoadThreadAsync(id, ct))!, user, ct));
+    }
+
+    /// <summary>docs/01 ĐP-17 — the host takes a still-pending offer back.</summary>
+    [HttpPost("offers/{offerId:int}/withdraw")]
+    public async Task<IActionResult> WithdrawOffer(int offerId, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var offer = await db.SpecialOffers.FirstOrDefaultAsync(o => o.Id == offerId, ct);
+        if (offer is null) return NotFound();
+        if (offer.HostUserId != user.Id) return this.Denied();
+
+        if (offer.Status == SpecialOfferStatus.Pending)
+        {
+            offer.Status = SpecialOfferStatus.Withdrawn;
+            offer.RespondedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
+
+        return NoContent();
     }
 
     /* ------------------------------------------------------------- TN-08 */

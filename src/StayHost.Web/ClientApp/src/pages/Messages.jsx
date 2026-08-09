@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
-import { set, loadThreads, openThread, sendMessage, respondBooking, openReport, toast } from '../lib/store.js';
+import {
+  set, loadThreads, openThread, sendMessage, respondBooking, openReport, toast,
+  sendOffer, withdrawOffer, bookOffer
+} from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate } from '../lib/format.js';
 
@@ -131,6 +134,8 @@ function Conversation({ thread, onOpenListing }) {
 
     <BookingCard booking={thread.booking} />
 
+    <OfferPanel thread={thread} summary={s} />
+
     {!thread.contactsUnlocked && (
       <div className="inbox-notice">
         Số điện thoại, email và đường liên kết được che cho tới khi đơn được xác nhận.
@@ -230,6 +235,88 @@ function BookingCard({ booking }) {
       </> : (
         <button className="btn btn-outline btn-sm" onClick={() => navigate(`/trips/${booking.id}`)}>Xem đơn</button>
       )}
+    </div>
+  );
+}
+
+/**
+ * docs/01 ĐP-17, QL-14 — private offers on this thread. The host gets a small
+ * form to send one; the guest gets a card per offer with a "book at this price"
+ * button while it is live. Booking routes through the normal checkout carrying
+ * the offer id, so pricing, the ledger and the hold all behave as usual.
+ */
+function OfferPanel({ thread, summary }) {
+  const offers = thread.offers ?? [];
+  const isHost = summary.viewerIsHost;
+
+  return (
+    <div className="offer-panel">
+      {offers.map(o => (
+        <div className="offer-card" key={o.id}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <b>Ưu đãi riêng · {money(o.nightlyRate)}/đêm</b>
+            <div className="meta">
+              {o.nights} đêm · {longDate(o.checkIn)} → {longDate(o.checkOut)} · tổng {money(o.stayTotal)}
+            </div>
+            <div className="meta">{o.statusLabel}</div>
+          </div>
+          {!isHost && o.isLive && (
+            <button className="btn btn-primary btn-sm"
+                    onClick={() => bookOffer(thread, o)}>Đặt với giá này</button>
+          )}
+          {isHost && o.isLive && (
+            <button className="btn btn-outline btn-sm" onClick={() => withdrawOffer(o.id)}>Thu hồi</button>
+          )}
+        </div>
+      ))}
+      {isHost && <SendOfferForm threadId={summary.id} />}
+    </div>
+  );
+}
+
+function SendOfferForm({ threadId }) {
+  const [open, setOpen] = useState(false);
+  const [checkIn, setCheckIn] = useState('');
+  const [checkOut, setCheckOut] = useState('');
+  const [rate, setRate] = useState('');
+  const [guests, setGuests] = useState(2);
+  const [busy, setBusy] = useState(false);
+
+  if (!open) {
+    return <button className="btn btn-outline btn-sm offer-add" onClick={() => setOpen(true)}>
+      + Gửi ưu đãi riêng
+    </button>;
+  }
+
+  const send = async () => {
+    setBusy(true);
+    try {
+      await sendOffer(threadId, {
+        checkIn, checkOut, guests: Number(guests), nightlyRate: Number(rate)
+      });
+      setOpen(false); setCheckIn(''); setCheckOut(''); setRate('');
+      toast('Đã gửi ưu đãi riêng, hiệu lực 24 giờ.');
+    } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="offer-form">
+      <div className="offer-form-row">
+        <label>Nhận phòng<input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} /></label>
+        <label>Trả phòng<input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} /></label>
+      </div>
+      <div className="offer-form-row">
+        <label>Giá/đêm<input type="number" min="0" step="50000" value={rate}
+                             onChange={e => setRate(e.target.value)} placeholder="800000" /></label>
+        <label>Số khách<input type="number" min="1" value={guests}
+                              onChange={e => setGuests(e.target.value)} /></label>
+      </div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button className="btn btn-outline btn-sm" onClick={() => setOpen(false)}>Huỷ</button>
+        <button className="btn btn-primary btn-sm" disabled={busy || !checkIn || !checkOut || !rate}
+                onClick={send}>Gửi ưu đãi</button>
+      </div>
     </div>
   );
 }

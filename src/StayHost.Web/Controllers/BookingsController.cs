@@ -81,10 +81,25 @@ public class BookingsController(
         if (user.IsSuspended)
             return StatusCode(403, new { message = "Tài khoản đang bị tạm khoá nên không đặt chỗ mới được." });
 
+        // docs/01 ĐP-17 — booking a host's private offer. The offer must be this
+        // guest's, still live, and for these exact listing and dates, or its price
+        // could be borrowed for a different stay. Its rate then drives the quote.
+        SpecialOffer? offer = null;
+        if (req.OfferId is { } offerId)
+        {
+            offer = await db.SpecialOffers.FirstOrDefaultAsync(o => o.Id == offerId, ct);
+            var now = DateTime.UtcNow;
+            if (offer is null || offer.GuestUserId != user.Id || !SpecialOffers.IsLive(offer, now))
+                return BadRequest(new { message = "Ưu đãi này không còn áp dụng được." });
+            if (offer.ListingId != listing.Id || offer.CheckIn != req.CheckIn || offer.CheckOut != req.CheckOut)
+                return BadRequest(new { message = "Ưu đãi không khớp với chỗ nghỉ hoặc ngày đã chọn." });
+        }
+
         // Quoting and booking go through the same builder so the guest is charged
         // exactly what the room page showed them (docs/00 §6.8).
         var quoteRequest = await catalog.BuildQuoteRequestAsync(
-            listing.Id, req.CheckIn, req.CheckOut, party, ct, roomTypeId: req.RoomTypeId);
+            listing.Id, req.CheckIn, req.CheckOut, party, ct,
+            roomTypeId: req.RoomTypeId, nightlyOverride: offer?.NightlyRate);
 
         // docs/01 ĐP-09 — a promo code first, evaluated against the stay's total
         // before any reduction. It is refused loudly rather than silently ignored:
@@ -161,6 +176,7 @@ public class BookingsController(
             CreditUsed = creditUsed,
             CouponId = couponId,
             CouponDiscount = price.Coupon,
+            NightlyOverride = offer?.NightlyRate,
             // docs/07 §6 — kept so "the price I was shown" can be settled from
             // the record. Only a rate that could have been real is stored.
             DisplayCurrency = string.IsNullOrWhiteSpace(req.DisplayCurrency) ? null : req.DisplayCurrency.Trim(),
@@ -213,6 +229,16 @@ public class BookingsController(
         // a stay that never happened.
         if (couponId is { } cid && price.Coupon > 0)
             coupons.Redeem(cid, user.Id, booking.Id, price.Coupon);
+
+        // docs/01 ĐP-17 — the offer is spent, so it cannot be booked a second
+        // time. A hold that lapses is not released back here: an offer is a
+        // one-shot the host extended to this guest, not a limited campaign.
+        if (offer is not null)
+        {
+            offer.Status = SpecialOfferStatus.Accepted;
+            offer.RespondedAt = DateTime.UtcNow;
+            offer.BookingId = booking.Id;
+        }
 
         db.BookingEvents.Add(BookingLifecycle.Created(booking, $"guest:{user.Id}",
             listing.InstantBook ? "Giữ chỗ 15 phút để thanh toán" : "Gửi yêu cầu đặt"));
@@ -356,7 +382,10 @@ public class BookingsController(
         // ĐP-12 — price it again and stop if anything moved while the guest paid.
         var party = new PartySize(booking.Adults, booking.Children, booking.Infants, booking.Pets);
         var fresh = await catalog.BuildQuoteRequestAsync(
-            booking.ListingId, booking.CheckIn, booking.CheckOut, party, ct, booking.Id, booking.RoomTypeId);
+            booking.ListingId, booking.CheckIn, booking.CheckOut, party, ct, booking.Id, booking.RoomTypeId,
+            // docs/01 ĐP-17 — a private offer set the rate, so the re-price uses it
+            // rather than the listing's normal price it would otherwise fail against.
+            nightlyOverride: booking.NightlyOverride);
 
         // docs/01 ĐP-09 — the promo code committed at the hold is part of the
         // shown price too, so the re-price carries it exactly as quoted. The

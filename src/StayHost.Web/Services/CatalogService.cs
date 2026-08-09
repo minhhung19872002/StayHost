@@ -1041,16 +1041,20 @@ public class CatalogService(StayHostDbContext db)
     /// </param>
     public async Task<Pricing.Request?> BuildQuoteRequestAsync(
         int listingId, DateOnly checkIn, DateOnly checkOut, PartySize party, CancellationToken ct,
-        int? excludeBookingId = null, int? roomTypeId = null)
+        int? excludeBookingId = null, int? roomTypeId = null, decimal? nightlyOverride = null)
     {
         var l = await db.Listings.FirstOrDefaultAsync(x => x.Id == listingId, ct);
         if (l is null) return null;
 
-        // docs/01 MR-09 — a hotel is priced by the room the guest picked.
-        var roomRate = roomTypeId is { } id
-            ? await db.RoomTypes.Where(r => r.Id == id && r.ListingId == listingId)
-                .Select(r => (decimal?)r.PricePerNight).FirstOrDefaultAsync(ct)
-            : null;
+        // docs/01 ĐP-17 — a host's private offer sets the nightly rate directly,
+        // which wins over the room's own price: the offer is the price now. The
+        // discount is the host's, so it flows through the subtotal and the payout
+        // shrinks with it rather than landing on the platform.
+        var roomRate = nightlyOverride
+            ?? (roomTypeId is { } id
+                ? await db.RoomTypes.Where(r => r.Id == id && r.ListingId == listingId)
+                    .Select(r => (decimal?)r.PricePerNight).FirstOrDefaultAsync(ct)
+                : null);
 
         var rules = await db.PriceRules
             .Where(r => r.ListingId == listingId && r.From <= checkOut && checkIn <= r.To)

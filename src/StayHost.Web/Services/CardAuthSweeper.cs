@@ -98,7 +98,9 @@ public class CardAuthSweeper(
     {
         var party = new PartySize(booking.Adults, booking.Children, booking.Infants, booking.Pets);
         var fresh = await catalog.BuildQuoteRequestAsync(
-            booking.ListingId, booking.CheckIn, booking.CheckOut, party, ct, booking.Id, booking.RoomTypeId);
+            booking.ListingId, booking.CheckIn, booking.CheckOut, party, ct, booking.Id, booking.RoomTypeId,
+            // docs/01 ĐP-17 — the offer's rate must survive the off-site rescue too.
+            nightlyOverride: booking.NightlyOverride);
 
         if (fresh is null) return;
 

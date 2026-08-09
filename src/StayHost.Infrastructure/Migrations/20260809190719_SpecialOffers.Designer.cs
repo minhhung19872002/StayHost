@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using StayHost.Infrastructure;
@@ -11,9 +12,11 @@ using StayHost.Infrastructure;
 namespace StayHost.Infrastructure.Migrations
 {
     [DbContext(typeof(StayHostDbContext))]
-    partial class StayHostDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260809190719_SpecialOffers")]
+    partial class SpecialOffers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -516,10 +519,6 @@ namespace StayHost.Infrastructure.Migrations
 
                     b.Property<int>("ListingId")
                         .HasColumnType("integer");
-
-                    b.Property<decimal?>("NightlyOverride")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)");
 
                     b.Property<int>("Nights")
                         .HasColumnType("integer");

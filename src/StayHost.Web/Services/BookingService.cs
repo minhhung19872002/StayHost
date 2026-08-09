@@ -276,6 +276,18 @@ public class BookingService(StayHostDbContext db)
             result.RequestsExpired++;
         }
 
+        // docs/01 ĐP-17 — private offers nobody acted on inside 24 hours lapse, so
+        // a guest is not shown a live "book at this price" for a price the host no
+        // longer stands behind.
+        var lapsedOffers = await db.SpecialOffers
+            .Where(o => o.Status == SpecialOfferStatus.Pending && o.ExpiresAt < now)
+            .ToListAsync(ct);
+        foreach (var o in lapsedOffers)
+        {
+            o.Status = SpecialOfferStatus.Expired;
+            o.RespondedAt = now;
+        }
+
         // docs/01 TC-09 — a hold or request that lapsed hands its promo code back
         // to the campaign, so a limited run is not eaten by stays that fell
         // through. Marked, not deleted: the redemption row is history.

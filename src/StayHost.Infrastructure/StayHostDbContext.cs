@@ -51,6 +51,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<CreditEntry> CreditEntries => Set<CreditEntry>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<CouponRedemption> CouponRedemptions => Set<CouponRedemption>();
+    public DbSet<SpecialOffer> SpecialOffers => Set<SpecialOffer>();
     public DbSet<GiftCard> GiftCards => Set<GiftCard>();
     public DbSet<Referral> Referrals => Set<Referral>();
     public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
@@ -550,6 +551,18 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        b.Entity<SpecialOffer>(e =>
+        {
+            e.ToTable("special_offers");
+            e.HasIndex(x => x.ThreadId);
+            e.HasIndex(x => new { x.Status, x.ExpiresAt });
+            e.Property(x => x.NightlyRate).HasColumnType("numeric(14,2)");
+            e.HasOne(x => x.Thread).WithMany()
+                .HasForeignKey(x => x.ThreadId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Listing).WithMany()
+                .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         b.Entity<GiftCard>(e =>
         {
             e.ToTable("gift_cards");
@@ -910,7 +923,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                          nameof(Booking.Promotion), nameof(Booking.Total),
                          nameof(Booking.HostServiceFee), nameof(Booking.HostPayout),
                          nameof(Booking.RefundedAmount), nameof(Booking.GoodwillCredit),
-                         nameof(Booking.CreditUsed), nameof(Booking.CouponDiscount)
+                         nameof(Booking.CreditUsed), nameof(Booking.CouponDiscount),
+                         nameof(Booking.NightlyOverride)
                      })
             {
                 e.Property(money).HasPrecision(12, 2);

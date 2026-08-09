@@ -278,6 +278,10 @@ export const api = {
 
   /* docs/01 TN-08 — the host's saved phrases. */
   quickReplies: () => request('/api/messages/quick-replies'),
+  // docs/01 ĐP-17, QL-14 — private offers on a thread.
+  sendOffer: (threadId, body) =>
+    request(`/api/messages/threads/${threadId}/offer`, { method: 'POST', body: JSON.stringify(body) }),
+  withdrawOffer: id => request(`/api/messages/offers/${id}/withdraw`, { method: 'POST' }),
   addQuickReply: body => request('/api/messages/quick-replies', { method: 'POST', body: JSON.stringify(body) }),
   deleteQuickReply: id => request(`/api/messages/quick-replies/${id}`, { method: 'DELETE' }),
 
