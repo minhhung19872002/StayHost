@@ -259,6 +259,9 @@ export const api = {
 
   /* ------------------------------------------------------- reports / admin */
   report: body => request('/api/reports', { method: 'POST', body: JSON.stringify(body) }),
+  // docs/01 AT-02 — the reasons live on the server so a listing and a review are
+  // never offered the same list by two copies drifting apart.
+  reportReasons: target => request(`/api/reports/reasons/${target}`),
   adminOverview: () => request('/api/admin/overview'),
   adminPublish: (id, published, reason) =>
     request(`/api/admin/listings/${id}/publish?published=${published}`, {

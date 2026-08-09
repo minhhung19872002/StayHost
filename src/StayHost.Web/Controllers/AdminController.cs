@@ -18,27 +18,126 @@ public class AdminController(
 {
     /* ------------------------------------------------------------- reports */
 
+    /// <summary>docs/01 AT-02 — the reasons offered for one kind of subject.</summary>
+    [HttpGet("reports/reasons/{target}")]
+    public ActionResult<ReportReasonsDto> ReportReasons(string target)
+    {
+        if (!Reports.TryParseTarget(target, out var parsed))
+            return BadRequest(new { message = "Loại báo cáo không hợp lệ." });
+
+        return Ok(new ReportReasonsDto(
+            parsed.ToString(), Reports.TargetLabel(parsed), Reports.ReasonsFor(parsed)));
+    }
+
     [HttpPost("reports")]
     public async Task<ActionResult<object>> Report([FromBody] CreateReportRequest req, CancellationToken ct)
     {
-        var listing = await db.Listings.FirstOrDefaultAsync(l => l.Id == req.ListingId, ct);
-        if (listing is null) return NotFound();
+        if (!Reports.TryParseTarget(req.Target, out var target))
+            return BadRequest(new { message = "Loại báo cáo không hợp lệ." });
 
-        var reason = (req.Reason ?? "").Trim();
-        if (reason.Length == 0) return BadRequest(new { message = "Vui lòng chọn lý do báo cáo." });
+        if (Reports.Validate(target, req.SubjectId, req.Reason, req.Detail) is { } invalid)
+            return BadRequest(new { message = invalid });
 
         var user = await auth.CurrentUserAsync(ct);
 
-        db.ListingReports.Add(new ListingReport
+        var report = new AbuseReport
         {
-            ListingId = listing.Id,
+            Target = target,
             ReporterUserId = user?.Id,
             SessionId = HttpContext.SessionId(),
-            Reason = reason,
-            Detail = req.Detail?.Trim()
-        });
+            Reason = req.Reason.Trim(),
+            Detail = string.IsNullOrWhiteSpace(req.Detail) ? null : req.Detail.Trim()
+        };
 
+        // Who the subject belongs to. Needed to refuse a self-report, and for a
+        // message to refuse anybody outside the conversation — otherwise guessing
+        // message ids would turn this endpoint into a way to confirm that a private
+        // thread exists.
+        int? subjectOwnerId;
+
+        switch (target)
+        {
+            case ReportTarget.Listing:
+            {
+                var listing = await db.Listings
+                    .Include(l => l.Host)
+                    .FirstOrDefaultAsync(l => l.Id == req.SubjectId, ct);
+                if (listing is null) return NotFound(new { message = "Không tìm thấy tin đăng." });
+
+                report.ListingId = listing.Id;
+                subjectOwnerId = listing.Host?.UserId;
+                break;
+            }
+
+            case ReportTarget.User:
+            {
+                var reported = await db.Users.FirstOrDefaultAsync(u => u.Id == req.SubjectId, ct);
+                if (reported is null) return NotFound(new { message = "Không tìm thấy người dùng." });
+
+                report.ReportedUserId = reported.Id;
+                subjectOwnerId = reported.Id;
+                break;
+            }
+
+            case ReportTarget.Message:
+            {
+                if (user is null)
+                    return Unauthorized(new { message = "Bạn cần đăng nhập để báo cáo tin nhắn." });
+
+                var message = await db.Messages
+                    .Include(m => m.Thread)
+                    .FirstOrDefaultAsync(m => m.Id == req.SubjectId, ct);
+
+                // Same answer whether the message is missing or simply none of the
+                // reporter's business: a different one would leak which ids exist.
+                var inThread = message?.Thread is { } t
+                               && (t.GuestUserId == user.Id || t.HostUserId == user.Id);
+                if (message is null || !inThread)
+                    return NotFound(new { message = "Không tìm thấy tin nhắn." });
+
+                if (message.IsSystem)
+                    return BadRequest(new { message = "Đây là tin nhắn tự động của hệ thống, không thể báo cáo." });
+
+                report.MessageId = message.Id;
+                subjectOwnerId = message.SenderUserId;
+                break;
+            }
+
+            default:
+            {
+                var review = await db.Reviews.FirstOrDefaultAsync(r => r.Id == req.SubjectId, ct);
+                if (review is null) return NotFound(new { message = "Không tìm thấy đánh giá." });
+
+                report.ReviewId = review.Id;
+                subjectOwnerId = review.AuthorUserId;
+                break;
+            }
+        }
+
+        if (Reports.IsSelfReport(user?.Id, subjectOwnerId))
+            return BadRequest(new { message = "Bạn không thể báo cáo chính mình." });
+
+        // One open report per person per subject. Without this a single upset
+        // reporter can fill the moderation queue with the same complaint, and
+        // BadgeService would read the pile as many separate upheld reports.
+        if (user is not null)
+        {
+            var already = await db.AbuseReports.AnyAsync(
+                r => r.ReporterUserId == user.Id
+                     && r.Target == target
+                     && r.Status != ReportStatus.Resolved && r.Status != ReportStatus.Dismissed
+                     && (target == ReportTarget.Listing ? r.ListingId == req.SubjectId
+                         : target == ReportTarget.User ? r.ReportedUserId == req.SubjectId
+                         : target == ReportTarget.Message ? r.MessageId == req.SubjectId
+                         : r.ReviewId == req.SubjectId), ct);
+
+            if (already)
+                return Ok(new { message = "Bạn đã báo cáo nội dung này. Đội an toàn đang xem xét." });
+        }
+
+        db.AbuseReports.Add(report);
         await db.SaveChangesAsync(ct);
+
         return Ok(new { message = "Cảm ơn bạn. Chúng tôi sẽ xem xét báo cáo này." });
     }
 
@@ -80,7 +179,7 @@ public class AdminController(
             await db.Bookings.CountAsync(b => BookingLifecycle.BlocksDates.Contains(b.Status) && b.CheckOut >= today, ct),
             payments.Sum(p => p.Amount),
             payments.Sum(p => p.PlatformFee),
-            await db.ListingReports.CountAsync(r => r.Status == ReportStatus.Open, ct),
+            await db.AbuseReports.CountAsync(r => r.Status == ReportStatus.Open, ct),
             // Undeliverable mail is finished, not pending — without the filter
             // the operator's "waiting to send" number would never drain.
             await db.EmailMessages.CountAsync(e => e.SentAt == null && !e.Undeliverable, ct),
@@ -384,7 +483,7 @@ public class AdminController(
         if (admin is null)
             return StatusCode(403, new { message = "Bạn không có quyền kiểm duyệt." });
 
-        var report = await db.ListingReports.FirstOrDefaultAsync(r => r.Id == id, ct);
+        var report = await db.AbuseReports.FirstOrDefaultAsync(r => r.Id == id, ct);
         if (report is null) return NotFound();
 
         audit.Record(admin, "report.resolve", $"report:{report.Id}",
@@ -402,8 +501,11 @@ public class AdminController(
 
     private async Task<List<ReportDto>> LoadReportsAsync(CancellationToken ct)
     {
-        var reports = await db.ListingReports
+        var reports = await db.AbuseReports
             .Include(r => r.Listing)
+            .Include(r => r.ReportedUser)
+            .Include(r => r.Message)
+            .Include(r => r.Review)
             .Include(r => r.ReporterUser)
             .OrderBy(r => r.Status)
             .ThenByDescending(r => r.CreatedAt)
@@ -411,8 +513,30 @@ public class AdminController(
             .ToListAsync(ct);
 
         return reports.Select(r => new ReportDto(
-            r.Id, r.ListingId, r.Listing?.Title ?? "", r.Reason, r.Detail,
+            r.Id, r.Target.ToString(), Reports.TargetLabel(r.Target), r.SubjectId,
+            SubjectTitle(r), r.Reason, r.Detail,
             r.Status.ToString(), r.Resolution,
             r.ReporterUser?.FullName ?? "Khách ẩn danh", r.CreatedAt)).ToList();
+    }
+
+    /// <summary>
+    /// One line naming what a moderator is looking at. A message and a review are
+    /// quoted rather than linked because both can be long and both can be deleted
+    /// out from under the queue; the quote is what the report was actually about.
+    /// </summary>
+    private static string SubjectTitle(AbuseReport r) => r.Target switch
+    {
+        ReportTarget.Listing => r.Listing?.Title ?? "(tin đăng đã xoá)",
+        ReportTarget.User => r.ReportedUser?.FullName ?? "(tài khoản đã xoá)",
+        ReportTarget.Message => Excerpt(r.Message?.Body) ?? "(tin nhắn đã xoá)",
+        ReportTarget.Review => Excerpt(r.Review?.Text) ?? "(đánh giá đã xoá)",
+        _ => ""
+    };
+
+    private static string? Excerpt(string? body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return null;
+        var one = body.Replace('\n', ' ').Replace('\r', ' ').Trim();
+        return one.Length <= 140 ? one : one[..140] + "…";
     }
 }

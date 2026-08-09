@@ -85,7 +85,7 @@ export function Admin() {
       <AuditLog rows={d.auditLog} />
 
       <section style={{ marginTop: 40 }}>
-        <h2 className="section-title" style={{ fontSize: 20 }}>Báo cáo chỗ nghỉ</h2>
+        <h2 className="section-title" style={{ fontSize: 20 }}>Báo cáo</h2>
         {d.reports.length ? (
           <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
             {d.reports.map(r => {
@@ -94,7 +94,9 @@ export function Admin() {
               return (
                 <article className="host-booking" key={r.id}>
                   <div style={{ minWidth: 0 }}>
-                    <h3>{r.listingTitle}</h3>
+                    {/* docs/01 AT-02 — a report is about a listing, a person, a
+                        message or a review, so the queue has to say which. */}
+                    <h3><span className="badge" style={{ marginRight: 8 }}>{r.targetLabel}</span>{r.subjectTitle}</h3>
                     <div className="meta">{r.reason}{r.detail ? ` — ${r.detail}` : ''}</div>
                     <div className="meta">Báo cáo bởi {r.reporterName} · {longDate(r.createdAt.slice(0, 10))}</div>
                     {r.resolution && <div className="meta">Kết luận: {r.resolution}</div>}
@@ -105,7 +107,11 @@ export function Admin() {
                       <button className="btn btn-primary btn-sm" onClick={() => resolve(r.id, 'Resolved')}>Đã xử lý</button>
                       <button className="btn btn-outline btn-sm" onClick={() => resolve(r.id, 'Dismissed')}>Bỏ qua</button>
                     </>}
-                    <button className="btn btn-outline btn-sm" onClick={() => publish(r.listingId, false)}>Gỡ chỗ nghỉ</button>
+                    {/* Only a listing can be unpublished; the other three
+                        subjects are handled from the user console. */}
+                    {r.target === 'Listing' && r.subjectId && (
+                      <button className="btn btn-outline btn-sm" onClick={() => publish(r.subjectId, false)}>Gỡ chỗ nghỉ</button>
+                    )}
                   </div>
                 </article>
               );

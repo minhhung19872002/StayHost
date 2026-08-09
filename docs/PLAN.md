@@ -309,9 +309,16 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả: **137 xong · 13 làm một phần · 51 chưa có.** Con số 105 mã "không thấy
+Kết quả: **146 xong · 4 làm một phần · 51 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
+
+**Sửa lại ngày 09/08/2026.** Bảng §9.2 vẫn kê tám mã mà §9.0 ngay phía trên nói là
+đã làm xong trong cùng ngày 07/08 — `TĐ-13`, `TĐ-14`, `CĐ-02`, `TM-15`, `TM-20`,
+`CN-08`, `CN-10`, `QL-13`. Đã kiểm lại từng mã ở mức mã nguồn (`Landmarks.cs` gọi
+từ `CatalogService.cs:957`, `ListingCopy.cs` từ `HostController.cs:360`, công tắc
+thuế ở `Header.jsx:551`, đếm ngược ở `Trip.jsx:157`) và bỏ khỏi bảng. Trước lần sửa
+này con số "13 làm một phần" đếm thừa đúng tám mã.
 
 **Soát riêng `docs/08` ngày 08/08/2026** (ba lượt đọc code độc lập). Bài học đắt
 nhất của lượt này: **có `.cs` không có nghĩa là có chạy.** `SuspensionImpact.cs`
@@ -378,29 +385,56 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `QL-09` · `QL-18` · `CN-14` · `CN-15` | Gợi ý giá thị trường · gợi ý cải thiện · ước lượng thu nhập · nhân bản tin | P2 |
 | `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
 
-### 9.2 Làm một phần (13 mã) — có phần lõi, thiếu một nhánh
+### 9.2 Làm một phần (4 mã) — có phần lõi, thiếu một nhánh
 
 | Mã | Đã có | Còn thiếu |
 |---|---|---|
 | `TM-02` | 3 tab Chỗ ở / Trải nghiệm / Dịch vụ | Không có tab "Tất cả"; bấm 2 tab kia chỉ hiện toast, chưa đổi dòng tìm |
-| `TM-15` | Đặt ngay, huỷ miễn phí ở thanh nhanh; tự nhận phòng & thú cưng qua lọc tiện nghi | Chưa gom thành nhóm "Tuỳ chọn đặt" trong bộ lọc |
-| `TM-20` | Công tắc "Tổng giá" (giá trọn kỳ) | Spec đòi công tắc **"đã gồm thuế và phí"** — không cùng một thứ |
-| `TĐ-13` | Bản đồ vị trí gần đúng + mô tả khu vực | Khoảng cách tới các điểm chính |
-| `TĐ-14` | Tỉ lệ và thời gian phản hồi | Ngôn ngữ chủ nhà, danh sách co-host |
 | `TĐ-18` | Chia sẻ link + share sheet của máy | Nút mạng xã hội, gửi email |
-| `CĐ-02` | Địa chỉ đầy đủ + chỉ đường (từ `CĐ-03`) | Đếm ngược tới ngày nhận phòng |
-| `CN-08` | Tiêu đề + mô tả có giới hạn ký tự | Gợi ý tự động |
-| `CN-10` | Đặt giá | Tham khảo khoảng giá thị trường của khu vực |
-| `QL-13` | Chủ nhà huỷ được, tiền hoàn tính đúng | Chưa cảnh báo rõ hậu quả trước khi xác nhận |
 | `TC-04` | Thuế theo khu vực, nhiều loại chồng nhau | Xuất báo cáo thuế |
 | `TC-07` | Số dư khuyến mãi là sổ chỉ-thêm | **Hạn sử dụng** — `CreditEntry` không có cột hết hạn |
-| `AT-02` | Báo cáo **tin đăng** (`TĐ-19`) | Báo cáo người dùng, tin nhắn, đánh giá — `CreateReportRequest` chỉ nhận `ListingId` |
 
 ### 9.3 Ghi chú về cách soát
 
 Kết luận dựa trên đọc mã nguồn, không dựa trên việc mã yêu cầu có xuất hiện trong
 comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `TM-25`,
 `TC-02`, `TN-01` đều **chạy được** dù không chỗ nào trong code viết tên mã ra.
+
+Một dạng thiếu không hiện ra khi tìm theo tên mã: **dữ liệu được ghi mà không ai
+đọc.** `QL-16` là ví dụ — bảng `ListingViews` nhận lượt xem thật từ
+`CatalogService.cs:451`, nhưng không controller nào truy vấn nó, nên chủ nhà không
+có màn hình nào thấy được. Giống hệt `SuspensionImpact` của lượt soát `docs/08`:
+mã chạy, dữ liệu đúng, không có đường tới người dùng. Khi soát, hỏi thêm câu "ai
+đọc cái này?" chứ đừng dừng ở "có ghi chưa?".
+
+### 9.4 Thứ tự làm phần còn lại
+
+Sắp theo giá trị thu về trên công bỏ ra, không theo thứ tự mã. Mỗi đợt xong thì
+cập nhật §9.1/§9.2 ngay tại đây, đừng để đếm lệch lần thứ ba.
+
+**Đợt 1 — nốt 5 mã dở.** Rẻ nhất vì phần lõi đã có: `AT-02` (mở báo cáo cho người
+dùng / tin nhắn / đánh giá) · `TC-07` (hạn dùng số dư) · `TC-04` (xuất báo cáo
+thuế) · `TĐ-18` (nút chia sẻ) · `TM-02` (tab "Tất cả").
+
+**Đợt 2 — tiền và chuyển đổi.** `ĐP-09`+`TC-09` mã giảm giá · `ĐP-14` hoá đơn tải
+về · `ĐP-17`+`QL-14` ưu đãi riêng trong tin nhắn · `TC-03` thu theo tháng cho đơn
+≥28 đêm · `TC-11` tranh chấp thẻ.
+
+**Đợt 3 — giữ chân sau khi đặt.** `CĐ-06` đổi ngày/số khách có chủ nhà duyệt ·
+`CĐ-12` nút trợ giúp gắn đúng đơn · `ĐG-10` báo cáo đánh giá vi phạm · `ĐG-12` ghi
+chú công khai khi chủ nhà huỷ.
+
+**Đợt 4 — công cụ chủ nhà.** `QL-16` báo cáo hiệu suất (dữ liệu đã có sẵn, chỉ
+thiếu đường đọc) · `QL-11` cảnh báo iCal trùng đơn đã xác nhận · `ĐP-03` điều kiện
+Đặt ngay · `ĐP-10` yêu cầu bắt buộc trước khi đặt.
+
+**Đợt 5 — khám phá và an toàn.** `TM-17` lọc khả năng tiếp cận · `TM-26` trang
+thành phố cho tìm kiếm ngoài sàn · `AT-01` kiểm duyệt tin trước khi hiện · `AT-09`
+chuyển tiếp nhân viên hỗ trợ · `TN-05` lọc hộp thư.
+
+**Chờ khách quyết, không chờ code:** `TĐ-03` (P0) và `TN-06` cần khoá API dịch
+thuật. **Đợt cuối:** nhóm P2 còn lại — mạng xã hội `XH-01`→`XH-03`, so sánh và
+bình chọn danh sách yêu thích, gợi ý giá cho chủ nhà, trợ lý tự động.
 
 ---
 

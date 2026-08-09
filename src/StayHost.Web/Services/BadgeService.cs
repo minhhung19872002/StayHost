@@ -156,10 +156,14 @@ public class BadgeService(StayHostDbContext db, NotificationService notification
             })
             .ToListAsync(ct);
 
-        // docs/03 §8 — an upheld report, not merely one somebody filed.
-        var reports = await db.ListingReports
-            .Where(r => ids.Contains(r.ListingId) && r.Status == ReportStatus.Resolved)
-            .GroupBy(r => r.ListingId)
+        // docs/03 §8 — an upheld report, not merely one somebody filed. Reports
+        // about people, messages and reviews (docs/01 AT-02) share the table but
+        // say nothing about the listing, so they are filtered out here.
+        var reports = await db.AbuseReports
+            .Where(r => r.Target == ReportTarget.Listing
+                        && r.ListingId != null && ids.Contains(r.ListingId.Value)
+                        && r.Status == ReportStatus.Resolved)
+            .GroupBy(r => r.ListingId!.Value)
             .Select(g => new { ListingId = g.Key, Count = g.Count() })
             .ToListAsync(ct);
 

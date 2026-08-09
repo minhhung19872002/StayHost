@@ -49,12 +49,38 @@ public enum ReportStatus
     Dismissed = 3
 }
 
-/// <summary>Guest-submitted report about a listing; worked through in the admin console.</summary>
-public class ListingReport
+/// <summary>docs/01 AT-02 — the four things somebody can report.</summary>
+public enum ReportTarget
+{
+    Listing = 0,
+    User = 1,
+    Message = 2,
+    Review = 3
+}
+
+/// <summary>
+/// docs/01 AT-02 — a report about a listing, a person, a message or a review,
+/// worked through in the admin console. One row carries exactly one subject: the
+/// id matching <see cref="Target"/> is set and the other three stay empty, which
+/// is what keeps "what was reported" answerable without guessing.
+/// </summary>
+public class AbuseReport
 {
     public int Id { get; set; }
-    public int ListingId { get; set; }
+
+    public ReportTarget Target { get; set; }
+
+    public int? ListingId { get; set; }
     public Listing? Listing { get; set; }
+
+    public int? ReportedUserId { get; set; }
+    public User? ReportedUser { get; set; }
+
+    public int? MessageId { get; set; }
+    public Message? Message { get; set; }
+
+    public int? ReviewId { get; set; }
+    public Review? Review { get; set; }
 
     public int? ReporterUserId { get; set; }
     public User? ReporterUser { get; set; }
@@ -67,6 +93,16 @@ public class ListingReport
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ResolvedAt { get; set; }
+
+    /// <summary>The id of whatever this report is about, whichever kind it is.</summary>
+    public int? SubjectId => Target switch
+    {
+        ReportTarget.Listing => ListingId,
+        ReportTarget.User => ReportedUserId,
+        ReportTarget.Message => MessageId,
+        ReportTarget.Review => ReviewId,
+        _ => null
+    };
 }
 
 /// <summary>Queued outbound email. A worker would drain this; here it is an audit trail.</summary>

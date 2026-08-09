@@ -454,10 +454,14 @@ public record NotificationFeedDto(int Unread, IReadOnlyList<NotificationDto> Ite
 
 /* ------------------------------------------------------------------ reports */
 
-public record CreateReportRequest(int ListingId, string Reason, string? Detail);
+/// <summary>docs/01 AT-02 — Target is Listing, User, Message or Review.</summary>
+public record CreateReportRequest(string Target, int SubjectId, string Reason, string? Detail);
+
+public record ReportReasonsDto(string Target, string TargetLabel, IReadOnlyList<string> Reasons);
 
 public record ReportDto(
-    int Id, int ListingId, string ListingTitle, string Reason, string? Detail,
+    int Id, string Target, string TargetLabel, int? SubjectId, string SubjectTitle,
+    string Reason, string? Detail,
     string Status, string? Resolution, string ReporterName, DateTime CreatedAt);
 
 public record ResolveReportRequest(string Status, string? Resolution);

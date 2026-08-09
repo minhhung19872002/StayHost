@@ -915,7 +915,15 @@ export const openOverlay = kind =>
   // A picker opened afresh should be looking at the dates it is showing, not at
   // wherever it was last paged to.
   set({ overlay: kind, menu: null, ...(kind === 'dates' ? { calendarMonth: null } : {}) });
-export const closeOverlay = () => set({ overlay: null, photoIndex: null });
+/**
+ * docs/01 AT-02 — one dialog serves four subjects, so it has to be told which one
+ * it is looking at. Subject and overlay are set together: opened any other way the
+ * dialog would come up pointing at whatever was reported last.
+ */
+export const openReport = (target, subjectId, title) =>
+  set({ report: { target, subjectId, title }, overlay: 'report', menu: null });
+
+export const closeOverlay = () => set({ overlay: null, photoIndex: null, report: null });
 export const openMenu = kind => set({ menu: state.menu === kind ? null : kind });
 
 /** Signed-out guests get the login modal instead of the action they asked for. */

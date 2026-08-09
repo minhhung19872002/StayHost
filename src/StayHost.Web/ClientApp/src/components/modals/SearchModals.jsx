@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useStore } from '../../lib/useStore.js';
 import {
   set, state as store, activeFilterCount, resetFilters, totalGuests,
@@ -381,28 +382,86 @@ export function HelpModal() {
   );
 }
 
-const REPORT_REASONS = ['Thông tin không chính xác', 'Không phải chỗ nghỉ thật', 'Lừa đảo',
-                        'Nội dung xúc phạm', 'Lý do khác'];
-
+/**
+ * docs/01 AT-02 — reports a listing, a person, a message or a review. Which one
+ * comes from store.report, set by openReport() at the button that opened this.
+ * The reasons come from the server so the four lists cannot drift from the ones
+ * the domain offers.
+ */
 export function ReportModal() {
-  const send = async reason => {
+  const state = useStore();
+  const subject = state.report ?? (store.detail?.card
+    // The listing page opened this dialog directly for years; keep that working
+    // rather than leave a dead button behind on a page nobody remembered to change.
+    ? { target: 'listing', subjectId: store.detail.card.id, title: store.detail.card.title }
+    : null);
+
+  const [config, setConfig] = useState(null);
+  const [reason, setReason] = useState(null);
+  const [detail, setDetail] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!subject) return;
+    api.reportReasons(subject.target).then(setConfig).catch(err => toast(err.message));
+    // Only the kind of subject decides the reason list. Depending on the whole
+    // subject would refetch on every render, since it is rebuilt each time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subject?.target]);
+
+  if (!subject) return null;
+
+  const send = async () => {
+    setBusy(true);
     try {
-      const res = await api.report({ listingId: store.detail?.card.id, reason, detail: null });
+      const res = await api.report({
+        target: subject.target, subjectId: subject.subjectId, reason, detail: detail.trim() || null
+      });
       closeOverlay();
       toast(res.message);
-    } catch (err) { toast(err.message); }
+    } catch (err) {
+      toast(err.message);
+    } finally { setBusy(false); }
   };
 
+  const label = config?.targetLabel ?? '';
+
   return (
-    <Modal title="Báo cáo chỗ nghỉ này" size="narrow">
+    <Modal title={`Báo cáo ${label.toLowerCase()}`} size="narrow">
+      {subject.title && (
+        <p style={{ margin: '0 0 6px', fontSize: 14, fontWeight: 700 }}>{subject.title}</p>
+      )}
       <p style={{ margin: '0 0 16px', fontSize: 13.5, color: 'var(--ink-muted)', lineHeight: 1.6 }}>
-        Đội an toàn StayHost sẽ xem xét báo cáo của bạn.
+        Đội an toàn StayHost sẽ xem xét báo cáo của bạn. Người bị báo cáo không biết ai đã gửi.
       </p>
-      <div style={{ display: 'grid', gap: 8 }}>
-        {REPORT_REASONS.map(r => (
-          <button className="opt" key={r} onClick={() => send(r)}><b>{r}</b></button>
-        ))}
-      </div>
+
+      {!config ? (
+        <p style={{ fontSize: 13.5, color: 'var(--ink-muted)' }}>Đang tải…</p>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {config.reasons.map(r => (
+              <button className="opt" key={r} aria-pressed={reason === r}
+                      style={reason === r ? { borderColor: 'var(--ink)', borderWidth: 2 } : undefined}
+                      onClick={() => setReason(r)}><b>{r}</b></button>
+            ))}
+          </div>
+
+          <label className="form-field" style={{ marginTop: 14 }}>
+            <span className="cap">Mô tả thêm (không bắt buộc)</span>
+            <textarea rows={3} value={detail} maxLength={2000}
+                      onChange={e => setDetail(e.target.value)}
+                      placeholder="Kể thêm chuyện gì đã xảy ra, càng cụ thể càng dễ xử lý."
+                      style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)',
+                               borderRadius: 12, fontSize: 14 }} />
+          </label>
+
+          <button className="btn btn-primary" style={{ width: '100%', marginTop: 8 }}
+                  disabled={!reason || busy} onClick={send}>
+            {busy ? 'Đang gửi…' : 'Gửi báo cáo'}
+          </button>
+        </>
+      )}
     </Modal>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
-import { set, loadThreads, openThread, sendMessage, respondBooking, toast } from '../lib/store.js';
+import { set, loadThreads, openThread, sendMessage, respondBooking, openReport, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate } from '../lib/format.js';
 
@@ -161,6 +161,13 @@ function Conversation({ thread, onOpenListing }) {
                     <span className="bubble-note">Đã che thông tin liên hệ cho tới khi đơn được xác nhận.</span>
                   )}
                   <time>{TIME.format(new Date(m.sentAt))}</time>
+                  {/* docs/01 AT-02 — only on what the other side sent; reporting
+                      your own message is not a moderation signal. */}
+                  {!m.mine && (
+                    <button className="bubble-report"
+                            title="Báo cáo tin nhắn này"
+                            onClick={() => openReport('message', m.id, 'Tin nhắn trong hội thoại này')}>⚑</button>
+                  )}
                 </div>
           ))
         : <div className="inbox-empty"><p>Hãy gửi lời chào đầu tiên.</p></div>}

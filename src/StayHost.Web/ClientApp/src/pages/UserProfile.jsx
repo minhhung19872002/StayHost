@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
-import { loadPublicProfile, openOverlay } from '../lib/store.js';
+import { loadPublicProfile, openOverlay, openReport } from '../lib/store.js';
 import { Avatar } from '../components/Avatar.jsx';
 import { Card } from '../components/Card.jsx';
 import { Icon } from '../components/Icon.jsx';
@@ -109,6 +109,18 @@ export function UserProfile() {
 
       {!p.reviewsAsHost.length && !p.reviewsAsGuest.length && (
         <p className="section-sub" style={{ marginTop: 32 }}>Chưa có đánh giá nào.</p>
+      )}
+
+      {/* docs/01 AT-02 — reporting a person, not just something they wrote. Kept
+          off your own profile, where the only thing it could do is waste a
+          moderator's time. */}
+      {!isMe && (
+        <div style={{ marginTop: 40, borderTop: '1px solid var(--divider)', paddingTop: 20 }}>
+          <button className="text-btn"
+                  onClick={() => openReport('user', Number(id), p.displayName)}>
+            ⚑ Báo cáo người dùng này
+          </button>
+        </div>
       )}
     </div>
   );

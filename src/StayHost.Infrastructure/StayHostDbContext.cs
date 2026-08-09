@@ -22,7 +22,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<CalendarBlock> CalendarBlocks => Set<CalendarBlock>();
     public DbSet<Notification> Notifications => Set<Notification>();
-    public DbSet<ListingReport> ListingReports => Set<ListingReport>();
+    public DbSet<AbuseReport> AbuseReports => Set<AbuseReport>();
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
     public DbSet<PriceRule> PriceRules => Set<PriceRule>();
     public DbSet<GuestReview> GuestReviews => Set<GuestReview>();
@@ -705,16 +705,33 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
-        b.Entity<ListingReport>(e =>
+        b.Entity<AbuseReport>(e =>
         {
-            e.ToTable("listing_reports");
+            e.ToTable("abuse_reports");
             e.HasIndex(x => x.Status);
-            e.Property(x => x.Reason).HasMaxLength(120).IsRequired();
-            e.Property(x => x.Detail).HasMaxLength(2000);
+            e.HasIndex(x => x.Target);
+            e.Property(x => x.Reason).HasMaxLength(Reports.ReasonMax).IsRequired();
+            e.Property(x => x.Detail).HasMaxLength(Reports.DetailMax);
             e.Property(x => x.Resolution).HasMaxLength(500);
             e.Property(x => x.SessionId).HasMaxLength(64);
+            e.Ignore(x => x.SubjectId);
+
+            // Every subject is optional at the database level because a row holds
+            // exactly one of them; which one is required comes from Target and is
+            // enforced in Reports.Validate, where it can be tested without a
+            // database. Deleting the subject takes its reports with it — a report
+            // about a listing nobody can open is not something a moderator can act on.
             e.HasOne(x => x.Listing).WithMany()
                 .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.ReportedUser).WithMany()
+                .HasForeignKey(x => x.ReportedUserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Message).WithMany()
+                .HasForeignKey(x => x.MessageId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Review).WithMany()
+                .HasForeignKey(x => x.ReviewId).OnDelete(DeleteBehavior.Cascade);
+
+            // The reporter going away must not erase the report: the thing reported
+            // is still there, and the queue is about the subject, not the sender.
             e.HasOne(x => x.ReporterUser).WithMany()
                 .HasForeignKey(x => x.ReporterUserId).OnDelete(DeleteBehavior.SetNull);
         });

@@ -186,10 +186,12 @@ docker exec stayhost-db psql -U stayhost -d stayhost -t \
 - Số dư khách cũng là sổ chỉ-thêm: số dư là tổng các dòng, không phải một cột bị ghi đè.
 - **StayShield không bao giờ được gọi là bảo hiểm** (`docs/06 §11`). Mọi chữ hiển thị
   là "chính sách hỗ trợ". Có `Shield.ReadsAsInsurance` và test chặn từ ngữ này.
-- **`docs/PLAN.md §9` đã soát đủ cả 201 mã (07/08/2026): 137 xong · 13 một phần ·
-  51 chưa có.** Đọc **§9.0** trước — chín mã P0 còn nợ. Trước lần soát này plan chỉ
-  ghi 58/201 mã và đã hai lần bỏ sót việc thật, nên nếu thêm tính năng mới thì cập
-  nhật §9 luôn, đừng để nó lệch lại.
+- **`docs/PLAN.md §9` đã soát đủ cả 201 mã: 145 xong · 5 một phần · 51 chưa có**
+  (soát 07/08/2026, sửa lại 09/08/2026). Còn **đúng một mã P0** — `TĐ-03` dịch mô
+  tả tin đăng — và nó chờ khách chọn nhà cung cấp dịch chứ không chờ code. Thứ tự
+  làm phần còn lại nằm ở **§9.4**. Plan đã ba lần đếm lệch (hai lần bỏ sót việc
+  thật, một lần kê tám mã đã xong vào bảng "làm một phần"), nên làm xong mã nào thì
+  sửa §9.1/§9.2 ngay lúc đó.
 - Kiểm chứng bằng app đang chạy thật, không chỉ đọc code.
 - Commit theo từng mốc có nghĩa, push lên `origin main`.
 

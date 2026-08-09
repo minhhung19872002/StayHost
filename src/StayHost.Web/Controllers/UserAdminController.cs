@@ -150,10 +150,15 @@ public class UserAdminController(
         // docs/08 §4 — "báo cáo bị nhận". A host collects listing reports; a
         // guest collects cases the other side opened about them, and counting
         // only the first left every guest reading a blameless zero.
+        // docs/01 AT-02 added reports filed against a person directly; those are
+        // the plainest form of "báo cáo bị nhận" there is, so they count here too.
         var reportsAgainst =
             (hostId is { } reportedHost
-                ? await db.ListingReports.CountAsync(r => r.Listing!.HostId == reportedHost, ct)
+                ? await db.AbuseReports.CountAsync(
+                    r => r.Target == ReportTarget.Listing && r.Listing!.HostId == reportedHost, ct)
                 : 0)
+            + await db.AbuseReports.CountAsync(
+                r => r.Target == ReportTarget.User && r.ReportedUserId == id, ct)
             + await db.ResolutionCases.CountAsync(
                 c => (c.Booking!.GuestUserId == id && c.OpenedByHost)
                      || (hostId != null && c.Booking!.Listing!.HostId == hostId && !c.OpenedByHost), ct);

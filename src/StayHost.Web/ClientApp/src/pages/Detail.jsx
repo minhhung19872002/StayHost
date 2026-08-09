@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
   loadDetail, toggleFavorite, totalGuests, guestLabel, bumpTotalGuests,
-  clearDates, openOverlay, requireAuth, toast, set, setRoom, shareListing
+  clearDates, openOverlay, openReport, requireAuth, toast, set, setRoom, shareListing
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate, nightsBetween } from '../lib/format.js';
@@ -410,6 +410,14 @@ function Reviews({ detail, card }) {
             </div>
             <p>{r.text}</p>
             <HostReply review={r} />
+            {/* docs/01 AT-02 — a review is reportable in its own right; before
+                this the only way to flag one was to report the whole listing. */}
+            {r.id && (
+              <button className="text-btn" style={{ marginTop: 8, fontSize: 12.5 }}
+                      onClick={() => openReport('review', r.id, `Đánh giá của ${r.authorName}`)}>
+                ⚑ Báo cáo đánh giá
+              </button>
+            )}
           </article>
         ))}
       </div>
@@ -684,7 +692,7 @@ function BookPanel({ detail, card }) {
       )}
 
       <button className="text-btn" style={{ marginTop: 14, justifyContent: 'center' }}
-              onClick={() => openOverlay('report')}>⚑ Báo cáo chỗ nghỉ này</button>
+              onClick={() => openReport('listing', card.id, card.title)}>⚑ Báo cáo chỗ nghỉ này</button>
     </aside>
   );
 }

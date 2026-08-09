@@ -1225,6 +1225,19 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
 .bubble p { margin: 0; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .bubble time { display: block; font-size: 11px; opacity: .65; margin-top: 5px; }
 
+/* docs/01 AT-02 — reporting a message. Kept faint and out of the reading line
+   until the bubble is hovered: a flag sitting bright next to every message the
+   other person sent changes how a conversation reads. */
+.bubble { position: relative; }
+.bubble-report {
+  position: absolute; top: 6px; right: -26px;
+  border: 0; background: none; cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 4px;
+  color: var(--ink-muted); opacity: 0; transition: opacity .15s;
+}
+.bubble:hover .bubble-report, .bubble-report:focus-visible { opacity: 1; }
+.bubble-report:hover { color: var(--brand); }
+
 .inbox-compose { display: flex; gap: 10px; padding: 14px; border-top: 1px solid var(--divider); }
 .inbox-compose input {
   flex: 1 1 auto; min-width: 0; padding: 12px 14px; border: 1px solid var(--line);
