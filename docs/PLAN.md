@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **175 xong · 0 làm một phần · 26 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **179 xong · 0 làm một phần · 22 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,7 +350,7 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (26 mã)
+### 9.1 Chưa có (22 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -363,7 +363,6 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `AT-03` · `AT-08` · `AT-10` · `AT-12` | Kênh hàng xóm · trợ lý tự động · danh sách chặn · chống phân biệt đối xử | P2 |
 | `QT-07` · `QT-08` | Quản lý bài trợ giúp · bật tính năng theo tỉ lệ | P2 |
 | `YT-06` · `YT-07` · `YT-08` | Bình chọn nhóm · so sánh 2–5 chỗ · báo khi chỗ đã lưu giảm giá | P2 |
-| `QL-09` · `QL-18` · `CN-14` · `CN-15` | Gợi ý giá thị trường · gợi ý cải thiện · ước lượng thu nhập · nhân bản tin | P2 |
 | `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
 
 ### 9.2 Làm một phần — **không còn mã nào** (dọn xong 10/08/2026)
@@ -382,6 +381,17 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`QL-09` · `QL-18` · `CN-14` · `CN-15` (cụm công cụ chủ nhà) làm xong 10/08/2026, gói
+trong `HostAdvice.cs` (logic thuần, có test): CN-14 ước lượng thu nhập ròng theo ba
+mức lấp đầy (net phí chủ nhà 3%), QL-09 gợi mức giá giữa khu vực dựa trên phân vị của
+`CN-10` — **chỉ gợi ý, host tự bấm áp dụng, sàn không tự đổi**, QL-18 checklist cải
+thiện kèm ước lượng tác động (đọc từ chính dữ liệu tin: số ảnh, đặt ngay, mô tả, tiện
+nghi, giá so mặt bằng…). CN-15 nhân bản tin thành **bản nháp** mới (không kéo theo đơn,
+đánh giá, lịch, iCal token), có guard quyền sở hữu và chặn host bị cấm đăng tin mới.
+Endpoint ở `HostController` (`income-estimate`, `listings/{id}/advice`,
+`listings/{id}/duplicate`), UI ở wizard giá và thẻ tin chủ nhà. Xác minh sống: thu nhập
+tăng dần theo lấp đầy, guard host khác = 403, bản sao nháp, sổ cân = 0.
 
 `AT-01` (kiểm duyệt tin đăng mới trước khi hiển thị) làm xong 10/08/2026. Cổng tắt
 mặc định (`Moderation:NewListingsRequireApproval`, theo tiền lệ `TC-07`/đăng nhập

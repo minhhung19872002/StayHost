@@ -156,6 +156,12 @@ export const api = {
   copySuggestions: body => request('/api/host/copy-suggestions', { method: 'POST', body: JSON.stringify(body) }),
   /* docs/01 CN-10 — what comparable places nearby charge */
   marketPrice: params => request(`/api/host/market-price${qs(params)}`),
+  /* docs/01 CN-14 — a what-if income estimate before publishing */
+  incomeEstimate: params => request(`/api/host/income-estimate${qs(params)}`),
+  /* docs/01 QL-09 + QL-18 — suggested price and improvements for a listing */
+  listingAdvice: id => request(`/api/host/listings/${id}/advice`),
+  /* docs/01 CN-15 — clone a listing into a fresh draft */
+  duplicateListing: id => request(`/api/host/listings/${id}/duplicate`, { method: 'POST' }),
   /* docs/01 QL-13 — what happens if the host cancels, before they confirm */
   hostCancelPreview: id => request(`/api/host/bookings/${id}/cancel-preview`),
   createListing: body => request('/api/host/listings', { method: 'POST', body: JSON.stringify(body) }),

@@ -426,31 +426,22 @@ public class HostController(
 
         var wanted = (city ?? "").Trim();
 
-        var prices = await db.Listings
-            .Where(l => l.IsPublished && l.City == wanted && l.RoomType == room
-                        && (bedrooms <= 0 || (l.Bedrooms >= bedrooms - 1 && l.Bedrooms <= bedrooms + 1)))
-            .Select(l => l.PricePerNight)
-            .ToListAsync(ct);
+        var (count, low, median, high) = await ComparablesAsync(wanted, room, bedrooms, ct);
 
-        if (prices.Count == 0)
+        if (count == 0)
             return Ok(new MarketPriceDto(wanted, 0, 0, 0, 0,
                 "Chưa có chỗ nghỉ tương đương ở khu vực này để so sánh."));
 
-        var sorted = prices.OrderBy(p => p).ToList();
-        var low = Percentile(sorted, 0.25);
-        var median = Percentile(sorted, 0.5);
-        var high = Percentile(sorted, 0.75);
-
         // Fewer than five comparables is a hint, not a benchmark, and the host
         // deserves to be told which they are looking at.
-        var verdict = prices.Count < 5
-            ? $"Chỉ có {prices.Count} chỗ tương đương — con số này là tham khảo, chưa đủ để coi là mặt bằng."
+        var verdict = count < 5
+            ? $"Chỉ có {count} chỗ tương đương — con số này là tham khảo, chưa đủ để coi là mặt bằng."
             : price is not { } mine ? null
             : mine < low ? "Giá của bạn thấp hơn phần lớn chỗ tương đương. Bạn có thể tăng thêm."
             : mine > high ? "Giá của bạn cao hơn phần lớn chỗ tương đương. Cân nhắc hạ xuống nếu chưa có nhiều lượt đặt."
             : "Giá của bạn nằm trong khoảng phổ biến của khu vực.";
 
-        return Ok(new MarketPriceDto(wanted, prices.Count, low, median, high, verdict));
+        return Ok(new MarketPriceDto(wanted, count, low, median, high, verdict));
     }
 
     private static decimal Percentile(List<decimal> sorted, double fraction)
@@ -458,6 +449,176 @@ public class HostController(
         if (sorted.Count == 0) return 0;
         var index = Math.Clamp((int)Math.Round(fraction * (sorted.Count - 1)), 0, sorted.Count - 1);
         return sorted[index];
+    }
+
+    /// <summary>The 25/50/75 percentiles of comparable places, shared by CN-10 and QL-09.</summary>
+    private async Task<(int Count, decimal Low, decimal Median, decimal High)> ComparablesAsync(
+        string city, RoomType room, int bedrooms, CancellationToken ct)
+    {
+        var prices = await db.Listings
+            .Where(l => l.IsPublished && l.ReviewStatus == ListingReviewStatus.Approved
+                        && l.City == city && l.RoomType == room
+                        && (bedrooms <= 0 || (l.Bedrooms >= bedrooms - 1 && l.Bedrooms <= bedrooms + 1)))
+            .Select(l => l.PricePerNight)
+            .ToListAsync(ct);
+
+        if (prices.Count == 0) return (0, 0, 0, 0);
+        var sorted = prices.OrderBy(p => p).ToList();
+        return (prices.Count, Percentile(sorted, 0.25), Percentile(sorted, 0.5), Percentile(sorted, 0.75));
+    }
+
+    /// <summary>
+    /// docs/01 CN-14 — a what-if income estimate before a place is even listed.
+    /// Pure arithmetic over the price and cleaning fee; nothing is stored.
+    /// </summary>
+    [HttpGet("income-estimate")]
+    public ActionResult<IncomeEstimateDto> IncomeEstimate(
+        [FromQuery] decimal pricePerNight, [FromQuery] decimal cleaningFee = 0, [FromQuery] int avgStayNights = 3)
+    {
+        var scenarios = HostAdvice.EstimateIncome(pricePerNight, cleaningFee, avgStayNights)
+            .Select(s => new IncomeScenarioDto(s.Label, s.OccupancyPercent, s.MonthlyNet, s.AnnualNet))
+            .ToList();
+        return Ok(new IncomeEstimateDto(scenarios));
+    }
+
+    /// <summary>
+    /// docs/01 QL-09 + QL-18 — a suggested price and a list of improvements for one
+    /// of the host's own listings. Advice only: the host applies the price through
+    /// the ordinary edit, and the platform never changes it on their behalf.
+    /// </summary>
+    [HttpGet("listings/{id:int}/advice")]
+    public async Task<ActionResult<ListingAdviceDto>> Advice(int id, CancellationToken ct)
+    {
+        var (user, profile) = await ResolveAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+        if (profile is null) return this.Denied();
+
+        var listing = await db.Listings
+            .Include(l => l.Images)
+            .Include(l => l.Amenities)
+            .FirstOrDefaultAsync(l => l.Id == id, ct);
+        if (listing is null) return NotFound();
+        if (listing.HostId != profile.Id) return this.Denied();
+
+        var (count, low, median, high) = await ComparablesAsync(listing.City, listing.RoomType, listing.Bedrooms, ct);
+
+        var suggestion = HostAdvice.SuggestPrice(listing.PricePerNight, count, low, median, high);
+        var standing = count < 5 ? HostAdvice.PriceStanding.Unknown
+            : listing.PricePerNight < low ? HostAdvice.PriceStanding.Below
+            : listing.PricePerNight > high ? HostAdvice.PriceStanding.Above
+            : HostAdvice.PriceStanding.Within;
+
+        var facts = new HostAdvice.ListingFacts(
+            PhotoCount: listing.Images.Count(i => !string.IsNullOrWhiteSpace(i.Url)),
+            InstantBook: listing.InstantBook,
+            DescriptionLength: (listing.Description ?? "").Length,
+            AmenityCount: listing.Amenities.Count,
+            HasHighlight: !string.IsNullOrWhiteSpace(listing.SpaceHighlight),
+            FlexibleCancellation: listing.CancellationTier == CancellationTier.Flexible,
+            Price: standing,
+            Rating: listing.Rating,
+            ReviewCount: listing.ReviewCount);
+
+        var improvements = HostAdvice.Improvements(facts)
+            .Select(i => new ImprovementDto(i.Area, i.Suggestion, i.EstimatedImpact))
+            .ToList();
+
+        var market = new MarketPriceDto(listing.City, count, low, median, high, null);
+
+        return Ok(new ListingAdviceDto(
+            new PriceSuggestionDto(suggestion.SuggestedPrice, suggestion.IsFirm, suggestion.Rationale),
+            market, improvements));
+    }
+
+    /// <summary>
+    /// docs/01 CN-15 — clone a listing into a fresh draft so a host with several
+    /// similar places sets the next one up in seconds. The copy comes back
+    /// unpublished (and, under a review gate, would need approval like any new
+    /// listing); bookings, reviews, calendar and the iCal token are never carried.
+    /// </summary>
+    [HttpPost("listings/{id:int}/duplicate")]
+    public async Task<ActionResult<HostListingDto>> Duplicate(int id, CancellationToken ct)
+    {
+        var (user, profile) = await ResolveAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+        if (profile is null) return this.Denied();
+
+        // docs/08 §5.2 — a host barred from new listings cannot clone their way around it.
+        if (Restrictions.Has(user.RestrictionMask, RestrictionKind.NoNewListings))
+            return StatusCode(403, new { message = Restrictions.Message(RestrictionKind.NoNewListings) });
+
+        var src = await db.Listings
+            .Include(l => l.Images)
+            .Include(l => l.Amenities)
+            .FirstOrDefaultAsync(l => l.Id == id, ct);
+        if (src is null) return NotFound();
+        if (src.HostId != profile.Id) return this.Denied();
+
+        var copyTitle = $"{src.Title} (bản sao)";
+        var clone = new Listing
+        {
+            HostId = profile.Id,
+            Slug = await UniqueSlugAsync(copyTitle, ct),
+            Title = copyTitle,
+            City = src.City,
+            Type = src.Type,
+            RoomType = src.RoomType,
+            Bedrooms = src.Bedrooms,
+            Beds = src.Beds,
+            Bathrooms = src.Bathrooms,
+            MaxGuests = src.MaxGuests,
+            PricePerNight = src.PricePerNight,
+            CleaningFee = src.CleaningFee,
+            MinNights = src.MinNights,
+            MaxNights = src.MaxNights,
+            InstantBook = src.InstantBook,
+            InstantBookRequiresVerified = src.InstantBookRequiresVerified,
+            InstantBookRequiresGoodReviews = src.InstantBookRequiresGoodReviews,
+            RequireGuestPhoto = src.RequireGuestPhoto,
+            RequireVerifiedToBook = src.RequireVerifiedToBook,
+            CancellationTier = src.CancellationTier,
+            Description = src.Description,
+            SpaceHighlight = src.SpaceHighlight,
+            Latitude = src.Latitude,
+            Longitude = src.Longitude,
+            SafetyInfo = src.SafetyInfo,
+            TimeZoneId = src.TimeZoneId,
+            WeeklyDiscountPercent = src.WeeklyDiscountPercent,
+            MonthlyDiscountPercent = src.MonthlyDiscountPercent,
+            EarlyBirdDays = src.EarlyBirdDays,
+            EarlyBirdPercent = src.EarlyBirdPercent,
+            LastMinuteDays = src.LastMinuteDays,
+            LastMinutePercent = src.LastMinutePercent,
+            WeekendSurchargeRate = src.WeekendSurchargeRate,
+            FreeGuestThreshold = src.FreeGuestThreshold,
+            ExtraGuestFee = src.ExtraGuestFee,
+            PetsAllowed = src.PetsAllowed,
+            MaxPets = src.MaxPets,
+            PetFee = src.PetFee,
+            PetFeePerNight = src.PetFeePerNight,
+            BedLayoutJson = src.BedLayoutJson,
+            LicenseNumber = src.LicenseNumber,
+            HasSecurityCameras = src.HasSecurityCameras,
+            SecurityCameraNote = src.SecurityCameraNote,
+            HasWeaponsOnProperty = src.HasWeaponsOnProperty,
+            HasDangerousAnimals = src.HasDangerousAnimals,
+            // A clone is a draft, whatever the source was, so nothing goes live by surprise.
+            IsPublished = false,
+            IsComplete = src.IsComplete,
+            WizardStep = src.WizardStep
+        };
+
+        foreach (var img in src.Images.OrderBy(i => i.SortOrder))
+            clone.Images.Add(new ListingImage { Url = img.Url, SortOrder = img.SortOrder, Caption = img.Caption });
+        foreach (var am in src.Amenities)
+            clone.Amenities.Add(new ListingAmenity { AmenityId = am.AmenityId });
+
+        clone.RefreshSearchText();
+
+        db.Listings.Add(clone);
+        await db.SaveChangesAsync(ct);
+
+        return Created($"/api/host/listings/{clone.Id}", ToHostListing(clone, 0, 0));
     }
 
     /* ------------------------------------------------------------ bookings */

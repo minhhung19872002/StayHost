@@ -162,9 +162,28 @@ function Overview({ d, navigate }) {
 }
 
 function ListingCard({ listing: l, navigate }) {
+  const [advice, setAdvice] = useState(null);
+  const [busy, setBusy] = useState(false);
+
   const openCalendar = async () => {
     await loadHostCalendar(l.id);
     set({ overlay: 'host-block', hostMonthOffset: 0 });
+  };
+
+  // docs/01 QL-09 + QL-18 — pull the price suggestion and improvement checklist.
+  const toggleAdvice = async () => {
+    if (advice) { setAdvice(null); return; }
+    try { setAdvice(await api.listingAdvice(l.id)); }
+    catch (err) { toast(err.message); }
+  };
+
+  // docs/01 CN-15 — clone into a fresh draft.
+  const duplicate = async () => {
+    if (busy) return;
+    setBusy(true);
+    try { await api.duplicateListing(l.id); await loadHosting(); toast('Đã tạo bản sao ở dạng nháp.'); }
+    catch (err) { toast(err.message); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -198,10 +217,41 @@ function ListingCard({ listing: l, navigate }) {
           <button className="btn btn-outline btn-sm"
                   onClick={() => set({ editingListing: l, overlay: 'listing-editor' })}>Chỉnh sửa</button>
           <button className="btn btn-outline btn-sm" onClick={openCalendar}>Lịch</button>
+          <button className="btn btn-outline btn-sm" onClick={toggleAdvice}>
+            {advice ? 'Ẩn gợi ý' : 'Gợi ý'}
+          </button>
+          <button className="btn btn-outline btn-sm" onClick={duplicate} disabled={busy}>Nhân bản</button>
           <button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${l.slug}`)}>Xem trang</button>
         </div>
+        {advice && <ListingAdvice advice={advice} />}
       </div>
     </article>
+  );
+}
+
+/** docs/01 QL-09 + QL-18 — suggested price and improvement checklist for one listing. */
+function ListingAdvice({ advice }) {
+  return (
+    <div className="host-advice" style={{ marginTop: 12, padding: 12, background: 'var(--surface-2, #f6f6f6)', borderRadius: 10 }}>
+      {/* QL-09 — a price to consider; the host applies it, nothing changes on its own. */}
+      <div className="meta" style={{ marginBottom: 8 }}>
+        <b style={{ color: 'var(--ink)' }}>Gợi ý giá: </b>
+        {advice.price.isFirm ? `${money(advice.price.suggestedPrice)} · ` : ''}{advice.price.rationale}
+      </div>
+      {/* QL-18 — concrete improvements with a rough sense of impact. */}
+      {advice.improvements.length === 0
+        ? <div className="meta">Tin đăng đang ở trạng thái tốt, chưa có gì cần cải thiện.</div>
+        : (
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {advice.improvements.map((i, idx) => (
+              <li key={idx} className="meta" style={{ marginBottom: 4 }}>
+                <b style={{ color: 'var(--ink)' }}>{i.area}:</b> {i.suggestion}
+                <span style={{ color: 'var(--brand, #e5484d)' }}> — {i.estimatedImpact}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+    </div>
   );
 }
 

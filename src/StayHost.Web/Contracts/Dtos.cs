@@ -1853,6 +1853,21 @@ public record MarketPriceDto(
     /// <summary>Plain-language read on where the host's own number sits.</summary>
     string? Verdict);
 
+/* -------------------------------------------- docs/01 CN-14, QL-09, QL-18 */
+
+public record IncomeScenarioDto(string Label, int OccupancyPercent, decimal MonthlyNet, decimal AnnualNet);
+
+/// <summary>docs/01 CN-14 — a what-if income estimate before publishing.</summary>
+public record IncomeEstimateDto(IReadOnlyList<IncomeScenarioDto> Scenarios);
+
+public record PriceSuggestionDto(decimal SuggestedPrice, bool IsFirm, string Rationale);
+
+public record ImprovementDto(string Area, string Suggestion, string EstimatedImpact);
+
+/// <summary>docs/01 QL-09 + QL-18 — advice shown on a host's own listing.</summary>
+public record ListingAdviceDto(
+    PriceSuggestionDto Price, MarketPriceDto Market, IReadOnlyList<ImprovementDto> Improvements);
+
 /* ------------------------------------------------------- docs/01 QL-13 */
 
 /// <summary>

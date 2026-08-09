@@ -727,6 +727,14 @@ function StepPrice({ form, num, rule, meta }) {
     }).then(setMarket).catch(() => setMarket(null));
   }, [form.city, form.roomTypeKey, form.bedrooms, form.pricePerNight]);
 
+  // docs/01 CN-14 — a what-if income estimate that tracks the price the host types.
+  const [income, setIncome] = useState(null);
+  useEffect(() => {
+    if (!(form.pricePerNight >= 50000)) { setIncome(null); return; }
+    api.incomeEstimate({ pricePerNight: form.pricePerNight, cleaningFee: form.cleaningFee })
+      .then(setIncome).catch(() => setIncome(null));
+  }, [form.pricePerNight, form.cleaningFee]);
+
   return <>
     {market && (
       <section className="modal-section">
@@ -762,6 +770,23 @@ function StepPrice({ form, num, rule, meta }) {
         bạn nhận <b>{money(Math.round(guestPays * (1 - hostFee)))}</b> sau phí {Math.round(hostFee * 100)}%.
       </p>
     </section>
+
+    {/* docs/01 CN-14 — ước lượng thu nhập theo các mức lấp đầy khác nhau. */}
+    {income && income.scenarios.length > 0 && (
+      <section className="modal-section">
+        <h3>Ước lượng thu nhập</h3>
+        <span className="hint">Số ròng sau phí dịch vụ chủ nhà, theo vài mức lấp đầy. Chỉ để tham khảo.</span>
+        <div className="market-band" style={{ marginTop: 10 }}>
+          {income.scenarios.map(s => (
+            <div key={s.occupancyPercent} className={s.occupancyPercent === 60 ? 'is-mid' : ''}>
+              <span className="cap">{s.label} ({s.occupancyPercent}%)</span>
+              <b>{money(s.monthlyNet)}/tháng</b>
+              <span className="cap" style={{ marginTop: 2 }}>≈ {money(s.annualNet)}/năm</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
 
     <section className="modal-section">
       <h3>Giảm giá</h3>
