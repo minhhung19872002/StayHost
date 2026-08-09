@@ -64,6 +64,15 @@ public record WorkEmailRequest(string? Email);
 public record BlockedUserDto(int UserId, string Name, string Initials, string? AvatarUrl, DateTime CreatedAt);
 public record BlockRequest(int UserId);
 
+/// <summary>docs/01 TM-23 — a saved search, as the account screen lists it.</summary>
+public record SavedSearchDto(int Id, string Label, string Summary, DateTime CreatedAt);
+
+/// <summary>docs/01 TM-23 — save the current search to be alerted about.</summary>
+public record SaveSearchRequest(
+    string? Label, string? Q, string? Category, decimal? MinPrice, decimal? MaxPrice,
+    int Guests, IReadOnlyList<string>? Amenities, string? RoomType, int Bedrooms,
+    bool SuperhostOnly, bool InstantBookOnly, IReadOnlyList<string>? HostLanguages);
+
 /// <summary>docs/01 QT-07 — a help article as the admin editor sees it.</summary>
 public record HelpAdminDto(
     int Id, string Slug, string Title, string Category, string Audience,

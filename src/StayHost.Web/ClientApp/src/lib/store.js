@@ -1215,6 +1215,29 @@ export function bumpCount(key, delta) {
   notify();
 }
 
+// docs/01 TM-23 — save the current search so new matches raise an alert.
+export async function saveCurrentSearch() {
+  const meta = state.meta;
+  const label = (state.q.trim() || (state.category !== 'all' ? state.category : 'Tìm kiếm')) + ' — đã lưu';
+  try {
+    await api.saveSearch({
+      label,
+      q: state.q.trim() || null,
+      category: state.category !== 'all' ? state.category : null,
+      minPrice: meta && state.minPrice > meta.minPrice ? state.minPrice : null,
+      maxPrice: meta && state.maxPrice < meta.maxPrice ? state.maxPrice : null,
+      guests: totalGuests(),
+      amenities: state.amenities.length ? state.amenities : null,
+      roomType: state.roomType !== 'any' ? state.roomType : null,
+      bedrooms: state.bedrooms || 0,
+      superhostOnly: state.superhostOnly,
+      instantBookOnly: state.instantBookOnly,
+      hostLanguages: state.hostLanguages.length ? state.hostLanguages : null
+    });
+    toast('Đã lưu tìm kiếm. Sẽ báo khi có chỗ mới phù hợp.');
+  } catch (err) { toast(err.message); }
+}
+
 // docs/01 TM-18 — toggle a host-language filter code.
 export function toggleHostLanguage(code) {
   state.hostLanguages = state.hostLanguages.includes(code)

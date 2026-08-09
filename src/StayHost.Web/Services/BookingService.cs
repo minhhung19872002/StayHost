@@ -444,6 +444,10 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var messenger = scope.ServiceProvider.GetRequiredService<ThreadMessenger>();
                 var posted = await messenger.SweepAsync(stoppingToken);
                 if (posted > 0) log.LogInformation("Đã gửi {Count} tin nhắn tự động.", posted);
+
+                // docs/01 TM-23 — new places for anyone watching a saved search.
+                var savedSearch = scope.ServiceProvider.GetRequiredService<SavedSearchSweeper>();
+                await savedSearch.SweepAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

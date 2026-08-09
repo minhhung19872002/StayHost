@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **185 xong · 0 làm một phần · 16 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **186 xong · 0 làm một phần · 15 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,11 +350,10 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (16 mã)
+### 9.1 Chưa có (15 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
-| `TM-23` | Lưu bộ tìm kiếm + thông báo khi có chỗ mới phù hợp | P2 |
 | `TM-24` | Vẽ vùng tìm kiếm trên bản đồ | P2 |
 | `TĐ-03` · `TN-06` | Dịch mô tả tin đăng (**P0**) · dịch tin nhắn (P1) — cần nhà cung cấp dịch thuật | P0/P1 |
 | `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
@@ -378,6 +377,15 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`TM-23` (lưu bộ tìm kiếm + báo khi có chỗ mới) làm xong 10/08/2026. Entity `SavedSearch`
+lưu các bộ lọc thành cột (bỏ ngày — tin mới có lịch mở), `LastNotifiedListingId` là mốc
+nước cao nên chỉ tin tạo sau đó mới báo, không báo trùng. `CatalogService.MatchNewAsync`
+tái dùng `BaseQuery` lọc `Id > mốc`; `SavedSearchSweeper` (trong vòng quét 60s) gom tin mới
+khớp thành **một** thông báo (kind `SavedSearchMatch`, topic Marketing → tắt được). Endpoint
+`account/saved-searches` (GET/POST/DELETE), UI nút "Lưu tìm kiếm" ở bộ lọc + danh sách ở tab
+Thông báo. Xác minh sống: lưu (mốc=88) → host đăng tin Quy Nhơn (id 89) → sweep ~32s tạo
+thông báo, mốc 88→89 → xoá được.
 
 `QT-07` (quản lý bài trợ giúp) làm xong 10/08/2026. Bài trợ giúp vốn đã là entity DB
 (`HelpArticle`, HelpSeeder), nên chỉ thêm CRUD admin (scope Hỗ trợ, có nhật ký):

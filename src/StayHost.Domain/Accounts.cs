@@ -329,6 +329,38 @@ public class UserBlock
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>
+/// docs/01 TM-23 — a search a guest asked to be told about. The filters are kept
+/// as columns rather than a blob so the sweep can query them; dates are left out
+/// on purpose, because a brand-new listing has an open calendar and "new place
+/// that matches" is about the place, not a particular week.
+/// <see cref="LastNotifiedListingId"/> is a high-water mark: only listings created
+/// after it can trigger the next alert, so nobody is told twice about the same one.
+/// </summary>
+public class SavedSearch
+{
+    public int Id { get; set; }
+    public int UserId { get; set; }
+    public User? User { get; set; }
+
+    public string Label { get; set; } = "";
+    public string? Q { get; set; }
+    public string? Category { get; set; }
+    public decimal? MinPrice { get; set; }
+    public decimal? MaxPrice { get; set; }
+    public int Guests { get; set; }
+    public string? AmenitiesCsv { get; set; }
+    public string? RoomType { get; set; }
+    public int Bedrooms { get; set; }
+    public bool SuperhostOnly { get; set; }
+    public bool InstantBookOnly { get; set; }
+    public string? HostLanguagesCsv { get; set; }
+
+    public int LastNotifiedListingId { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastCheckedAt { get; set; }
+}
+
 public class Message
 {
     public int Id { get; set; }

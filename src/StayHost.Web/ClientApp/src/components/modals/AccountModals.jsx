@@ -448,7 +448,7 @@ export function ProfileModal() {
 
       {tab === 'payments' && <SavedCardsPanel />}
 
-      {tab === 'alerts' && <NotificationMatrix />}
+      {tab === 'alerts' && <><NotificationMatrix /><SavedSearchesPanel /></>}
 
       {tab === 'data' && <DataPanel />}
 
@@ -1229,6 +1229,40 @@ function Verification() {
           <button className="btn btn-outline btn-sm" onClick={() => unlink(l.provider)}>Bỏ liên kết</button>
         </div>
       )) : <p className="section-sub">Chưa liên kết Google, Apple hay Facebook nào.</p>}
+    </div>
+  );
+}
+
+/** docs/01 TM-23 — the searches this account is being alerted about. */
+function SavedSearchesPanel() {
+  const [rows, setRows] = useState(null);
+  const load = () => api.savedSearches().then(setRows).catch(() => setRows([]));
+  useEffect(() => { load(); }, []);
+
+  const remove = async id => {
+    try { await api.deleteSavedSearch(id); load(); toast('Đã xoá tìm kiếm.'); }
+    catch (err) { toast(err.message); }
+  };
+
+  if (!rows) return null;
+
+  return (
+    <div style={{ marginTop: 28 }}>
+      <h4 style={{ margin: '0 0 4px', fontSize: 14.5, fontWeight: 800 }}>Tìm kiếm đã lưu</h4>
+      <p className="section-sub" style={{ marginTop: 0 }}>
+        Chúng tôi báo cho bạn khi có chỗ mới phù hợp. Lưu từ nút “Lưu tìm kiếm” trong bộ lọc.
+      </p>
+      {rows.length === 0
+        ? <p className="section-sub">Bạn chưa lưu tìm kiếm nào.</p>
+        : rows.map(s => (
+            <div className="verify-row" key={s.id}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <b>{s.label}</b>
+                <div className="meta">{s.summary}</div>
+              </div>
+              <button className="btn btn-outline btn-sm" onClick={() => remove(s.id)}>Xoá</button>
+            </div>
+          ))}
     </div>
   );
 }

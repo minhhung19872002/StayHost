@@ -346,6 +346,90 @@ public class AccountController(
         return Ok(await ToDtoAsync(user, ct));
     }
 
+    /* --------------------------------------- docs/01 TM-23: saved searches */
+
+    /// <summary>docs/01 TM-23 — the searches this account asked to be alerted about.</summary>
+    [HttpGet("saved-searches")]
+    public async Task<ActionResult<IReadOnlyList<SavedSearchDto>>> SavedSearches(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var rows = await db.SavedSearches
+            .Where(s => s.UserId == user.Id)
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync(ct);
+
+        return Ok(rows.Select(s => new SavedSearchDto(s.Id, s.Label, SavedSearchSummary(s), s.CreatedAt)).ToList());
+    }
+
+    /// <summary>
+    /// docs/01 TM-23 — save the current search. The high-water mark starts at the
+    /// newest listing that exists now, so only places added afterwards raise an
+    /// alert; the guest is not told about the whole catalogue the moment they save.
+    /// </summary>
+    [HttpPost("saved-searches")]
+    public async Task<ActionResult<SavedSearchDto>> SaveSearch([FromBody] SaveSearchRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        if (await db.SavedSearches.CountAsync(s => s.UserId == user.Id, ct) >= 30)
+            return BadRequest(new { message = "Bạn đã lưu tối đa 30 bộ tìm kiếm." });
+
+        var newest = await db.Listings.MaxAsync(l => (int?)l.Id, ct) ?? 0;
+
+        var search = new SavedSearch
+        {
+            UserId = user.Id,
+            Label = string.IsNullOrWhiteSpace(req.Label) ? "Tìm kiếm đã lưu" : req.Label.Trim(),
+            Q = Trim(req.Q, 200),
+            Category = Trim(req.Category, 40),
+            MinPrice = req.MinPrice,
+            MaxPrice = req.MaxPrice,
+            Guests = Math.Max(0, req.Guests),
+            AmenitiesCsv = req.Amenities is { Count: > 0 } ? string.Join(',', req.Amenities.Take(20)) : null,
+            RoomType = Trim(req.RoomType, 20),
+            Bedrooms = Math.Max(0, req.Bedrooms),
+            SuperhostOnly = req.SuperhostOnly,
+            InstantBookOnly = req.InstantBookOnly,
+            HostLanguagesCsv = req.HostLanguages is { Count: > 0 } ? string.Join(',', req.HostLanguages.Take(12)) : null,
+            LastNotifiedListingId = newest
+        };
+        db.SavedSearches.Add(search);
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new SavedSearchDto(search.Id, search.Label, SavedSearchSummary(search), search.CreatedAt));
+    }
+
+    [HttpDelete("saved-searches/{id:int}")]
+    public async Task<IActionResult> DeleteSavedSearch(int id, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var search = await db.SavedSearches.FirstOrDefaultAsync(s => s.Id == id && s.UserId == user.Id, ct);
+        if (search is not null) { db.SavedSearches.Remove(search); await db.SaveChangesAsync(ct); }
+        return NoContent();
+    }
+
+    private static string? Trim(string? s, int max) =>
+        string.IsNullOrWhiteSpace(s) ? null : s.Trim()[..Math.Min(s.Trim().Length, max)];
+
+    private static string SavedSearchSummary(SavedSearch s)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(s.Q)) parts.Add($"\"{s.Q}\"");
+        if (!string.IsNullOrWhiteSpace(s.Category) && s.Category != "all") parts.Add(s.Category!);
+        if (s.Guests > 0) parts.Add($"{s.Guests} khách");
+        if (s.Bedrooms > 0) parts.Add($"{s.Bedrooms}+ phòng ngủ");
+        if (s.MinPrice is > 0 || s.MaxPrice is > 0)
+            parts.Add($"{s.MinPrice ?? 0:#,##0}–{(s.MaxPrice is > 0 ? s.MaxPrice.Value.ToString("#,##0") : "…")}₫");
+        if (s.SuperhostOnly) parts.Add("Siêu chủ nhà");
+        if (s.InstantBookOnly) parts.Add("Đặt ngay");
+        return parts.Count > 0 ? string.Join(" · ", parts) : "Tất cả chỗ nghỉ";
+    }
+
     /* ------------------------------------------- docs/01 AT-10: block list */
 
     /// <summary>docs/01 AT-10 — the people this account has blocked.</summary>

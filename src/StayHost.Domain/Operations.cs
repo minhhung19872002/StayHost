@@ -20,7 +20,9 @@ public enum NotificationKind
     /// <summary>docs/03 §11 — a saved listing got cheaper. The one kind that is marketing.</summary>
     PriceDrop = 11,
     /// <summary>docs/07 §10 — money went back to the guest. Never silenceable.</summary>
-    RefundIssued = 12
+    RefundIssued = 12,
+    /// <summary>docs/01 TM-23 — a saved search has new matching places.</summary>
+    SavedSearchMatch = 13
 }
 
 /// <summary>In-app notification. The same row is what an email job would send.</summary>

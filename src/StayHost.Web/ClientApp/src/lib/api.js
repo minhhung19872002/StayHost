@@ -350,6 +350,10 @@ export const api = {
   confirmWorkEmail: code =>
     request('/api/account/work-email/confirm', { method: 'POST', body: JSON.stringify({ kind: 'workemail', code }) }),
   removeWorkEmail: () => request('/api/account/work-email', { method: 'DELETE' }),
+  // docs/01 TM-23 — saved searches.
+  savedSearches: () => request('/api/account/saved-searches'),
+  saveSearch: body => request('/api/account/saved-searches', { method: 'POST', body: JSON.stringify(body) }),
+  deleteSavedSearch: id => request(`/api/account/saved-searches/${id}`, { method: 'DELETE' }),
   // docs/01 AT-10 — block list.
   blocks: () => request('/api/account/blocks'),
   blockUser: userId => request('/api/account/blocks', { method: 'POST', body: JSON.stringify({ userId }) }),

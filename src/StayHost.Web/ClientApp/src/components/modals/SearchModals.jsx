@@ -4,7 +4,7 @@ import {
   set, state as store, activeFilterCount, resetFilters, totalGuests,
   toggleAmenity, toggleHostLanguage, bumpCount, bumpGuest, applyDatePreset, clearDates, setStayShape,
   applyCurrency, applyLanguage, closeOverlay, settleDates, toast,
-  shareViaDevice, copyShareLink
+  shareViaDevice, copyShareLink, saveCurrentSearch
 } from '../../lib/store.js';
 import { api } from '../../lib/api.js';
 import { applySearch } from '../../lib/nav.js';
@@ -46,6 +46,10 @@ export function FiltersModal() {
   return (
     <Modal title="Bộ lọc" foot={<>
       <button className="text-btn" onClick={() => { resetFilters(); set({ q: '' }); applySearch(); }}>Xoá tất cả</button>
+      {/* docs/01 TM-23 — save this search to be alerted about new matches. */}
+      {state.user && (
+        <button className="btn btn-outline btn-sm" onClick={saveCurrentSearch}>Lưu tìm kiếm</button>
+      )}
       <button className="btn btn-dark btn-sm" onClick={closeOverlay}>
         Hiện {state.results.total} chỗ nghỉ{activeFilterCount() ? ` (${activeFilterCount()} bộ lọc)` : ''}
       </button>

@@ -21,6 +21,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<MessageThread> MessageThreads => Set<MessageThread>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
+    public DbSet<SavedSearch> SavedSearches => Set<SavedSearch>();
     public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
     public DbSet<CalendarBlock> CalendarBlocks => Set<CalendarBlock>();
     public DbSet<Notification> Notifications => Set<Notification>();
@@ -337,6 +338,23 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.HasOne(x => x.GuestUser).WithMany().HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.HostUser).WithMany().HasForeignKey(x => x.HostUserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Booking).WithMany().HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // docs/01 TM-23 — saved searches.
+        b.Entity<SavedSearch>(e =>
+        {
+            e.ToTable("saved_searches");
+            e.HasIndex(x => x.UserId);
+            e.Property(x => x.Label).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Q).HasMaxLength(200);
+            e.Property(x => x.Category).HasMaxLength(40);
+            e.Property(x => x.RoomType).HasMaxLength(20);
+            e.Property(x => x.AmenitiesCsv).HasMaxLength(400);
+            e.Property(x => x.HostLanguagesCsv).HasMaxLength(200);
+            e.Property(x => x.MinPrice).HasPrecision(12, 2);
+            e.Property(x => x.MaxPrice).HasPrecision(12, 2);
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // docs/01 QT-08 — feature flags with percentage rollout.

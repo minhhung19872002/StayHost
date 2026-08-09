@@ -420,6 +420,19 @@ public class CatalogService(StayHostDbContext db)
 
     public Task<int> CountAsync(SearchQuery q, CancellationToken ct) => BaseQuery(q).CountAsync(ct);
 
+    /// <summary>
+    /// docs/01 TM-23 — listings that match a saved search and were created after a
+    /// high-water mark, so the alert sweep only ever sees genuinely new places.
+    /// Dates are ignored: a new listing's calendar is open and the alert is about
+    /// the place matching, not a particular week.
+    /// </summary>
+    public Task<List<Listing>> MatchNewAsync(SearchQuery q, int afterListingId, int take, CancellationToken ct) =>
+        BaseQuery(q)
+            .Where(l => l.Id > afterListingId)
+            .OrderBy(l => l.Id)
+            .Take(take)
+            .ToListAsync(ct);
+
     public async Task<SearchResultDto> SearchAsync(SearchQuery q, string sessionId, CancellationToken ct)
     {
         q = await ResolveDatesAsync(q, ct);
