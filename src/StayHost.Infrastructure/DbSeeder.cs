@@ -44,8 +44,23 @@ public static class DbSeeder
         new("selfcheckin", "Tự nhận phòng",      "⚿", "Dịch vụ",   false),
         new("crib",       "Nôi cho em bé",       "☖", "Gia đình",  false),
         new("view",       "View đẹp",            "◬", "Nổi bật",   false),
-        new("ev",         "Sạc xe điện",         "⚡", "Ngoài trời", false)
+        new("ev",         "Sạc xe điện",         "⚡", "Ngoài trời", false),
+        // docs/01 TM-17 — accessibility, its own filterable group.
+        new("step-free",  "Lối vào bằng phẳng",  "▱", "Tiếp cận",  true),
+        new("elevator",   "Thang máy",           "▤", "Tiếp cận",  true),
+        new("wide-door",  "Cửa rộng cho xe lăn", "◫", "Tiếp cận",  true),
+        new("grab-bars",  "Tay vịn trong phòng tắm", "▬", "Tiếp cận", true),
+        new("ground-floor","Phòng tầng trệt",    "▦", "Tiếp cận",  true)
     ];
+
+    /// <summary>docs/01 TM-17 — which accessibility features a demo listing advertises.</summary>
+    private static string[] AccessibilityFor(int i) => (i % 4) switch
+    {
+        0 => ["step-free", "elevator", "wide-door"],
+        1 => ["ground-floor", "step-free"],
+        2 => ["elevator"],
+        _ => []
+    };
 
     private record HostSeed(string Name, bool Superhost, int Years, string Bio);
 
@@ -322,16 +337,23 @@ public static class DbSeeder
     {
         if (await db.Listings.AnyAsync(ct)) return;
 
-        var amenities = AmenitySeeds.Select((a, i) => new Amenity
-        {
-            Key = a.Key,
-            Label = a.Label,
-            Icon = a.Icon,
-            Group = a.Group,
-            IsFilterable = a.Filterable,
-            SortOrder = i
-        }).ToList();
-        db.Amenities.AddRange(amenities);
+        // Some amenities may already be present from a data migration (the
+        // accessibility set of TM-17 ships that way too), so only the missing ones
+        // are added; the map below is built from the whole table afterwards.
+        var existingKeys = await db.Amenities.Select(a => a.Key).ToListAsync(ct);
+        var fresh = AmenitySeeds
+            .Select((a, i) => (a, i))
+            .Where(x => !existingKeys.Contains(x.a.Key))
+            .Select(x => new Amenity
+            {
+                Key = x.a.Key,
+                Label = x.a.Label,
+                Icon = x.a.Icon,
+                Group = x.a.Group,
+                IsFilterable = x.a.Filterable,
+                SortOrder = x.i
+            }).ToList();
+        db.Amenities.AddRange(fresh);
 
         // Every demo host gets a real account so messaging and the host dashboard work
         // out of the box. Password for all demo accounts: "stayhost123".
@@ -380,7 +402,9 @@ public static class DbSeeder
 
         await db.SaveChangesAsync(ct);
 
-        var amenityByKey = amenities.ToDictionary(a => a.Key);
+        // Built from the whole table, not just the freshly-added ones, so
+        // migration-inserted amenities (TM-17 accessibility) can be assigned too.
+        var amenityByKey = await db.Amenities.ToDictionaryAsync(a => a.Key, ct);
         var photoCursor = 0;
 
         for (var i = 0; i < ListingSeeds.Length; i++)
@@ -473,6 +497,12 @@ public static class DbSeeder
             photoCursor += 3;
 
             foreach (var key in s.Amenities.Where(amenityByKey.ContainsKey))
+                listing.Amenities.Add(new ListingAmenity { AmenityId = amenityByKey[key].Id });
+
+            // docs/01 TM-17 — spread accessibility features across the catalogue so
+            // the filter has something to return in the demo. Real listings carry
+            // whatever the host actually ticks.
+            foreach (var key in AccessibilityFor(i).Where(amenityByKey.ContainsKey))
                 listing.Amenities.Add(new ListingAmenity { AmenityId = amenityByKey[key].Id });
 
             var reviewCount = Math.Min(ReviewSeeds.Length, 4 + (i % 3));

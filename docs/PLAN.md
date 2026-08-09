@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả: **159 xong · 0 làm một phần · 42 chưa có.** Con số 105 mã "không thấy
+Kết quả: **160 xong · 0 làm một phần · 41 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,7 +350,7 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (42 mã)
+### 9.1 Chưa có (41 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -358,7 +358,6 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `CĐ-12` | Nút xin trợ giúp gắn với đúng đơn đang gặp vấn đề | P1 |
 | `QL-11` | Cảnh báo khi lịch iCal nhập về trùng đơn đã xác nhận | P1 |
 | `QL-16` | Báo cáo hiệu suất tin đăng: lượt xem, lượt lưu, tỉ lệ đặt, tỉ lệ lấp đầy | P1 |
-| `TM-17` | Lọc khả năng tiếp cận (lối vào bằng phẳng, thang máy, cửa rộng) | P1 |
 | `TM-18` | Lọc theo ngôn ngữ chủ nhà | P2 |
 | `TM-23` | Lưu bộ tìm kiếm + thông báo khi có chỗ mới phù hợp | P2 |
 | `TM-24` | Vẽ vùng tìm kiếm trên bản đồ | P2 |
