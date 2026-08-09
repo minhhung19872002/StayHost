@@ -364,6 +364,22 @@ function StepTrip({ q }) {
       </div>
     </section>
 
+    {/* docs/01 ĐP-10 — the house rules, agreed to before booking. Shown only when
+        the listing has any; the server requires the tick in that case. */}
+    {!!state.detail?.houseRules?.length && (
+      <section className="modal-section">
+        <h3>Nội quy nhà</h3>
+        <ul style={{ margin: '10px 0 0', paddingLeft: 18, fontSize: 14, lineHeight: 1.7 }}>
+          {state.detail.houseRules.map((r, i) => <li key={i}>{r}</li>)}
+        </ul>
+        <label className="check-row" style={{ marginTop: 12 }}>
+          <input type="checkbox" checked={state.agreedToRules}
+                 onChange={e => set({ agreedToRules: e.target.checked })} />
+          <span>Tôi đã đọc và đồng ý với nội quy nhà</span>
+        </label>
+      </section>
+    )}
+
     <section className="modal-section">
       <h3>Thông tin liên hệ</h3>
       <div style={{ marginTop: 14 }}>

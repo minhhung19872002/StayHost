@@ -65,6 +65,7 @@ const BLANK = {
   bedrooms: 1, beds: 1, bathrooms: 1, maxGuests: 2,
   pricePerNight: 800000, cleaningFee: 200000, minNights: 1,
   instantBook: true, instantBookRequiresVerified: false, instantBookRequiresGoodReviews: false,
+  requireGuestPhoto: false, requireVerifiedToBook: false,
   isPublished: false, cancellationTier: 'Moderate',
   description: '', highlight: '', images: [], imageCaptions: [], amenityKeys: [],
   latitude: null, longitude: null,
@@ -833,6 +834,21 @@ function StepRules({ form, field, num }) {
           </label>
         </div>
       )}
+
+      {/* docs/01 ĐP-10 — hard preconditions for any booking, instant or request. */}
+      <div style={{ marginTop: 18, display: 'grid', gap: 8 }}>
+        <span className="cap">Yêu cầu bắt buộc với khách</span>
+        <label className="check-row">
+          <input type="checkbox" checked={!!form.requireGuestPhoto}
+                 onChange={e => field('requireGuestPhoto', e.target.checked)} />
+          <span>Khách phải có ảnh đại diện</span>
+        </label>
+        <label className="check-row">
+          <input type="checkbox" checked={!!form.requireVerifiedToBook}
+                 onChange={e => field('requireVerifiedToBook', e.target.checked)} />
+          <span>Khách phải xác minh danh tính</span>
+        </label>
+      </div>
     </section>
 
     <section className="modal-section">

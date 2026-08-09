@@ -176,7 +176,7 @@ for i, lid in enumerate(listing_ids):
     st, bk = call(guest_op, "/api/bookings", {
         "listingId": lid, "checkIn": start, "checkOut": end, "guests": 1,
         "guestName": "Khách Test", "guestEmail": f"lockguest{RUN}@stayhost.vn",
-        "paymentMethod": "card", "cardLast4": "4242"})
+        "paymentMethod": "card", "cardLast4": "4242", "agreedToRules": True})
     if st in (200, 201):
         call(guest_op, f"/api/bookings/{bk['id']}/pay",
              {"paymentMethod": "card", "cardLast4": "4242", "idempotencyKey": f"lock{RUN}-{i}"})
@@ -385,7 +385,7 @@ erase_op, erase_id = register(f"erase{RUN}@stayhost.vn", "Người Xoá Test")
 st, done_booking = call(erase_op, "/api/bookings", {
     "listingId": listing_ids[-1], "checkIn": "2027-11-10", "checkOut": "2027-11-12",
     "guests": 1, "guestName": "Người Xoá Test", "guestEmail": f"erase{RUN}@stayhost.vn",
-    "paymentMethod": "card", "cardLast4": "4242"})
+    "paymentMethod": "card", "cardLast4": "4242", "agreedToRules": True})
 
 if st in (200, 201):
     call(erase_op, f"/api/bookings/{done_booking['id']}/pay",

@@ -281,6 +281,11 @@ public class Listing
     /// <summary>docs/01 ĐP-03 — instant book only for guests with good reviews.</summary>
     public bool InstantBookRequiresGoodReviews { get; set; }
 
+    /// <summary>docs/01 ĐP-10 — no booking at all without a profile photo.</summary>
+    public bool RequireGuestPhoto { get; set; }
+    /// <summary>docs/01 ĐP-10 — no booking at all without identity verification.</summary>
+    public bool RequireVerifiedToBook { get; set; }
+
     // --- docs/03 §2: the nine checks that decide whether a stay can be booked.
     public int MinNights { get; set; } = 1;
     /// <summary>0 means no upper limit.</summary>

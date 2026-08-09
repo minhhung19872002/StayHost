@@ -81,6 +81,20 @@ public class BookingsController(
         if (user.IsSuspended)
             return StatusCode(403, new { message = "Tài khoản đang bị tạm khoá nên không đặt chỗ mới được." });
 
+        // docs/01 ĐP-10 — the host's hard preconditions. Unlike the instant-book
+        // conditions these do not fall back to a request: the host asked that
+        // nobody stay without meeting them. A private offer bypasses them, since
+        // the host chose this guest directly.
+        if (req.OfferId is null)
+        {
+            var hasRules = !string.IsNullOrWhiteSpace(listing.HouseRules);
+            var precheck = BookingPreconditions.Check(
+                listing.RequireGuestPhoto, listing.RequireVerifiedToBook,
+                !string.IsNullOrWhiteSpace(user.AvatarUrl), user.IsIdentityVerified,
+                hasRules, req.AgreedToRules);
+            if (!precheck.Ok) return BadRequest(new { message = precheck.Error });
+        }
+
         // docs/01 ĐP-17 — booking a host's private offer. The offer must be this
         // guest's, still live, and for these exact listing and dates, or its price
         // could be borrowed for a different stay. Its rate then drives the quote.

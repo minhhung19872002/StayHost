@@ -206,7 +206,10 @@ public record HostListingDto(
     CheckInSetupDto? CheckIn = null,
     /// <summary>docs/01 ĐP-03 — instant-book conditions, so the editor round-trips them.</summary>
     bool InstantBookRequiresVerified = false,
-    bool InstantBookRequiresGoodReviews = false);
+    bool InstantBookRequiresGoodReviews = false,
+    /// <summary>docs/01 ĐP-10 — hard preconditions, so the editor round-trips them.</summary>
+    bool RequireGuestPhoto = false,
+    bool RequireVerifiedToBook = false);
 
 /// <summary>The host-settable half of docs/03 §1 — discounts and surcharges.</summary>
 public record PricingRulesDto(
@@ -248,6 +251,9 @@ public record SaveListingRequest(
     /// <summary>docs/01 ĐP-03 — instant-book conditions; default off keeps old clients unchanged.</summary>
     bool InstantBookRequiresVerified = false,
     bool InstantBookRequiresGoodReviews = false,
+    /// <summary>docs/01 ĐP-10 — hard preconditions to book at all.</summary>
+    bool RequireGuestPhoto = false,
+    bool RequireVerifiedToBook = false,
     /// <summary>Omitted by older clients; the listing keeps its current rules then.</summary>
     PricingRulesDto? Pricing = null,
     /// <summary>docs/01 CN-05 — beds per room, as the host laid them out.</summary>
@@ -1062,7 +1068,9 @@ public record CreateBookingRequest(
     /// <summary>docs/01 ĐP-09 — a promo code, applied before the balance.</summary>
     string? CouponCode = null,
     /// <summary>docs/01 ĐP-17 — a host's private offer being booked at its price.</summary>
-    int? OfferId = null);
+    int? OfferId = null,
+    /// <summary>docs/01 ĐP-10 — the guest ticked "I agree to the house rules".</summary>
+    bool AgreedToRules = false);
 
 public record BookingDto(
     int Id,

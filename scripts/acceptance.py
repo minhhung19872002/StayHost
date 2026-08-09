@@ -90,10 +90,12 @@ def bookable(op, *, instant=True, nights=3, offset=45):
 
 
 def body_for(listing, offset, nights, **kw):
+    # docs/01 ĐP-10 — a real client ticks "I agree to the house rules"; the demo
+    # listings all have rules, so the booking carries the agreement like the UI does.
     return {"listingId": listing['id'], "checkIn": future(offset), "checkOut": future(offset + nights),
             "guests": 1, "adults": 1, "children": 0, "infants": 0, "pets": 0,
             "guestName": "Khách Demo", "guestEmail": "guest@stayhost.vn", "guestNote": None,
-            "paymentMethod": "card", "cardLast4": "4242"} | kw
+            "paymentMethod": "card", "cardLast4": "4242", "agreedToRules": True} | kw
 
 
 def book_and_pay(op, listing, offset, nights=3):

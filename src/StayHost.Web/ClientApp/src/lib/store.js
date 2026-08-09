@@ -139,6 +139,8 @@ export const state = {
   couponCode: '',
   // docs/01 ĐP-17 — the private offer being booked, if the guest came from one.
   offerId: null,
+  // docs/01 ĐP-10 — the guest ticked "I agree to the house rules".
+  agreedToRules: false,
   // docs/01 MR-09 — the room type chosen on a hotel listing.
   roomTypeId: null,
   // docs/01 ĐP-07 — let other people pay their share instead of paying it all.
@@ -668,6 +670,8 @@ export async function holdDates(extra = {}) {
       couponCode: state.couponCode || undefined,
       // docs/01 ĐP-17 — the private offer whose price this booking is taking.
       offerId: state.offerId || undefined,
+      // docs/01 ĐP-10 — the house-rules agreement.
+      agreedToRules: state.agreedToRules,
       ...extra
     });
     set({ held });
@@ -981,7 +985,7 @@ export const openReport = (target, subjectId, title) =>
   set({ report: { target, subjectId, title }, overlay: 'report', menu: null });
 
 export const closeOverlay = () =>
-  set({ overlay: null, photoIndex: null, report: null, share: null, couponCode: '', offerId: null });
+  set({ overlay: null, photoIndex: null, report: null, share: null, couponCode: '', offerId: null, agreedToRules: false });
 export const openMenu = kind => set({ menu: state.menu === kind ? null : kind });
 
 /** Signed-out guests get the login modal instead of the action they asked for. */
