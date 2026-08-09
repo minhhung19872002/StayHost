@@ -64,7 +64,8 @@ const BLANK = {
   id: 0, title: '', city: '', typeKey: 'house', roomTypeKey: 'entire',
   bedrooms: 1, beds: 1, bathrooms: 1, maxGuests: 2,
   pricePerNight: 800000, cleaningFee: 200000, minNights: 1,
-  instantBook: true, isPublished: false, cancellationTier: 'Moderate',
+  instantBook: true, instantBookRequiresVerified: false, instantBookRequiresGoodReviews: false,
+  isPublished: false, cancellationTier: 'Moderate',
   description: '', highlight: '', images: [], imageCaptions: [], amenityKeys: [],
   latitude: null, longitude: null,
   pricing: BLANK_PRICING, bedLayout: [], legal: BLANK_LEGAL, checkIn: BLANK_CHECKIN,
@@ -815,6 +816,23 @@ function StepRules({ form, field, num }) {
           <b>Duyệt yêu cầu</b><span>Bạn có 24 giờ để đồng ý. Ngày không bị khoá trong lúc chờ.</span>
         </button>
       </div>
+
+      {/* docs/01 ĐP-03 — conditions on who may instant-book. A guest who fails
+          one is not turned away; their booking becomes a request you review. */}
+      {form.instantBook && (
+        <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
+          <label className="check-row">
+            <input type="checkbox" checked={!!form.instantBookRequiresVerified}
+                   onChange={e => field('instantBookRequiresVerified', e.target.checked)} />
+            <span>Chỉ nhận Đặt ngay từ khách đã xác minh danh tính</span>
+          </label>
+          <label className="check-row">
+            <input type="checkbox" checked={!!form.instantBookRequiresGoodReviews}
+                   onChange={e => field('instantBookRequiresGoodReviews', e.target.checked)} />
+            <span>Chỉ nhận Đặt ngay từ khách có đánh giá tốt</span>
+          </label>
+        </div>
+      )}
     </section>
 
     <section className="modal-section">

@@ -143,6 +143,30 @@ public class BookingsController(
             ? (await db.Coupons.FirstAsync(c => c.Code == Coupons.Normalize(req.CouponCode), ct)).Id
             : (int?)null;
 
+        // docs/01 ĐP-03 — a host's instant-book conditions. A guest who does not
+        // meet them is not refused: the booking falls back to request-to-book so
+        // the host decides. A private offer bypasses this — the host already chose
+        // this guest by extending it.
+        var instantAvailable = listing.InstantBook;
+        string? instantFallbackNote = null;
+        if (listing.InstantBook && offer is null
+            && (listing.InstantBookRequiresVerified || listing.InstantBookRequiresGoodReviews))
+        {
+            var reviewed = await db.GuestReviews.Where(r => r.GuestUserId == user.Id)
+                .Select(r => (double?)r.Rating).ToListAsync(ct);
+            var eligibility = InstantBook.Check(
+                listing.InstantBookRequiresVerified, listing.InstantBookRequiresGoodReviews,
+                user.IsIdentityVerified,
+                reviewed.Count > 0 ? reviewed.Average(x => x!.Value) : null,
+                reviewed.Count);
+
+            if (!eligibility.MayInstantBook)
+            {
+                instantAvailable = false;
+                instantFallbackNote = eligibility.Reason;
+            }
+        }
+
         var booking = new Booking
         {
             Reference = "SH" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant(),
@@ -188,9 +212,9 @@ public class BookingsController(
             // docs/03 §2–§3: instant book takes the dates off the market for 15
             // minutes while the guest pays; a request waits 24 hours on the host
             // and deliberately does not hold the dates at all.
-            Status = listing.InstantBook ? BookingStatus.PendingPayment : BookingStatus.PendingHostApproval,
-            HoldExpiresAt = listing.InstantBook ? DateTime.UtcNow + BookingLifecycle.PaymentHold : null,
-            RequestExpiresAt = listing.InstantBook ? null : DateTime.UtcNow + BookingLifecycle.RequestWindow
+            Status = instantAvailable ? BookingStatus.PendingPayment : BookingStatus.PendingHostApproval,
+            HoldExpiresAt = instantAvailable ? DateTime.UtcNow + BookingLifecycle.PaymentHold : null,
+            RequestExpiresAt = instantAvailable ? null : DateTime.UtcNow + BookingLifecycle.RequestWindow
         };
 
         booking.Payment = new Payment
@@ -241,12 +265,16 @@ public class BookingsController(
         }
 
         db.BookingEvents.Add(BookingLifecycle.Created(booking, $"guest:{user.Id}",
-            listing.InstantBook ? "Giữ chỗ 15 phút để thanh toán" : "Gửi yêu cầu đặt"));
+            instantAvailable ? "Giữ chỗ 15 phút để thanh toán"
+                : instantFallbackNote is null ? "Gửi yêu cầu đặt"
+                : "Chuyển thành yêu cầu đặt do chưa đủ điều kiện Đặt ngay của chủ nhà"));
         await db.SaveChangesAsync(ct);
 
         // An instant booking is still unpaid at this point, so nobody is told
-        // about it until the money is actually taken.
-        if (!listing.InstantBook)
+        // about it until the money is actually taken. A booking that fell back to
+        // request-to-book (docs/01 ĐP-03) is a request, so the host is notified
+        // like any other.
+        if (!instantAvailable)
         {
             var hostUser = await db.Users.FirstOrDefaultAsync(u => u.HostProfile!.Id == listing.HostId, ct);
             await notifications.QueueWithEmailAsync(hostUser, NotificationKind.BookingCreated,

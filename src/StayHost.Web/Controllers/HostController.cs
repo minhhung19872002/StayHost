@@ -604,6 +604,8 @@ public class HostController(
         listing.CleaningFee = r.CleaningFee;
         listing.MinNights = r.MinNights;
         listing.InstantBook = r.InstantBook;
+        listing.InstantBookRequiresVerified = r.InstantBookRequiresVerified;
+        listing.InstantBookRequiresGoodReviews = r.InstantBookRequiresGoodReviews;
 
         // docs/08 §5.2 and §5.5 — a listing the sanction hid stays hidden until
         // an admin restores it; the host flipping the switch is not a restore.
@@ -792,7 +794,8 @@ public class HostController(
             l.CheckOutBefore.ToString("HH\\:mm"),
             l.CheckInMethod.ToString(),
             l.AddressLine, l.Directions, l.WifiName, l.WifiPassword,
-            l.ApplianceNotes, l.DoorCode, l.HostPhone));
+            l.ApplianceNotes, l.DoorCode, l.HostPhone),
+        l.InstantBookRequiresVerified, l.InstantBookRequiresGoodReviews);
 
     private static readonly System.Text.Json.JsonSerializerOptions LayoutJson =
         new(System.Text.Json.JsonSerializerDefaults.Web);

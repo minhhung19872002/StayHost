@@ -203,7 +203,10 @@ public record HostListingDto(
     int WizardStep,
     bool IsComplete,
     /// <summary>docs/01 CĐ-03 — the arrival guide, as the host last saved it.</summary>
-    CheckInSetupDto? CheckIn = null);
+    CheckInSetupDto? CheckIn = null,
+    /// <summary>docs/01 ĐP-03 — instant-book conditions, so the editor round-trips them.</summary>
+    bool InstantBookRequiresVerified = false,
+    bool InstantBookRequiresGoodReviews = false);
 
 /// <summary>The host-settable half of docs/03 §1 — discounts and surcharges.</summary>
 public record PricingRulesDto(
@@ -242,6 +245,9 @@ public record SaveListingRequest(
     double? Longitude,
     IReadOnlyList<string> Images,
     IReadOnlyList<string> AmenityKeys,
+    /// <summary>docs/01 ĐP-03 — instant-book conditions; default off keeps old clients unchanged.</summary>
+    bool InstantBookRequiresVerified = false,
+    bool InstantBookRequiresGoodReviews = false,
     /// <summary>Omitted by older clients; the listing keeps its current rules then.</summary>
     PricingRulesDto? Pricing = null,
     /// <summary>docs/01 CN-05 — beds per room, as the host laid them out.</summary>

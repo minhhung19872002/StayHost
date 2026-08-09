@@ -276,6 +276,11 @@ public class Listing
     public DateTime? HiddenBySanctionAt { get; set; }
     public bool InstantBook { get; set; } = true;
 
+    /// <summary>docs/01 ĐP-03 — instant book only for identity-verified guests.</summary>
+    public bool InstantBookRequiresVerified { get; set; }
+    /// <summary>docs/01 ĐP-03 — instant book only for guests with good reviews.</summary>
+    public bool InstantBookRequiresGoodReviews { get; set; }
+
     // --- docs/03 §2: the nine checks that decide whether a stay can be booked.
     public int MinNights { get; set; } = 1;
     /// <summary>0 means no upper limit.</summary>

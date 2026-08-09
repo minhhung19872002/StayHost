@@ -1088,6 +1088,9 @@ a.opt { color: inherit; text-decoration: none; display: block; }
 }
 .notice-warn { background: #fff7e6; color: #96690a; }
 .notice-ok { background: #e8f6ee; color: #1a7f43; }
+/* docs/01 DP-03 - a labelled checkbox row in the listing wizard. */
+.check-row { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
+.check-row input { width: 17px; height: 17px; }
 
 /* docs/01 ĐP-17 — private offer cards and the host's send form in a thread. */
 .offer-panel { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
