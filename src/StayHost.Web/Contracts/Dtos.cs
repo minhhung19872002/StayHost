@@ -64,6 +64,16 @@ public record WorkEmailRequest(string? Email);
 public record BlockedUserDto(int UserId, string Name, string Initials, string? AvatarUrl, DateTime CreatedAt);
 public record BlockRequest(int UserId);
 
+/// <summary>docs/01 QT-07 — a help article as the admin editor sees it.</summary>
+public record HelpAdminDto(
+    int Id, string Slug, string Title, string Category, string Audience,
+    string Summary, string Body, int SortOrder, DateTime UpdatedAt);
+
+/// <summary>docs/01 QT-07 — create or update a help article.</summary>
+public record HelpArticleSaveRequest(
+    int? Id, string? Slug, string? Title, string? Category, string? Audience,
+    string? Summary, string? Body, int SortOrder);
+
 /// <summary>docs/01 QT-08 — a feature flag as the admin console sees it.</summary>
 public record FeatureFlagDto(
     string Key, string Description, bool Enabled, int RolloutPercent, DateTime UpdatedAt);

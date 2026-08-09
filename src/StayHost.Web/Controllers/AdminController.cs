@@ -554,6 +554,93 @@ public class AdminController(
         return NoContent();
     }
 
+    /* --------------------------------------- docs/01 QT-07, help articles */
+
+    /// <summary>docs/01 QT-07 — every help article, for the admin editor.</summary>
+    [HttpGet("admin/help-articles")]
+    public async Task<ActionResult<IReadOnlyList<HelpAdminDto>>> HelpArticles(CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Support, ct);
+        if (admin is null) return StatusCode(403, new { message = "Bạn không có quyền quản lý nội dung trợ giúp." });
+
+        var rows = await db.HelpArticles
+            .OrderBy(a => a.SortOrder).ThenBy(a => a.Id)
+            .Select(a => new HelpAdminDto(
+                a.Id, a.Slug, a.Title, a.Category, a.Audience.ToString(),
+                a.Summary, a.Body, a.SortOrder, a.UpdatedAt))
+            .ToListAsync(ct);
+        return Ok(rows);
+    }
+
+    /// <summary>docs/01 QT-07 — create a help article or update an existing one.</summary>
+    [HttpPost("admin/help-articles")]
+    public async Task<ActionResult<HelpAdminDto>> SaveHelpArticle(
+        [FromBody] HelpArticleSaveRequest req, CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Support, ct);
+        if (admin is null) return StatusCode(403, new { message = "Bạn không có quyền quản lý nội dung trợ giúp." });
+
+        var title = (req.Title ?? "").Trim();
+        var body = (req.Body ?? "").Trim();
+        if (title.Length < 4) return BadRequest(new { message = "Tiêu đề cần tối thiểu 4 ký tự." });
+        if (body.Length < 20) return BadRequest(new { message = "Nội dung cần tối thiểu 20 ký tự." });
+
+        var audience = Enum.TryParse<HelpAudience>(req.Audience, true, out var a) ? a : HelpAudience.Everyone;
+
+        HelpArticle? article = req.Id is int id
+            ? await db.HelpArticles.FirstOrDefaultAsync(x => x.Id == id, ct)
+            : null;
+
+        var slug = string.IsNullOrWhiteSpace(req.Slug)
+            ? SearchText.Normalize(title).Replace(' ', '-')
+            : req.Slug.Trim();
+
+        // A new article, or one whose slug changed, must not collide with another.
+        var clash = await db.HelpArticles.AnyAsync(
+            x => x.Slug == slug && (article == null || x.Id != article.Id), ct);
+        if (clash) return BadRequest(new { message = "Đường dẫn (slug) này đã có bài khác dùng." });
+
+        var before = article is null ? "chưa có" : article.Title;
+        if (article is null)
+        {
+            article = new HelpArticle();
+            db.HelpArticles.Add(article);
+        }
+
+        article.Slug = slug;
+        article.Title = title;
+        article.Category = (req.Category ?? "").Trim();
+        article.Audience = audience;
+        article.Summary = (req.Summary ?? "").Trim();
+        article.Body = body;
+        article.SortOrder = req.SortOrder;
+        article.UpdatedAt = DateTime.UtcNow;
+        article.RefreshSearchText();
+
+        audit.Record(admin, "help.save", $"help:{slug}", before, title, null);
+
+        await db.SaveChangesAsync(ct);
+        return Ok(new HelpAdminDto(
+            article.Id, article.Slug, article.Title, article.Category, article.Audience.ToString(),
+            article.Summary, article.Body, article.SortOrder, article.UpdatedAt));
+    }
+
+    /// <summary>docs/01 QT-07 — remove a help article.</summary>
+    [HttpDelete("admin/help-articles/{id:int}")]
+    public async Task<IActionResult> DeleteHelpArticle(int id, CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Support, ct);
+        if (admin is null) return StatusCode(403, new { message = "Bạn không có quyền quản lý nội dung trợ giúp." });
+
+        var article = await db.HelpArticles.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (article is null) return NoContent();
+
+        audit.Record(admin, "help.delete", $"help:{article.Slug}", article.Title, "đã xoá", null);
+        db.HelpArticles.Remove(article);
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     /* ------------------------------------------ docs/01 QT-08, feature flags */
 
     /// <summary>docs/01 QT-08 — the feature flags and their rollout percentages.</summary>

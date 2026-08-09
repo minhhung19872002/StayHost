@@ -126,6 +126,8 @@ export function Admin() {
 
       <FeatureFlags />
 
+      <HelpArticlesAdmin />
+
       <section style={{ marginTop: 40 }}>
         <h2 className="section-title" style={{ fontSize: 20 }}>Chỗ nghỉ mới nhất</h2>
         <div className="table-wrap">
@@ -221,6 +223,106 @@ function ModerationQueue() {
           </table>
         </div>
       )}
+    </section>
+  );
+}
+
+const BLANK_ARTICLE = {
+  id: null, slug: '', title: '', category: '', audience: 'Everyone',
+  summary: '', body: '', sortOrder: 0
+};
+
+/**
+ * docs/01 QT-07 — manage help centre articles. The list on the left, an editor on
+ * the right; saving upserts by id, and a blank form creates a new one.
+ */
+function HelpArticlesAdmin() {
+  const [rows, setRows] = useState(null);
+  const [draft, setDraft] = useState(null);
+
+  const load = async () => {
+    try { setRows(await api.adminHelpArticles()); }
+    catch { setRows([]); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    try {
+      await api.saveHelpArticle(draft);
+      setDraft(null);
+      await load();
+      toast('Đã lưu bài trợ giúp.');
+    } catch (err) { toast(err.message); }
+  };
+
+  const remove = async a => {
+    if (!confirm(`Xoá bài "${a.title}"?`)) return;
+    try { await api.deleteHelpArticle(a.id); setDraft(null); await load(); toast('Đã xoá bài.'); }
+    catch (err) { toast(err.message); }
+  };
+
+  if (!rows) return null;
+  const field = (k, v) => setDraft(d => ({ ...d, [k]: v }));
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>Bài viết trợ giúp</h2>
+      <p className="section-sub">{rows.length} bài · sửa nội dung trung tâm trợ giúp (AT-07)</p>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '12px 0' }}>
+        <button className="btn btn-sm" onClick={() => setDraft({ ...BLANK_ARTICLE })}>+ Bài mới</button>
+      </div>
+
+      {draft && (
+        <div style={{ padding: 14, border: '1px solid var(--line)', borderRadius: 12, marginBottom: 16 }}>
+          <div className="field-grid">
+            <label className="form-field"><span className="cap">Tiêu đề *</span>
+              <input value={draft.title} onChange={e => field('title', e.target.value)} /></label>
+            <label className="form-field"><span className="cap">Đường dẫn (slug)</span>
+              <input value={draft.slug} placeholder="tự tạo từ tiêu đề" onChange={e => field('slug', e.target.value)} /></label>
+            <label className="form-field"><span className="cap">Danh mục</span>
+              <input value={draft.category} onChange={e => field('category', e.target.value)} /></label>
+            <label className="form-field"><span className="cap">Đối tượng</span>
+              <select value={draft.audience} onChange={e => field('audience', e.target.value)}>
+                <option value="Everyone">Chung</option>
+                <option value="Guest">Khách</option>
+                <option value="Host">Chủ nhà</option>
+              </select></label>
+            <label className="form-field"><span className="cap">Thứ tự</span>
+              <input type="number" value={draft.sortOrder} onChange={e => field('sortOrder', Number(e.target.value) || 0)} /></label>
+          </div>
+          <label className="form-field"><span className="cap">Tóm tắt</span>
+            <input value={draft.summary} onChange={e => field('summary', e.target.value)} /></label>
+          <label className="form-field"><span className="cap">Nội dung *</span>
+            <textarea rows={8} value={draft.body} onChange={e => field('body', e.target.value)}
+              style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} /></label>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button className="btn btn-primary btn-sm" onClick={save}>Lưu</button>
+            <button className="btn btn-outline btn-sm" onClick={() => setDraft(null)}>Huỷ</button>
+          </div>
+        </div>
+      )}
+
+      <div className="table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr><th>Bài</th><th>Danh mục</th><th>Đối tượng</th><th /></tr>
+          </thead>
+          <tbody>
+            {rows.map(a => (
+              <tr key={a.id}>
+                <td><b>{a.title}</b><span>{a.slug}</span></td>
+                <td>{a.category}</td>
+                <td>{a.audience === 'Guest' ? 'Khách' : a.audience === 'Host' ? 'Chủ nhà' : 'Chung'}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  <button className="btn btn-outline btn-sm" onClick={() => setDraft({ ...a })}>Sửa</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => remove(a)}>Xoá</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

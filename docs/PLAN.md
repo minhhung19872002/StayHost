@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **184 xong · 0 làm một phần · 17 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **185 xong · 0 làm một phần · 16 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,7 +350,7 @@ chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và
 khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
 mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (17 mã)
+### 9.1 Chưa có (16 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -359,7 +359,6 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `TĐ-03` · `TN-06` | Dịch mô tả tin đăng (**P0**) · dịch tin nhắn (P1) — cần nhà cung cấp dịch thuật | P0/P1 |
 | `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
 | `AT-03` · `AT-08` · `AT-12` | Kênh hàng xóm · trợ lý tự động · chống phân biệt đối xử | P2 |
-| `QT-07` | Quản lý bài trợ giúp · nội dung trang giới thiệu | P2 |
 | `YT-06` · `YT-07` · `YT-08` | Bình chọn nhóm · so sánh 2–5 chỗ · báo khi chỗ đã lưu giảm giá | P2 |
 | `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
 
@@ -379,6 +378,13 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`QT-07` (quản lý bài trợ giúp) làm xong 10/08/2026. Bài trợ giúp vốn đã là entity DB
+(`HelpArticle`, HelpSeeder), nên chỉ thêm CRUD admin (scope Hỗ trợ, có nhật ký):
+`GET/POST/DELETE admin/help-articles`, tự sinh slug từ tiêu đề, chặn trùng slug, validate
+tiêu đề/nội dung tối thiểu, `RefreshSearchText` để tìm không dấu; UI editor ở panel admin.
+"Nội dung trang giới thiệu" tác giả bằng chính hệ bài trợ giúp này (một bài Chung). Xác
+minh sống: tạo→hiện công khai→sửa→xoá(404)→trùng slug 400→nội dung ngắn 400→khách 403.
 
 `QT-08` (bật tính năng theo tỉ lệ người dùng) làm xong 10/08/2026. `FeatureRollout.cs`
 (thuần, có test) chia người dùng vào 100 nhóm bằng FNV-1a trên `khoá-tính-năng:khoá-người`

@@ -300,6 +300,10 @@ export const api = {
     }),
   adminResolveReport: (id, status, resolution) =>
     request(`/api/admin/reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ status, resolution }) }),
+  // docs/01 QT-07 — help article management.
+  adminHelpArticles: () => request('/api/admin/help-articles'),
+  saveHelpArticle: body => request('/api/admin/help-articles', { method: 'POST', body: JSON.stringify(body) }),
+  deleteHelpArticle: id => request(`/api/admin/help-articles/${id}`, { method: 'DELETE' }),
   // docs/01 QT-08 — feature flags.
   adminFeatureFlags: () => request('/api/admin/feature-flags'),
   saveFeatureFlag: body => request('/api/admin/feature-flags', { method: 'POST', body: JSON.stringify(body) }),
