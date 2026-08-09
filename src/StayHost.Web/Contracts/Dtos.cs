@@ -1186,7 +1186,9 @@ public record CalendarFeedDto(
     DateTime? LastSyncedAt,
     /// <summary>Set when the last attempt failed; the blocks from before are kept.</summary>
     string? LastError,
-    int EventCount);
+    int EventCount,
+    /// <summary>docs/01 QL-11 — set when the import clashes with a confirmed booking.</summary>
+    string? OverlapWarning = null);
 
 public record CalendarSyncDto(
     int ListingId,

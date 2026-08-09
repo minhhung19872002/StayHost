@@ -280,7 +280,7 @@ public class HostTeamController(
             .Where(f => f.ListingId == listing.Id)
             .OrderBy(f => f.Id)
             .Select(f => new CalendarFeedDto(
-                f.Id, f.Label, f.Url, f.LastSyncedAt, f.LastError, f.EventCount))
+                f.Id, f.Label, f.Url, f.LastSyncedAt, f.LastError, f.EventCount, f.OverlapWarning))
             .ToListAsync(ct);
 
         var export = $"{Request.Scheme}://{Request.Host}/calendars/{listing.Id}/{listing.IcalToken}.ics";

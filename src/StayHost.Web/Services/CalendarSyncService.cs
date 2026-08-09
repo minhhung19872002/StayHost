@@ -9,7 +9,9 @@ namespace StayHost.Web.Services;
 /// of each other's way. Import turns another site's events into blocks; export
 /// hands ours over in the same format.
 /// </summary>
-public class CalendarSyncService(StayHostDbContext db, IHttpClientFactory http, ILogger<CalendarSyncService> log)
+public class CalendarSyncService(
+    StayHostDbContext db, IHttpClientFactory http, ILogger<CalendarSyncService> log,
+    NotificationService notifications)
 {
     /// <summary>How often a feed is refreshed on its own, without the host asking.</summary>
     public static readonly TimeSpan Interval = TimeSpan.FromHours(1);
@@ -33,6 +35,11 @@ public class CalendarSyncService(StayHostDbContext db, IHttpClientFactory http, 
                 .ToList();
 
             await ApplyAsync(feed, events, ct);
+
+            // docs/01 QL-11 — warn when the import sells nights StayHost has
+            // already confirmed. The blocks are still written (the dates really are
+            // taken elsewhere); the host is told so they can sort out the clash.
+            await FlagOverlapsAsync(feed, events, ct);
 
             feed.EventCount = events.Count;
             feed.LastError = null;
@@ -96,6 +103,35 @@ public class CalendarSyncService(StayHostDbContext db, IHttpClientFactory http, 
 
         db.CalendarBlocks.RemoveRange(
             existing.Where(b => b.ExternalUid is null || !seen.Contains(b.ExternalUid)));
+    }
+
+    /// <summary>
+    /// docs/01 QL-11 — records a warning on the feed, and notifies the host once
+    /// when a clash first appears, so a re-sync of the same clash does not nag.
+    /// </summary>
+    private async Task FlagOverlapsAsync(CalendarFeed feed, IReadOnlyList<IcalEvent> events, CancellationToken ct)
+    {
+        var confirmed = await db.Bookings
+            .Where(b => b.ListingId == feed.ListingId && BookingLifecycle.BlocksDates.Contains(b.Status))
+            .Select(b => new CalendarConflicts.Range(b.CheckIn, b.CheckOut))
+            .ToListAsync(ct);
+
+        var clashes = CalendarConflicts.Clashes(
+            events.Select(e => new CalendarConflicts.Range(e.From, e.To)), confirmed);
+
+        var warning = CalendarConflicts.Warn(clashes);
+        var isNew = warning is not null && feed.OverlapWarning is null;
+        feed.OverlapWarning = warning;
+
+        if (isNew)
+        {
+            var host = await db.Users.FirstOrDefaultAsync(u => u.HostProfile!.Id ==
+                db.Listings.Where(l => l.Id == feed.ListingId).Select(l => l.HostId).First(), ct);
+            var title = await db.Listings.Where(l => l.Id == feed.ListingId).Select(l => l.Title).FirstAsync(ct);
+            await notifications.QueueWithEmailAsync(host, NotificationKind.System,
+                "Lịch nhập về trùng đơn đã xác nhận",
+                $"{feed.Label} trên \"{title}\": {warning}", "/hosting", ct);
+        }
     }
 
     /// <summary>Everything this listing has sold or closed, as an iCalendar file.</summary>

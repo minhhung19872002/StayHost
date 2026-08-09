@@ -161,6 +161,8 @@ function CalendarSync({ rows }) {
                   ? f.lastError
                   : `${f.eventCount} khoảng ngày · lần cuối ${f.lastSyncedAt ? longDate(f.lastSyncedAt) : 'chưa chạy'}`}
               </div>
+              {/* docs/01 QL-11 — a clash with a confirmed StayHost booking. */}
+              {f.overlapWarning && <div className="notice notice-warn" style={{ marginTop: 6 }}>{f.overlapWarning}</div>}
             </div>
             <span className={`badge ${f.lastError ? 'cancelled' : 'confirmed'}`}>
               {f.lastError ? 'Lỗi' : 'Đang chạy'}
