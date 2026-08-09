@@ -76,4 +76,26 @@ public static class Cities
 
         return match ?? tidy;
     }
+
+    /// <summary>
+    /// docs/01 TM-26 — a short intro line for a city landing page. Known cities get
+    /// their own; anywhere else gets a sentence that still reads naturally, so a
+    /// new city the platform covers has a real page rather than a blank one.
+    /// </summary>
+    public static string Blurb(string? city)
+    {
+        var name = string.Join(' ', (city ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        return Key(name) switch
+        {
+            "da lat" => "Đà Lạt se lạnh quanh năm, thông reo và cà phê sáng sớm — chọn một chỗ nghỉ ấm cúng giữa lòng thành phố sương.",
+            "da nang" => "Đà Nẵng có biển Mỹ Khê, cầu Rồng và đồ ăn ngon — từ căn hộ view biển tới villa gần Ngũ Hành Sơn.",
+            "hoi an" => "Phố cổ Hội An lung linh đèn lồng, đạp xe ra biển An Bàng — ở homestay trong vườn hoặc nhà cổ ven sông Hoài.",
+            "ha noi" => "Hà Nội nghìn năm với phố cổ, hồ Gươm và cà phê trứng — chọn căn hộ trung tâm để đi bộ khám phá.",
+            "ho chi minh" => "TP. Hồ Chí Minh không ngủ, sôi động cả ngày lẫn đêm — căn hộ cao cấp Quận 1 hay chỗ yên tĩnh ven kênh.",
+            "nha trang" => "Nha Trang biển xanh cát trắng, hải sản tươi và đảo gần bờ — nhiều căn hộ nhìn thẳng ra vịnh.",
+            "phu quoc" => "Phú Quốc đảo ngọc với hoàng hôn Bãi Trường và chợ đêm — villa có bể bơi hoặc bungalow sát biển.",
+            "" => "Khám phá những chỗ nghỉ được yêu thích trên khắp Việt Nam.",
+            _ => $"Khám phá những chỗ nghỉ được yêu thích ở {name} trên StayHost."
+        };
+    }
 }

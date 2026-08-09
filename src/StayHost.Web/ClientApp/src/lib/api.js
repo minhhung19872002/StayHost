@@ -40,6 +40,9 @@ function qs(params) {
 export const api = {
   meta: () => request('/api/meta'),
 
+  // docs/01 TM-26 — a city landing page.
+  city: key => request(`/api/cities/${encodeURIComponent(key)}`),
+
   home: params => request(`/api/home${qs(params ?? {})}`),
 
   suggest: q => request(`/api/suggest${q ? `?q=${encodeURIComponent(q)}` : ''}`),

@@ -30,6 +30,7 @@ import { Wallet } from './pages/Wallet.jsx';
 import { Shield, ShieldTerms } from './pages/Shield.jsx';
 import { Resolutions } from './pages/Resolutions.jsx';
 import { UserProfile } from './pages/UserProfile.jsx';
+import { City } from './pages/City.jsx';
 import { MySanctions, AppealByToken } from './pages/Sanctions.jsx';
 
 export function App() {
@@ -113,6 +114,7 @@ export function App() {
           <Routes>
             <Route path="/" element={<Browse />} />
             <Route path="/rooms/:slug" element={<Detail />} />
+            <Route path="/thanh-pho/:city" element={<City />} />
             <Route path="/wishlists" element={<Wishlists />} />
             <Route path="/trips" element={<Trips />} />
             <Route path="/trips/:id" element={<Trip />} />

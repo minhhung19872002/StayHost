@@ -943,6 +943,11 @@ public record SubmitPriceMatchRequest(string? CompetitorUrl, decimal CompetitorN
 /// <summary>One row of the price breakdown, already rounded. Negative means a reduction.</summary>
 public record PriceLineDto(string Key, string Label, decimal Amount);
 
+/* ------------------------------------------------------- TM-26 city landing */
+
+public record CityPageDto(
+    string City, string Blurb, int Count, IReadOnlyList<ListingCardDto> Listings);
+
 /* ------------------------------------------------- QL-16 listing performance */
 
 public record ListingPerformanceDto(

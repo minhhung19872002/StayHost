@@ -27,6 +27,12 @@ const COLUMNS = [
 
 const LEGAL = ['© 2026 StayHost OS, Inc.', 'Quyền riêng tư', 'Điều khoản', 'Sơ đồ trang web', 'Thông tin công ty'];
 
+// docs/01 TM-26 — name and slug for the city landing pages.
+const CITIES = [
+  ['Đà Lạt', 'da-lat'], ['Đà Nẵng', 'da-nang'], ['Hội An', 'hoi-an'],
+  ['Hà Nội', 'ha-noi'], ['TP. Hồ Chí Minh', 'ho-chi-minh'], ['Nha Trang', 'nha-trang']
+];
+
 const demo = e => { e.preventDefault(); toast('Bản demo — chức năng này chưa kết nối dịch vụ thật.'); };
 
 /** The few footer links that lead somewhere real (docs/01 AT-07). */
@@ -59,6 +65,18 @@ export function Footer() {
           </ul>
         </div>
       ))}
+      {/* docs/01 TM-26 — real, crawlable links into the per-city landing pages. */}
+      <div className="footer-col">
+        <h4>Điểm đến</h4>
+        <ul>
+          {CITIES.map(([name, slug]) => (
+            <li key={slug}>
+              <a href={`/thanh-pho/${slug}`}
+                 onClick={e => { e.preventDefault(); navigate(`/thanh-pho/${slug}`); }}>{name}</a>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
     <div className="footer-bottom">
       <div className="footer-bottom-inner">
