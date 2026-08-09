@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả: **149 xong · 1 làm một phần · 51 chưa có.** Con số 105 mã "không thấy
+Kết quả: **150 xong · 0 làm một phần · 51 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -385,11 +385,11 @@ mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không ch
 | `QL-09` · `QL-18` · `CN-14` · `CN-15` | Gợi ý giá thị trường · gợi ý cải thiện · ước lượng thu nhập · nhân bản tin | P2 |
 | `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
 
-### 9.2 Làm một phần (1 mã) — có phần lõi, thiếu một nhánh
+### 9.2 Làm một phần — **không còn mã nào** (dọn xong 10/08/2026)
 
-| Mã | Đã có | Còn thiếu |
-|---|---|---|
-| `TM-02` | 3 tab Chỗ ở / Trải nghiệm / Dịch vụ | Không có tab "Tất cả"; bấm 2 tab kia chỉ hiện toast, chưa đổi dòng tìm |
+Năm mã của lần soát trước đã làm nốt: `AT-02`, `TC-07`, `TC-04`, `TĐ-18`, `TM-02`.
+`TC-07` xong phần máy móc, còn thời hạn thì chờ khách chốt ở `docs/07 §16`.
+
 
 ### 9.3 Ghi chú về cách soát
 

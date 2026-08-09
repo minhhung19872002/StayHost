@@ -48,8 +48,20 @@ def call(op, p, b=None, m=None):
 
 
 def sql(statement):
-    subprocess.run(["docker", "exec", "stayhost-db", "psql", "-U", "stayhost", "-d", "stayhost",
-                    "-c", statement], capture_output=True)
+    """Run a statement against the database, and say so when it does not run.
+
+    This used to discard stderr. A rejected UPDATE then left the scenario working
+    on a booking that had not moved, and the failure surfaced two steps later
+    wearing somebody else's message -- which is how the GiST overlap constraint
+    of docs/00 spent runs hiding behind "chỉ mở hồ sơ cho chuyến đi đang diễn ra".
+    """
+    r = subprocess.run(["docker", "exec", "stayhost-db", "psql", "-U", "stayhost", "-d", "stayhost",
+                        "-v", "ON_ERROR_STOP=1", "-c", statement],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        first = next((l for l in (r.stderr or "").splitlines() if l.strip()), f"mã lỗi {r.returncode}")
+        print(f"        ⚠ SQL không chạy được: {first}")
+    return r
 
 
 def record(n, title, ok, detail):
@@ -248,8 +260,35 @@ record(8, "Hai người đặt cùng lúc, chỉ một người thành công",
 
 # --- 9 ---------------------------------------------------------------------
 # Push the scenario-4 booking into the past and complete it, then both sides review.
-sql(f'UPDATE bookings SET "CheckIn"=CURRENT_DATE-5, "CheckOut"=CURRENT_DATE-2, "Status"=4 '
-    f'WHERE "Id"={request["id"]};')
+# docs/03 §7 allows 14 days after checkout to review, so the stay has to land
+# inside that window. It also has to land where no earlier run has been: one
+# listing cannot hold two overlapping stays (the GiST constraint of docs/00), and
+# every run tends to pick the same listing. Walking the window until one sticks
+# is what makes a second run on the same database behave like the first -- a
+# fixed offset collided about one run in ten, and both scenarios below then
+# failed complaining about something else entirely.
+# Every run parks a finished stay in the fortnight behind today, and a fortnight
+# does not hold many of them: one listing cannot carry two overlapping stays, and
+# each run tends to choose the same listing. Stays left there by earlier runs are
+# pushed back a year first. They are artefacts of a run that already finished and
+# nothing reads their dates again; only the space they occupy is in the way.
+sql(f"""UPDATE bookings
+        SET "CheckIn" = ("CheckIn" - INTERVAL '1 year')::date,
+            "CheckOut" = ("CheckOut" - INTERVAL '1 year')::date
+        WHERE "ListingId" = {req_listing['id']}
+          AND "Id" <> {request['id']}
+          AND "CheckOut" >= CURRENT_DATE - 20
+          AND "CheckOut" < CURRENT_DATE;""")
+
+placed = False
+for back in range(2, 12):
+    if sql(f'UPDATE bookings SET "CheckIn"=CURRENT_DATE-{back + 3}, "CheckOut"=CURRENT_DATE-{back}, '
+           f'"Status"=4 WHERE "Id"={request["id"]};').returncode == 0:
+        placed = True
+        break
+
+if not placed:
+    print("        ⚠ Không tìm được khoảng ngày trống để lùi đơn của kịch bản 9.")
 _, before9 = call(anon, f"/api/listings/{req_listing['slug']}")
 st9a, r9a = call(guest, f"/api/bookings/{request['id']}/review",
                  {"bookingId": request['id'], "rating": 5, "text": "Chỗ nghỉ rất sạch và đúng mô tả.",

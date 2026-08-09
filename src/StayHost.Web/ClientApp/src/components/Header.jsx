@@ -14,10 +14,14 @@ import { Avatar } from './Avatar.jsx';
 import { Icon } from './Icon.jsx';
 import { DateFields, GuestFields } from './modals/SearchModals.jsx';
 
+// docs/01 TM-02 — four rows, and each one goes somewhere. The last two used to
+// answer with a toast saying the demo only had homes, which stopped being true
+// once MR-01 and MR-05 shipped their own pages.
 const TABS = [
-  { key: 'homes', label: 'Chỗ ở', icon: 'house' },
-  { key: 'experiences', label: 'Trải nghiệm', icon: 'boutique' },
-  { key: 'services', label: 'Dịch vụ', icon: 'pool' }
+  { key: 'all', label: 'Tất cả', icon: 'all', path: '/' },
+  { key: 'homes', label: 'Chỗ ở', icon: 'house', path: '/' },
+  { key: 'experiences', label: 'Trải nghiệm', icon: 'boutique', path: '/experiences' },
+  { key: 'services', label: 'Dịch vụ', icon: 'pool', path: '/services' }
 ];
 
 const debouncedSuggest = debounce(() => loadSuggestions(), 180);
@@ -67,10 +71,7 @@ export function Header() {
         {TABS.map(t => (
           <button key={t.key} className={`nav-tab ${state.tab === t.key ? 'is-active' : ''}`}
                   aria-pressed={state.tab === t.key}
-                  onClick={() => {
-                    set({ tab: t.key });
-                    if (t.key !== 'homes') toast('Bản demo — mới có phần Chỗ ở.');
-                  }}>
+                  onClick={() => { set({ tab: t.key }); navigate(t.path); }}>
             <span className="ic"><Icon name={t.icon} size={22} /></span>
             <span>{t.label}</span>
           </button>

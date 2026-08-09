@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
@@ -12,6 +12,7 @@ import { dateRangeLabel, money } from '../lib/format.js';
 import { Card, CardSkeleton } from '../components/Card.jsx';
 import { ResultsMap } from '../components/Maps.jsx';
 import { Icon } from '../components/Icon.jsx';
+import { api } from '../lib/api.js';
 
 export function Browse() {
   const state = useStore();
@@ -57,8 +58,61 @@ function Discovery() {
     <div className="shell" style={{ paddingBlock: '26px 60px' }}>
       <h1 className="sr-only">StayHost OS — thuê nhà ngắn hạn khắp Việt Nam</h1>
       {home.sections.map(s => <Rail key={s.key} section={s} />)}
+      {/* docs/01 TM-02 — the "Tất cả" row is the one that has to show more than
+          places to stay, or it is the same page as "Chỗ ở" under another name. */}
+      {store.tab === 'all' && <OtherLines />}
     </div>
     <Inspiration groups={home.inspiration} />
+  </>;
+}
+
+/**
+ * docs/01 TM-02, MR-01, MR-05 — experiences and services alongside homes. Each
+ * strip loads on its own and a failure hides only itself: discovery is the first
+ * page anybody sees, and it must not go blank because one extra line is down.
+ */
+function OtherLines() {
+  const [experiences, setExperiences] = useState([]);
+  const [services, setServices] = useState([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Both endpoints answer with a plain array, not a paged envelope.
+    api.experiences().then(d => setExperiences((d ?? []).slice(0, 4))).catch(() => {});
+    api.services().then(d => setServices((d ?? []).slice(0, 4))).catch(() => {});
+  }, []);
+
+  const strip = (title, subtitle, items, to, render) => items.length ? (
+    <section style={{ marginTop: 40 }}>
+      <div className="page-head" style={{ marginBottom: 0 }}>
+        <div>
+          <h2 className="section-title" style={{ fontSize: 22 }}>{title}</h2>
+          <p className="section-sub">{subtitle}</p>
+        </div>
+        <button className="btn btn-outline btn-sm" onClick={() => navigate(to)}>Xem tất cả</button>
+      </div>
+      <div className="card-grid" style={{ marginTop: 16 }}>{items.map(render)}</div>
+    </section>
+  ) : null;
+
+  return <>
+    {strip('Trải nghiệm', 'Hoạt động do người địa phương dẫn', experiences, '/experiences',
+      x => (
+        <button className="opt" key={x.id} style={{ textAlign: 'left' }}
+                onClick={() => navigate(`/experiences/${x.slug}`)}>
+          <b>{x.title}</b>
+          <span className="meta">{x.city} · {money(x.pricePerPerson)}/khách</span>
+        </button>
+      ))}
+
+    {strip('Dịch vụ', 'Đầu bếp, dọn dẹp, hướng dẫn viên tới tận nơi', services, '/services',
+      x => (
+        <button className="opt" key={x.id} style={{ textAlign: 'left' }}
+                onClick={() => navigate(`/services/${x.slug}`)}>
+          <b>{x.title}</b>
+          <span className="meta">{x.city} · {money(x.basePrice)} {x.pricingLabel ?? ''}</span>
+        </button>
+      ))}
   </>;
 }
 
