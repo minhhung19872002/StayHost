@@ -87,7 +87,7 @@ export function Card({ card, variant, lazy = false }) {
 function RailBody({ card }) {
   const { nights, total } = stayTotal(card);
   return <>
-    <h3 className="card-title">{card.typeLabel} {t('tại')} {card.city}</h3>
+    <h3 className="card-title">{t(card.typeLabel)} {t('tại')} {card.city}</h3>
     <div className="card-sub card-inline">
       <b>{money(total)}</b> {t('cho')} {nights} {t('đêm')}
       {card.reviewCount ? ` · ★ ${card.rating.toFixed(2)}` : ` · ${t('Mới')}`}
@@ -103,7 +103,7 @@ function BrowseBody({ card, showTotal }) {
       <div className="card-rating">{card.reviewCount ? `★ ${card.rating.toFixed(2)}` : t('Mới')}</div>
     </div>
     <div className="card-sub">{card.city} · {card.bedrooms} {t('phòng ngủ')}</div>
-    <div className="card-sub">{card.typeLabel} · {card.roomTypeLabel}</div>
+    <div className="card-sub">{t(card.typeLabel)} · {t(card.roomTypeLabel)}</div>
     <div className="card-price">
       {/* docs/01 TM-20 — the same stay, priced the way the guest asked to see it. */}
       {showTotal
@@ -119,7 +119,7 @@ function SearchBody({ card }) {
 
   return <>
     <div className="card-row">
-      <h3 className="card-title">{card.typeLabel} tại {card.city}</h3>
+      <h3 className="card-title">{t(card.typeLabel)} {t('tại')} {card.city}</h3>
       <div className="card-rating">
         {card.reviewCount ? `★ ${card.rating.toFixed(2)} (${card.reviewCount})` : `★ ${t('Mới')}`}
       </div>

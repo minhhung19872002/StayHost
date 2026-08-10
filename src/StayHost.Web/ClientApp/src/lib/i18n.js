@@ -99,6 +99,25 @@ const EN = {
   'Đang tải…': 'Loading…',
   'Ngôn ngữ đề xuất': 'Suggested languages',
   'Chọn loại tiền tệ': 'Choose a currency',
+  // Guests summary
+  'em bé': 'infants',
+  'thú cưng': 'pets',
+  // Listing type labels (server-provided, finite set)
+  'Căn hộ': 'Apartment',
+  'Cabin gỗ': 'Wood cabin',
+  'Khách sạn': 'Hotel',
+  'Nhà nguyên căn': 'Whole house',
+  'Nguyên căn': 'Entire place',
+  'Phòng riêng': 'Private room',
+  'Phòng chung': 'Shared room',
+  // Home rails (server-generated titles/subtitles)
+  'Chỗ nghỉ được yêu thích ở ': 'Guest favourites in ',
+  'Chỗ nghỉ có hồ bơi riêng': 'Stays with a private pool',
+  'Bơi lúc nào cũng được, không phải chia sẻ với ai': 'Swim whenever you like — no sharing',
+  'Dưới 1,2 triệu mỗi đêm': 'Under 1.2M a night',
+  'Tiết kiệm mà vẫn được đánh giá cao': 'Great value, still highly rated',
+  'Cho mang theo thú cưng': 'Pet-friendly',
+  'Đi đâu cũng có bạn bốn chân đi cùng': 'Bring your four-legged friend along',
   // Listing cards
   'KHÁCH YÊU THÍCH': 'GUEST FAVOURITE',
   'SIÊU CHỦ NHÀ': 'SUPERHOST',
@@ -133,4 +152,21 @@ export function t(s) {
   const code = state.language?.code || 'vi';
   if (code === 'vi') return s;
   return DICT[code]?.[s] ?? DICT.en?.[s] ?? s;
+}
+
+/**
+ * A few server strings are a fixed prefix followed by a proper noun — a city rail
+ * title like "Chỗ nghỉ được yêu thích ở Đà Nẵng". Translate the prefix, keep the
+ * name. Whole-string dictionary hits (the theme rails) win first.
+ */
+const PREFIXES = ['Chỗ nghỉ được yêu thích ở '];
+
+export function tt(s) {
+  if (!s) return s;
+  const direct = t(s);
+  if (direct !== s) return direct;
+  for (const p of PREFIXES) {
+    if (s.startsWith(p)) return t(p) + s.slice(p.length);
+  }
+  return s;
 }

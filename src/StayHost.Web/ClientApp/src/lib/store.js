@@ -4,6 +4,7 @@
 
 import { api } from './api.js';
 import { todayIso, isoOf, parseIso, setCurrency } from './format.js';
+import { t } from './i18n.js';
 
 const listeners = new Set();
 let version = 0;
@@ -200,9 +201,9 @@ export const totalGuests = () => state.guests.adults + state.guests.children;
 
 export function guestLabel() {
   const g = state.guests;
-  const parts = [`${g.adults + g.children} khách`];
-  if (g.infants) parts.push(`${g.infants} em bé`);
-  if (g.pets) parts.push(`${g.pets} thú cưng`);
+  const parts = [`${g.adults + g.children} ${t('khách')}`];
+  if (g.infants) parts.push(`${g.infants} ${t('em bé')}`);
+  if (g.pets) parts.push(`${g.pets} ${t('thú cưng')}`);
   return parts.join(', ');
 }
 

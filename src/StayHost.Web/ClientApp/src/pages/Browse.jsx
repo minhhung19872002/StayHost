@@ -9,7 +9,7 @@ import { queryToSearch } from '../lib/urlState.js';
 import { applySearch } from '../lib/nav.js';
 import { rememberSearch } from '../lib/history.js';
 import { dateRangeLabel, money } from '../lib/format.js';
-import { t } from '../lib/i18n.js';
+import { t, tt } from '../lib/i18n.js';
 import { Card, CardSkeleton } from '../components/Card.jsx';
 import { ResultsMap } from '../components/Maps.jsx';
 import { Icon } from '../components/Icon.jsx';
@@ -129,9 +129,9 @@ function Rail({ section }) {
     <section className="rail" data-rail={section.key}>
       <div className="rail-head">
         <button className="rail-title" onClick={() => navigate(section.href)}>
-          <span>{section.title}</span><Icon name="arrowRight" size={18} />
+          <span>{tt(section.title)}</span><Icon name="arrowRight" size={18} />
         </button>
-        {section.subtitle && <p className="rail-sub">{section.subtitle}</p>}
+        {section.subtitle && <p className="rail-sub">{t(section.subtitle)}</p>}
         <div className="rail-nav">
           <button className="round-btn" onClick={() => scroll(-1)} aria-label="Cuộn trái"><Icon name="chevronLeft" size={14} /></button>
           <button className="round-btn" onClick={() => scroll(1)} aria-label="Cuộn phải"><Icon name="chevronRight" size={14} /></button>
