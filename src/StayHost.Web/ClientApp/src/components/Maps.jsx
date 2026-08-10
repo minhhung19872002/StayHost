@@ -48,7 +48,7 @@ function cluster(items, zoom) {
   }));
 }
 
-export function ResultsMap({ onSearchArea }) {
+export function ResultsMap({ onSearchArea, onDrawArea }) {
   const state = useStore();
   const navigate = useNavigate();
   const hostRef = useRef(null);
@@ -59,6 +59,53 @@ export function ResultsMap({ onSearchArea }) {
 
   const [zoom, setZoom] = useState(5);
   const [moved, setMoved] = useState(false);
+
+  // docs/01 TM-24 — freehand-ish area draw: tap to drop vertices, finish to search.
+  const [drawing, setDrawing] = useState(false);
+  const drawRef = useRef({ points: [], layer: null, drawing: false });
+  const drawAreaRef = useRef(onDrawArea);
+  drawAreaRef.current = onDrawArea;
+
+  const redrawPolygon = () => {
+    const map = mapRef.current;
+    const d = drawRef.current;
+    if (d.layer) { map.removeLayer(d.layer); d.layer = null; }
+    if (d.points.length >= 2) {
+      d.layer = L.polygon(d.points.map(p => [p.lat, p.lng]),
+        { color: '#e5484d', weight: 2, fillOpacity: 0.08 }).addTo(map);
+    } else if (d.points.length === 1) {
+      d.layer = L.circleMarker([d.points[0].lat, d.points[0].lng], { radius: 4, color: '#e5484d' }).addTo(map);
+    }
+  };
+
+  const startDraw = () => {
+    const map = mapRef.current;
+    drawRef.current.points = [];
+    redrawPolygon();
+    drawRef.current.drawing = true;
+    setDrawing(true);
+    map.getContainer().style.cursor = 'crosshair';
+  };
+
+  const clearDraw = () => {
+    const map = mapRef.current;
+    const d = drawRef.current;
+    if (d.layer) { map.removeLayer(d.layer); d.layer = null; }
+    d.points = [];
+    d.drawing = false;
+    setDrawing(false);
+    map.getContainer().style.cursor = '';
+    if (state.searchPolygon) drawAreaRef.current?.(null);
+  };
+
+  const finishDraw = () => {
+    const map = mapRef.current;
+    const pts = drawRef.current.points.slice();
+    drawRef.current.drawing = false;
+    setDrawing(false);
+    map.getContainer().style.cursor = '';
+    if (pts.length >= 3) drawAreaRef.current?.(pts);
+  };
 
   const searchAreaRef = useRef(onSearchArea);
   searchAreaRef.current = onSearchArea;
@@ -80,12 +127,21 @@ export function ResultsMap({ onSearchArea }) {
     };
     map.on('moveend', onMoveEnd);
 
+    // docs/01 TM-24 — while drawing, each tap drops a vertex.
+    const onClick = e => {
+      if (!drawRef.current.drawing) return;
+      drawRef.current.points.push({ lat: e.latlng.lat, lng: e.latlng.lng });
+      redrawPolygon();
+    };
+    map.on('click', onClick);
+
     // The pane is laid out by CSS grid, so its final size is only known after paint.
     const t = setTimeout(() => map.invalidateSize(), 60);
 
     return () => {
       clearTimeout(t);
       map.off('moveend', onMoveEnd);
+      map.off('click', onClick);
       map.remove();
       mapRef.current = null;
       markersById.clear();
@@ -164,12 +220,20 @@ export function ResultsMap({ onSearchArea }) {
   return (
     <div style={{ position: 'relative', height: '100%' }}>
       <div className="map-search-again">
-        {moved && !state.searchOnMapMove && <button onClick={searchHere}>Tìm ở khu vực này</button>}
-        <label>
-          <input type="checkbox" checked={state.searchOnMapMove}
-                 onChange={e => set({ searchOnMapMove: e.target.checked })} />
-          Tìm khi di chuyển bản đồ
-        </label>
+        {moved && !state.searchOnMapMove && !drawing && <button onClick={searchHere}>Tìm ở khu vực này</button>}
+        {/* docs/01 TM-24 — vẽ vùng tìm kiếm trên bản đồ. */}
+        {!drawing && !state.searchPolygon && <button onClick={startDraw}>✎ Vẽ vùng</button>}
+        {!drawing && state.searchPolygon && <button onClick={clearDraw}>✕ Bỏ vùng đã vẽ</button>}
+        {drawing && <button onClick={finishDraw}>✓ Xong ({drawRef.current.points.length})</button>}
+        {drawing && <button onClick={clearDraw}>Huỷ</button>}
+        {!drawing && (
+          <label>
+            <input type="checkbox" checked={state.searchOnMapMove}
+                   onChange={e => set({ searchOnMapMove: e.target.checked })} />
+            Tìm khi di chuyển bản đồ
+          </label>
+        )}
+        {drawing && <span className="map-draw-hint">Chạm để thêm điểm, rồi bấm Xong</span>}
       </div>
       <div id="map" ref={hostRef} />
     </div>

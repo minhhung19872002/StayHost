@@ -262,7 +262,11 @@ public class CatalogService(StayHostDbContext db)
         /// <summary>The stay each listing was matched on, when the dates were flexible.</summary>
         IReadOnlyDictionary<int, StayWindow>? Matched = null,
         /// <summary>docs/01 TM-18 — language codes the host must speak at least one of.</summary>
-        IReadOnlyList<string>? HostLanguages = null);
+        IReadOnlyList<string>? HostLanguages = null,
+        /// <summary>docs/01 TM-24 — a hand-drawn search area, as lat/lng points.</summary>
+        IReadOnlyList<GeoPolygon.Point>? Polygon = null,
+        /// <summary>Listing ids inside the drawn area, resolved by <see cref="ResolveAreaAsync"/>.</summary>
+        IReadOnlySet<int>? InArea = null);
 
     /// <summary>The visible map rectangle, when the guest is searching by moving it.</summary>
     public readonly record struct MapBounds(double South, double West, double North, double East);
@@ -359,6 +363,12 @@ public class CatalogService(StayHostDbContext db)
             }
         }
 
+        // docs/01 TM-24 — inside the hand-drawn area. The exact point-in-polygon
+        // test ran in ResolveAreaAsync; here it is just an id-set membership so the
+        // count and paging see the same places.
+        if (q.InArea is { } area)
+            query = query.Where(l => area.Contains(l.Id));
+
         // Dates are a filter like any other: a place with someone already in it
         // has no business on the results page (docs/01 TM-05, TM-06).
         if (q.Unavailable is { Count: > 0 } taken)
@@ -418,6 +428,32 @@ public class CatalogService(StayHostDbContext db)
         };
     }
 
+    /// <summary>
+    /// docs/01 TM-24 — turns a drawn polygon into the set of listing ids inside it.
+    /// The polygon's bounding box does the heavy lifting in SQL (indexed lat/lng);
+    /// the exact point-in-polygon test then runs in memory over that small set, so
+    /// counting and paging all see the same places.
+    /// </summary>
+    public async Task<SearchQuery> ResolveAreaAsync(SearchQuery q, CancellationToken ct)
+    {
+        if (q.Polygon is not { Count: >= 3 } polygon) return q;
+
+        var (south, west, north, east) = GeoPolygon.Bounds(polygon);
+        var candidates = await db.Listings
+            .Where(l => l.IsPublished && l.ReviewStatus == ListingReviewStatus.Approved
+                        && l.Latitude >= south && l.Latitude <= north
+                        && l.Longitude >= west && l.Longitude <= east)
+            .Select(l => new { l.Id, l.Latitude, l.Longitude })
+            .ToListAsync(ct);
+
+        var inArea = candidates
+            .Where(c => GeoPolygon.Contains(polygon, c.Latitude, c.Longitude))
+            .Select(c => c.Id)
+            .ToHashSet();
+
+        return q with { InArea = inArea };
+    }
+
     public Task<int> CountAsync(SearchQuery q, CancellationToken ct) => BaseQuery(q).CountAsync(ct);
 
     /// <summary>
@@ -458,7 +494,7 @@ public class CatalogService(StayHostDbContext db)
 
     public async Task<SearchResultDto> SearchAsync(SearchQuery q, string sessionId, CancellationToken ct)
     {
-        q = await ResolveDatesAsync(q, ct);
+        q = await ResolveAreaAsync(await ResolveDatesAsync(q, ct), ct);
 
         var pageSize = Math.Clamp(q.PageSize, 1, 60);
         var page = Math.Max(1, q.Page);

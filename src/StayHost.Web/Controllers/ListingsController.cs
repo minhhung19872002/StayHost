@@ -77,6 +77,7 @@ public class ListingsController(
         [FromQuery] double? north = null,
         [FromQuery] double? east = null,
         [FromQuery] string? hostLanguages = null,
+        [FromQuery] string? polygon = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 24,
         CancellationToken ct = default)
@@ -85,7 +86,7 @@ public class ListingsController(
             q, category, minPrice, maxPrice, guests, amenities, sort, roomType,
             bedrooms, beds, bathrooms, superhost, guestFavorite, instantBook, freeCancellation,
             checkIn, checkOut, south, west, north, east, page, pageSize,
-            Flexible(stay, flex, months, startMonths, checkIn, checkOut), hostLanguages);
+            Flexible(stay, flex, months, startMonths, checkIn, checkOut), hostLanguages, polygon);
 
         return Ok(await catalog.SearchAsync(query, HttpContext.SessionId(), ct));
     }
@@ -128,10 +129,11 @@ public class ListingsController(
         bool superhost, bool guestFavorite, bool instantBook, bool freeCancellation,
         DateOnly? checkIn, DateOnly? checkOut,
         double? south, double? west, double? north, double? east,
-        int page, int pageSize, FlexibleRequest? flex = null, string? hostLanguages = null)
+        int page, int pageSize, FlexibleRequest? flex = null, string? hostLanguages = null, string? polygon = null)
     {
         var keys = (amenities ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var hostLangs = (hostLanguages ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var area = GeoPolygon.Parse(polygon);
 
         var bounds = south is not null && west is not null && north is not null && east is not null
             ? new CatalogService.MapBounds(south.Value, west.Value, north.Value, east.Value)
@@ -141,7 +143,8 @@ public class ListingsController(
             q, category, minPrice, maxPrice, guests, keys, sort, roomType,
             bedrooms, beds, bathrooms, superhost, guestFavorite, instantBook, freeCancellation,
             page, pageSize, checkIn, checkOut, bounds, flex,
-            HostLanguages: hostLangs);
+            HostLanguages: hostLangs,
+            Polygon: area.Count >= 3 ? area : null);
     }
 
     /// <summary>

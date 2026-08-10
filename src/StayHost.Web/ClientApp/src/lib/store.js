@@ -88,6 +88,8 @@ export const state = {
   searchOnMapMove: false,
   /** The map rectangle the current results were searched in, if any. */
   searchArea: null,
+  /** docs/01 TM-24 — a hand-drawn search area, [{lat,lng}], if any. */
+  searchPolygon: null,
   tab: 'homes',
   menu: null,            // 'account' | 'bell' | null
   overlay: null,         // key into the overlay registry
@@ -324,6 +326,9 @@ export function searchParams(page = 1) {
   const area = state.searchArea;
   return {
     ...(area ?? {}),
+    // docs/01 TM-24 — the hand-drawn area, as "lat,lng;lat,lng;…".
+    polygon: state.searchPolygon && state.searchPolygon.length >= 3
+      ? state.searchPolygon.map(p => `${p.lat},${p.lng}`).join(';') : undefined,
     // Dates go to the server so it can price every card with the same engine
     // checkout uses (docs/00 §6.8).
     checkIn: state.checkIn,

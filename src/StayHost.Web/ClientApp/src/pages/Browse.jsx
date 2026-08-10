@@ -23,7 +23,7 @@ export function Browse() {
   useEffect(() => {
     queryToSearch(location.search);
     // A new destination means the map rectangle from the last search no longer applies.
-    set({ searchArea: null });
+    set({ searchArea: null, searchPolygon: null });
 
     if (isDiscovery()) { loadHome(); return; }
     runSearch();
@@ -219,7 +219,9 @@ function Results() {
         <div className="split">
           <div className="split-list" style={{ padding: '22px var(--gutter) 90px' }}>{body}</div>
           <div className="split-map">
-            <ResultsMap onSearchArea={area => { set({ searchArea: area }); runSearch(); }} />
+            <ResultsMap
+              onSearchArea={area => { set({ searchArea: area, searchPolygon: null }); runSearch(); }}
+              onDrawArea={pts => { set({ searchPolygon: pts, searchArea: null }); runSearch(); }} />
           </div>
         </div>
       )}
@@ -320,7 +322,7 @@ function Empty({ noResults }) {
         <div className="pill-row" style={{ justifyContent: 'center', marginTop: 12 }}>
           {nearby.map(a => (
             <button className="pill" key={a.city}
-                    onClick={() => { set({ q: a.city, searchArea: null }); applySearch({ replace: false }); }}>
+                    onClick={() => { set({ q: a.city, searchArea: null, searchPolygon: null }); applySearch({ replace: false }); }}>
               {a.city} · {a.count} chỗ · từ {money(a.fromPrice)}
             </button>
           ))}
@@ -328,7 +330,7 @@ function Empty({ noResults }) {
       </>}
 
       <button className="btn btn-primary" style={{ marginTop: 22 }}
-              onClick={() => { resetFilters(); set({ q: '', searchArea: null }); applySearch(); navigate('/'); }}>
+              onClick={() => { resetFilters(); set({ q: '', searchArea: null, searchPolygon: null }); applySearch(); navigate('/'); }}>
         Xoá tất cả bộ lọc
       </button>
     </div>

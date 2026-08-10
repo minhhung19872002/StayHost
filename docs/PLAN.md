@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **194 xong · 0 làm một phần · 7 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **195 xong · 0 làm một phần · 6 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,11 +350,11 @@ cung cấp (Google Translate / DeepL / Azure) và trả tiền khoá API — đ�
 khách chứ không chờ code. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, chưa cắm
 khoá thì nút "Dịch" **không hiện** — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (7 mã)
+### 9.1 Chưa có (6 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
-| `TM-24` | Vẽ vùng tìm kiếm trên bản đồ | P2 |
+
 
 
 | `YT-06` | Bình chọn nhóm trong danh sách yêu thích chung | P2 |
@@ -376,6 +376,13 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`TM-24` (vẽ vùng tìm kiếm trên bản đồ) làm xong 10/08/2026. `GeoPolygon.cs` (thuần, có test)
+làm point-in-polygon (ray-casting, chịu cả đa giác lõm) + bounding box + parse. Search nhận
+param `polygon`; `CatalogService.ResolveAreaAsync` lọc thô bằng bbox trong SQL rồi soi chính
+xác trong bộ nhớ ra tập id, `BaseQuery` lọc theo tập đó nên đếm/phân trang khớp. UI: nút "Vẽ
+vùng" trên bản đồ split → chạm thả đỉnh → "Xong" chạy tìm; store giữ `searchPolygon`. Xác minh
+sống: polygon quanh Đà Nẵng ra 39 (đúng cả 2 Hội An sát ranh), vùng biển trống ra 0, nút hiện.
 
 `ĐG-11` (phát hiện đánh giá gian lận qua tài khoản phụ) làm xong 10/08/2026. Đánh giá luôn
 gắn đơn thật, nên gian lận là chủ nhà tự đặt chỗ mình qua tài khoản phụ rồi tự cho 5 sao —
