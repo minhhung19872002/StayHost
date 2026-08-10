@@ -230,6 +230,66 @@ def scenario_9():
             "HiddenByExpiredCertificate" = false where "Id" = {oid};""")
 
 
+# ------------------------------------------------------- MR-E-02 / MR-E-03
+def vetting():
+    """A high-risk experience cannot go on sale, and cannot be approved, until
+    its licence, cover and emergency number are on file (§2.2, §2.3)."""
+    host = login("host1@stayhost.vn")
+
+    body = {
+        "title": "Lan bien Nha Trang cho nguoi moi",
+        "city": "Nha Trang",
+        "summary": "Buoi lan thu cho nguoi chua co bang.",
+        "description": "08:00 don · 09:00 huong dan · 10:00 xuong nuoc · 12:00 ket thuc",
+        "durationMinutes": 240, "maxGroup": 6, "minGuests": 2,
+        "languages": ["vi"], "minAge": 16,
+        "meetingPoint": "Cang Cau Da, Nha Trang",
+        "latitude": 12.2, "longitude": 109.2,
+        "included": ["Thiet bi lan", "Bao hiem chuyen di"],
+        "pricePerPerson": 1500000,
+        "images": ["https://images.pexels.com/photos/1000/pexels-photo.jpg"],
+        "category": "diving",
+        "publish": True,
+    }
+
+    st, res = call(host, "/api/experiences", body)
+    msg = (res or {}).get("message", "")
+    blocked = st != 200 and "Gi" in msg      # "Giấy phép hành nghề" in the list
+
+    # With the papers in, submitting puts it in the queue rather than on sale.
+    body |= {
+        "safetyPlan": "Huong dan trong 30 phut, tho lan kem 1:2.",
+        "licenceName": "Chung chi day lan PADI",
+        "licenceExpiresOn": "2027-12-31",
+        "insurancePolicy": "Bao hiem trach nhiem PVI-2026",
+        "insuranceExpiresOn": "2027-12-31",
+        "emergencyPhone": "0900000000",
+    }
+    st2, res2 = call(host, "/api/experiences", body)
+    xid = (res2 or {}).get("id")
+
+    state = sql(f'select "ModerationStatus"::int || \'|\' || "IsPublished"::int '
+                f'from experiences where "Id" = {xid};') if xid else "?"
+
+    ok("E-02", "Trai nghiem rui ro cao thieu giay to thi khong nop duoc",
+       blocked, f"tra loi: {msg[:70]}")
+    ok("E-03", "Nop du giay to thi vao hang cho duyet, chua len song",
+       st2 == 200 and state == "1|0", f"trang thai={state} (1|0 = cho duyet, chua hien)")
+
+    # The reviewer decides — and only a moderator may.
+    admin = login("admin@stayhost.vn")
+    st3, _ = call(admin, f"/api/experiences/{xid}/review", {"decision": "approve"})
+    after = sql(f'select "ModerationStatus"::int || \'|\' || "IsPublished"::int '
+                f'from experiences where "Id" = {xid};') if xid else "?"
+
+    ok("E-03b", "Kiem duyet vien duyet thi trai nghiem len song",
+       st3 == 200 and after == "2|1", f"sau khi duyet={after} (2|1 = da duyet, dang hien)")
+
+    # A guest may not review anything.
+    st4, _ = call(host, f"/api/experiences/{xid}/review", {"decision": "approve"})
+    ok("E-03c", "Chu nha khong tu duyet trai nghiem cua minh duoc", st4 in (401, 403), f"http={st4}")
+
+
 def main():
     print("docs/09 — cac kich ban bat buoc\n")
     scenario_1()
@@ -238,6 +298,7 @@ def main():
     scenario_9()
     scenario_11()
     scenario_12()
+    vetting()
 
     balance = sql('select coalesce(sum(case when "Direction"=1 then "Amount" else -"Amount" end),0) '
                   'from ledger_entries;')

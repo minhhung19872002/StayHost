@@ -16,6 +16,28 @@ public enum ExperienceBookingStatus
     Completed = 3
 }
 
+/// <summary>docs/09 §2.3 — how much can go wrong, and so what must be proved.</summary>
+public enum ExperienceRisk
+{
+    /// <summary>Walking tours, indoor workshops, tastings. Nothing extra.</summary>
+    Low = 0,
+    /// <summary>Cycling, motorbike tours, cooking over fire. A safety briefing.</summary>
+    Medium = 1,
+    /// <summary>Diving, climbing, boats, extreme sport. Licence, cover, plan, phone.</summary>
+    High = 2
+}
+
+/// <summary>docs/09 §2.2 (MR-E-03) — a person decides, before anything is sold.</summary>
+public enum ExperienceModeration
+{
+    Draft = 0,
+    PendingReview = 1,
+    Approved = 2,
+    /// <summary>Send back with specific things to fix, not a bare "no".</summary>
+    ChangesRequested = 3,
+    Rejected = 4
+}
+
 /// <summary>
 /// docs/00 §2 and docs/01 MR-01 — something a local runs, sold by the seat
 /// rather than by the night.
@@ -62,6 +84,33 @@ public class Experience
 
     public string TimeZoneId { get; set; } = "Asia/Ho_Chi_Minh";
     public bool IsPublished { get; set; }
+
+    // --- docs/09 §2.1–§2.3 (MR-E-01, MR-E-02): what it is, and what that means
+    // it has to prove before it may be sold.
+    /// <summary>walking, food, nature, motorbike, diving, climbing, boat…</summary>
+    public string Category { get; set; } = "";
+
+    /// <summary>Whether children may take part — it raises the risk band (§2.3).</summary>
+    public bool AllowsChildren { get; set; }
+
+    /// <summary>docs/09 §2.2 — the practising licence, where the activity needs one.</summary>
+    public string? LicenceName { get; set; }
+    public DateOnly? LicenceExpiresOn { get; set; }
+
+    /// <summary>docs/09 §2.2 — proof of liability cover for a high-risk activity.</summary>
+    public string? InsurancePolicy { get; set; }
+    public DateOnly? InsuranceExpiresOn { get; set; }
+
+    /// <summary>docs/09 §2.3 — what happens when something goes wrong, and who to ring.</summary>
+    public string? SafetyPlan { get; set; }
+    public string? EmergencyPhone { get; set; }
+
+    // --- docs/09 §2.2 (MR-E-03): a human decides, before anything is sold.
+    public ExperienceModeration ModerationStatus { get; set; } = ExperienceModeration.Draft;
+    public DateTime? SubmittedForReviewAt { get; set; }
+    public DateTime? ReviewedAt { get; set; }
+    public int? ReviewedByUserId { get; set; }
+    public string? ReviewerNote { get; set; }
 
     public double Rating { get; set; }
     public int ReviewCount { get; set; }
@@ -233,6 +282,76 @@ public static class ExperienceRules
         && slot.StartsAt > now
         && slot.StartsAt - now <= MinimumCheck
         && slot.SeatsTaken < experience.MinGuests;
+
+    /* ---------------------------------------- §2.3, risk and what it demands */
+
+    /// <summary>
+    /// docs/09 §2.3 (MR-E-02) — the risk band follows from what the activity is,
+    /// not from what the host would like it to be. Children taking part lifts a
+    /// medium activity to high: the spec puts "có trẻ em tham gia" in the top row.
+    /// </summary>
+    public static ExperienceRisk RiskOf(string? category, bool allowsChildren = false)
+    {
+        var band = (category ?? "").Trim().ToLowerInvariant() switch
+        {
+            "diving" or "climbing" or "boat" or "rafting" or "extreme" or "paragliding"
+                => ExperienceRisk.High,
+            "motorbike" or "cycling" or "cooking" or "farm" or "kayak" or "trekking"
+                => ExperienceRisk.Medium,
+            _ => ExperienceRisk.Low
+        };
+
+        return allowsChildren && band == ExperienceRisk.Medium ? ExperienceRisk.High : band;
+    }
+
+    public static string RiskLabel(ExperienceRisk risk) => risk switch
+    {
+        ExperienceRisk.High => "Rủi ro cao",
+        ExperienceRisk.Medium => "Rủi ro trung bình",
+        _ => "Rủi ro thấp"
+    };
+
+    /// <summary>docs/09 §2.2 — how long the moderation team has (TN-A).</summary>
+    public const int ReviewWorkingDays = 5;
+
+    /// <summary>
+    /// docs/09 §2.2/§2.3 (MR-E-01, MR-E-02) — everything still missing before this
+    /// experience may go on sale. A high-risk activity short of any one paper is
+    /// not published, with no temporary exception: that is the whole point of the
+    /// band. The list is returned rather than a bare false so the host is told
+    /// what to fix, which is also what the reviewer's checklist reads from.
+    /// </summary>
+    public static IReadOnlyList<string> PublishBlockers(Experience x, DateOnly today)
+    {
+        var missing = new List<string>();
+        var risk = RiskOf(x.Category, x.AllowsChildren);
+
+        if (string.IsNullOrWhiteSpace(x.MeetingPoint)) missing.Add("Điểm hẹn");
+        if (string.IsNullOrWhiteSpace(x.Description)) missing.Add("Lịch trình theo mốc thời gian");
+
+        if (risk >= ExperienceRisk.Medium && string.IsNullOrWhiteSpace(x.SafetyPlan))
+            missing.Add("Cam kết an toàn và hướng dẫn trước khi bắt đầu");
+
+        if (risk == ExperienceRisk.High)
+        {
+            if (string.IsNullOrWhiteSpace(x.LicenceName)) missing.Add("Giấy phép hành nghề");
+            else if (x.LicenceExpiresOn is { } lic && lic < today) missing.Add("Giấy phép hành nghề còn hạn");
+
+            if (string.IsNullOrWhiteSpace(x.InsurancePolicy)) missing.Add("Bảo hiểm trách nhiệm");
+            else if (x.InsuranceExpiresOn is { } ins && ins < today) missing.Add("Bảo hiểm trách nhiệm còn hạn");
+
+            if (string.IsNullOrWhiteSpace(x.EmergencyPhone)) missing.Add("Số điện thoại khẩn cấp");
+        }
+
+        return missing;
+    }
+
+    /// <summary>
+    /// docs/09 §2.2 — an experience only goes on sale once a person has approved
+    /// it AND nothing is missing. A host cannot publish their way past either.
+    /// </summary>
+    public static bool CanPublish(Experience x, DateOnly today) =>
+        x.ModerationStatus == ExperienceModeration.Approved && PublishBlockers(x, today).Count == 0;
 
     /// <summary>
     /// docs/09 §2.5 (scenario 4) — two sessions of the same experience clash when

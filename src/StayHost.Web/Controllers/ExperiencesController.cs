@@ -15,8 +15,38 @@ namespace StayHost.Web.Controllers;
 [ApiController]
 [Route("api/experiences")]
 public class ExperiencesController(
-    StayHostDbContext db, AuthService auth, ExperienceService experiences) : ControllerBase
+    StayHostDbContext db, AuthService auth, ExperienceService experiences, AdminAudit audit) : ControllerBase
 {
+    /* ------------------------------------------------- MR-E-03, moderation */
+
+    /// <summary>docs/09 §2.2 — what is waiting for a reviewer, oldest first.</summary>
+    [HttpGet("review-queue")]
+    public async Task<ActionResult<IReadOnlyList<PendingExperienceDto>>> ReviewQueue(CancellationToken ct)
+    {
+        if (await audit.RequireAsync(AdminScope.Moderation, ct) is null)
+            return this.Denied("Chỉ kiểm duyệt viên mới xem được hàng chờ này.");
+
+        return Ok(await experiences.ReviewQueueAsync(ct));
+    }
+
+    /// <summary>docs/09 §2.2 — approve, ask for changes, or refuse with a reason.</summary>
+    [HttpPost("{id:int}/review")]
+    public async Task<IActionResult> Review(
+        int id, [FromBody] ReviewExperienceRequest req, CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Moderation, ct);
+        if (admin is null) return this.Denied("Chỉ kiểm duyệt viên mới xét được trải nghiệm.");
+
+        var error = await experiences.ReviewAsync(admin, id, req.Decision ?? "", req.Note, ct);
+        if (error is not null) return BadRequest(new { message = error });
+
+        audit.Record(admin, $"experience-{(req.Decision ?? "").Trim().ToLowerInvariant()}",
+            $"experience:{id}", null, null, req.Note);
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new { ok = true });
+    }
+
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ExperienceCardDto>>> Browse(
         [FromQuery] string? q, [FromQuery] string? city, [FromQuery] DateOnly? on,

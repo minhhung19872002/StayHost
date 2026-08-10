@@ -62,6 +62,23 @@ public static class ExperienceSeeder
             if (added) await db.SaveChangesAsync(ct);
         }
 
+        // docs/09 §2.2 (MR-E-03) — moderation arrived after these rows did. Anything
+        // already on sale was on sale with the platform's blessing, so it counts as
+        // approved; leaving it Draft would bounce the host into the review queue the
+        // first time they touched their own listing.
+        var unreviewed = await db.Experiences
+            .Where(x => x.IsPublished && x.ModerationStatus == ExperienceModeration.Draft)
+            .ToListAsync(ct);
+        if (unreviewed.Count > 0)
+        {
+            foreach (var x in unreviewed)
+            {
+                x.ModerationStatus = ExperienceModeration.Approved;
+                x.ReviewedAt ??= DateTime.UtcNow;
+            }
+            await db.SaveChangesAsync(ct);
+        }
+
         if (await db.Experiences.AnyAsync(ct)) return;
 
         var hosts = await db.Hosts.OrderBy(h => h.Id).Take(Seeds.Length).ToListAsync(ct);
@@ -93,6 +110,9 @@ public static class ExperienceSeeder
                 PricePerPerson = s.Price,
                 PrivateGroupPrice = s.Private,
                 IsPublished = true,
+                // Seeded rows stand for experiences a reviewer has already passed.
+                ModerationStatus = ExperienceModeration.Approved,
+                ReviewedAt = DateTime.UtcNow,
                 Rating = 4.8 + (i % 3) * 0.05,
                 ReviewCount = 18 + i * 7,
                 Images = s.Images.Select((u, j) => new ExperienceImage { Url = Pexels(u), SortOrder = j }).ToList()

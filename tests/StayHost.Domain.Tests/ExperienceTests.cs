@@ -178,6 +178,73 @@ public class ExperienceTests
         Assert.False(ExperienceRules.ShouldCallOff(Make(min: 6), Slot(taken: 8, hoursAhead: 12, priv: true), Now));
     }
 
+    /* ------------------------------------------------ §2.3 risk and vetting */
+
+    [Fact]
+    public void The_risk_band_follows_the_activity_not_the_hosts_preference()
+    {
+        Assert.Equal(ExperienceRisk.Low, ExperienceRules.RiskOf("walking"));
+        Assert.Equal(ExperienceRisk.Low, ExperienceRules.RiskOf("food"));
+        Assert.Equal(ExperienceRisk.Medium, ExperienceRules.RiskOf("motorbike"));
+        Assert.Equal(ExperienceRisk.High, ExperienceRules.RiskOf("diving"));
+
+        // docs/09 §2.3 puts "có trẻ em tham gia" in the top row, so children
+        // lift a medium activity into high.
+        Assert.Equal(ExperienceRisk.High, ExperienceRules.RiskOf("motorbike", allowsChildren: true));
+        // A walking tour with children is still a walking tour.
+        Assert.Equal(ExperienceRisk.Low, ExperienceRules.RiskOf("walking", allowsChildren: true));
+    }
+
+    [Fact]
+    public void A_high_risk_experience_short_of_a_paper_cannot_be_published()
+    {
+        var today = new DateOnly(2026, 9, 1);
+
+        var diving = Make();
+        diving.Category = "diving";
+        diving.MeetingPoint = "Bãi Xếp, Quy Nhơn";
+        diving.Description = "09:00 tập trung · 10:00 xuống nước · 12:00 kết thúc";
+        diving.ModerationStatus = ExperienceModeration.Approved;
+
+        var missing = ExperienceRules.PublishBlockers(diving, today);
+        Assert.Contains("Giấy phép hành nghề", missing);
+        Assert.Contains("Bảo hiểm trách nhiệm", missing);
+        Assert.Contains("Số điện thoại khẩn cấp", missing);
+        Assert.False(ExperienceRules.CanPublish(diving, today));
+
+        // Papers in, and it clears.
+        diving.SafetyPlan = "Có hướng dẫn trước khi xuống nước, thợ lặn kèm 1:2.";
+        diving.LicenceName = "Chứng chỉ dạy lặn PADI";
+        diving.LicenceExpiresOn = today.AddYears(1);
+        diving.InsurancePolicy = "Bảo hiểm trách nhiệm PVI-2026";
+        diving.InsuranceExpiresOn = today.AddYears(1);
+        diving.EmergencyPhone = "0900000000";
+        Assert.Empty(ExperienceRules.PublishBlockers(diving, today));
+        Assert.True(ExperienceRules.CanPublish(diving, today));
+
+        // An expired licence is the same as no licence.
+        diving.LicenceExpiresOn = today.AddDays(-1);
+        Assert.Contains("Giấy phép hành nghề còn hạn", ExperienceRules.PublishBlockers(diving, today));
+    }
+
+    [Fact]
+    public void Nothing_goes_on_sale_without_a_person_approving_it()
+    {
+        var today = new DateOnly(2026, 9, 1);
+
+        var walk = Make();
+        walk.Category = "walking";
+        walk.MeetingPoint = "Chợ Bến Thành";
+        walk.Description = "08:00 gặp nhau · 10:00 kết thúc";
+
+        // Nothing is missing, but nobody has looked at it yet (§2.2).
+        Assert.Empty(ExperienceRules.PublishBlockers(walk, today));
+        Assert.False(ExperienceRules.CanPublish(walk, today));
+
+        walk.ModerationStatus = ExperienceModeration.Approved;
+        Assert.True(ExperienceRules.CanPublish(walk, today));
+    }
+
     [Fact]
     public void An_experience_pays_its_host_a_day_after_the_session_ends()   // scenario 12
     {

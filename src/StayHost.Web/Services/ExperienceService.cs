@@ -263,6 +263,16 @@ public class ExperienceService(
         experience.PricePerPerson = req.PricePerPerson;
         experience.PrivateGroupPrice = req.PrivateGroupPrice;
 
+        // docs/09 §2.1–§2.3 — what the activity is decides what it must prove.
+        experience.Category = (req.Category ?? "").Trim().ToLowerInvariant();
+        experience.AllowsChildren = req.AllowsChildren;
+        experience.LicenceName = Trimmed(req.LicenceName);
+        experience.LicenceExpiresOn = req.LicenceExpiresOn;
+        experience.InsurancePolicy = Trimmed(req.InsurancePolicy);
+        experience.InsuranceExpiresOn = req.InsuranceExpiresOn;
+        experience.SafetyPlan = Trimmed(req.SafetyPlan);
+        experience.EmergencyPhone = Trimmed(req.EmergencyPhone);
+
         if (experience.Id == 0)
         {
             experience.Slug = Slugify(title);
@@ -277,18 +287,138 @@ public class ExperienceService(
                 .ToList();
         }
 
-        // A session nobody can see is a draft; publishing needs the basics filled in.
+        // docs/09 §2.2 (MR-E-03) — a host does not publish an experience; they
+        // submit it, and a reviewer decides. "Publish" therefore means "send to
+        // the queue", and the paperwork the risk band demands has to be in first.
         if (req.Publish)
         {
-            if (experience.Images.Count == 0) return (null, "Cần ít nhất một ảnh trước khi đăng.");
-            if (experience.MeetingPoint.Length == 0) return (null, "Cần có điểm hẹn trước khi đăng.");
-            experience.IsPublished = true;
+            if (experience.Images.Count == 0) return (null, "Cần ít nhất một ảnh thật của hoạt động trước khi nộp.");
+
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var missing = ExperienceRules.PublishBlockers(experience, today);
+            if (missing.Count > 0)
+                return (null, $"Còn thiếu: {string.Join(", ", missing)}.");
+
+            if (experience.ModerationStatus != ExperienceModeration.Approved)
+            {
+                experience.ModerationStatus = ExperienceModeration.PendingReview;
+                experience.SubmittedForReviewAt = DateTime.UtcNow;
+                experience.IsPublished = false;
+            }
+            else
+            {
+                experience.IsPublished = true;
+            }
         }
 
         experience.RefreshSearchText();
         await db.SaveChangesAsync(ct);
 
         return (experience.Id, null);
+    }
+
+    private static string? Trimmed(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /* ------------------------------------------------- MR-E-03, moderation */
+
+    /// <summary>
+    /// docs/09 §2.2 — the queue a reviewer works through, oldest first, with the
+    /// risk band and what was submitted so the checklist has something to check.
+    /// </summary>
+    public async Task<IReadOnlyList<PendingExperienceDto>> ReviewQueueAsync(CancellationToken ct)
+    {
+        var rows = await db.Experiences
+            .Where(x => x.ModerationStatus == ExperienceModeration.PendingReview)
+            .OrderBy(x => x.SubmittedForReviewAt)
+            .Select(x => new
+            {
+                x.Id, x.Slug, x.Title, x.City, x.Category, x.AllowsChildren,
+                x.LicenceName, x.LicenceExpiresOn, x.InsurancePolicy, x.InsuranceExpiresOn,
+                x.SafetyPlan, x.EmergencyPhone, x.SubmittedForReviewAt,
+                HostName = x.Host!.Name, HostUserId = x.Host.UserId,
+                Cover = x.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).FirstOrDefault()
+            })
+            .Take(100)
+            .ToListAsync(ct);
+
+        return rows.Select(x =>
+        {
+            var risk = ExperienceRules.RiskOf(x.Category, x.AllowsChildren);
+            return new PendingExperienceDto(
+                x.Id, x.Slug, x.Title, x.City, x.Category, ExperienceRules.RiskLabel(risk),
+                x.AllowsChildren, x.LicenceName, x.LicenceExpiresOn, x.InsurancePolicy,
+                x.InsuranceExpiresOn, x.SafetyPlan, x.EmergencyPhone,
+                x.HostName ?? "", x.HostUserId ?? 0, x.Cover, x.SubmittedForReviewAt,
+                ExperienceRules.ReviewWorkingDays);
+        }).ToList();
+    }
+
+    /// <summary>
+    /// docs/09 §2.2 — one of three answers: approved, sent back with specific
+    /// things to fix, or refused with a reason. A bare "no" is not one of them.
+    /// </summary>
+    public async Task<string?> ReviewAsync(
+        User reviewer, int experienceId, string decision, string? note, CancellationToken ct)
+    {
+        var x = await db.Experiences
+            .Include(e => e.Host!).ThenInclude(h => h.User)
+            .Include(e => e.Images)
+            .FirstOrDefaultAsync(e => e.Id == experienceId, ct);
+        if (x is null) return "Không tìm thấy trải nghiệm này.";
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var trimmed = Trimmed(note);
+
+        switch ((decision ?? "").Trim().ToLowerInvariant())
+        {
+            case "approve":
+                var missing = ExperienceRules.PublishBlockers(x, today);
+                if (missing.Count > 0) return $"Chưa duyệt được, còn thiếu: {string.Join(", ", missing)}.";
+
+                x.ModerationStatus = ExperienceModeration.Approved;
+                x.IsPublished = true;
+                break;
+
+            case "changes":
+                if (trimmed is null) return "Cần ghi rõ phải sửa gì.";
+                x.ModerationStatus = ExperienceModeration.ChangesRequested;
+                x.IsPublished = false;
+                break;
+
+            case "reject":
+                if (trimmed is null) return "Cần ghi rõ lý do từ chối.";
+                x.ModerationStatus = ExperienceModeration.Rejected;
+                x.IsPublished = false;
+                break;
+
+            default:
+                return "Quyết định không hợp lệ.";
+        }
+
+        x.ReviewedAt = DateTime.UtcNow;
+        x.ReviewedByUserId = reviewer.Id;
+        x.ReviewerNote = trimmed;
+
+        if (x.Host?.User is { } owner)
+        {
+            var (title, body) = x.ModerationStatus switch
+            {
+                ExperienceModeration.Approved =>
+                    ("Trải nghiệm đã được duyệt", $"\"{x.Title}\" đã lên sóng và nhận đặt chỗ được."),
+                ExperienceModeration.ChangesRequested =>
+                    ("Cần chỉnh lại trải nghiệm", $"\"{x.Title}\": {trimmed}"),
+                _ => ("Trải nghiệm bị từ chối", $"\"{x.Title}\": {trimmed}")
+            };
+
+            await notifications.QueueWithEmailAsync(owner,
+                x.ModerationStatus == ExperienceModeration.Approved
+                    ? NotificationKind.ListingApproved
+                    : NotificationKind.ListingRejected,
+                title, body, "/hosting", ct);
+        }
+
+        await db.SaveChangesAsync(ct);
+        return null;
     }
 
     public async Task<string?> AddSlotsAsync(User user, int experienceId, AddSlotsRequest req, CancellationToken ct)

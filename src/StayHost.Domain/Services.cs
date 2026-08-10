@@ -157,8 +157,28 @@ public class ServiceBooking
 /// <summary>The rules a service booking obeys, kept where they can be tested.</summary>
 public static class ServiceRules
 {
-    /// <summary>Cancel this far ahead and it costs nothing.</summary>
-    public static readonly TimeSpan FreeCancellation = TimeSpan.FromHours(24);
+    /// <summary>
+    /// docs/09 §3.6 — the service cancellation ladder, its own and not the stay
+    /// policy: everything back three days out (DV-C), half inside that, and
+    /// nothing in the last day because by then the provider has bought the
+    /// ingredients and turned other work away.
+    /// </summary>
+    public static readonly TimeSpan FullRefundLead = TimeSpan.FromHours(72);
+    public static readonly TimeSpan HalfRefundLead = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// docs/09 §3.6 (DV-D) — what the provider still receives when they arrive and
+    /// the on-site conditions were not what the guest declared: no kitchen, no
+    /// room to work. They travelled and turned other work away, so they are not
+    /// left with nothing.
+    /// </summary>
+    public const decimal MisdeclaredShare = 0.50m;
+
+    public static decimal ProviderShareOnMisdeclared(decimal total) =>
+        Math.Round(total * MisdeclaredShare, 0, MidpointRounding.AwayFromZero);
+
+    /// <summary>Kept for the older call sites that ask "is this still free?".</summary>
+    public static readonly TimeSpan FreeCancellation = TimeSpan.FromHours(72);
 
     /// <summary>Nothing may be booked closer than this to now.</summary>
     public static readonly TimeSpan MinimumNotice = TimeSpan.FromHours(4);
@@ -335,8 +355,20 @@ public static class ServiceRules
     public static bool NoteMissing(string? category, string? note) =>
         RequiredNote(category) != NoteKind.None && string.IsNullOrWhiteSpace(note);
 
-    public static decimal GuestRefund(ServiceBooking booking, DateTime now) =>
-        booking.StartsAt - now >= FreeCancellation ? booking.Total : 0m;
+    /// <summary>
+    /// docs/09 §3.6 — a guest cancelling their own job: 100% at least 72 hours
+    /// out, 50% between 24 and 72 hours, nothing inside the last day.
+    /// </summary>
+    public static decimal GuestRefund(ServiceBooking booking, DateTime now)
+    {
+        var lead = booking.StartsAt - now;
+
+        if (lead >= FullRefundLead) return booking.Total;
+        if (lead >= HalfRefundLead)
+            return Math.Round(booking.Total * 0.5m, 0, MidpointRounding.AwayFromZero);
+
+        return 0m;
+    }
 
     public static string UnitLabel(ServicePricing pricing) => pricing switch
     {

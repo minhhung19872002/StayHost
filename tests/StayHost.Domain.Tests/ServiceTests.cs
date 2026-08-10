@@ -294,12 +294,28 @@ public class ServiceTests
     }
 
     [Fact]
-    public void A_guest_gets_everything_back_up_to_a_day_before()
+    public void The_service_cancellation_ladder_is_its_own()
     {
-        var booking = new ServiceBooking { Total = 1_140_000m, StartsAt = Now.AddHours(25) };
+        var booking = new ServiceBooking { Total = 1_140_000m, StartsAt = Now.AddHours(73) };
+
+        // docs/09 §3.6 — everything back at least 72 hours out (DV-C)…
         Assert.Equal(1_140_000m, ServiceRules.GuestRefund(booking, Now));
 
+        // …half between 24 and 72 hours…
+        booking.StartsAt = Now.AddHours(25);
+        Assert.Equal(570_000m, ServiceRules.GuestRefund(booking, Now));
+
+        // …and nothing inside the last day: the ingredients are bought by then.
         booking.StartsAt = Now.AddHours(23);
         Assert.Equal(0m, ServiceRules.GuestRefund(booking, Now));
+    }
+
+    [Fact]
+    public void A_provider_who_finds_the_conditions_misdeclared_still_gets_half()
+    {
+        // docs/09 §3.6 (DV-D) — the chef who arrives to find no kitchen travelled
+        // and turned other work away, so they are not left with nothing.
+        Assert.Equal(570_000m, ServiceRules.ProviderShareOnMisdeclared(1_140_000m));
+        Assert.Equal(0m, ServiceRules.ProviderShareOnMisdeclared(0m));
     }
 }

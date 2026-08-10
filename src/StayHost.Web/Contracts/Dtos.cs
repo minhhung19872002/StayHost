@@ -1548,7 +1548,29 @@ public record SaveExperienceRequest(
     decimal PricePerPerson,
     decimal? PrivateGroupPrice,
     IReadOnlyList<string>? Images,
-    bool Publish = false);
+    bool Publish = false,
+    // docs/09 §2.1–§2.3 — the activity and the papers its risk band demands.
+    string? Category = null,
+    bool AllowsChildren = false,
+    string? LicenceName = null,
+    DateOnly? LicenceExpiresOn = null,
+    string? InsurancePolicy = null,
+    DateOnly? InsuranceExpiresOn = null,
+    string? SafetyPlan = null,
+    string? EmergencyPhone = null);
+
+/// <summary>docs/09 §2.2 (MR-E-03) — one row of the reviewer's queue.</summary>
+public record PendingExperienceDto(
+    int Id, string Slug, string Title, string City,
+    string Category, string RiskLabel, bool AllowsChildren,
+    string? LicenceName, DateOnly? LicenceExpiresOn,
+    string? InsurancePolicy, DateOnly? InsuranceExpiresOn,
+    string? SafetyPlan, string? EmergencyPhone,
+    string HostName, int HostUserId, string? CoverImage,
+    DateTime? SubmittedAt, int ReviewWorkingDays);
+
+/// <summary>The reviewer's answer: approve · changes · reject, with a reason.</summary>
+public record ReviewExperienceRequest(string? Decision, string? Note);
 
 public record AddSlotsRequest(IReadOnlyList<DateTime>? StartsAt, int? Capacity);
 
