@@ -42,6 +42,13 @@
  */
 html { scroll-behavior: smooth; scrollbar-gutter: stable; }
 
+html {
+  /* Real mobile browsers otherwise inflate text on their own, which throws the
+     whole layout out even though nothing overflows in a desktop emulator. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   background: var(--surface);
@@ -49,6 +56,18 @@ body {
   -webkit-font-smoothing: antialiased;
   color: var(--ink);
   overflow-x: hidden;
+}
+
+/* iOS zooms the page in when a focused field is smaller than 16px and never
+   zooms back, which is the "responsive is broken" nobody can reproduce on a
+   desktop. Force 16px on real text fields at phone widths; the visual change
+   from 13.5–14px is tiny and only on mobile. */
+@media (max-width: 767px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 a { color: var(--brand); text-decoration: none; }
@@ -605,7 +624,8 @@ select.field { width: 100%; padding: 10px 12px; }
 .split .split-list { min-width: 0; }
 .split .split-map {
   position: sticky; top: calc(var(--header-h) + 12px);
-  height: calc(100vh - var(--header-h) - 34px);
+  /* dvh, not vh: the mobile address bar must not add phantom height. */
+  height: calc(100dvh - var(--header-h) - 34px);
   margin: 22px var(--gutter) 0 0;
   border-radius: 16px; overflow: hidden; background: #e8e8e8;
 }
