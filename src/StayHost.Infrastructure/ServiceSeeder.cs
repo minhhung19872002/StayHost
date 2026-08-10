@@ -12,8 +12,24 @@ public static class ServiceSeeder
         bool Travels, int RadiusKm, double Lat, double Lng, int Opens, int Closes,
         string? Partner, decimal Commission, string Image);
 
+    /// <summary>Compressed Pexels variant (~15× smaller); a URL that already has params is left alone.</summary>
+    private static string Pexels(string url) =>
+        url.Contains("images.pexels.com") && !url.Contains('?')
+            ? url + "?auto=compress&cs=tinysrgb&fit=crop&w=1200"
+            : url;
+
     public static async Task SeedAsync(StayHostDbContext db, CancellationToken ct = default)
     {
+        // Upgrade existing bare full-res Pexels URLs to the compressed variant.
+        var heavy = await db.ServiceImages
+            .Where(i => i.Url.Contains("images.pexels.com") && !i.Url.Contains("?"))
+            .ToListAsync(ct);
+        if (heavy.Count > 0)
+        {
+            foreach (var img in heavy) img.Url = Pexels(img.Url);
+            await db.SaveChangesAsync(ct);
+        }
+
         // Back-fill photos for offerings seeded before images were in the seed,
         // matched by title, so an older deployment gets its pictures without a reseed.
         var missing = await db.ServiceOfferings
@@ -27,7 +43,7 @@ public static class ServiceSeeder
             foreach (var o in missing)
                 if (bySeed.TryGetValue(o.Title, out var url))
                 {
-                    db.ServiceImages.Add(new ServiceImage { OfferingId = o.Id, Url = url, SortOrder = 0 });
+                    db.ServiceImages.Add(new ServiceImage { OfferingId = o.Id, Url = Pexels(url), SortOrder = 0 });
                     added = true;
                 }
             if (added) await db.SaveChangesAsync(ct);
@@ -67,7 +83,7 @@ public static class ServiceSeeder
                 IsPublished = true,
                 Rating = 4.7 + (i % 4) * 0.05,
                 ReviewCount = 12 + i * 5,
-                Images = [new ServiceImage { Url = s.Image, SortOrder = 0 }]
+                Images = [new ServiceImage { Url = Pexels(s.Image), SortOrder = 0 }]
             };
 
             offering.RefreshSearchText();

@@ -14,8 +14,31 @@ public static class ExperienceSeeder
         int MaxGroup, int MinGuests, string Meeting, double Lat, double Lng,
         decimal Price, decimal? Private, string[] Included, string[] Images);
 
+    /// <summary>
+    /// Pexels serves the bare photo URL at full resolution (~1MB); the compressed
+    /// variant with these params is ~15× smaller. Listings already use it, so this
+    /// makes experiences match and load fast. Idempotent: a URL that already has a
+    /// query string is left alone.
+    /// </summary>
+    private static string Pexels(string url) =>
+        url.Contains("images.pexels.com") && !url.Contains('?')
+            ? url + "?auto=compress&cs=tinysrgb&fit=crop&w=1200"
+            : url;
+
     public static async Task SeedAsync(StayHostDbContext db, CancellationToken ct = default)
     {
+        // Upgrade any existing bare full-res Pexels URLs to the compressed variant,
+        // so old rows stop shipping 1MB images (and the new URL sidesteps a browser
+        // that cached the empty state).
+        var heavy = await db.ExperienceImages
+            .Where(i => i.Url.Contains("images.pexels.com") && !i.Url.Contains("?"))
+            .ToListAsync(ct);
+        if (heavy.Count > 0)
+        {
+            foreach (var img in heavy) img.Url = Pexels(img.Url);
+            await db.SaveChangesAsync(ct);
+        }
+
         // Back-fill photos for experiences seeded before images were in the seed,
         // matched by title. An older deployment then gets its pictures without a
         // reseed — the same lesson as the accessibility amenities in DbSeeder.
@@ -33,7 +56,7 @@ public static class ExperienceSeeder
                     for (var j = 0; j < urls.Length; j++)
                         db.ExperienceImages.Add(new ExperienceImage
                         {
-                            ExperienceId = x.Id, Url = urls[j], SortOrder = j
+                            ExperienceId = x.Id, Url = Pexels(urls[j]), SortOrder = j
                         });
                     added = true;
                 }
@@ -73,7 +96,7 @@ public static class ExperienceSeeder
                 IsPublished = true,
                 Rating = 4.8 + (i % 3) * 0.05,
                 ReviewCount = 18 + i * 7,
-                Images = s.Images.Select((u, j) => new ExperienceImage { Url = u, SortOrder = j }).ToList()
+                Images = s.Images.Select((u, j) => new ExperienceImage { Url = Pexels(u), SortOrder = j }).ToList()
             };
 
             // Three weeks of sessions, one a day, at a sensible hour.
