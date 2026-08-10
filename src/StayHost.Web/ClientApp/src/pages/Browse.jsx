@@ -11,6 +11,7 @@ import { rememberSearch } from '../lib/history.js';
 import { dateRangeLabel, money } from '../lib/format.js';
 import { t, tt } from '../lib/i18n.js';
 import { Card, CardSkeleton } from '../components/Card.jsx';
+import { TranslatedText } from '../components/TranslatedText.jsx';
 import { ResultsMap } from '../components/Maps.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { api } from '../lib/api.js';
@@ -57,7 +58,7 @@ function Discovery() {
 
   return <>
     <div className="shell" style={{ paddingBlock: '26px 60px' }}>
-      <h1 className="sr-only">StayHost OS — thuê nhà ngắn hạn khắp Việt Nam</h1>
+      <h1 className="sr-only">{t('StayHost OS — thuê nhà ngắn hạn khắp Việt Nam')}</h1>
       {home.sections.map(s => <Rail key={s.key} section={s} />)}
       {/* docs/01 TM-02 — the "Tất cả" row is the one that has to show more than
           places to stay, or it is the same page as "Chỗ ở" under another name. */}
@@ -87,10 +88,10 @@ function OtherLines() {
     <section style={{ marginTop: 40 }}>
       <div className="page-head" style={{ marginBottom: 0 }}>
         <div>
-          <h2 className="section-title" style={{ fontSize: 22 }}>{title}</h2>
-          <p className="section-sub">{subtitle}</p>
+          <h2 className="section-title" style={{ fontSize: 22 }}>{t(title)}</h2>
+          <p className="section-sub">{t(subtitle)}</p>
         </div>
-        <button className="btn btn-outline btn-sm" onClick={() => navigate(to)}>Xem tất cả</button>
+        <button className="btn btn-outline btn-sm" onClick={() => navigate(to)}>{t('Xem tất cả')}</button>
       </div>
       <div className="card-grid" style={{ marginTop: 16 }}>{items.map(render)}</div>
     </section>
@@ -101,8 +102,8 @@ function OtherLines() {
       x => (
         <button className="opt" key={x.id} style={{ textAlign: 'left' }}
                 onClick={() => navigate(`/experiences/${x.slug}`)}>
-          <b>{x.title}</b>
-          <span className="meta">{x.city} · {money(x.pricePerPerson)}/khách</span>
+          <b><TranslatedText as="span" text={x.title} notice={false} /></b>
+          <span className="meta">{x.city} · {money(x.pricePerPerson)}/{t('khách')}</span>
         </button>
       ))}
 
@@ -110,8 +111,8 @@ function OtherLines() {
       x => (
         <button className="opt" key={x.id} style={{ textAlign: 'left' }}
                 onClick={() => navigate(`/services/${x.slug}`)}>
-          <b>{x.title}</b>
-          <span className="meta">{x.city} · {money(x.basePrice)} {x.pricingLabel ?? ''}</span>
+          <b><TranslatedText as="span" text={x.title} notice={false} /></b>
+          <span className="meta">{x.city} · {money(x.basePrice)} {t(x.pricingLabel ?? '')}</span>
         </button>
       ))}
   </>;
@@ -161,13 +162,13 @@ function Inspiration({ groups }) {
           {groups.map(g => (
             <button role="tab" key={g.tab} aria-selected={g.tab === current.tab}
                     className={`insp-tab ${g.tab === current.tab ? 'is-active' : ''}`}
-                    onClick={() => set({ inspirationTab: g.tab })}>{g.tab}</button>
+                    onClick={() => set({ inspirationTab: g.tab })}>{t(g.tab)}</button>
           ))}
         </div>
         <div className="insp-grid">
           {current.links.map(l => (
             <button className="insp-link" key={l.href} onClick={() => navigate(l.href)}>
-              <b>{l.title}</b><span>{l.subtitle}</span>
+              <b>{t(l.title)}</b><span>{t(l.subtitle)}</span>
             </button>
           ))}
         </div>

@@ -7,6 +7,7 @@ import { money, longDate, dateFormat } from '../lib/format.js';
 import { CardCarousel } from '../components/CardCarousel.jsx';
 import { PhotoMosaic } from '../components/PhotoMosaic.jsx';
 import { t } from '../lib/i18n.js';
+import { TranslatedText } from '../components/TranslatedText.jsx';
 
 // Asked for per render so it follows the chosen language (format.js LOCALE).
 const TIME = () => dateFormat({ hour: '2-digit', minute: '2-digit' });
@@ -59,7 +60,7 @@ function Browse() {
               <CardCarousel images={s.images} alt={s.title} />
               <div className="card-body">
                 <div className="card-row">
-                  <h3 className="card-title">{s.title}</h3>
+                  <h3 className="card-title"><TranslatedText as="span" text={s.title} notice={false} /></h3>
                   <div className="card-rating">
                     {s.reviewCount ? `★ ${s.rating.toFixed(2)} (${s.reviewCount})` : `★ ${t('Mới')}`}
                   </div>
@@ -200,7 +201,9 @@ function Detail({ slug }) {
     <div className="shell" style={{ paddingBlock: '26px 90px' }}>
       <button className="back-link" onClick={() => navigate('/services')}>← {t('Dịch vụ')}</button>
 
-      <h1 className="section-title" style={{ marginTop: 10 }}>{s.title}</h1>
+      <h1 className="section-title" style={{ marginTop: 10 }}>
+        <TranslatedText as="span" text={s.title} />
+      </h1>
       <p className="section-sub">
         {s.city} · {s.pricingLabel} · {s.durationMinutes} {t('phút')}
         {s.isPartner ? ` · ${t('do')} ${s.partnerName} ${t('thực hiện')}` : ''}
@@ -212,7 +215,7 @@ function Detail({ slug }) {
         <div style={{ minWidth: 0 }}>
           <section className="detail-section" style={{ paddingTop: 0 }}>
             <h2>{t('Dịch vụ này gồm gì')}</h2>
-            <p style={{ fontSize: 15.5, lineHeight: 1.75, color: 'var(--ink-body)' }}>{s.description}</p>
+            <TranslatedText as="p" style={{ fontSize: 15.5, lineHeight: 1.75, color: 'var(--ink-body)' }} text={s.description} />
           </section>
 
           <section className="detail-section">

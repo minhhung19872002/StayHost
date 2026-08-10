@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { toast } from '../lib/store.js';
 import { longDate } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
+import { TranslatedText } from '../components/TranslatedText.jsx';
 
 const AUDIENCES = [['all', 'Tất cả'], ['guest', 'Khách'], ['host', 'Chủ nhà']];
 
@@ -120,8 +121,8 @@ function Index() {
               <div className="help-grid">
                 {g.items.map(a => (
                   <button className="help-card" key={a.slug} onClick={() => navigate(`/help/${a.slug}`)}>
-                    <b>{a.title}</b>
-                    <span>{a.summary}</span>
+                    <b><TranslatedText as="span" text={a.title} /></b>
+                    <span><TranslatedText as="span" text={a.summary} /></span>
                     <i>{a.audienceLabel}</i>
                   </button>
                 ))}
@@ -174,16 +175,18 @@ function Article({ slug }) {
     <div className="shell shell-narrow" style={{ paddingBlock: '30px 90px' }}>
       <button className="back-link" onClick={() => navigate('/help')}>← {t('Trung tâm trợ giúp')}</button>
 
-      <h1 className="section-title" style={{ marginTop: 10 }}>{article.title}</h1>
+      <h1 className="section-title" style={{ marginTop: 10 }}>
+        <TranslatedText as="span" text={article.title} />
+      </h1>
       <p className="section-sub">
-        {article.category} · {article.audienceLabel} · {t('cập nhật')} {longDate(article.updatedAt.slice(0, 10))}
+        {t(article.category)} · {t(article.audienceLabel)} · {t('cập nhật')} {longDate(article.updatedAt.slice(0, 10))}
       </p>
 
       <div className="help-body">
         {article.body.split(/\n{2,}/).map((block, i) =>
           block.trimStart().startsWith('- ')
-            ? <ul key={i}>{block.split('\n').map((line, j) => <li key={j}>{line.replace(/^\s*-\s*/, '')}</li>)}</ul>
-            : <p key={i}>{block}</p>)}
+            ? <ul key={i}>{block.split('\n').map((line, j) => <li key={j}><TranslatedText as="span" text={line.replace(/^\s*-\s*/, '')} /></li>)}</ul>
+            : <TranslatedText as="p" key={i} text={block} />)}
       </div>
 
       <div className="help-foot">
@@ -214,8 +217,8 @@ function Assistant({ navigate }) {
       <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
         {rows.map((s, i) => (
           <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-            <span className="meta" style={{ flex: 1, minWidth: 180 }}>{s.text}</span>
-            <button className="btn btn-outline btn-sm" onClick={() => navigate(s.actionLink)}>{s.actionLabel}</button>
+            <span className="meta" style={{ flex: 1, minWidth: 180 }}><TranslatedText as="span" text={s.text} /></span>
+            <button className="btn btn-outline btn-sm" onClick={() => navigate(s.actionLink)}>{t(s.actionLabel)}</button>
           </div>
         ))}
       </div>

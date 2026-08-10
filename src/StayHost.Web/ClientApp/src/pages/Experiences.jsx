@@ -8,6 +8,7 @@ import { CardCarousel } from '../components/CardCarousel.jsx';
 import { PhotoMosaic } from '../components/PhotoMosaic.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { t } from '../lib/i18n.js';
+import { TranslatedText } from '../components/TranslatedText.jsx';
 
 /**
  * docs/09 §2.10 (MR-E-11) — an experience is judged on four things of its own.
@@ -82,7 +83,7 @@ function Browse() {
               <CardCarousel images={x.images} alt={x.title} />
               <div className="card-body">
                 <div className="card-row">
-                  <h3 className="card-title">{x.title}</h3>
+                  <h3 className="card-title"><TranslatedText as="span" text={x.title} notice={false} /></h3>
                   <div className="card-rating">
                     {x.reviewCount ? `★ ${x.rating.toFixed(2)} (${x.reviewCount})` : `★ ${t('Mới')}`}
                   </div>
@@ -159,7 +160,9 @@ function Detail({ slug }) {
     <div className="shell" style={{ paddingBlock: '26px 90px' }}>
       <button className="back-link" onClick={() => navigate('/experiences')}>← {t('Trải nghiệm')}</button>
 
-      <h1 className="section-title" style={{ marginTop: 10 }}>{x.title}</h1>
+      <h1 className="section-title" style={{ marginTop: 10 }}>
+        <TranslatedText as="span" text={x.title} />
+      </h1>
       <p className="section-sub">
         {x.city} · {duration(x.durationMinutes)} · {t('tối đa')} {x.maxGroup} {t('người')}
         {x.reviewCount ? ` · ★ ${x.rating.toFixed(2)} (${x.reviewCount})` : ''}
@@ -171,7 +174,7 @@ function Detail({ slug }) {
         <div style={{ minWidth: 0 }}>
           <section className="detail-section" style={{ paddingTop: 0 }}>
             <h2>{t('Buổi này có gì')}</h2>
-            <p style={{ fontSize: 15.5, lineHeight: 1.75, color: 'var(--ink-body)' }}>{x.description}</p>
+            <TranslatedText as="p" style={{ fontSize: 15.5, lineHeight: 1.75, color: 'var(--ink-body)' }} text={x.description} />
           </section>
 
           <section className="detail-section">

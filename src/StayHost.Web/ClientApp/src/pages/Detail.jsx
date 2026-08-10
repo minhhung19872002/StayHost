@@ -227,7 +227,10 @@ function Summary({ detail, card }) {
           translated automatically and said to be, with the original a tap away. */}
       <TranslatedText as="p" className="summary-desc" text={detail.description} />
       {card.highlight && (
-        <p className="summary-desc" style={{ marginTop: 10 }}><b>{t('Điểm nổi bật:')}</b> {card.highlight}</p>
+        <p className="summary-desc" style={{ marginTop: 10 }}>
+          <b>{t('Điểm nổi bật:')}</b>{' '}
+          <TranslatedText as="span" text={card.highlight} />
+        </p>
       )}
     </div>
   );
@@ -584,13 +587,13 @@ function ThingsToKnow({ detail }) {
           <h3>{t('Nội quy nhà')}</h3>
           <ul>
             {/* docs/01 CĐ-03 — the hours the host actually set, ahead of the free-text rules. */}
-            {detail.checkInWindow && <li>{t(detail.checkInWindow)}</li>}
-            {detail.houseRules.map(r => <li key={r}>{t(r)}</li>)}
+            {detail.checkInWindow && <li><TranslatedText as="span" text={detail.checkInWindow} /></li>}
+            {detail.houseRules.map(r => <li key={r}><TranslatedText as="span" text={r} /></li>)}
           </ul>
         </div>
         <div className="know">
           <h3>{t('An toàn & chỗ ở')}</h3>
-          <ul>{detail.safetyInfo.map(r => <li key={r}>{t(r)}</li>)}</ul>
+          <ul>{detail.safetyInfo.map(r => <li key={r}><TranslatedText as="span" text={r} /></li>)}</ul>
         </div>
         <div className="know">
           <h3>{t('Chính sách huỷ')}</h3>
@@ -603,7 +606,7 @@ function ThingsToKnow({ detail }) {
         <div className="cancel-notes">
           <h3>{t('Lịch sử huỷ đơn của chủ nhà')}</h3>
           {/* CancellationNotes.Compose writes these three sentences, not the host. */}
-          <ul>{detail.cancellationNotes.map((n, i) => <li key={i}>{t(n)}</li>)}</ul>
+          <ul>{detail.cancellationNotes.map((n, i) => <li key={i}><TranslatedText as="span" text={n} /></li>)}</ul>
         </div>
       )}
     </section>

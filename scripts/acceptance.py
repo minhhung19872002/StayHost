@@ -79,14 +79,29 @@ def future(days):
 
 
 def bookable(op, *, instant=True, nights=3, offset=45):
-    """A listing whose nine checks all pass for the dates we want."""
-    _, s = call(op, f"/api/listings?pageSize=60&checkIn={future(offset)}&checkOut={future(offset + nights)}")
-    for i in s['items']:
-        if i['instantBook'] != instant:
-            continue
-        st, _ = call(op, "/api/bookings", body_for(i, offset, nights) | {"dryRun": True})
-        return i
-    return None
+    """A listing whose nine checks all pass for the dates we want.
+
+    The dry run used to be thrown away -- the first listing of the right kind was
+    returned whether or not it could actually be booked. RUN_SHIFT comes round
+    every ninety minutes, so a re-run inside the same bucket met the dates the
+    previous run had already taken and the scenario failed on a listing this
+    function had promised was free. Honour the answer, and keep looking.
+    """
+    # Several windows, not one. Every run books a night or two, and RUN_SHIFT only
+    # has ninety values, so a single window fills up over a long session and the
+    # suite starts failing for want of a free date rather than for a real fault.
+    for week in range(0, 8):
+        at = offset + week * 7
+        _, s = call(op, f"/api/listings?pageSize=60&checkIn={future(at)}&checkOut={future(at + nights)}")
+        for i in s.get('items', []):
+            if i['instantBook'] != instant:
+                continue
+            st, _ = call(op, "/api/bookings", body_for(i, at, nights) | {"dryRun": True})
+            # A passing dry run answers 201, not 200 — the endpoint reports what it
+            # would have created. Anything 2xx means the nine checks cleared.
+            if 200 <= st < 300:
+                return i, at
+    return None, offset
 
 
 def body_for(listing, offset, nights, **kw):
@@ -150,9 +165,13 @@ record(3, "Đặt ngay, thanh toán, thấy trong chuyến đi, có hoá đơn",
        f"{'có' if in_trips else 'không'} trong danh sách chuyến đi")
 
 # --- 4 ---------------------------------------------------------------------
-_, s4 = call(guest, f"/api/listings?pageSize=60&checkIn={future(60)}&checkOut={future(63)}")
-req_listing = next((i for i in s4['items'] if not i['instantBook']), None)
-st4a, request = call(guest, "/api/bookings", body_for(req_listing, 60, 3))
+# Ask for one that is genuinely free on these dates rather than the first
+# request-to-book listing in the page, which a previous run may already have taken.
+req_listing, req_at = bookable(guest, instant=False, offset=60)
+if req_listing is None:
+    raise SystemExit("Khong con tin 'yeu cau dat' nao trong tam khung ngay da thu. "
+                     "Reset DB roi chay lai (xem CLAUDE.md §5).")
+st4a, request = call(guest, "/api/bookings", body_for(req_listing, req_at, 3))
 _, det4 = call(guest, f"/api/listings/{req_listing['slug']}")
 
 owner = None

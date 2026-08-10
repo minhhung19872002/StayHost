@@ -5,6 +5,7 @@ import { useStore } from '../lib/useStore.js';
 import { state as store, toggleFavorite } from '../lib/store.js';
 import { money, shortDate } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
+import { TranslatedText } from './TranslatedText.jsx';
 import { stayTotal, originalStayTotal, allInPerNight } from '../lib/pricing.js';
 import { setHoveredListing } from './Maps.jsx';
 
@@ -99,7 +100,7 @@ function BrowseBody({ card, showTotal }) {
   const { nights, total } = stayTotal(card);
   return <>
     <div className="card-row">
-      <h3 className="card-title">{card.title}</h3>
+      <h3 className="card-title"><TranslatedText as="span" text={card.title} notice={false} /></h3>
       <div className="card-rating">{card.reviewCount ? `★ ${card.rating.toFixed(2)}` : t('Mới')}</div>
     </div>
     <div className="card-sub">{card.city} · {card.bedrooms} {t('phòng ngủ')}</div>
@@ -124,7 +125,7 @@ function SearchBody({ card }) {
         {card.reviewCount ? `★ ${card.rating.toFixed(2)} (${card.reviewCount})` : `★ ${t('Mới')}`}
       </div>
     </div>
-    <div className="card-sub card-name">{card.title}</div>
+    <div className="card-sub card-name"><TranslatedText as="span" text={card.title} notice={false} /></div>
     <div className="card-sub">{card.bedrooms} {t('phòng ngủ')} · {card.beds} {t('giường')} · {card.bathrooms} {t('phòng tắm')}</div>
     <div className="card-price">
       {original && <><s>{money(original)}</s> </>}
