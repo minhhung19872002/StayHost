@@ -1,4 +1,10 @@
 import { state } from './store.js';
+import ja from './i18n/ja.js';
+import ko from './i18n/ko.js';
+import zh from './i18n/zh.js';
+import fr from './i18n/fr.js';
+import de from './i18n/de.js';
+import es from './i18n/es.js';
 
 /**
  * docs/01 — interface translation, the dictionary way (like every localised site):
@@ -318,8 +324,12 @@ const EN = {
   'Chưa đặt dịch vụ nào': 'No services booked yet'
 };
 
-/** Only English is hand-written so far; other languages fall back to it. */
-const DICT = { en: EN };
+/**
+ * English is the base dictionary; the rest are per-language tables in ./i18n/.
+ * Any key missing from a language falls back to English, then to the Vietnamese
+ * source — so a partially filled language stays readable rather than broken.
+ */
+const DICT = { en: EN, ja, ko, zh, fr, de, es };
 
 export function t(s) {
   const code = state.language?.code || 'vi';
