@@ -14,6 +14,25 @@ public static class ServiceSeeder
 
     public static async Task SeedAsync(StayHostDbContext db, CancellationToken ct = default)
     {
+        // Back-fill photos for offerings seeded before images were in the seed,
+        // matched by title, so an older deployment gets its pictures without a reseed.
+        var missing = await db.ServiceOfferings
+            .Where(o => !o.Images.Any())
+            .Select(o => new { o.Id, o.Title })
+            .ToListAsync(ct);
+        if (missing.Count > 0)
+        {
+            var bySeed = Seeds.ToDictionary(s => s.Title, s => s.Image);
+            var added = false;
+            foreach (var o in missing)
+                if (bySeed.TryGetValue(o.Title, out var url))
+                {
+                    db.ServiceImages.Add(new ServiceImage { OfferingId = o.Id, Url = url, SortOrder = 0 });
+                    added = true;
+                }
+            if (added) await db.SaveChangesAsync(ct);
+        }
+
         if (await db.ServiceOfferings.AnyAsync(ct)) return;
 
         var hosts = await db.Hosts.OrderBy(h => h.Id).ToListAsync(ct);

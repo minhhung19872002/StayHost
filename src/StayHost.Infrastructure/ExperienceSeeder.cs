@@ -16,6 +16,30 @@ public static class ExperienceSeeder
 
     public static async Task SeedAsync(StayHostDbContext db, CancellationToken ct = default)
     {
+        // Back-fill photos for experiences seeded before images were in the seed,
+        // matched by title. An older deployment then gets its pictures without a
+        // reseed — the same lesson as the accessibility amenities in DbSeeder.
+        var missing = await db.Experiences
+            .Where(x => !x.Images.Any())
+            .Select(x => new { x.Id, x.Title })
+            .ToListAsync(ct);
+        if (missing.Count > 0)
+        {
+            var bySeed = Seeds.ToDictionary(s => s.Title, s => s.Images);
+            var added = false;
+            foreach (var x in missing)
+                if (bySeed.TryGetValue(x.Title, out var urls))
+                {
+                    for (var j = 0; j < urls.Length; j++)
+                        db.ExperienceImages.Add(new ExperienceImage
+                        {
+                            ExperienceId = x.Id, Url = urls[j], SortOrder = j
+                        });
+                    added = true;
+                }
+            if (added) await db.SaveChangesAsync(ct);
+        }
+
         if (await db.Experiences.AnyAsync(ct)) return;
 
         var hosts = await db.Hosts.OrderBy(h => h.Id).Take(Seeds.Length).ToListAsync(ct);
