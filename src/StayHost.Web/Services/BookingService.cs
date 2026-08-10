@@ -409,6 +409,10 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var instResult = await payouts.InstallmentSweepAsync(stoppingToken);
                 if (instResult.Any) log.LogInformation("Trả theo tháng: {Result}.", instResult);
 
+                // docs/09 §4 — experience/service providers, a day after each session ends.
+                var sessionPayouts = await payouts.SweepSessionsAsync(stoppingToken);
+                if (sessionPayouts.Any) log.LogInformation("Trả buổi: {Result}.", sessionPayouts);
+
                 // docs/07 §4 — a card about to expire with money still to come
                 // off it, fourteen days ahead.
                 var expiring = await Controllers.PaymentMethodsController.RemindExpiringAsync(

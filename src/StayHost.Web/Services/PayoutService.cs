@@ -293,4 +293,100 @@ public class PayoutService(
                 && (hu.IsSuspended || hu.IsBanned
                     || Restrictions.Has(hu.RestrictionMask, RestrictionKind.PayoutsHeld)));
     }
+
+    /// <summary>
+    /// docs/09 §4 (MR-C-03, scenario 12) — pays experience hosts and service
+    /// providers a day after their session ENDS (not after it starts, the way a
+    /// stay pays from check-in). Their money already sits in HostPayable from the
+    /// capture; this releases the cash. Only confirmed/completed bookings reach
+    /// here, so a refund and a payout can never both fire on one booking.
+    /// </summary>
+    public async Task<Result> SweepSessionsAsync(CancellationToken ct, DateTime? asOf = null)
+    {
+        var now = asOf ?? DateTime.UtcNow;
+        int paid = 0, held = 0, failed = 0;
+
+        var experiences = await db.ExperienceBookings
+            .Include(b => b.Slot!).ThenInclude(s => s.Experience!).ThenInclude(x => x.Host!).ThenInclude(h => h.User)
+            .Where(b => b.PayoutStatus == PayoutStatus.Scheduled
+                && (b.Status == ExperienceBookingStatus.Confirmed || b.Status == ExperienceBookingStatus.Completed)
+                && b.Slot!.StartsAt <= now)
+            .Take(200)
+            .ToListAsync(ct);
+
+        foreach (var b in experiences)
+        {
+            var exp = b.Slot!.Experience!;
+            if (!Payouts.SessionPayoutReady(b.Slot!.StartsAt, exp.DurationMinutes, now)) continue;
+
+            switch (Pay(exp.Host, b.HostPayout, $"xp-payout-{b.Id}", () => Ledger.PayoutExperience(b, b.HostPayout, now)))
+            {
+                case PayResult.Paid:
+                    b.PayoutStatus = PayoutStatus.Paid;
+                    b.PaidOutAt = now;
+                    b.PayoutReference = $"XP{b.Id:D6}";
+                    paid++;
+                    if (exp.Host?.User is { } u && b.HostPayout > 0)
+                        await notifications.QueueWithEmailAsync(u, NotificationKind.PayoutSent,
+                            "Đã chuyển tiền trải nghiệm",
+                            $"{b.HostPayout:#,##0}₫ cho đơn {b.Reference} đang trên đường về tài khoản của bạn.",
+                            "/hosting/earnings", ct);
+                    break;
+                case PayResult.Held: held++; break;
+                default: failed++; break;
+            }
+        }
+
+        var services = await db.ServiceBookings
+            .Include(b => b.Offering!).ThenInclude(o => o.Host!).ThenInclude(h => h.User)
+            .Where(b => b.PayoutStatus == PayoutStatus.Scheduled
+                && (b.Status == ServiceBookingStatus.Confirmed || b.Status == ServiceBookingStatus.Completed)
+                && b.StartsAt <= now)
+            .Take(200)
+            .ToListAsync(ct);
+
+        foreach (var b in services)
+        {
+            if (!Payouts.SessionPayoutReady(b.StartsAt, b.DurationMinutes, now)) continue;
+
+            switch (Pay(b.Offering!.Host, b.ProviderPayout, $"sv-payout-{b.Id}", () => Ledger.PayoutService(b, b.ProviderPayout, now)))
+            {
+                case PayResult.Paid:
+                    b.PayoutStatus = PayoutStatus.Paid;
+                    b.PaidOutAt = now;
+                    b.PayoutReference = $"SV{b.Id:D6}";
+                    paid++;
+                    if (b.Offering!.Host?.User is { } u && b.ProviderPayout > 0)
+                        await notifications.QueueWithEmailAsync(u, NotificationKind.PayoutSent,
+                            "Đã chuyển tiền dịch vụ",
+                            $"{b.ProviderPayout:#,##0}₫ cho đơn {b.Reference} đang trên đường về tài khoản của bạn.",
+                            "/hosting/earnings", ct);
+                    break;
+                case PayResult.Held: held++; break;
+                default: failed++; break;
+            }
+        }
+
+        if (paid + held + failed > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            log.LogInformation("Trả buổi {Now:d}: {Paid} đã chuyển, {Held} giữ, {Failed} lỗi.", now, paid, held, failed);
+        }
+
+        return new Result(paid, held, failed);
+    }
+
+    private enum PayResult { Paid, Held, Failed }
+
+    /// <summary>Sends one provider their money and posts the ledger, or says why not.</summary>
+    private PayResult Pay(HostProfile? host, decimal amount, string key, Func<List<LedgerEntry>> ledger)
+    {
+        if (amount <= 0) return PayResult.Paid;                    // nothing owed
+        if (host is null || string.IsNullOrWhiteSpace(host.PayoutAccountLast4))
+            return PayResult.Held;                                  // no account on file yet
+        if (!gateway.Charge(amount, "bank-transfer", host.PayoutAccountLast4, key).Ok)
+            return PayResult.Failed;
+        db.LedgerEntries.AddRange(ledger());
+        return PayResult.Paid;
+    }
 }

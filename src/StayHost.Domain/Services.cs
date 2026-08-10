@@ -136,6 +136,11 @@ public class ServiceBooking
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? CancelledAt { get; set; }
 
+    // docs/09 §4 (MR-C-03) — the provider is paid a day after the session ends.
+    public PayoutStatus PayoutStatus { get; set; } = PayoutStatus.Scheduled;
+    public DateTime? PaidOutAt { get; set; }
+    public string? PayoutReference { get; set; }
+
     public DateTime EndsAt => StartsAt.AddMinutes(DurationMinutes);
 }
 

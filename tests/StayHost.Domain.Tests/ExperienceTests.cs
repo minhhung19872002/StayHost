@@ -179,6 +179,20 @@ public class ExperienceTests
     }
 
     [Fact]
+    public void An_experience_pays_its_host_a_day_after_the_session_ends()   // scenario 12
+    {
+        var start = new DateTime(2026, 9, 1, 9, 0, 0, DateTimeKind.Utc);
+
+        // docs/09 §4 — a 2-hour session ends at 11:00; the payout is due 24 hours
+        // after that end, not 24 hours after the start the way a stay pays.
+        Assert.Equal(start.AddHours(2).AddDays(1), Payouts.SessionPayoutDue(start, 120));
+
+        Assert.False(Payouts.SessionPayoutReady(start, 120, start.AddHours(2)));                 // just ended
+        Assert.False(Payouts.SessionPayoutReady(start, 120, start.AddHours(2).AddHours(23)));    // 23h after end
+        Assert.True(Payouts.SessionPayoutReady(start, 120, start.AddHours(2).AddDays(1)));       // due
+    }
+
+    [Fact]
     public void Sessions_closer_together_than_their_duration_clash()
     {
         var nine = new DateTime(2026, 9, 1, 9, 0, 0, DateTimeKind.Utc);

@@ -52,6 +52,23 @@ public class PayoutInstallment
 
 public static class Payouts
 {
+    /// <summary>
+    /// docs/09 §4 (MR-C-03, scenario 12) — an experience or service pays its
+    /// provider a day after the session ENDS, not a day after it starts the way
+    /// a stay pays from check-in. The session's end is its start plus its length.
+    /// </summary>
+    public static readonly TimeSpan SessionPayoutDelay = TimeSpan.FromDays(1);
+
+    public static DateTime SessionEnd(DateTime startsAt, int durationMinutes) =>
+        startsAt.AddMinutes(durationMinutes);
+
+    public static DateTime SessionPayoutDue(DateTime startsAt, int durationMinutes) =>
+        SessionEnd(startsAt, durationMinutes) + SessionPayoutDelay;
+
+    /// <summary>Whether a session's provider payout is due by the given moment.</summary>
+    public static bool SessionPayoutReady(DateTime startsAt, int durationMinutes, DateTime now) =>
+        now >= SessionPayoutDue(startsAt, durationMinutes);
+
     /* ------------------------------------------------------ §12.2, the wait */
 
     /// <summary>
