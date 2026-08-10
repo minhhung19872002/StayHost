@@ -16,7 +16,7 @@ function loadConfig() {
  * click hides it again. Off by default, so with no provider configured nothing
  * renders — the same rule the social-login buttons follow.
  */
-export function TranslateButton({ text, className = 'text-btn', style }) {
+export function TranslateButton({ text, className = 'translate-btn', style }) {
   const state = useStore();
   const [enabled, setEnabled] = useState(false);
   const [shown, setShown] = useState(false);
@@ -27,7 +27,12 @@ export function TranslateButton({ text, className = 'text-btn', style }) {
 
   if (!enabled || !text?.trim()) return null;
 
-  const target = state.language?.code || 'vi';
+  // Translate into the viewer's language. When the interface is Vietnamese the
+  // content usually is too, so a vi→vi call would show nothing — fall back to
+  // English there so a tap always produces a visible result.
+  const ui = state.language?.code || 'vi';
+  const target = ui === 'vi' ? 'en' : ui;
+  const targetLabel = { en: 'English', zh: '中文', ko: '한국어', ja: '日本語', fr: 'Français' }[target] || target;
 
   const toggle = async () => {
     if (shown) { setShown(false); return; }
@@ -44,7 +49,8 @@ export function TranslateButton({ text, className = 'text-btn', style }) {
   return (
     <>
       <button type="button" className={className} style={style} onClick={toggle} disabled={busy}>
-        {busy ? 'Đang dịch…' : shown ? 'Xem bản gốc' : 'Dịch'}
+        <span aria-hidden="true">🌐</span>
+        {busy ? ' Đang dịch…' : shown ? ' Xem bản gốc' : ` Dịch sang ${targetLabel}`}
       </button>
       {shown && translated && (
         <div className="translated-text" style={{ marginTop: 6, whiteSpace: 'pre-wrap' }}>{translated}</div>

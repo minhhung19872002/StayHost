@@ -4,6 +4,7 @@ import { useStore } from '../lib/useStore.js';
 import { set, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate } from '../lib/format.js';
+import { CardCarousel } from '../components/CardCarousel.jsx';
 
 const TIME = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
@@ -52,7 +53,7 @@ function Browse() {
           {items.map(s => (
             <button className="card" key={s.id} onClick={() => navigate(`/services/${s.slug}`)}
                     style={{ textAlign: 'left', border: 0, background: 'none', padding: 0, cursor: 'pointer' }}>
-              <div className="card-media"><img className="is-current" src={s.images[0]} alt="" loading="lazy" decoding="async" /></div>
+              <CardCarousel images={s.images} alt={s.title} />
               <div className="card-body">
                 <div className="card-row">
                   <h3 className="card-title">{s.title}</h3>

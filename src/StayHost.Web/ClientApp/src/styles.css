@@ -598,6 +598,22 @@ select.field { width: 100%; padding: 10px 12px; }
 /* Experience/service cards: keep every meta line to one row so the grid stays
    even, and give the button-cards a quiet hover lift + image zoom. Scoped to
    button.card so the listing carousel cards (article.card) are untouched. */
+/* docs/01 TĐ-03, TN-06 — the translate control reads as a real button, not body
+   text: a small outline pill with a globe, so it is easy to spot under a
+   description or beside a message. */
+.translate-btn {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 8px;
+  padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px;
+  background: #fff; color: var(--ink); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: border-color .15s ease, background .15s ease;
+}
+.translate-btn:hover { border-color: var(--ink); background: var(--surface-2, #f6f6f6); }
+.translate-btn:disabled { opacity: .6; cursor: default; }
+.translated-text {
+  padding: 10px 12px; background: var(--surface-2, #f6f6f6); border-radius: 10px;
+  font-size: 14px; line-height: 1.55; color: var(--ink);
+}
+
 .card-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 button.card { transition: transform .18s ease; }
 button.card:hover { transform: translateY(-2px); }

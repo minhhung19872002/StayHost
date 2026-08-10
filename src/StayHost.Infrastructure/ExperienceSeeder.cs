@@ -39,21 +39,20 @@ public static class ExperienceSeeder
             await db.SaveChangesAsync(ct);
         }
 
-        // Back-fill photos for experiences seeded before images were in the seed,
-        // matched by title. An older deployment then gets its pictures without a
-        // reseed — the same lesson as the accessibility amenities in DbSeeder.
-        var missing = await db.Experiences
-            .Where(x => !x.Images.Any())
-            .Select(x => new { x.Id, x.Title })
+        // Top up photos to match the seed, by title. Covers rows seeded before
+        // images existed (0 photos) and rows from when the seed had fewer, so an
+        // older deployment gains the extra slideshow images without a reseed.
+        var counts = await db.Experiences
+            .Select(x => new { x.Id, x.Title, Have = x.Images.Count })
             .ToListAsync(ct);
-        if (missing.Count > 0)
+        if (counts.Count > 0)
         {
             var bySeed = Seeds.ToDictionary(s => s.Title, s => s.Images);
             var added = false;
-            foreach (var x in missing)
-                if (bySeed.TryGetValue(x.Title, out var urls))
+            foreach (var x in counts)
+                if (bySeed.TryGetValue(x.Title, out var urls) && x.Have < urls.Length)
                 {
-                    for (var j = 0; j < urls.Length; j++)
+                    for (var j = x.Have; j < urls.Length; j++)
                         db.ExperienceImages.Add(new ExperienceImage
                         {
                             ExperienceId = x.Id, Url = Pexels(urls[j]), SortOrder = j
@@ -126,7 +125,9 @@ public static class ExperienceSeeder
             750_000m, 4_500_000m,
             ["Nguyên liệu và dụng cụ", "Bữa ăn bốn món", "Công thức mang về", "Nước uống"],
             ["https://images.pexels.com/photos/2544829/pexels-photo-2544829.jpeg",
-             "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg"]),
+             "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg",
+             "https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg",
+             "https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg"]),
 
         new("Chèo SUP bình minh trên sông Hoài", "Hội An",
             "Hai tiếng trên nước trước khi phố thức dậy",
@@ -135,7 +136,9 @@ public static class ExperienceSeeder
             120, 10, 3, "Bến thuyền An Hội", 15.8770, 108.3260,
             420_000m, null,
             ["Ván SUP và áo phao", "Hướng dẫn viên cứu hộ", "Cà phê sau buổi chèo"],
-            ["https://images.pexels.com/photos/1223649/pexels-photo-1223649.jpeg"]),
+            ["https://images.pexels.com/photos/1223649/pexels-photo-1223649.jpeg",
+             "https://images.pexels.com/photos/1008155/pexels-photo-1008155.jpeg",
+             "https://images.pexels.com/photos/1918291/pexels-photo-1918291.jpeg"]),
 
         new("Đi bộ nhiếp ảnh phố cổ Hà Nội", "Hà Nội",
             "Ba tiếng chụp phố, từ hàng nước tới ban công cũ",
@@ -144,7 +147,9 @@ public static class ExperienceSeeder
             180, 6, 2, "Số 1 Hàng Bạc, Hoàn Kiếm", 21.0345, 108.9370,
             600_000m, 3_000_000m,
             ["Hướng dẫn viên là nhiếp ảnh gia", "Cà phê giữa buổi", "Chỉnh ảnh cuối buổi"],
-            ["https://images.pexels.com/photos/1076429/pexels-photo-1076429.jpeg"]),
+            ["https://images.pexels.com/photos/1076429/pexels-photo-1076429.jpeg",
+             "https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg",
+             "https://images.pexels.com/photos/2506988/pexels-photo-2506988.jpeg"]),
 
         new("Tour cà phê Đà Lạt: từ vườn tới tách", "Đà Lạt",
             "Hái, phơi, rang và pha trong một buổi chiều",
@@ -153,7 +158,9 @@ public static class ExperienceSeeder
             210, 12, 4, "Vườn cà phê Cầu Đất, xã Xuân Trường", 11.8000, 108.5000,
             520_000m, 5_000_000m,
             ["Xe đưa đón từ trung tâm", "200g cà phê mang về", "Bánh và cà phê thử"],
-            ["https://images.pexels.com/photos/4820817/pexels-photo-4820817.jpeg"]),
+            ["https://images.pexels.com/photos/4820817/pexels-photo-4820817.jpeg",
+             "https://images.pexels.com/photos/1264210/pexels-photo-1264210.jpeg",
+             "https://images.pexels.com/photos/1008155/pexels-photo-1008155.jpeg"]),
 
         new("Chợ đêm và ăn vặt Sài Gòn bằng xe máy", "TP. Hồ Chí Minh",
             "Bảy món ở năm quận, ngồi sau xe người địa phương",
@@ -162,7 +169,9 @@ public static class ExperienceSeeder
             240, 8, 2, "Công viên bến Bạch Đằng, quận 1", 10.7720, 106.7060,
             890_000m, null,
             ["Xe máy và tài xế riêng", "Bảy món ăn", "Nước uống", "Mũ bảo hiểm"],
-            ["https://images.pexels.com/photos/2233729/pexels-photo-2233729.jpeg"])
+            ["https://images.pexels.com/photos/2233729/pexels-photo-2233729.jpeg",
+             "https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg",
+             "https://images.pexels.com/photos/136739/pexels-photo-136739.jpeg"])
     ];
 
     private static string Slugify(string title, int n)

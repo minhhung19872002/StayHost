@@ -10,7 +10,7 @@ public static class ServiceSeeder
         string Title, string Category, string City, string Summary, string Description,
         ServicePricing Pricing, decimal Price, int MinQty, int MaxQty, int Minutes,
         bool Travels, int RadiusKm, double Lat, double Lng, int Opens, int Closes,
-        string? Partner, decimal Commission, string Image);
+        string? Partner, decimal Commission, string[] Images);
 
     /// <summary>Compressed Pexels variant (~15× smaller); a URL that already has params is left alone.</summary>
     private static string Pexels(string url) =>
@@ -30,20 +30,21 @@ public static class ServiceSeeder
             await db.SaveChangesAsync(ct);
         }
 
-        // Back-fill photos for offerings seeded before images were in the seed,
-        // matched by title, so an older deployment gets its pictures without a reseed.
-        var missing = await db.ServiceOfferings
-            .Where(o => !o.Images.Any())
-            .Select(o => new { o.Id, o.Title })
+        // Top up photos to match the seed, by title — covers rows seeded with no
+        // images and rows from when each service had only one, so an older
+        // deployment gains the extra slideshow images without a reseed.
+        var counts = await db.ServiceOfferings
+            .Select(o => new { o.Id, o.Title, Have = o.Images.Count })
             .ToListAsync(ct);
-        if (missing.Count > 0)
+        if (counts.Count > 0)
         {
-            var bySeed = Seeds.ToDictionary(s => s.Title, s => s.Image);
+            var bySeed = Seeds.ToDictionary(s => s.Title, s => s.Images);
             var added = false;
-            foreach (var o in missing)
-                if (bySeed.TryGetValue(o.Title, out var url))
+            foreach (var o in counts)
+                if (bySeed.TryGetValue(o.Title, out var urls) && o.Have < urls.Length)
                 {
-                    db.ServiceImages.Add(new ServiceImage { OfferingId = o.Id, Url = Pexels(url), SortOrder = 0 });
+                    for (var j = o.Have; j < urls.Length; j++)
+                        db.ServiceImages.Add(new ServiceImage { OfferingId = o.Id, Url = Pexels(urls[j]), SortOrder = j });
                     added = true;
                 }
             if (added) await db.SaveChangesAsync(ct);
@@ -83,7 +84,7 @@ public static class ServiceSeeder
                 IsPublished = true,
                 Rating = 4.7 + (i % 4) * 0.05,
                 ReviewCount = 12 + i * 5,
-                Images = [new ServiceImage { Url = Pexels(s.Image), SortOrder = 0 }]
+                Images = s.Images.Select((u, j) => new ServiceImage { Url = Pexels(u), SortOrder = j }).ToList()
             };
 
             offering.RefreshSearchText();
@@ -101,7 +102,9 @@ public static class ServiceSeeder
             "theo mùa, dọn bàn, và rửa sạch bếp trước khi về. Báo trước nếu có ai dị ứng.",
             ServicePricing.PerPerson, 650_000m, 2, 12, 240, true, 15, 16.0544, 108.2022, 9, 21,
             null, 0.03m,
-            "https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg"),
+            ["https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg",
+             "https://images.pexels.com/photos/2544829/pexels-photo-2544829.jpeg",
+             "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg"]),
 
         new("Chụp ảnh chân dung du lịch", "photo", "Hội An",
             "90 phút chụp quanh phố cổ, giao 40 ảnh đã chỉnh",
@@ -109,7 +112,9 @@ public static class ServiceSeeder
             "48 giờ, kèm toàn bộ ảnh gốc. Có gợi ý dáng cho người ngại máy ảnh.",
             ServicePricing.PerSession, 2_400_000m, 1, 1, 90, true, 10, 15.8801, 108.3380, 6, 18,
             null, 0.03m,
-            "https://images.pexels.com/photos/1264210/pexels-photo-1264210.jpeg"),
+            ["https://images.pexels.com/photos/1264210/pexels-photo-1264210.jpeg",
+             "https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg",
+             "https://images.pexels.com/photos/2506988/pexels-photo-2506988.jpeg"]),
 
         new("Massage trị liệu tại phòng", "massage", "Đà Nẵng",
             "Kỹ thuật viên mang giường và dầu tới tận nơi",
@@ -117,7 +122,9 @@ public static class ServiceSeeder
             "giường gấp, khăn sạch và dầu dừa ép lạnh.",
             ServicePricing.PerHour, 480_000m, 1, 3, 90, true, 12, 16.0600, 108.2400, 9, 22,
             "Spa Hương Việt", 0.18m,
-            "https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg"),
+            ["https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg",
+             "https://images.pexels.com/photos/1918291/pexels-photo-1918291.jpeg",
+             "https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg"]),
 
         new("Đưa đón sân bay Nội Bài", "transfer", "Hà Nội",
             "Xe 4 hoặc 7 chỗ, tài xế đợi sẵn ở sảnh đến",
@@ -125,7 +132,9 @@ public static class ServiceSeeder
             "hỗ trợ hành lý, xe có nước và wifi.",
             ServicePricing.PerOrder, 480_000m, 1, 4, 90, true, 40, 21.0285, 105.8542, 0, 23,
             "Xanh Taxi Hà Nội", 0.12m,
-            "https://images.pexels.com/photos/136739/pexels-photo-136739.jpeg"),
+            ["https://images.pexels.com/photos/136739/pexels-photo-136739.jpeg",
+             "https://images.pexels.com/photos/1008155/pexels-photo-1008155.jpeg",
+             "https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg"]),
 
         new("Giữ hành lý theo giờ", "luggage", "TP. Hồ Chí Minh",
             "Gửi vali giữa lúc trả phòng và giờ bay",
@@ -133,7 +142,9 @@ public static class ServiceSeeder
             "trả tới nửa đêm.",
             ServicePricing.PerOrder, 60_000m, 1, 8, 60, false, 0, 10.7769, 106.7009, 6, 23,
             "Lockbox Sài Gòn", 0.20m,
-            "https://images.pexels.com/photos/1008155/pexels-photo-1008155.jpeg"),
+            ["https://images.pexels.com/photos/1008155/pexels-photo-1008155.jpeg",
+             "https://images.pexels.com/photos/136739/pexels-photo-136739.jpeg",
+             "https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg"]),
 
         new("Đi chợ hộ và giao tận cửa", "groceries", "Đà Lạt",
             "Danh sách của bạn, chợ Đà Lạt của chúng tôi",
@@ -141,7 +152,9 @@ public static class ServiceSeeder
             "chợ giữ nguyên, phí dịch vụ tính riêng.",
             ServicePricing.PerOrder, 180_000m, 1, 3, 120, true, 8, 11.9404, 108.4583, 6, 12,
             null, 0.03m,
-            "https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg")
+            ["https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg",
+             "https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg",
+             "https://images.pexels.com/photos/2544829/pexels-photo-2544829.jpeg"])
     ];
 
     private static string Slugify(string title, int n)
