@@ -346,10 +346,33 @@ const DICT = {
   es: { ...es, ...pagesEs },
 };
 
+/** Any run of digits, including 1.234.567 and 12,5 — one number, one slot. */
+const NUMBERS = /\d[\d.,]*/g;
+
 export function t(s) {
   const code = state.language?.code || 'vi';
-  if (code === 'vi') return s;
-  return DICT[code]?.[s] ?? DICT.en?.[s] ?? s;
+  if (code === 'vi' || typeof s !== 'string' || !s) return s;
+
+  const table = DICT[code];
+  const exact = table?.[s] ?? DICT.en?.[s];
+  if (exact !== undefined) return exact;
+
+  /*
+   * Most of what the server composes is one sentence with a number dropped into
+   * it: "2.782.500₫ × 3 đêm", "Phí di chuyển ngoài 10 km", "Còn 2 chỗ". Keying
+   * every possible number would be endless, so the numbers are lifted out, the
+   * shape is looked up once as "… {} …", and they are put back in order. One
+   * dictionary entry then covers every value the server will ever send.
+   */
+  const numbers = s.match(NUMBERS);
+  if (!numbers) return s;
+
+  const shape = s.replace(NUMBERS, '{}');
+  const hit = table?.[shape] ?? DICT.en?.[shape];
+  if (hit === undefined) return s;
+
+  let i = 0;
+  return hit.replace(/\{\}/g, () => numbers[i++] ?? '');
 }
 
 /**

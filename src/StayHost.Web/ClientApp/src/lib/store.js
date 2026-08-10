@@ -3,7 +3,7 @@
 // business logic stays plain JS and testable, while React handles the DOM.
 
 import { api } from './api.js';
-import { todayIso, isoOf, parseIso, setCurrency } from './format.js';
+import { todayIso, isoOf, parseIso, setCurrency, setLocale } from './format.js';
 import { t } from './i18n.js';
 
 const listeners = new Set();
@@ -317,7 +317,7 @@ export async function loadMeta() {
     if (savedCurrency) { state.currency = savedCurrency; setCurrency(savedCurrency); }
 
     const savedLang = meta.languages.find(l => l.code === localStorage.getItem('sh_language'));
-    if (savedLang) state.language = savedLang;
+    if (savedLang) { state.language = savedLang; setLocale(savedLang.code); }
   } catch (err) {
     state.metaError = err.message;
   }
@@ -1006,6 +1006,9 @@ export function applyLanguage(code) {
   const l = state.meta?.languages.find(x => x.code === code);
   if (!l) return;
   state.language = l;
+  // Dates and numbers belong to the language too: switching to 한국어 and still
+  // reading "19 tháng 8, 2026" says the switch did not really take.
+  setLocale(code);
   localStorage.setItem('sh_language', code);
   notify();
 }

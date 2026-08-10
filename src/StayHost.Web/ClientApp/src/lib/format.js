@@ -54,9 +54,49 @@ export function nightsBetween(checkIn, checkOut) {
   return n > 0 ? n : 1;
 }
 
-const SHORT = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' });
-const LONG = new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' });
-const TIME = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+/**
+ * Dates follow the language the guest picked, not the platform's home country.
+ * A Korean reader switching the site to 한국어 and still seeing "19 tháng 8, 2026"
+ * is being told the switch did not really happen. Set from applyLanguage; the
+ * formatters are rebuilt rather than recreated per call, which matters on a page
+ * showing a calendar.
+ */
+export const LOCALE = { tag: 'vi-VN' };
+
+const BCP47 = {
+  vi: 'vi-VN', en: 'en-GB', ja: 'ja-JP', ko: 'ko-KR',
+  zh: 'zh-CN', fr: 'fr-FR', de: 'de-DE', es: 'es-ES'
+};
+
+let SHORT, LONG, TIME;
+
+export function setLocale(code) {
+  LOCALE.tag = BCP47[code] ?? 'vi-VN';
+  SHORT = new Intl.DateTimeFormat(LOCALE.tag, { day: '2-digit', month: '2-digit' });
+  LONG = new Intl.DateTimeFormat(LOCALE.tag, { day: 'numeric', month: 'long', year: 'numeric' });
+  TIME = new Intl.DateTimeFormat(LOCALE.tag, {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+  });
+}
+
+setLocale('vi');
+
+/**
+ * A formatter in the current language, for screens that need their own shape.
+ * Cached per (locale, shape): a calendar builds one of these per cell otherwise,
+ * and Intl formatters are not cheap to construct.
+ */
+const FORMATTERS = new Map();
+
+export function dateFormat(options) {
+  const key = LOCALE.tag + JSON.stringify(options);
+  let f = FORMATTERS.get(key);
+  if (!f) { f = new Intl.DateTimeFormat(LOCALE.tag, options); FORMATTERS.set(key, f); }
+  return f;
+}
+
+/** Numbers in the reader's language: 1.234.567 in Vietnamese, 1,234,567 in English. */
+export const number = value => new Intl.NumberFormat(LOCALE.tag).format(Number(value) || 0);
 
 export const shortDate = iso => SHORT.format(parseIso(iso));
 export const longDate = iso => LONG.format(parseIso(iso));
