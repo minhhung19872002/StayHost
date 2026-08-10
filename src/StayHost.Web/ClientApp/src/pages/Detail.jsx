@@ -12,7 +12,7 @@ import { Card } from '../components/Card.jsx';
 import { Calendar } from '../components/Calendar.jsx';
 import { DetailMap } from '../components/Maps.jsx';
 import { Icon, AmenityIcon } from '../components/Icon.jsx';
-import { TranslateButton } from '../components/TranslateButton.jsx';
+import { TranslatedText } from '../components/TranslatedText.jsx';
 import { PriceLines } from '../components/modals/ListingModals.jsx';
 import { t } from '../lib/i18n.js';
 
@@ -223,9 +223,9 @@ function Summary({ detail, card }) {
       <div className="summary-meta">
         {card.maxGuests} {t('khách')} · {card.bedrooms} {t('phòng ngủ')} · {card.beds} {t('giường')} · {card.bathrooms} {t('phòng tắm')}
       </div>
-      <p className="summary-desc">{detail.description}</p>
-      {/* docs/01 TĐ-03 — dịch mô tả tin đăng, chỉ hiện khi dịch được bật. */}
-      <TranslateButton text={detail.description} />
+      {/* docs/01 TĐ-03 — a description is the host's own prose, so it is machine
+          translated automatically and said to be, with the original a tap away. */}
+      <TranslatedText as="p" className="summary-desc" text={detail.description} />
       {card.highlight && (
         <p className="summary-desc" style={{ marginTop: 10 }}><b>{t('Điểm nổi bật:')}</b> {card.highlight}</p>
       )}
@@ -422,7 +422,7 @@ function Reviews({ detail, card }) {
                 <div className="review-when">{r.authorLocation ? `${r.authorLocation} · ` : ''}{monthLabel(r.when)}</div>
               </div>
             </div>
-            <p>{r.text}</p>
+            <TranslatedText as="p" text={r.text} />
             <HostReply review={r} />
             {/* docs/01 AT-02 — a review is reportable in its own right; before
                 this the only way to flag one was to report the whole listing. */}
@@ -556,7 +556,7 @@ function HostProfile({ detail }) {
           <div>{t(monthLabel(h.joinedLabel))}</div>
         </div>
       </div>
-      {h.bio && <p className="summary-desc" style={{ marginTop: 18 }}>{h.bio}</p>}
+      {h.bio && <TranslatedText as="p" className="summary-desc" style={{ marginTop: 18 }} text={h.bio} />}
       <div style={{ display: 'grid', gap: 6, marginTop: 16, fontSize: 14, color: 'var(--ink-body)' }}>
         <div>{t('Tỉ lệ phản hồi:')} <b>{h.responseRate}</b></div>
         <div>{t('Thời gian phản hồi:')} <b>{t(h.responseTime)}</b></div>

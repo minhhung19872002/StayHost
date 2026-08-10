@@ -10,6 +10,9 @@ function loadConfig() {
   return configPromise;
 }
 
+/** Whether a translation provider is configured at all. Shared with TranslatedText. */
+export const translationEnabled = () => loadConfig().then(c => !!c.enabled);
+
 /**
  * A "Dịch" toggle that only appears when translation is switched on. Translates
  * the given text into the viewer's current language and shows it inline; a second
