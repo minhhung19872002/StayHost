@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { openOverlay, toast } from '../lib/store.js';
+import { t } from '../lib/i18n.js';
 
 const COLUMNS = [
   {
@@ -56,12 +57,12 @@ export function Footer() {
     <div className="footer-cols">
       {COLUMNS.map(col => (
         <div className="footer-col" key={col.title}>
-          <h4>{col.title}</h4>
+          <h4>{t(col.title)}</h4>
           <ul>
             {col.links.map(l => (
               <li key={l}>
                 <a href={ROUTES[l] ?? '#'}
-                   onClick={e => { e.preventDefault(); ROUTES[l] ? navigate(ROUTES[l]) : demo(e); }}>{l}</a>
+                   onClick={e => { e.preventDefault(); ROUTES[l] ? navigate(ROUTES[l]) : demo(e); }}>{t(l)}</a>
               </li>
             ))}
           </ul>
@@ -69,7 +70,7 @@ export function Footer() {
       ))}
       {/* docs/01 TM-26 — real, crawlable links into the per-city landing pages. */}
       <div className="footer-col">
-        <h4>Điểm đến</h4>
+        <h4>{t('Điểm đến')}</h4>
         <ul>
           {CITIES.map(([name, slug]) => (
             <li key={slug}>
@@ -83,7 +84,7 @@ export function Footer() {
     <div className="footer-bottom">
       <div className="footer-bottom-inner">
         <div className="footer-legal">
-          {LEGAL.map(l => <span key={l}>{l}</span>)}
+          {LEGAL.map(l => <span key={l}>{t(l)}</span>)}
         </div>
         <div className="footer-prefs">
           <button onClick={() => openOverlay('language')}>⊕ {state.language.label}</button>

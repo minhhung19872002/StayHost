@@ -10,6 +10,7 @@ import { api } from '../lib/api.js';
 import { applySearch } from '../lib/nav.js';
 import { recentSearches, clearSearchHistory } from '../lib/history.js';
 import { dateRangeLabel, shortDate, debounce } from '../lib/format.js';
+import { t } from '../lib/i18n.js';
 import { Avatar } from './Avatar.jsx';
 import { Icon } from './Icon.jsx';
 import { DateFields, GuestFields } from './modals/SearchModals.jsx';
@@ -68,19 +69,19 @@ export function Header() {
       </button>
 
       <nav className="nav-tabs" aria-label="Loại dịch vụ">
-        {TABS.map(t => (
-          <button key={t.key} className={`nav-tab ${state.tab === t.key ? 'is-active' : ''}`}
-                  aria-pressed={state.tab === t.key}
-                  onClick={() => { set({ tab: t.key }); navigate(t.path); }}>
-            <span className="ic"><Icon name={t.icon} size={22} /></span>
-            <span>{t.label}</span>
+        {TABS.map(tab => (
+          <button key={tab.key} className={`nav-tab ${state.tab === tab.key ? 'is-active' : ''}`}
+                  aria-pressed={state.tab === tab.key}
+                  onClick={() => { set({ tab: tab.key }); navigate(tab.path); }}>
+            <span className="ic"><Icon name={tab.icon} size={22} /></span>
+            <span>{t(tab.label)}</span>
           </button>
         ))}
       </nav>
 
       <div className="header-actions">
         <button className="ghost-btn host-link" onClick={() => navigate(state.user?.isHost ? '/hosting' : '/host')}>
-          {state.user?.isHost ? 'Trang chủ nhà' : 'Cho thuê nhà'}
+          {state.user?.isHost ? t('Trang chủ nhà') : t('Cho thuê nhà')}
         </button>
 
         {state.user && (
@@ -239,12 +240,12 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
   }, [openSeg, state.suggestOpen, state.suggestions?.length]);
 
   const placeholder = wide
-    ? 'Tìm điểm đến'
+    ? t('Tìm điểm đến')
     : state.q.trim()
-      ? `Chỗ ở tại ${state.q.trim()}`
+      ? `${t('Chỗ ở')} · ${state.q.trim()}`
       : state.category !== 'all'
-        ? state.meta?.categories.find(c => c.key === state.category)?.label ?? 'Chỗ ở'
-        : 'Mọi nơi';
+        ? state.meta?.categories.find(c => c.key === state.category)?.label ?? t('Chỗ ở')
+        : t('Mọi nơi');
 
   // The per-segment class carries the widths, so it belongs on both bars. Hanging
   // it on `wide` alone left the compact bar's three fields at their natural size,
@@ -256,7 +257,7 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
     // The destination is a segment like the other two: putting the caret in it
     // greys the bar and lifts this one, so all three behave the same way.
     <label className={segClass('where')}>
-      {wide && <span className="seg-cap">Địa điểm</span>}
+      {wide && <span className="seg-cap">{t('Địa điểm')}</span>}
       <input id="q" type="text" value={state.q} placeholder={placeholder} autoComplete="off"
              onChange={e => onQueryInput(e.target.value)}
              onFocus={() => {
@@ -280,7 +281,7 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
         <span className="seg-div" />
         <button type="button" className={segClass('when')} onClick={() => toggle('when')}
                 aria-expanded={openSeg === 'when'}>
-          {wide && <span className="seg-cap">Ngày</span>}
+          {wide && <span className="seg-cap">{t('Ngày')}</span>}
           <span className="seg-val">
             {state.pickingFrom
               ? `${shortDate(state.pickingFrom)} – ?`
@@ -290,7 +291,7 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
         <span className="seg-div" />
         <button type="button" className={segClass('who')} onClick={() => toggle('who')}
                 aria-expanded={openSeg === 'who'}>
-          {wide && <span className="seg-cap">Khách</span>}
+          {wide && <span className="seg-cap">{t('Khách')}</span>}
           <span className="seg-val">{guestLabel()}</span>
         </button>
         <button type="submit" className="search-go" aria-label="Tìm kiếm">
@@ -314,16 +315,16 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
               <DateFields />
               <div className="search-pop-foot">
                 <button type="button" className="text-btn"
-                        onClick={() => { clearDates(); applySearch(); }}>Xoá ngày</button>
-                <button type="button" className="btn btn-dark btn-sm" onClick={closeBar}>Xong</button>
+                        onClick={() => { clearDates(); applySearch(); }}>{t('Xoá ngày')}</button>
+                <button type="button" className="btn btn-dark btn-sm" onClick={closeBar}>{t('Xong')}</button>
               </div>
             </>}
 
             {openSeg === 'who' && <>
               <GuestFields />
               <div className="search-pop-foot">
-                <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>Tổng {totalGuests()} khách</span>
-                <button type="button" className="btn btn-dark btn-sm" onClick={closeBar}>Xong</button>
+                <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>{t('Tổng')} {totalGuests()} {t('khách')}</span>
+                <button type="button" className="btn btn-dark btn-sm" onClick={closeBar}>{t('Xong')}</button>
               </div>
             </>}
           </div>
@@ -374,10 +375,10 @@ function Suggestions({ onDone }) {
     <div className="suggest-list" role="listbox">
       {showRecent && <>
         <div className="suggest-head">
-          Tìm kiếm gần đây
+          {t('Tìm kiếm gần đây')}
           <button className="link-btn" style={{ float: 'right', fontSize: 12 }}
                   onMouseDown={e => e.preventDefault()}
-                  onClick={() => { clearSearchHistory(); setRecent([]); }}>Xoá</button>
+                  onClick={() => { clearSearchHistory(); setRecent([]); }}>{t('Xoá')}</button>
         </div>
         {recent.map(entry => (
           <button type="button" className="suggest-row" role="option" key={`recent:${entry.q}`}
@@ -385,13 +386,13 @@ function Suggestions({ onDone }) {
             <span className="suggest-ic"><Icon name="search" size={18} /></span>
             <span style={{ minWidth: 0 }}>
               <b>{entry.q}</b>
-              <span>{entry.checkIn ? dateRangeLabel(entry.checkIn, entry.checkOut) : 'Mọi ngày'}</span>
+              <span>{entry.checkIn ? dateRangeLabel(entry.checkIn, entry.checkOut) : t('Mọi ngày')}</span>
             </span>
           </button>
         ))}
       </>}
 
-      <div className="suggest-head">{state.q.trim() ? 'Kết quả gợi ý' : 'Điểm đến phổ biến'}</div>
+      <div className="suggest-head">{state.q.trim() ? t('Kết quả gợi ý') : t('Điểm đến phổ biến')}</div>
       {(state.suggestions ?? []).map(s => (
         <button type="button" className="suggest-row" role="option" key={`${s.kind}:${s.value}`}
                 onMouseDown={e => e.preventDefault()} onClick={() => pick(s)}>
@@ -422,13 +423,13 @@ function BellMenu() {
   return (
     <div className="menu bell-menu" role="menu">
       <div className="bell-head">
-        <b>Thông báo</b>
+        <b>{t('Thông báo')}</b>
         {!!feed?.unread && (
           <button className="link-btn" onClick={async e => {
             e.stopPropagation();
             try { await api.readAllNotifications(); await loadNotifications(); }
             catch (err) { toast(err.message); }
-          }}>Đánh dấu đã đọc</button>
+          }}>{t('Đánh dấu đã đọc')}</button>
         )}
       </div>
       {items.length
@@ -438,7 +439,7 @@ function BellMenu() {
               <b>{n.title}</b>
               <span>{n.body}</span>
             </button>))
-        : <p className="bell-empty">Chưa có thông báo nào.</p>}
+        : <p className="bell-empty">{t('Chưa có thông báo nào.')}</p>}
     </div>
   );
 }
@@ -454,17 +455,17 @@ function AccountMenu() {
   if (!u) {
     return (
       <div className="menu" role="menu">
-        <button className="bold" role="menuitem" onClick={() => auth('register')}>Đăng ký</button>
-        <button className="bold" role="menuitem" onClick={() => auth('login')}>Đăng nhập</button>
+        <button className="bold" role="menuitem" onClick={() => auth('register')}>{t('Đăng ký')}</button>
+        <button className="bold" role="menuitem" onClick={() => auth('login')}>{t('Đăng nhập')}</button>
         <hr />
-        <button role="menuitem" onClick={() => goTo('/wishlists')}>Danh sách yêu thích ({state.favCount})</button>
-        <button role="menuitem" onClick={() => goTo('/trips')}>Chuyến đi của tôi</button>
-        <button role="menuitem" onClick={() => goTo('/trip-plans')}>Lịch trình chuyến đi</button>
-        <button role="menuitem" onClick={() => goTo('/friends')}>Bạn bè</button>
-        <button role="menuitem" onClick={() => goTo('/host')}>Cho thuê nhà trên StayHost</button>
+        <button role="menuitem" onClick={() => goTo('/wishlists')}>{t('Danh sách yêu thích')} ({state.favCount})</button>
+        <button role="menuitem" onClick={() => goTo('/trips')}>{t('Chuyến đi của tôi')}</button>
+        <button role="menuitem" onClick={() => goTo('/trip-plans')}>{t('Lịch trình chuyến đi')}</button>
+        <button role="menuitem" onClick={() => goTo('/friends')}>{t('Bạn bè')}</button>
+        <button role="menuitem" onClick={() => goTo('/host')}>{t('Cho thuê nhà trên StayHost')}</button>
         <hr />
-        <button role="menuitem" onClick={() => openOverlay('language')}>Ngôn ngữ &amp; tiền tệ</button>
-        <button role="menuitem" onClick={() => goTo('/help')}>Trung tâm trợ giúp</button>
+        <button role="menuitem" onClick={() => openOverlay('language')}>{t('Ngôn ngữ & tiền tệ')}</button>
+        <button role="menuitem" onClick={() => goTo('/help')}>{t('Trung tâm trợ giúp')}</button>
       </div>
     );
   }
@@ -487,26 +488,26 @@ function AccountMenu() {
       </div>
       <hr />
       <button className="bold" role="menuitem" onClick={() => goTo('/messages')}>
-        Tin nhắn {!!u.unreadMessages && <span className="fav-count" style={{ marginLeft: 'auto' }}>{u.unreadMessages}</span>}
+        {t('Tin nhắn')} {!!u.unreadMessages && <span className="fav-count" style={{ marginLeft: 'auto' }}>{u.unreadMessages}</span>}
       </button>
-      <button role="menuitem" onClick={() => goTo('/trips')}>Chuyến đi của tôi</button>
-      <button role="menuitem" onClick={() => goTo('/wishlists')}>Danh sách yêu thích ({state.favCount})</button>
-      <button role="menuitem" onClick={() => goTo('/experiences/bookings')}>Vé trải nghiệm</button>
-      <button role="menuitem" onClick={() => goTo('/services/bookings')}>Dịch vụ đã đặt</button>
-      <button role="menuitem" onClick={() => goTo('/wallet')}>Số dư &amp; thẻ quà tặng</button>
-      <button role="menuitem" onClick={() => goTo('/resolutions')}>Trung tâm giải quyết</button>
+      <button role="menuitem" onClick={() => goTo('/trips')}>{t('Chuyến đi của tôi')}</button>
+      <button role="menuitem" onClick={() => goTo('/wishlists')}>{t('Danh sách yêu thích')} ({state.favCount})</button>
+      <button role="menuitem" onClick={() => goTo('/experiences/bookings')}>{t('Vé trải nghiệm')}</button>
+      <button role="menuitem" onClick={() => goTo('/services/bookings')}>{t('Dịch vụ đã đặt')}</button>
+      <button role="menuitem" onClick={() => goTo('/wallet')}>{t('Số dư & thẻ quà tặng')}</button>
+      <button role="menuitem" onClick={() => goTo('/resolutions')}>{t('Trung tâm giải quyết')}</button>
       <button role="menuitem" onClick={() => goTo('/shield')}>StayShield</button>
       <hr />
       {u.isHost
-        ? <button className="bold" role="menuitem" onClick={() => goTo('/hosting')}>Trang chủ nhà ({u.listingCount} chỗ nghỉ)</button>
-        : <button className="bold" role="menuitem" onClick={startHosting}>Cho thuê nhà trên StayHost</button>}
-      {u.role === 'Admin' && <button className="bold" role="menuitem" onClick={() => goTo('/admin')}>Trang quản trị</button>}
-      <button role="menuitem" onClick={() => openOverlay('profile')}>Tài khoản</button>
-      <button role="menuitem" onClick={() => goTo(`/users/${u.id}`)}>Hồ sơ công khai</button>
+        ? <button className="bold" role="menuitem" onClick={() => goTo('/hosting')}>{t('Trang chủ nhà')} ({u.listingCount})</button>
+        : <button className="bold" role="menuitem" onClick={startHosting}>{t('Cho thuê nhà trên StayHost')}</button>}
+      {u.role === 'Admin' && <button className="bold" role="menuitem" onClick={() => goTo('/admin')}>{t('Trang quản trị')}</button>}
+      <button role="menuitem" onClick={() => openOverlay('profile')}>{t('Tài khoản')}</button>
+      <button role="menuitem" onClick={() => goTo(`/users/${u.id}`)}>{t('Hồ sơ công khai')}</button>
       <hr />
-      <button role="menuitem" onClick={() => openOverlay('language')}>Ngôn ngữ &amp; tiền tệ</button>
-      <button role="menuitem" onClick={() => goTo('/help')}>Trung tâm trợ giúp</button>
-      <button role="menuitem" onClick={async () => { set({ menu: null }); await logout(); navigate('/'); }}>Đăng xuất</button>
+      <button role="menuitem" onClick={() => openOverlay('language')}>{t('Ngôn ngữ & tiền tệ')}</button>
+      <button role="menuitem" onClick={() => goTo('/help')}>{t('Trung tâm trợ giúp')}</button>
+      <button role="menuitem" onClick={async () => { set({ menu: null }); await logout(); navigate('/'); }}>{t('Đăng xuất')}</button>
     </div>
   );
 }
@@ -531,15 +532,15 @@ function QuickBar() {
     <div className="catbar-outer">
       <div className="quickbar">
         <button className="quick-chip is-lead" onClick={() => openOverlay('filters')}>
-          <Icon name="filter" size={15} /> Bộ lọc{!!filters && <span className="count">{filters}</span>}
+          <Icon name="filter" size={15} /> {t('Bộ lọc')}{!!filters && <span className="count">{filters}</span>}
         </button>
         <span className="quick-div" />
 
         <div className="quick-scroll" id="cat-scroll">
-          <button className={`quick-chip ${state.instantBookOnly ? 'is-on' : ''}`} onClick={() => flag('instantBookOnly')}>Đặt ngay</button>
-          <button className={`quick-chip ${state.freeCancellationOnly ? 'is-on' : ''}`} onClick={() => flag('freeCancellationOnly')}>Huỷ miễn phí</button>
-          <button className={`quick-chip ${state.guestFavoriteOnly ? 'is-on' : ''}`} onClick={() => flag('guestFavoriteOnly')}>Khách yêu thích</button>
-          <button className={`quick-chip ${state.superhostOnly ? 'is-on' : ''}`} onClick={() => flag('superhostOnly')}>Siêu chủ nhà</button>
+          <button className={`quick-chip ${state.instantBookOnly ? 'is-on' : ''}`} onClick={() => flag('instantBookOnly')}>{t('Đặt ngay')}</button>
+          <button className={`quick-chip ${state.freeCancellationOnly ? 'is-on' : ''}`} onClick={() => flag('freeCancellationOnly')}>{t('Huỷ miễn phí')}</button>
+          <button className={`quick-chip ${state.guestFavoriteOnly ? 'is-on' : ''}`} onClick={() => flag('guestFavoriteOnly')}>{t('Khách yêu thích')}</button>
+          <button className={`quick-chip ${state.superhostOnly ? 'is-on' : ''}`} onClick={() => flag('superhostOnly')}>{t('Siêu chủ nhà')}</button>
           {chips.map(a => (
             <button key={a.key} className={`quick-chip ${state.amenities.includes(a.key) ? 'is-on' : ''}`}
                     aria-pressed={state.amenities.includes(a.key)}
@@ -551,7 +552,7 @@ function QuickBar() {
                 aria-pressed={state.showTotalPrice}
                 title="Hiện giá mỗi đêm đã gồm phí dịch vụ, phí dọn dẹp và thuế"
                 onClick={() => set({ showTotalPrice: !state.showTotalPrice })}>
-          <span className="switch" aria-hidden="true" /> Giá đã gồm thuế và phí
+          <span className="switch" aria-hidden="true" /> {t('Giá đã gồm thuế và phí')}
         </button>
       </div>
     </div>
