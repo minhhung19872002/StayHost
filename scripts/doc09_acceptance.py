@@ -195,11 +195,47 @@ def scenario_12():
        f"truoc han PayoutStatus={early} (0 = con cho, dung)")
 
 
+# ---------------------------------------------------------------- scenario 9
+def scenario_9():
+    """A massage certificate that lapsed takes the listing down by itself."""
+    oid = sql("""select "Id" from service_offerings where "IsPublished" order by "Id" limit 1;""")
+    sql(f"""update service_offerings
+            set "CertificateName" = 'Chung chi massage',
+                "CertificateExpiresOn" = (current_date - 1),
+                "HiddenByExpiredCertificate" = false,
+                "IsPublished" = true
+            where "Id" = {oid};""")
+
+    before = sql(f'select "IsPublished" from service_offerings where "Id" = {oid};')
+
+    # The lifecycle worker runs the sweep on its own tick; wait for one.
+    import time
+    hidden = before
+    for _ in range(35):
+        time.sleep(2)
+        hidden = sql(f'select "IsPublished"::int || \'|\' || "HiddenByExpiredCertificate"::int '
+                     f'from service_offerings where "Id" = {oid};')
+        if hidden == "0|1":
+            break
+
+    notified = int(sql(f"""select count(*) from notifications n
+                          where n."Body" like '%hết hạn%' and n."Title" like '%tạm ẩn%';"""))
+
+    ok(9, "Chung chi het han thi tin dang tu an, NCC nhan thong bao",
+       before == "t" and hidden == "0|1" and notified > 0,
+       f"truoc={before}, sau={hidden} (0|1 = da an), thong bao={notified}")
+
+    # Put it back so a re-run starts clean.
+    sql(f"""update service_offerings set "IsPublished" = true, "CertificateExpiresOn" = null,
+            "HiddenByExpiredCertificate" = false where "Id" = {oid};""")
+
+
 def main():
     print("docs/09 — cac kich ban bat buoc\n")
     scenario_1()
     scenario_2()
     scenario_5()
+    scenario_9()
     scenario_11()
     scenario_12()
 

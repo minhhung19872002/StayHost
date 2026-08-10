@@ -227,6 +227,69 @@ public class ServiceMarketService(
                 b.CancelReason, b.CreatedAt))
             .ToListAsync(ct);
 
+    /// <summary>
+    /// docs/09 §3.2 (MR-S-02, scenario 9) — watches practising certificates: warns
+    /// the provider thirty days before one runs out, and takes the listing down by
+    /// itself the day it lapses. A masseur whose certificate expired is not
+    /// somebody the platform may keep selling, and waiting for a human to notice
+    /// is how that goes wrong.
+    /// </summary>
+    public async Task<(int Hidden, int Reminded)> CertificateSweepAsync(
+        CancellationToken ct, DateOnly? asOf = null)
+    {
+        var today = asOf ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        int hidden = 0, reminded = 0;
+
+        var watched = await db.ServiceOfferings
+            .Include(o => o.Host!).ThenInclude(h => h.User)
+            .Where(o => o.CertificateExpiresOn != null && o.IsPublished)
+            .Take(500)
+            .ToListAsync(ct);
+
+        foreach (var o in watched)
+        {
+            if (ServiceRules.CertificateLapsed(o.CertificateExpiresOn, today))
+            {
+                o.IsPublished = false;
+                o.HiddenByExpiredCertificate = true;
+                hidden++;
+
+                if (o.Host?.User is { } owner)
+                    await notifications.QueueWithEmailAsync(owner, NotificationKind.ListingRejected,
+                        "Tin dịch vụ đã tạm ẩn",
+                        $"{o.CertificateName ?? "Chứng chỉ hành nghề"} của \"{o.Title}\" đã hết hạn ngày " +
+                        $"{o.CertificateExpiresOn:dd/MM/yyyy}, nên tin tạm ẩn khỏi tìm kiếm. " +
+                        "Gia hạn rồi nộp lại là tin hiện lại.",
+                        "/hosting", ct);
+                continue;
+            }
+
+            // One reminder per certificate, not one a day.
+            if (ServiceRules.CertificateExpiringSoon(o.CertificateExpiresOn, today)
+                && o.CertificateReminderSentOn != o.CertificateExpiresOn)
+            {
+                o.CertificateReminderSentOn = o.CertificateExpiresOn;
+                reminded++;
+
+                if (o.Host?.User is { } owner)
+                    await notifications.QueueWithEmailAsync(owner, NotificationKind.ListingApproved,
+                        "Chứng chỉ sắp hết hạn",
+                        $"{o.CertificateName ?? "Chứng chỉ hành nghề"} của \"{o.Title}\" hết hạn ngày " +
+                        $"{o.CertificateExpiresOn:dd/MM/yyyy}. Gia hạn trước ngày đó để tin không bị tạm ẩn.",
+                        "/hosting", ct);
+            }
+        }
+
+        if (hidden + reminded > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            log.LogInformation("Chứng chỉ dịch vụ {Today}: {Hidden} tin tạm ẩn, {Reminded} lời nhắc.",
+                today, hidden, reminded);
+        }
+
+        return (hidden, reminded);
+    }
+
     public async Task<ServiceBookingDto?> BookingDtoAsync(int id, CancellationToken ct) =>
         await db.ServiceBookings
             .Where(b => b.Id == id)

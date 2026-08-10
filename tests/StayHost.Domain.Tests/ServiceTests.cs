@@ -205,6 +205,27 @@ public class ServiceTests
         Assert.Equal(ServiceRules.NoteKind.FoodAllergy, ServiceRules.RequiredNote("chef"));
     }
 
+    [Fact]
+    public void A_lapsed_practising_certificate_hides_the_listing()   // scenario 9
+    {
+        var today = new DateOnly(2026, 9, 1);
+
+        // docs/09 §3.2 — expired yesterday: down it comes.
+        Assert.True(ServiceRules.CertificateLapsed(today.AddDays(-1), today));
+        // Expiring today is still valid; the provider has the day.
+        Assert.False(ServiceRules.CertificateLapsed(today, today));
+        // No certificate on file means the category never demanded one.
+        Assert.False(ServiceRules.CertificateLapsed(null, today));
+
+        // Warned thirty days out, not before, and not once it has already lapsed.
+        Assert.True(ServiceRules.CertificateExpiringSoon(today.AddDays(30), today));
+        Assert.False(ServiceRules.CertificateExpiringSoon(today.AddDays(31), today));
+        Assert.False(ServiceRules.CertificateExpiringSoon(today.AddDays(-1), today));
+
+        Assert.True(ServiceRules.NeedsCertificate("massage"));
+        Assert.False(ServiceRules.NeedsCertificate("luggage"));
+    }
+
     /* ------------------------------------------------------------- MR-07 */
 
     [Fact]

@@ -75,6 +75,16 @@ public class ServiceOffering
     public string TimeZoneId { get; set; } = "Asia/Ho_Chi_Minh";
     public bool IsPublished { get; set; }
 
+    // --- docs/09 §3.2 (MR-S-02): the practising certificate and its expiry.
+    // A lapsed certificate takes the listing down on its own; the provider is
+    // warned thirty days ahead, once.
+    public string? CertificateName { get; set; }
+    public DateOnly? CertificateExpiresOn { get; set; }
+    public DateOnly? CertificateReminderSentOn { get; set; }
+
+    /// <summary>Set when the sweep hid this listing, so it can say why.</summary>
+    public bool HiddenByExpiredCertificate { get; set; }
+
     public double Rating { get; set; }
     public int ReviewCount { get; set; }
 
@@ -273,6 +283,28 @@ public static class ServiceRules
     }
 
     private static double ToRadians(double degrees) => degrees * Math.PI / 180;
+
+    /* ------------------------------------------------ §3.2, the certificate */
+
+    /// <summary>docs/09 §3.2 — how long before expiry the provider is warned.</summary>
+    public const int CertificateReminderDays = 30;
+
+    /// <summary>
+    /// docs/09 §3.2 (scenario 9) — a practising certificate that has run out
+    /// takes the listing down: a masseur whose certificate lapsed is not somebody
+    /// the platform may keep selling. An offering with no certificate on file is
+    /// one whose category never demanded one, so it is left alone.
+    /// </summary>
+    public static bool CertificateLapsed(DateOnly? expiresOn, DateOnly today) =>
+        expiresOn is { } on && on < today;
+
+    /// <summary>Inside the warning window but still valid — time to remind them.</summary>
+    public static bool CertificateExpiringSoon(DateOnly? expiresOn, DateOnly today) =>
+        expiresOn is { } on && on >= today && on <= today.AddDays(CertificateReminderDays);
+
+    /// <summary>Which categories may not be sold at all without a certificate (§3.2).</summary>
+    public static bool NeedsCertificate(string? category) => (category ?? "").Trim().ToLowerInvariant()
+        is "chef" or "massage" or "fitness" or "hair" or "makeup" or "nails";
 
     /// <summary>The mandatory note a category demands before a job can be booked.</summary>
     public enum NoteKind { None = 0, FoodAllergy, HealthConditions, FitnessInjuries }

@@ -511,12 +511,14 @@ public static class Ledger
     /// the capture; this is the cash leaving to reach them.
     /// </summary>
     public static List<LedgerEntry> PayoutExperience(ExperienceBooking booking, decimal amount, DateTime at) =>
-        Post("experience-payout", booking.Id, at,
+        // The entry hangs off the experience booking, not off a stay: BookingId
+        // is a foreign key into `bookings`, and an experience id is not one.
+        Post("experience-payout", null, booking.Id, at,
             new Leg(LedgerAccount.HostPayable, LedgerDirection.Debit, amount, "Chi trả người dẫn"),
             new Leg(LedgerAccount.GuestFunds, LedgerDirection.Credit, amount, $"Chuyển cho người dẫn, đơn {booking.Reference}"));
 
     public static List<LedgerEntry> PayoutService(ServiceBooking booking, decimal amount, DateTime at) =>
-        Post("service-payout", booking.Id, at,
+        Post("service-payout", null, null, booking.Id, at,
             new Leg(LedgerAccount.HostPayable, LedgerDirection.Debit, amount, "Chi trả nhà cung cấp"),
             new Leg(LedgerAccount.GuestFunds, LedgerDirection.Credit, amount, $"Chuyển cho nhà cung cấp, đơn {booking.Reference}"));
 

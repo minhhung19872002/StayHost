@@ -413,6 +413,13 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var sessionPayouts = await payouts.SweepSessionsAsync(stoppingToken);
                 if (sessionPayouts.Any) log.LogInformation("Trả buổi: {Result}.", sessionPayouts);
 
+                // docs/09 §3.2 — a lapsed practising certificate hides its listing.
+                var certs = scope.ServiceProvider.GetRequiredService<ServiceMarketService>();
+                var certResult = await certs.CertificateSweepAsync(stoppingToken);
+                if (certResult.Hidden + certResult.Reminded > 0)
+                    log.LogInformation("Chứng chỉ dịch vụ: {Hidden} tạm ẩn, {Reminded} nhắc.",
+                        certResult.Hidden, certResult.Reminded);
+
                 // docs/07 §4 — a card about to expire with money still to come
                 // off it, fourteen days ahead.
                 var expiring = await Controllers.PaymentMethodsController.RemindExpiringAsync(
