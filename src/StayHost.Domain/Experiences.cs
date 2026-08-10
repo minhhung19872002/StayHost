@@ -157,8 +157,15 @@ public static class ExperienceRules
     /// </summary>
     public static readonly TimeSpan MinimumCheck = TimeSpan.FromHours(48);
 
-    /// <summary>Guests may cancel their own ticket up to this point, with a full refund.</summary>
-    public static readonly TimeSpan FreeCancellation = TimeSpan.FromHours(24);
+    /// <summary>
+    /// docs/09 §2.8 — the experience cancellation ladder, its own and not the stay
+    /// policy: a full refund a week out, half inside the week, nothing in the last
+    /// day, plus a 24-hour grace right after booking while the session is ≥48h off.
+    /// </summary>
+    public static readonly TimeSpan FullRefundLead = TimeSpan.FromDays(7);
+    public static readonly TimeSpan HalfRefundLead = TimeSpan.FromHours(24);
+    public static readonly TimeSpan GraceWindow = TimeSpan.FromHours(24);
+    public static readonly TimeSpan GraceLead = TimeSpan.FromHours(48);
 
     public enum Refusal
     {
@@ -222,9 +229,27 @@ public static class ExperienceRules
         && slot.StartsAt - now <= MinimumCheck
         && slot.SeatsTaken < experience.MinGuests;
 
-    /// <summary>A guest cancelling their own ticket: full refund up to a day before.</summary>
-    public static decimal GuestRefund(ExperienceBooking booking, DateTime startsAt, DateTime now) =>
-        startsAt - now >= FreeCancellation ? booking.Total : 0m;
+    /// <summary>
+    /// docs/09 §2.8 — a guest cancelling their own ticket, on the tiered ladder:
+    /// ≥7 days 100%, 24h–7 days 50%, &lt;24h nothing; and the 24-hour grace after
+    /// booking (while the session is still ≥48h away) returns everything.
+    /// </summary>
+    public static decimal GuestRefund(ExperienceBooking booking, DateTime startsAt, DateTime now)
+    {
+        var lead = startsAt - now;
+
+        var withinGrace = now >= booking.CreatedAt
+            && now - booking.CreatedAt <= GraceWindow
+            && lead >= GraceLead;
+
+        if (withinGrace || lead >= FullRefundLead)
+            return booking.Total;
+
+        if (lead >= HalfRefundLead)
+            return Math.Round(booking.Total * 0.5m, 0, MidpointRounding.AwayFromZero);
+
+        return 0m;
+    }
 
     public static string StatusLabel(ExperienceBookingStatus status) => status switch
     {

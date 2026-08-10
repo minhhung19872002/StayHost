@@ -181,12 +181,36 @@ public class ExperienceTests
     /* --------------------------------------------------------- refunds */
 
     [Fact]
-    public void A_guest_who_pulls_out_a_day_ahead_gets_everything_back()
+    public void The_experience_cancellation_ladder_is_its_own_not_the_stay_policy()
     {
-        var booking = new ExperienceBooking { Total = 1_140_000m };
+        // Booked well in the past, so the 24h grace never colours these tiers.
+        var booking = new ExperienceBooking { Total = 1_140_000m, CreatedAt = Now.AddDays(-30) };
 
-        Assert.Equal(1_140_000m, ExperienceRules.GuestRefund(booking, Now.AddHours(25), Now));
+        // docs/09 §2.8: ≥7 days 100%, 24h–7 days 50%, <24h nothing.
+        Assert.Equal(1_140_000m, ExperienceRules.GuestRefund(booking, Now.AddDays(8), Now));
+        // Scenario 6 — a guest pulling out 5 days ahead gets 50%, not 100% like a stay.
+        Assert.Equal(570_000m, ExperienceRules.GuestRefund(booking, Now.AddDays(5), Now));
+        Assert.Equal(570_000m, ExperienceRules.GuestRefund(booking, Now.AddHours(25), Now));
         Assert.Equal(0m, ExperienceRules.GuestRefund(booking, Now.AddHours(23), Now));
+    }
+
+    [Fact]
+    public void The_first_day_after_booking_is_a_full_refund_grace_while_the_session_is_far_off()
+    {
+        var booking = new ExperienceBooking { Total = 1_140_000m, CreatedAt = Now };
+
+        // Cancelled 3 hours after booking, session still 10 days away → full back
+        // even though the plain tier would already be 100% here; the grace matters
+        // most when the session is inside the week…
+        Assert.Equal(1_140_000m, ExperienceRules.GuestRefund(booking, Now.AddDays(10), Now.AddHours(3)));
+
+        // …booked, then cancelled next morning with the session 3 days off: the tier
+        // alone would give 50%, but the grace lifts it to 100%.
+        Assert.Equal(1_140_000m, ExperienceRules.GuestRefund(booking, Now.AddDays(3), Now.AddHours(20)));
+
+        // Grace does not apply once the session is inside 48h: booked then cancelled
+        // two hours later, but the session is only 20h away → the <24h tier, nothing.
+        Assert.Equal(0m, ExperienceRules.GuestRefund(booking, Now.AddHours(20), Now.AddHours(2)));
     }
 
     [Fact]
