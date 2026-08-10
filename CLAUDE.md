@@ -20,6 +20,7 @@ thì **code sai**, không phải tài liệu sai.
 | `docs/06-STAYSHIELD.md` | Chương trình bảo vệ hai đầu. **§10 là bảng tham số đã chốt** |
 | `docs/07-THANH-TOAN.md` | Thanh toán đầu-cuối. §15 là danh sách chức năng, §18 là 11 kịch bản |
 | `docs/08-QUAN-TRI-NGUOI-DUNG.md` | Quyền admin, thang xử lý tài khoản, khiếu nại, chống lạm quyền |
+| `docs/09-TRAI-NGHIEM-DICH-VU.md` | Trải nghiệm & Dịch vụ — **quy tắc khác hẳn chỗ ở**. §7 là bảng tham số đã chốt |
 | `docs/PLAN.md` | **Đối chiếu hiện trạng ↔ spec.** Bắt đầu phiên mới thì đọc file này trước |
 
 ---
@@ -41,8 +42,9 @@ thì **code sai**, không phải tài liệu sai.
 ## 3. Hiện trạng
 
 **10/10 tình huống nghiệm thu** của `docs/04` chạy được trên server thật
-(`scripts/acceptance.py`). **690 test nghiệp vụ** xanh, cộng **10/10 kịch bản quản trị** của `docs/08 §13`
-(`scripts/admin_acceptance.py`).
+(`scripts/acceptance.py`). **934 test nghiệp vụ** xanh, cộng **10/10 kịch bản quản trị** của `docs/08 §13`
+(`scripts/admin_acceptance.py`) và **19/19 kịch bản của `docs/09`** (`scripts/doc09_acceptance.py`,
+gồm cả 12 tình huống bắt buộc của `docs/09 §9`).
 
 ### Nền
 
@@ -72,7 +74,10 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Danh hiệu | Siêu chủ nhà xét mỗi quý, Khách chọn xét hằng tuần — cấp và thu hồi tự động. Ngưỡng chỉ nằm trong `Badges.cs` |
 | Xếp hạng | Điểm tổng hợp 7 yếu tố của `docs/03 §6` trong `Ranking.cs`, có trừ điểm và đa dạng hoá 12 kết quả đầu ≤ 2 chỗ mỗi chủ nhà |
 | StayShield | Hai nhánh K1–K4 / C1–C4 (kể cả bên thứ ba), cửa sổ khiếu nại, thứ tự thu tiền, quỹ trích từ phí dịch vụ, khiếu nại một lần do người khác xét |
-| Mở rộng | Trải nghiệm (bán theo vé), Dịch vụ (bán theo khung giờ + bán kính), Khách sạn (nhiều loại phòng có tồn kho), thẻ quà tặng, số dư, giới thiệu bạn bè |
+| Mở rộng | Khách sạn (nhiều loại phòng có tồn kho), thẻ quà tặng, số dư, giới thiệu bạn bè |
+| Trải nghiệm (`docs/09`) | Thẩm định có người duyệt + phân loại rủi ro theo danh mục, hàng chờ kiểm duyệt, suất lặp lại và chặn chồng giờ, **giữ chỗ 10 phút**, nhiều đơn chung một suất, thuê trọn nhóm, tự huỷ khi thiếu người + gợi ý suất khác, điểm danh, huỷ theo bậc 7 ngày/50%, đánh giá 4 tiêu chí riêng |
+| Dịch vụ (`docs/09`) | Chủ nhà tự đăng, chứng chỉ hành nghề có hạn **tự ẩn tin khi hết hạn**, tuỳ chọn thêm có giá riêng, phí di chuyển ngoài bán kính, lịch theo thứ + đệm + chặn hai đơn quá xa, ghi chú bắt buộc theo danh mục, xác nhận điều kiện tại chỗ, huỷ theo bậc 72 giờ |
+| Tiền hai dòng mới | **Dịch vụ có mức phí riêng 0% khách / 15% NCC**; Trải nghiệm giữ 14%/3% như chỗ ở (khách chốt). Trả tiền người cung cấp **sau khi buổi kết thúc 24 giờ**, không phải từ lúc bắt đầu |
 
 ---
 
@@ -107,6 +112,17 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 - **Đừng mượn quy tắc §8 (khiếu nại phải người khác xét) áp cho §1.3.** Chặn admin
   "đã từng ra quyết định với người này" làm thang bậc §5 không đi được: leo thang
   bắt buộc phải cùng một người viết bước tiếp theo.
+- **`ledger_entries.BookingId` là khoá ngoại tới bảng `bookings` (chỗ ở).** Trải nghiệm
+  và dịch vụ có cột riêng (`ExperienceBookingId`, `ServiceBookingId`) — truyền nhầm id
+  vào `BookingId` thì mọi lần chi tiền đều ném, và vì nó ném trong tick của worker nên
+  **các sweep phía sau cũng chết theo** mà không ai thấy.
+- **Không `dotnet ef migrations add --no-build`.** Migration khi đó sinh từ assembly cũ,
+  chạy lên là `PendingModelChangesWarning`. Phải dừng app → build → mới `migrations add`.
+  Và khi lọc log build, đừng chỉ `grep "error CS"`: lỗi khoá DLL là `MSB3027`, build coi
+  như hỏng mà mình tưởng xanh.
+- **Giữ chỗ rồi thì lúc thanh toán đừng kiểm tra như người lạ.** `CanBook` thấy ghế đã bị
+  trừ sẽ từ chối chính đơn mà lượt giữ chỗ sinh ra để bảo vệ — phải cộng lại phần mình
+  đang giữ trước khi kiểm tra.
 
 ---
 
@@ -164,9 +180,10 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 644 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 934 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
+python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
 cd src/StayHost.Web/ClientApp && npm run build && npx oxlint src
 
 # Sổ sách phải luôn cân bằng: kết quả duy nhất chấp nhận được là 0

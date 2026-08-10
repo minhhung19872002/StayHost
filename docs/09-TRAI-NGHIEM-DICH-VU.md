@@ -228,6 +228,10 @@ Với đưa đón, thuê xe, giữ hành lý — thường tích hợp đối t�
 
 ## 6. Chức năng cần xây
 
+**Hiện trạng 10/08/2026: 22/23 mã đã làm; MR-S-09 hoãn theo quyết định của khách.**
+Nghiệm thu bằng `scripts/doc09_acceptance.py` chạy trên server thật — **19/19 đạt**,
+gồm cả 12 kịch bản bắt buộc của §9.
+
 | Mã | Chức năng |
 |---|---|
 | MR-E-01 | Quy trình đăng trải nghiệm theo bước, có mục nộp giấy phép và bảo hiểm |
@@ -292,6 +296,11 @@ Với đưa đón, thuê xe, giữ hành lý — thường tích hợp đối t�
 ---
 
 ## 9. Kịch bản bắt buộc phải chạy thử
+
+**Cả 12 kịch bản đã chạy được** (`scripts/doc09_acceptance.py`, đối chiếu bằng dữ liệu
+trong cơ sở dữ liệu chứ không bằng màn hình). Kịch bản 3, 4, 6, 8, 10 được phủ bằng test
+nghiệp vụ trong `tests/StayHost.Domain.Tests`; các kịch bản còn lại chạy đầu-cuối qua API.
+
 
 1. Suất 10 chỗ, ba khách đặt lần lượt 4 + 4 + 3 người → người thứ ba chỉ đặt được 2, báo rõ còn 2 chỗ
 2. Hai khách cùng đặt 2 chỗ cuối cùng lúc → chỉ một người thành công
