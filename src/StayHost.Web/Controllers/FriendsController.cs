@@ -123,6 +123,70 @@ public class FriendsController(StayHostDbContext db, AuthService auth) : Control
         return NoContent();
     }
 
+    /// <summary>docs/01 XH-03 — the conversation with one friend; marks their messages read.</summary>
+    [HttpGet("{userId:int}/messages")]
+    public async Task<ActionResult<IReadOnlyList<FriendMessageDto>>> Messages(int userId, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var msgs = await db.FriendMessages
+            .Where(m => (m.FromUserId == user.Id && m.ToUserId == userId)
+                        || (m.FromUserId == userId && m.ToUserId == user.Id))
+            .OrderBy(m => m.SentAt)
+            .Select(m => new { m.Id, m.FromUserId, m.Body, m.ListingId, Title = m.Listing!.Title, m.SentAt, m.ReadAt })
+            .ToListAsync(ct);
+
+        // Mark the ones they sent me as read.
+        var unread = await db.FriendMessages
+            .Where(m => m.FromUserId == userId && m.ToUserId == user.Id && m.ReadAt == null)
+            .ToListAsync(ct);
+        if (unread.Count > 0)
+        {
+            var now = DateTime.UtcNow;
+            foreach (var m in unread) m.ReadAt = now;
+            await db.SaveChangesAsync(ct);
+        }
+
+        return Ok(msgs.Select(m => new FriendMessageDto(
+            m.Id, m.FromUserId == user.Id, m.Body, m.ListingId, m.ListingId == null ? null : m.Title, m.SentAt)).ToList());
+    }
+
+    /// <summary>
+    /// docs/01 XH-03 — ask a friend about a place (or just message them). Only
+    /// between accepted friends, and never across a block.
+    /// </summary>
+    [HttpPost("{userId:int}/messages")]
+    public async Task<IActionResult> SendMessage(int userId, [FromBody] SendFriendMessageRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var body = (req.Body ?? "").Trim();
+        if (body.Length == 0) return BadRequest(new { message = "Tin nhắn trống." });
+        if (body.Length > 2000) return BadRequest(new { message = "Tin nhắn quá dài." });
+
+        var pair = await PairAsync(user.Id, userId, ct);
+        if (pair is null || !Friendships.AreFriends(pair))
+            return this.Denied();
+
+        // docs/01 AT-10 — a block stops peer messages too.
+        var blocked = await db.UserBlocks.AnyAsync(
+            bk => (bk.BlockerUserId == user.Id && bk.BlockedUserId == userId)
+                  || (bk.BlockerUserId == userId && bk.BlockedUserId == user.Id), ct);
+        if (blocked) return StatusCode(403, new { message = StayHost.Domain.Blocks.BlockedMessage() });
+
+        int? listingId = req.ListingId;
+        if (listingId is int lid && !await db.Listings.AnyAsync(l => l.Id == lid, ct)) listingId = null;
+
+        db.FriendMessages.Add(new FriendMessage
+        {
+            FromUserId = user.Id, ToUserId = userId, ListingId = listingId, Body = body
+        });
+        await db.SaveChangesAsync(ct);
+        return Ok(new { message = "Đã gửi." });
+    }
+
     /// <summary>docs/01 XH-02 — set who may see my journey map.</summary>
     [HttpPut("journey-visibility")]
     public async Task<IActionResult> SetVisibility([FromBody] JourneyVisibilityRequest req, CancellationToken ct)
@@ -163,17 +227,17 @@ public class FriendsController(StayHostDbContext db, AuthService auth) : Control
                             || b.Status == BookingStatus.InProgress))
             .Select(b => new
             {
-                b.Status, b.CheckIn, b.Nights,
+                b.Status, b.CheckIn, b.Nights, b.ListingId,
                 b.Listing!.City, b.Listing.Latitude, b.Listing.Longitude
             })
             .ToListAsync(ct);
 
         var been = stays.Where(s => s.Status == BookingStatus.Completed || s.CheckIn <= today)
             .OrderByDescending(s => s.CheckIn)
-            .Select(s => new JourneyStopDto(s.City, s.Latitude, s.Longitude, s.Nights, s.CheckIn)).ToList();
+            .Select(s => new JourneyStopDto(s.ListingId, s.City, s.Latitude, s.Longitude, s.Nights, s.CheckIn)).ToList();
         var upcoming = stays.Where(s => s.Status != BookingStatus.Completed && s.CheckIn > today)
             .OrderBy(s => s.CheckIn)
-            .Select(s => new JourneyStopDto(s.City, s.Latitude, s.Longitude, s.Nights, s.CheckIn)).ToList();
+            .Select(s => new JourneyStopDto(s.ListingId, s.City, s.Latitude, s.Longitude, s.Nights, s.CheckIn)).ToList();
 
         var name = Profiles.DisplayNameOf(target.DisplayName, target.FullName);
         return Ok(new FriendJourneyDto(name, target.JourneyVisibility.ToString(), been, upcoming));

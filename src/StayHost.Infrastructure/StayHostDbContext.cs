@@ -15,6 +15,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<Wishlist> Wishlists => Set<Wishlist>();
     public DbSet<WishlistVote> WishlistVotes => Set<WishlistVote>();
     public DbSet<Friendship> Friendships => Set<Friendship>();
+    public DbSet<FriendMessage> FriendMessages => Set<FriendMessage>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<User> Users => Set<User>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
@@ -1037,6 +1038,20 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.RequesterId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Addressee).WithMany()
                 .HasForeignKey(x => x.AddresseeId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // docs/01 XH-03 — peer messages between friends.
+        b.Entity<FriendMessage>(e =>
+        {
+            e.ToTable("friend_messages");
+            e.HasIndex(x => new { x.FromUserId, x.ToUserId, x.SentAt });
+            e.Property(x => x.Body).HasMaxLength(2000).IsRequired();
+            e.HasOne(x => x.FromUser).WithMany()
+                .HasForeignKey(x => x.FromUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.ToUser).WithMany()
+                .HasForeignKey(x => x.ToUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Listing).WithMany()
+                .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.SetNull);
         });
 
         // docs/01 YT-06 — group votes on a shared wishlist. One vote per voter per place.

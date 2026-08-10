@@ -25,6 +25,26 @@ public enum FriendshipStatus
     Declined = 2
 }
 
+/// <summary>
+/// docs/01 XH-03 — a direct message between two friends, usually asking about a
+/// place one of them stayed at (so it can carry the listing it is about). Separate
+/// from the guest↔host booking threads: this is peer to peer.
+/// </summary>
+public class FriendMessage
+{
+    public int Id { get; set; }
+    public int FromUserId { get; set; }
+    public User? FromUser { get; set; }
+    public int ToUserId { get; set; }
+    public User? ToUser { get; set; }
+    /// <summary>The place being asked about, if any.</summary>
+    public int? ListingId { get; set; }
+    public Listing? Listing { get; set; }
+    public string Body { get; set; } = "";
+    public DateTime SentAt { get; set; } = DateTime.UtcNow;
+    public DateTime? ReadAt { get; set; }
+}
+
 /// <summary>docs/01 XH-02 — who may see a member's journey map.</summary>
 public enum JourneyVisibility
 {

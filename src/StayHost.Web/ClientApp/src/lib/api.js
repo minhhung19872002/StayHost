@@ -386,6 +386,10 @@ export const api = {
   setJourneyVisibility: visibility =>
     request('/api/friends/journey-visibility', { method: 'PUT', body: JSON.stringify({ visibility }) }),
   friendJourney: userId => request(`/api/friends/${userId}/journey`),
+  // docs/01 XH-03 — peer messages with a friend.
+  friendMessages: userId => request(`/api/friends/${userId}/messages`),
+  sendFriendMessage: (userId, listingId, body) =>
+    request(`/api/friends/${userId}/messages`, { method: 'POST', body: JSON.stringify({ listingId, body }) }),
   // docs/01 AT-10 — block list.
   blocks: () => request('/api/account/blocks'),
   blockUser: userId => request('/api/account/blocks', { method: 'POST', body: JSON.stringify({ userId }) }),

@@ -81,8 +81,12 @@ public record FriendRequestDto(int Id, int UserId, string Name, string Initials,
 public record FriendJourneyDto(
     string Name, string Visibility,
     IReadOnlyList<JourneyStopDto> Been, IReadOnlyList<JourneyStopDto> Upcoming);
-public record JourneyStopDto(string City, double Latitude, double Longitude, int Nights, DateOnly When);
+public record JourneyStopDto(int ListingId, string City, double Latitude, double Longitude, int Nights, DateOnly When);
 public record JourneyVisibilityRequest(string? Visibility);
+
+/// <summary>docs/01 XH-03 — a peer message between friends, about a place.</summary>
+public record FriendMessageDto(int Id, bool Mine, string Body, int? ListingId, string? ListingTitle, DateTime SentAt);
+public record SendFriendMessageRequest(int? ListingId, string? Body);
 
 /// <summary>docs/01 ĐG-11 — a review flagged as possible secondary-account fraud.</summary>
 public record ReviewFraudDto(

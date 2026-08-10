@@ -46,6 +46,13 @@ export function UserProfile() {
     try { await api.removeFriend(Number(id)); setFriends(fs => fs.filter(f => f.userId !== Number(id))); toast('Đã huỷ kết bạn.'); }
     catch (err) { toast(err.message); }
   };
+  // docs/01 XH-03 — hỏi bạn về một nơi họ từng ở.
+  const askAbout = async stop => {
+    const text = prompt(`Hỏi bạn về "${stop.city}":`, 'Chỗ này ở sao bạn ơi?');
+    if (!text?.trim()) return;
+    try { await api.sendFriendMessage(Number(id), stop.listingId, text.trim()); toast('Đã gửi câu hỏi cho bạn.'); }
+    catch (err) { toast(err.message); }
+  };
 
   const toggleBlock = async () => {
     try {
@@ -157,12 +164,20 @@ export function UserProfile() {
                 <div className="meta" style={{ fontWeight: 700, marginTop: 10 }}>Đã đến</div>
                 <div className="chip-wrap">
                   {journey.been.slice(0, 20).map((s, i) => (
-                    <span className="quick-chip" key={`b${i}`}>{s.city}</span>
+                    <span className="quick-chip" key={`b${i}`}
+                          style={isFriend ? { cursor: 'pointer' } : undefined}
+                          title={isFriend ? 'Hỏi bạn về nơi này' : undefined}
+                          onClick={() => { if (isFriend) askAbout(s); }}>
+                      {s.city}{isFriend ? ' 💬' : ''}
+                    </span>
                   ))}
                 </div>
               </>}
             </div>
           )}
+
+          {/* docs/01 XH-03 — nhắn tin hỏi bạn bè. */}
+          {state.user && !isMe && isFriend && <FriendChat userId={Number(id)} name={p.displayName} />}
         </div>
       </div>
 
@@ -225,4 +240,45 @@ function ReviewList({ title, items }) {
       ))}
     </div>
   </>;
+}
+
+/** docs/01 XH-03 — a lightweight conversation with a friend. */
+function FriendChat({ userId, name }) {
+  const [msgs, setMsgs] = useState(null);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = () => api.friendMessages(userId).then(setMsgs).catch(() => setMsgs([]));
+  useEffect(() => { load(); }, [userId]);
+
+  const send = async () => {
+    const body = text.trim();
+    if (!body || busy) return;
+    setBusy(true);
+    try { await api.sendFriendMessage(userId, null, body); setText(''); await load(); }
+    catch (err) { toast(err.message); } finally { setBusy(false); }
+  };
+
+  if (!msgs) return null;
+  return (
+    <div style={{ marginTop: 22 }}>
+      <h2 className="profile-sub">Nhắn tin với {name}</h2>
+      <div style={{ display: 'grid', gap: 6, margin: '8px 0', maxHeight: 260, overflowY: 'auto' }}>
+        {msgs.length === 0
+          ? <p className="meta">Chưa có tin nhắn. Hỏi bạn ấy về một nơi đã ở!</p>
+          : msgs.map(m => (
+              <div key={m.id} className={`bubble ${m.mine ? 'mine' : ''}`}>
+                {m.listingTitle && <span className="bubble-note">Về: {m.listingTitle}</span>}
+                <p>{m.body}</p>
+              </div>
+            ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input style={{ flex: 1, padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 16 }}
+               value={text} placeholder="Nhắn cho bạn…" onChange={e => setText(e.target.value)}
+               onKeyDown={e => { if (e.key === 'Enter') send(); }} />
+        <button className="btn btn-primary btn-sm" disabled={busy || !text.trim()} onClick={send}>Gửi</button>
+      </div>
+    </div>
+  );
 }
