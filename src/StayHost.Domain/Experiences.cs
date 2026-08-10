@@ -404,6 +404,50 @@ public static class ExperienceRules
         (a - b).Duration() < TimeSpan.FromMinutes(durationMinutes);
 
     /// <summary>
+    /// docs/09 §2.5 (MR-E-04) — the repeating pattern a host describes once:
+    /// "Tuesday, Thursday and Saturday at 9:00, for the next six weeks". Days are
+    /// a bitmask with Monday at bit 0, matching the services side. Sessions
+    /// already in the past are skipped rather than created and then ignored.
+    /// </summary>
+    public static IReadOnlyList<DateTime> ExpandRecurrence(
+        int weekdayMask, TimeOnly at, DateOnly from, int weeks, DateTime now)
+    {
+        if (weekdayMask is <= 0 or >= 128 || weeks < 1) return [];
+
+        var starts = new List<DateTime>();
+        var days = Math.Min(weeks, 26) * 7;
+
+        for (var i = 0; i < days; i++)
+        {
+            var day = from.AddDays(i);
+            var bit = day.DayOfWeek == DayOfWeek.Sunday ? 6 : (int)day.DayOfWeek - 1;
+            if ((weekdayMask & (1 << bit)) == 0) continue;
+
+            var start = DateTime.SpecifyKind(day.ToDateTime(at), DateTimeKind.Utc);
+            if (start > now) starts.Add(start);
+        }
+
+        return starts;
+    }
+
+    /// <summary>
+    /// docs/09 §2.8 — when a session is called off, the guests are pointed at
+    /// other sessions of the same experience rather than just told no. Only ones
+    /// they could actually take: open, not private, and with room for their party.
+    /// </summary>
+    public static IReadOnlyList<ExperienceSlot> AlternativesFor(
+        IEnumerable<ExperienceSlot> slots, int cancelledSlotId, int seats, DateTime now, int take = 3) =>
+        slots
+            .Where(s => s.Id != cancelledSlotId
+                        && s.Status == SlotStatus.Open
+                        && !s.IsPrivate
+                        && s.StartsAt > now
+                        && s.SeatsLeft >= seats)
+            .OrderBy(s => s.StartsAt)
+            .Take(take)
+            .ToList();
+
+    /// <summary>
     /// docs/09 §2.8 — a guest cancelling their own ticket, on the tiered ladder:
     /// ≥7 days 100%, 24h–7 days 50%, &lt;24h nothing; and the 24-hour grace after
     /// booking (while the session is still ≥48h away) returns everything.

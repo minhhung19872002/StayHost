@@ -623,7 +623,18 @@ public class ExperienceService(
         var experience = await OwnedAsync(user, experienceId, ct);
         if (experience is null) return "Bạn không có quyền với trải nghiệm này.";
 
-        var starts = (req.StartsAt ?? []).Distinct().OrderBy(s => s).Take(60).ToList();
+        // docs/09 §2.5 (MR-E-04) — a repeating pattern is expanded here into the
+        // same list of concrete starts a host would otherwise pick by hand, so the
+        // overlap rule below judges both the same way.
+        var pattern = req.RepeatWeekdayMask > 0 && req.RepeatAt is { } repeatAt && req.RepeatWeeks > 0
+            ? ExperienceRules.ExpandRecurrence(
+                req.RepeatWeekdayMask, repeatAt,
+                req.RepeatFrom ?? DateOnly.FromDateTime(DateTime.UtcNow),
+                req.RepeatWeeks, DateTime.UtcNow)
+            : [];
+
+        var starts = (req.StartsAt ?? []).Concat(pattern)
+            .Distinct().OrderBy(s => s).Take(120).ToList();
         if (starts.Count == 0) return "Chọn ít nhất một giờ bắt đầu.";
 
         var existing = await db.ExperienceSlots
@@ -698,15 +709,28 @@ public class ExperienceService(
             .Where(b => b.SlotId == slot.Id && b.Status == ExperienceBookingStatus.Confirmed)
             .ToListAsync(ct);
 
+        // docs/09 §2.8 (MR-E-08) — "gợi ý khách chuyển sang suất khác". Being told
+        // the session is off is only half the message; the other half is when else
+        // they could go.
+        var siblings = await db.ExperienceSlots
+            .Where(s => s.ExperienceId == slot.ExperienceId)
+            .ToListAsync(ct);
+        var now = DateTime.UtcNow;
+
         foreach (var ticket in tickets)
         {
             // Nobody pays for a session that was called off, whatever the reason.
             await ReleaseAsync(ticket, ticket.Total, ExperienceBookingStatus.CancelledWithSlot, reason, ct);
 
+            var others = ExperienceRules.AlternativesFor(siblings, slot.Id, ticket.Seats, now);
+            var suggestion = others.Count == 0
+                ? ""
+                : " Còn suất khác: " + string.Join(", ", others.Select(s => $"{s.StartsAt:HH:mm dd/MM}")) + ".";
+
             await notifications.QueueWithEmailAsync(
                 ticket.GuestUser, NotificationKind.BookingCancelled,
                 "Suất trải nghiệm đã bị huỷ",
-                $"{reason} Toàn bộ {ticket.Total:#,##0}₫ đã được hoàn lại.",
+                $"{reason} Toàn bộ {ticket.Total:#,##0}₫ đã được hoàn lại.{suggestion}",
                 "/experiences", ct);
         }
 

@@ -1611,7 +1611,18 @@ public record ExperienceReviewDto(
     int Host, int AsDescribed, int Safety, int Value,
     string Comment, DateTime CreatedAt);
 
-public record AddSlotsRequest(IReadOnlyList<DateTime>? StartsAt, int? Capacity);
+/// <summary>
+/// docs/09 §2.5 (MR-E-04) — sessions added one at a time, or described once as a
+/// repeating pattern: which weekdays (Monday = bit 0), at what time, for how many
+/// weeks from when.
+/// </summary>
+public record AddSlotsRequest(
+    IReadOnlyList<DateTime>? StartsAt,
+    int? Capacity,
+    int RepeatWeekdayMask = 0,
+    TimeOnly? RepeatAt = null,
+    DateOnly? RepeatFrom = null,
+    int RepeatWeeks = 0);
 
 /* ---- docs/01 MR-05 → MR-07: services ------------------------------------ */
 

@@ -272,6 +272,55 @@ public class ExperienceTests
         Assert.False(ExperienceRules.Overlaps(nine.AddHours(3), nine, 120));
     }
 
+    [Fact]
+    public void A_repeating_pattern_expands_to_the_days_it_names()
+    {
+        // Tuesday, Thursday, Saturday at 09:00 — Monday is bit 0.
+        var mask = (1 << 1) | (1 << 3) | (1 << 5);
+        var from = new DateOnly(2026, 9, 1);              // a Tuesday
+        var now = new DateTime(2026, 8, 31, 0, 0, 0, DateTimeKind.Utc);
+
+        var starts = ExperienceRules.ExpandRecurrence(mask, new TimeOnly(9, 0), from, 2, now);
+
+        Assert.Equal(6, starts.Count);                     // three a week, two weeks
+        Assert.All(starts, s => Assert.Equal(9, s.Hour));
+        Assert.All(starts, s => Assert.Contains(
+            s.DayOfWeek, new[] { DayOfWeek.Tuesday, DayOfWeek.Thursday, DayOfWeek.Saturday }));
+
+        // Sessions already in the past are never created.
+        var late = ExperienceRules.ExpandRecurrence(
+            mask, new TimeOnly(9, 0), from, 2, new DateTime(2026, 9, 8, 0, 0, 0, DateTimeKind.Utc));
+        Assert.All(late, s => Assert.True(s > new DateTime(2026, 9, 8, 0, 0, 0, DateTimeKind.Utc)));
+
+        // A mask that names no day produces nothing rather than every day.
+        Assert.Empty(ExperienceRules.ExpandRecurrence(0, new TimeOnly(9, 0), from, 2, now));
+    }
+
+    [Fact]
+    public void A_called_off_session_points_at_ones_the_guest_could_actually_take()
+    {
+        var now = new DateTime(2026, 9, 1, 8, 0, 0, DateTimeKind.Utc);
+
+        var slots = new[]
+        {
+            new ExperienceSlot { Id = 1, StartsAt = now.AddDays(1), Capacity = 10, SeatsTaken = 2 },
+            new ExperienceSlot { Id = 2, StartsAt = now.AddDays(2), Capacity = 10, SeatsTaken = 9 },
+            new ExperienceSlot { Id = 3, StartsAt = now.AddDays(3), Capacity = 10, SeatsTaken = 0, IsPrivate = true },
+            new ExperienceSlot { Id = 4, StartsAt = now.AddDays(4), Capacity = 10, SeatsTaken = 0, Status = SlotStatus.Cancelled },
+            new ExperienceSlot { Id = 5, StartsAt = now.AddDays(-1), Capacity = 10, SeatsTaken = 0 },
+            new ExperienceSlot { Id = 6, StartsAt = now.AddDays(5), Capacity = 10, SeatsTaken = 4 }
+        };
+
+        // A party of three: only 1 and 6 have room, are open, public and ahead.
+        var alternatives = ExperienceRules.AlternativesFor(slots, cancelledSlotId: 99, seats: 3, now);
+        Assert.Equal([1, 6], alternatives.Select(s => s.Id).ToArray());
+
+        // The session being called off is never suggested back.
+        Assert.DoesNotContain(
+            ExperienceRules.AlternativesFor(slots, cancelledSlotId: 1, seats: 3, now),
+            s => s.Id == 1);
+    }
+
     /* ------------------------------------------- §2.9 register, §2.10 reviews */
 
     [Fact]
