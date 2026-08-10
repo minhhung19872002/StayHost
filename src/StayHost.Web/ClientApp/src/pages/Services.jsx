@@ -5,6 +5,7 @@ import { set, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate } from '../lib/format.js';
 import { CardCarousel } from '../components/CardCarousel.jsx';
+import { GalleryCarousel } from '../components/GalleryCarousel.jsx';
 
 const TIME = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
@@ -175,9 +176,7 @@ function Detail({ slug }) {
         {s.isPartner ? ` · do ${s.partnerName} thực hiện` : ''}
       </p>
 
-      {!!s.images.length && (
-        <div className="xp-gallery"><img src={s.images[0]} alt="" loading="lazy" /></div>
-      )}
+      {!!s.images.length && <GalleryCarousel images={s.images} alt={s.title} />}
 
       <div className="trip-layout" style={{ marginTop: 24 }}>
         <div style={{ minWidth: 0 }}>
