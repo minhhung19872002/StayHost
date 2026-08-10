@@ -446,12 +446,14 @@ public static class Pricing
             ? o.BasePrice
             : o.BasePrice * quantity);
 
-        var guestServiceFee = Round(subtotal * settings.GuestServiceFeeRate);
+        // docs/09 §3.3 — services carry no guest service fee; the platform's cut
+        // comes off the provider (15%, or the partner's negotiated commission).
+        var guestServiceFee = Round(subtotal * settings.ServiceGuestFeeRate);
         var taxLines = ServiceTaxLines(req, subtotal, guestServiceFee);
         var tax = taxLines.Sum(l => l.Amount);
         var total = subtotal + guestServiceFee + tax;
 
-        var platformCut = Round(subtotal * (o.IsPartner ? o.CommissionRate : settings.HostServiceFeeRate));
+        var platformCut = Round(subtotal * (o.IsPartner ? o.CommissionRate : settings.ServiceProviderFeeRate));
         var providerPayout = subtotal - platformCut;
 
         var lines = new List<PriceLine>

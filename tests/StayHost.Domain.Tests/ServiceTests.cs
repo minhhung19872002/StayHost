@@ -152,8 +152,8 @@ public class ServiceTests
         });
 
         Assert.Equal(1_500_000m, price.Subtotal);
-        Assert.Equal(210_000m, price.GuestServiceFee);
-        Assert.Equal(1_710_000m, price.Total);
+        Assert.Equal(0m, price.GuestServiceFee);        // docs/09 §3.3 — no guest service fee on services
+        Assert.Equal(1_500_000m, price.Total);
     }
 
     /* ------------------------------------------------------------- MR-07 */
@@ -166,12 +166,12 @@ public class ServiceTests
         var partner = Pricing.QuoteService(new Pricing.ServiceRequest
         { Offering = Make(partner: true, commission: 0.18m), Quantity = 1, StartsAt = Now.AddDays(1) });
 
-        Assert.Equal(30_000m, own.PlatformCut);        // 3% host service fee
+        Assert.Equal(150_000m, own.PlatformCut);       // docs/09 §3.3 — 15% provider fee (DV-F)
         Assert.Equal(180_000m, partner.PlatformCut);   // 18% commission
 
         // The guest pays the same either way; only the split behind it changes.
         Assert.Equal(own.Total, partner.Total);
-        Assert.Equal(970_000m, own.ProviderPayout);
+        Assert.Equal(850_000m, own.ProviderPayout);
         Assert.Equal(820_000m, partner.ProviderPayout);
     }
 

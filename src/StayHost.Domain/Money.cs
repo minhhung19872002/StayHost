@@ -13,6 +13,15 @@ public sealed record PricingSettings
     /// <summary>docs/03 §1 step 11 — withheld from the host's share of the subtotal.</summary>
     public decimal HostServiceFeeRate { get; init; } = 0.03m;
 
+    /// <summary>
+    /// docs/09 §3.3 (DV-E/DV-F, locked 10/08/2026) — services price on their own
+    /// fees, not the stay rates: the guest pays no separate service fee and the
+    /// platform withholds 15% from the provider. Experiences deliberately keep
+    /// the stay rates above (the customer chose 14%/3% over the §2.6 0%/20%).
+    /// </summary>
+    public decimal ServiceGuestFeeRate { get; init; } = 0.00m;
+    public decimal ServiceProviderFeeRate { get; init; } = 0.15m;
+
     /// <summary>docs/03 §1 — every discount added together may not exceed this.</summary>
     public int MaxDiscountPercent { get; init; } = 60;
 
