@@ -16,8 +16,11 @@ namespace StayHost.Domain;
 /// </summary>
 public sealed record TranslationSettings
 {
-    /// <summary>"stub" for tests, "google" for the real thing; null means off.</summary>
+    /// <summary>"stub" for tests, "google", or "libretranslate"; null means off.</summary>
     public string? Provider { get; init; }
+
+    /// <summary>Base URL of a self-hosted engine (LibreTranslate), e.g. http://libretranslate:5000.</summary>
+    public string? Url { get; init; }
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(Provider);
 

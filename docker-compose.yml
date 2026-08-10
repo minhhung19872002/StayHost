@@ -18,6 +18,26 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # docs/01 TĐ-03, TN-06 — self-hosted translation. Free and unlimited: no API key,
+  # no per-character cost. First start downloads the language models (a few minutes),
+  # kept in a volume so later starts are fast. LT_LOAD_ONLY limits models to the
+  # languages the app offers, which keeps memory and startup down.
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: stayhost-translate
+    environment:
+      LT_LOAD_ONLY: "en,vi,zh,ko,ja,fr"
+      LT_DISABLE_WEB_UI: "true"
+    volumes:
+      - lt-models:/home/libretranslate/.local
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/languages')\" || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 180s
+    restart: unless-stopped
+
   web:
     build:
       context: .
@@ -30,6 +50,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: "8080"
       ConnectionStrings__Postgres: "Host=db;Port=5432;Database=stayhost;Username=stayhost;Password=stayhost"
+      # docs/01 TĐ-03 — point the app at the self-hosted engine above.
+      Translation__Provider: "libretranslate"
+      Translation__Url: "http://libretranslate:5000"
     volumes:
       # Same split as production: photos under wwwroot, identity documents out of
       # reach of the static file middleware (docs/08 §4).
@@ -49,3 +72,4 @@ volumes:
   stayhost-pgdata:
   uploads:
   identity:
+  lt-models:

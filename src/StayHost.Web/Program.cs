@@ -39,6 +39,11 @@ if (translation.IsConfigured)
         builder.Services.AddScoped<ITranslator>(sp => new GoogleTranslator(
             sp.GetRequiredService<IHttpClientFactory>(), translationKey!,
             sp.GetRequiredService<ILogger<GoogleTranslator>>()));
+    else if (string.Equals(translation.Provider, "libretranslate", StringComparison.OrdinalIgnoreCase)
+        && !string.IsNullOrWhiteSpace(translation.Url))
+        builder.Services.AddScoped<ITranslator>(sp => new LibreTranslator(
+            sp.GetRequiredService<IHttpClientFactory>(), translation.Url!, translationKey,
+            sp.GetRequiredService<ILogger<LibreTranslator>>()));
     else
         builder.Services.AddScoped<ITranslator, StubTranslator>();
 }

@@ -57,6 +57,42 @@ public sealed class GoogleTranslator(IHttpClientFactory http, string apiKey, ILo
 }
 
 /// <summary>
+/// docs/01 TĐ-03 — a self-hosted LibreTranslate instance. Free and unlimited: no
+/// key and no per-character cost, because the engine runs in our own container.
+/// Source is left to auto-detect so the same call handles Vietnamese→English and
+/// a guest's message back the other way.
+/// </summary>
+public sealed class LibreTranslator(IHttpClientFactory http, string baseUrl, string? apiKey, ILogger<LibreTranslator> log)
+    : ITranslator
+{
+    public string Name => "libretranslate";
+
+    public async Task<string?> TranslateAsync(string text, string targetLang, CancellationToken ct)
+    {
+        try
+        {
+            var client = http.CreateClient("translation");
+            var body = new Dictionary<string, string>
+            {
+                ["q"] = text, ["source"] = "auto", ["target"] = targetLang, ["format"] = "text"
+            };
+            if (!string.IsNullOrWhiteSpace(apiKey)) body["api_key"] = apiKey!;
+
+            var resp = await client.PostAsJsonAsync($"{baseUrl.TrimEnd('/')}/translate", body, ct);
+            if (!resp.IsSuccessStatusCode) return null;
+
+            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+            return doc.RootElement.TryGetProperty("translatedText", out var t) ? t.GetString() : null;
+        }
+        catch (Exception ex)
+        {
+            log.LogWarning(ex, "Dịch (LibreTranslate) thất bại.");
+            return null;
+        }
+    }
+}
+
+/// <summary>
 /// docs/01 TĐ-03, TN-06 — translate on demand, remembering each result so a paid
 /// API is called once per text and language. With no translator registered the
 /// service reports itself off and translates nothing.

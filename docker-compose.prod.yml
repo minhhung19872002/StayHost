@@ -26,6 +26,25 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # docs/01 TĐ-03, TN-06 — self-hosted translation, free and unlimited (no API key,
+  # no per-character cost). First start downloads models (a few minutes), kept in a
+  # volume. LT_LOAD_ONLY limits models to the languages the app offers.
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: stayhost-translate
+    environment:
+      LT_LOAD_ONLY: ${TRANSLATE_LANGS:-en,vi,zh,ko,ja,fr}
+      LT_DISABLE_WEB_UI: "true"
+    volumes:
+      - lt-models:/home/libretranslate/.local
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/languages')\" || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 180s
+    restart: unless-stopped
+
   web:
     image: ${STAYHOST_IMAGE:?STAYHOST_IMAGE must be set}
     container_name: stayhost-web
@@ -64,6 +83,12 @@ services:
       ExternalLogin__AppleRedirectUri: ${APPLE_REDIRECT_URI:-}
       ExternalLogin__FacebookAppId: ${FACEBOOK_APP_ID:-}
       ExternalLogin__FacebookAppSecret: ${FACEBOOK_APP_SECRET:-}
+      # docs/01 TĐ-03, TN-06 — machine translation via the self-hosted engine above.
+      # Defaults on because the container ships with this stack; set
+      # TRANSLATION_PROVIDER= (empty) in the env file to switch the "Dịch" button off.
+      Translation__Provider: ${TRANSLATION_PROVIDER-libretranslate}
+      Translation__Url: ${TRANSLATION_URL:-http://libretranslate:5000}
+      Translation__ApiKey: ${TRANSLATION_API_KEY:-}
     # Nginx terminates TLS on the host and proxies here, so the port stays on loopback.
     ports:
       - "127.0.0.1:8090:8080"
@@ -87,3 +112,4 @@ volumes:
   pgdata:
   uploads:
   identity:
+  lt-models:

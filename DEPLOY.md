@@ -96,6 +96,31 @@ curl -s https://staylio.bluestar.com.vn/api/account/external/config
 Trả về `googleClientId` khác `null` là máy chủ đã nhận cấu hình; còn `null` nghĩa là
 biến chưa tới được container — soát lại chính tả tên biến trong env file.
 
+## 2.3. Dịch tự động — LibreTranslate tự host
+
+`docs/01 TĐ-03, TN-06`. Dịch mô tả tin đăng và tin nhắn sang ngôn ngữ khác. Stack đã
+kèm sẵn một container **LibreTranslate** (mã nguồn mở, **miễn phí, không giới hạn, không
+cần khoá API** — engine chạy ngay trên máy chủ), và `web` mặc định trỏ vào nó, nên **không
+cần làm gì thêm**: deploy xong là nút "Dịch" tự hiện.
+
+- Lần khởi động đầu, `libretranslate` **tải model** (`en,vi,zh,ko,ja,fr`) mất **vài phút**;
+  model lưu ở volume `lt-models` nên các lần sau nhanh. Kiểm tra:
+  ```bash
+  docker compose -p stayhost -f docker-compose.prod.yml exec libretranslate \
+    python -c "import urllib.request,json; print([x['code'] for x in json.load(urllib.request.urlopen('http://localhost:5000/languages'))])"
+  curl -s https://staylio.bluestar.com.vn/api/translate/config   # enabled:true là đã bật
+  ```
+- Kết quả dịch được **cache trong DB** (`translation_caches`) nên mỗi câu chỉ dịch một lần.
+- Thêm/bớt ngôn ngữ: đặt `TRANSLATE_LANGS` trong env file (mặc định `en,vi,zh,ko,ja,fr`).
+- **Tắt** dịch: đặt `TRANSLATION_PROVIDER=` (để trống) trong env file rồi khởi động lại —
+  nút "Dịch" biến mất, mọi thứ khác giữ nguyên. Có thể dừng luôn container `libretranslate`
+  để tiết kiệm RAM.
+- Muốn đổi sang dịch vụ trả phí chất lượng cao hơn (Google/DeepL): đặt
+  `TRANSLATION_PROVIDER=google` + `TRANSLATION_API_KEY=<khoá>` (adapter Google đã có sẵn).
+
+> **RAM:** LibreTranslate cần ~1–2GB. Nếu VPS eo hẹp, giảm `TRANSLATE_LANGS` xuống còn
+> `en,vi` hoặc tắt hẳn như trên.
+
 ## 3. Các lệnh vận hành
 
 Tất cả chạy với user `hung`:
