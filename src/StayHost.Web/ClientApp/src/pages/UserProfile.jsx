@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { loadPublicProfile, openOverlay, openReport, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
+import { monthLabel } from '../lib/format.js';
 import { Avatar } from '../components/Avatar.jsx';
 import { Card } from '../components/Card.jsx';
 import { Icon } from '../components/Icon.jsx';
@@ -99,7 +100,7 @@ export function UserProfile() {
         </div>
 
         <div className="profile-about">
-          <p className="profile-joined">{p.joinedLabel}</p>
+          <p className="profile-joined">{t(monthLabel(p.joinedLabel))}</p>
 
           {/* docs/01 TK-05 — only what was actually proved is listed. */}
           {!!p.badges.length && (
@@ -228,7 +229,7 @@ function ReviewList({ title, items }) {
               {r.authorUserId
                 ? <button className="link-btn" onClick={() => navigate(`/users/${r.authorUserId}`)}>{r.authorName}</button>
                 : <b>{r.authorName}</b>}
-              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--ink-muted)' }}>{r.when}</span>
+              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--ink-muted)' }}>{monthLabel(r.when)}</span>
             </div>
             <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 13.5 }}>★ {r.rating}</span>
           </div>

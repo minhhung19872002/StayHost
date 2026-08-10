@@ -6,7 +6,7 @@ import {
   clearDates, openOverlay, openReport, requireAuth, toast, set, setRoom, shareListing
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
-import { money, longDate, nightsBetween } from '../lib/format.js';
+import { money, longDate, nightsBetween, monthLabel } from '../lib/format.js';
 import { Avatar } from '../components/Avatar.jsx';
 import { Card } from '../components/Card.jsx';
 import { Calendar } from '../components/Calendar.jsx';
@@ -419,7 +419,7 @@ function Reviews({ detail, card }) {
                   : <div className="review-name">{r.authorName}</div>}
                 {/* `when` is Profiles.MonthLabel — "Tháng 8, 2026", a shape the
                     dictionary reduces to a number pair. */}
-                <div className="review-when">{r.authorLocation ? `${r.authorLocation} · ` : ''}{t(r.when)}</div>
+                <div className="review-when">{r.authorLocation ? `${r.authorLocation} · ` : ''}{monthLabel(r.when)}</div>
               </div>
             </div>
             <p>{r.text}</p>
@@ -553,7 +553,7 @@ function HostProfile({ detail }) {
           <div><b>{h.totalReviews}</b> {t('đánh giá')}</div>
           <div><b>★ {h.averageRating.toFixed(2)}</b> {t('điểm trung bình')}</div>
           <div><b>{h.listingCount}</b> {t('chỗ nghỉ đang cho thuê')}</div>
-          <div>{t(h.joinedLabel)}</div>
+          <div>{t(monthLabel(h.joinedLabel))}</div>
         </div>
       </div>
       {h.bio && <p className="summary-desc" style={{ marginTop: 18 }}>{h.bio}</p>}

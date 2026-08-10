@@ -2,11 +2,20 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../lib/useStore.js';
 import { pickDate, shiftCalendar, calendarAnchor, set, normaliseDates } from '../lib/store.js';
 import { api } from '../lib/api.js';
-import { isoOf, parseIso, todayIso, shortMoney, longDate } from '../lib/format.js';
+import { isoOf, parseIso, todayIso, shortMoney, longDate, dateFormat } from '../lib/format.js';
 
-const DOW = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-const MONTHS = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
-                'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+/**
+ * Month and weekday names come from Intl in the reader's language rather than a
+ * hard-coded Vietnamese list: a Korean guest reading "Tháng 8" over the calendar
+ * is being told the language switch did not take. Weeks start on Monday here, so
+ * the run is anchored to a known Monday (5 Jan 1970) and walked forward.
+ */
+const MONTH_NAME = m => dateFormat({ month: 'long' }).format(new Date(2026, m, 1));
+
+const DOW_NAMES = () => {
+  const fmt = dateFormat({ weekday: 'short' });
+  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(1970, 0, 5 + i)));
+};
 
 /**
  * Range picker. The first click after a complete range starts a new one; the
@@ -85,7 +94,7 @@ function Month({ monthStart, isFirst, isLast, state, nights }) {
               className={`cal-day ${edge ? 'is-edge' : between ? 'is-between' : ''} ${night ? 'has-rate' : ''}`}
               onClick={() => pickDate(iso)}
               title={night ? `${longDate(iso)} · ${shortMoney(night.rate)}` : undefined}
-              aria-label={`${d} ${MONTHS[month]} ${year}`}>
+              aria-label={`${d} ${MONTH_NAME(month)} ${year}`}>
         <b>{d}</b>
         {night && !disabled && <i className="cal-rate">{shortMoney(night.rate)}</i>}
       </button>
@@ -98,13 +107,13 @@ function Month({ monthStart, isFirst, isLast, state, nights }) {
         {isFirst
           ? <button type="button" className="round-btn" onClick={() => shiftCalendar(-1)} aria-label="Tháng trước">‹</button>
           : <span style={{ width: 28 }} />}
-        <b>{MONTHS[month]} {year}</b>
+        <b>{MONTH_NAME(month)} {year}</b>
         {isLast
           ? <button type="button" className="round-btn" onClick={() => shiftCalendar(1)} aria-label="Tháng sau">›</button>
           : <span style={{ width: 28 }} />}
       </div>
       <div className="cal-grid" role="grid">
-        {DOW.map(d => <span className="cal-dow" key={d}>{d}</span>)}
+        {DOW_NAMES().map((d, i) => <span className="cal-dow" key={i}>{d}</span>)}
         {cells}
       </div>
     </div>

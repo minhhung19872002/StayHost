@@ -98,6 +98,26 @@ export function dateFormat(options) {
 /** Numbers in the reader's language: 1.234.567 in Vietnamese, 1,234,567 in English. */
 export const number = value => new Intl.NumberFormat(LOCALE.tag).format(Number(value) || 0);
 
+/**
+ * "Tháng 3, 2026" → "March 2026" → "2026년 3월".
+ *
+ * The server composes this one (Profiles.MonthLabel) and the dictionary cannot
+ * help: t() normalises every digit to {}, so "Tháng 3" and "Tháng 9" share a
+ * shape and a single entry could never name the month. The pattern is fixed and
+ * server-owned, so it is read back and re-formatted in the reader's language.
+ * Anything that does not match is returned untouched.
+ */
+const MONTH_LABEL = /^Tháng (\d{1,2}),\s*(\d{4})$/;
+
+export function monthLabel(text) {
+  const m = typeof text === 'string' && text.match(MONTH_LABEL);
+  if (!m) return text;
+  if (LOCALE.tag.startsWith('vi')) return text;
+
+  return dateFormat({ month: 'long', year: 'numeric' })
+    .format(new Date(Number(m[2]), Number(m[1]) - 1, 1));
+}
+
 export const shortDate = iso => SHORT.format(parseIso(iso));
 export const longDate = iso => LONG.format(parseIso(iso));
 export const dateTime = value => TIME.format(new Date(value));
