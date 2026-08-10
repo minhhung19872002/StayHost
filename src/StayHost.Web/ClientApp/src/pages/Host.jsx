@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { becomeHost, openOverlay, toast } from '../lib/store.js';
 import { money } from '../lib/format.js';
+import { t } from '../lib/i18n.js';
 
 const STATS = [
   { value: '500+', label: 'Chỗ nghỉ đang vận hành', note: 'Trên 12 tỉnh thành' },
@@ -31,7 +32,7 @@ export function Host() {
     if (!state.user) { openOverlay('login'); return; }
 
     if (!state.user.isHost && !await becomeHost()) return;
-    if (!state.user.isHost) toast('Bạn đã sẵn sàng cho thuê nhà.');
+    if (!state.user.isHost) toast(t('Bạn đã sẵn sàng cho thuê nhà.'));
 
     // The intent travels with the navigation. Opening the editor here instead
     // would be undone a tick later: App closes every overlay on a route change.
@@ -45,35 +46,34 @@ export function Host() {
   const monthly = nights * rate * (1 - hostRate);
 
   const faq = [
-    ['StayHost thu phí bao nhiêu?', `Phí dịch vụ ${pct}% trên mỗi lượt đặt thành công. Không có phí đăng tin, không phí duy trì.`],
-    ['Tôi có toàn quyền với lịch không?', 'Có. Bạn khoá ngày bất cứ lúc nào; hệ thống tự chặn đặt chỗ trùng.'],
-    ['Nhà bị hư hỏng thì sao?', 'Mỗi lượt đặt được bảo vệ tới 1 tỷ đồng cho thiệt hại tài sản.'],
-    ['Khi nào tôi được thanh toán?', 'Chuyển khoản 24 giờ sau khi khách nhận phòng, thẳng vào tài khoản ngân hàng của bạn.']
+    [t('StayHost thu phí bao nhiêu?'), `${t('Phí dịch vụ')} ${pct}% ${t('trên mỗi lượt đặt thành công. Không có phí đăng tin, không phí duy trì.')}`],
+    [t('Tôi có toàn quyền với lịch không?'), t('Có. Bạn khoá ngày bất cứ lúc nào; hệ thống tự chặn đặt chỗ trùng.')],
+    [t('Nhà bị hư hỏng thì sao?'), t('Mỗi lượt đặt được bảo vệ tới 1 tỷ đồng cho thiệt hại tài sản.')],
+    [t('Khi nào tôi được thanh toán?'), t('Chuyển khoản 24 giờ sau khi khách nhận phòng, thẳng vào tài khoản ngân hàng của bạn.')]
   ];
 
   return (
     <div className="shell" style={{ paddingBottom: 90 }}>
       <section className="host-hero">
         <div style={{ minWidth: 0 }}>
-          <div className="host-eyebrow">CHO CHỦ NHÀ CHO THUÊ NGẮN HẠN</div>
-          <h1>Giữ căn nhà.<br /><span>Bỏ</span> phần việc.</h1>
+          <div className="host-eyebrow">{t('CHO CHỦ NHÀ CHO THUÊ NGẮN HẠN')}</div>
+          <h1>{t('Giữ căn nhà.')}<br /><span>{t('Bỏ')}</span> {t('phần việc.')}</h1>
           <p>
-            StayHost OS vận hành thay bạn: trả lời khách, tối ưu giá, điều phối dọn dẹp
-            và bảo trì — bạn chỉ nhận doanh thu.
+            {t('StayHost OS vận hành thay bạn: trả lời khách, tối ưu giá, điều phối dọn dẹp và bảo trì — bạn chỉ nhận doanh thu.')}
           </p>
           <div className="host-cta">
             <button className="btn btn-primary" onClick={startListing}>
-              {state.user?.isHost ? 'Đăng thêm chỗ nghỉ →' : 'Đăng nhà cho thuê →'}
+              {state.user?.isHost ? t('Đăng thêm chỗ nghỉ →') : t('Đăng nhà cho thuê →')}
             </button>
             <button className="btn btn-outline"
                     onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}>
-              Xem cách hoạt động
+              {t('Xem cách hoạt động')}
             </button>
           </div>
         </div>
         <div className="host-media">
           <img src="https://images.pexels.com/photos/1029599/pexels-photo-1029599.jpeg?auto=compress&cs=tinysrgb&w=1200"
-               alt="Villa cho thuê trên StayHost" loading="eager" decoding="async" />
+               alt={t('Villa cho thuê trên StayHost')} loading="eager" decoding="async" />
         </div>
       </section>
 
@@ -81,59 +81,59 @@ export function Host() {
         {STATS.map(s => (
           <div className="stat" key={s.label}>
             <div className="value">{s.value}</div>
-            <div className="label">{s.label}</div>
-            <div className="note">{s.note}</div>
+            <div className="label">{t(s.label)}</div>
+            <div className="note">{t(s.note)}</div>
           </div>
         ))}
       </section>
 
       <section style={{ marginTop: 56 }} id="how-it-works">
-        <h2 className="section-title">Ba bước để bắt đầu</h2>
-        <p className="section-sub">Từ lúc đăng ký tới lượt khách đầu tiên, trung bình 6 ngày.</p>
+        <h2 className="section-title">{t('Ba bước để bắt đầu')}</h2>
+        <p className="section-sub">{t('Từ lúc đăng ký tới lượt khách đầu tiên, trung bình 6 ngày.')}</p>
         <div className="step-grid">
           {STEPS.map(s => (
             <div className="step" key={s.n}>
               <div className="n">{s.n}</div>
-              <b>{s.title}</b>
-              <p>{s.text}</p>
+              <b>{t(s.title)}</b>
+              <p>{t(s.text)}</p>
             </div>
           ))}
         </div>
       </section>
 
       <section style={{ marginTop: 56 }}>
-        <h2 className="section-title">Ước tính doanh thu</h2>
-        <p className="section-sub">Kéo thanh trượt để xem bạn có thể thu về bao nhiêu mỗi tháng.</p>
+        <h2 className="section-title">{t('Ước tính doanh thu')}</h2>
+        <p className="section-sub">{t('Kéo thanh trượt để xem bạn có thể thu về bao nhiêu mỗi tháng.')}</p>
         <div className="calc">
           <div className="calc-out">
             {money(monthly)}
-            <span style={{ fontSize: 16, color: 'var(--ink-muted)', fontWeight: 600 }}> / tháng</span>
+            <span style={{ fontSize: 16, color: 'var(--ink-muted)', fontWeight: 600 }}> {t('/ tháng')}</span>
           </div>
           <div style={{ marginTop: 22, display: 'grid', gap: 20,
                         gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,240px),1fr))' }}>
             <label>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
-                Số đêm cho thuê: <b style={{ color: 'var(--brand)' }}>{nights}</b>
+                {t('Số đêm cho thuê:')} <b style={{ color: 'var(--brand)' }}>{nights}</b>
               </div>
               <input type="range" min={1} max={30} value={nights} style={{ width: '100%' }}
                      onChange={e => setNights(Number(e.target.value))} />
             </label>
             <label>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
-                Giá mỗi đêm: <b style={{ color: 'var(--brand)' }}>{money(rate)}</b>
+                {t('Giá mỗi đêm:')} <b style={{ color: 'var(--brand)' }}>{money(rate)}</b>
               </div>
               <input type="range" min={300000} max={6000000} step={100000} value={rate} style={{ width: '100%' }}
                      onChange={e => setRate(Number(e.target.value))} />
             </label>
           </div>
           <p style={{ margin: '18px 0 0', fontSize: 13, color: 'var(--ink-muted)' }}>
-            Đã trừ phí dịch vụ {pct}%. Con số chỉ mang tính tham khảo.
+            {t('Đã trừ phí dịch vụ')} {pct}%. {t('Con số chỉ mang tính tham khảo.')}
           </p>
         </div>
       </section>
 
       <section style={{ marginTop: 56 }}>
-        <h2 className="section-title">Câu hỏi thường gặp</h2>
+        <h2 className="section-title">{t('Câu hỏi thường gặp')}</h2>
         <div style={{ marginTop: 20, borderTop: '1px solid var(--divider)' }}>
           {faq.map(([q, a]) => (
             <details key={q} style={{ borderBottom: '1px solid var(--divider)', padding: '18px 0' }}>

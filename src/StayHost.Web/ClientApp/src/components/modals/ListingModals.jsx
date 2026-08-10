@@ -10,6 +10,7 @@ import { HostReply, StarDistribution } from '../../pages/Detail.jsx';
 import { api } from '../../lib/api.js';
 import { useSlideshow } from '../../lib/useSlideshow.js';
 import { Modal } from './Modal.jsx';
+import { t } from '../../lib/i18n.js';
 
 const PHOTO_CAPTIONS = ['Ảnh chính', 'Phòng khách', 'Phòng ngủ', 'Không gian ngoài trời', 'Phòng tắm'];
 
@@ -24,14 +25,14 @@ export function PhotosModal() {
   if (index != null) return <PhotoLightbox card={c} index={index} />;
 
   return (
-    <Modal title={`${c.title} — ${c.images.length} ảnh`} size="wide">
+    <Modal title={`${c.title} — ${c.images.length} ${t('ảnh')}`} size="wide">
       <div className="lightbox-grid">
         {c.images.map((src, i) => (
           <figure key={i}>
-            <button className="lightbox-open" onClick={() => set({ photoIndex: i })} aria-label={`Phóng to ảnh ${i + 1}`}>
-              <img src={src} alt={`${c.title} — ảnh ${i + 1}`} loading="lazy" decoding="async" />
+            <button className="lightbox-open" onClick={() => set({ photoIndex: i })} aria-label={`${t('Phóng to ảnh')} ${i + 1}`}>
+              <img src={src} alt={`${c.title} — ${t('ảnh')} ${i + 1}`} loading="lazy" decoding="async" />
             </button>
-            <figcaption>{PHOTO_CAPTIONS[i] ?? `Ảnh ${i + 1}`}</figcaption>
+            <figcaption>{PHOTO_CAPTIONS[i] ? t(PHOTO_CAPTIONS[i]) : `${t('Ảnh')} ${i + 1}`}</figcaption>
           </figure>
         ))}
       </div>
@@ -72,42 +73,42 @@ function PhotoLightbox({ card, index }) {
   }, []);
 
   return (
-    <div className="viewer" role="dialog" aria-modal="true" aria-label={`${card.title} — ảnh`}>
+    <div className="viewer" role="dialog" aria-modal="true" aria-label={`${card.title} — ${t('ảnh')}`}>
       <header className="viewer-bar">
-        <button className="viewer-btn" onClick={closeOverlay}>✕ <span>Đóng</span></button>
+        <button className="viewer-btn" onClick={closeOverlay}>✕ <span>{t('Đóng')}</span></button>
         <span className="viewer-count">{idx + 1} / {total}</span>
         <div className="viewer-actions">
-          <button className="viewer-btn" onClick={() => shareListing(card)} aria-label="Chia sẻ">⤴</button>
+          <button className="viewer-btn" onClick={() => shareListing(card)} aria-label={t('Chia sẻ')}>⤴</button>
           <button className={`viewer-btn ${card.isFavorite ? 'is-on' : ''}`}
                   onClick={() => toggleFavorite(card.id)}
-                  aria-label={card.isFavorite ? 'Bỏ lưu' : 'Lưu chỗ nghỉ'}
+                  aria-label={card.isFavorite ? t('Bỏ lưu') : t('Lưu chỗ nghỉ')}
                   aria-pressed={!!card.isFavorite}>♥</button>
         </div>
       </header>
 
       <div className="viewer-stage">
         {total > 1 && (
-          <button className="viewer-nav prev" onClick={() => slides.step(-1)} aria-label="Ảnh trước">‹</button>
+          <button className="viewer-nav prev" onClick={() => slides.step(-1)} aria-label={t('Ảnh trước')}>‹</button>
         )}
 
         {card.images.map((src, i) =>
           // Only the photo on screen, its two neighbours and the one still
           // sliding away are worth downloading.
           slides.isMounted(i) || Math.abs(i - idx) === 1 || Math.abs(i - idx) === total - 1
-            ? <img key={i} src={src} alt={`${card.title} — ảnh ${i + 1}`}
+            ? <img key={i} src={src} alt={`${card.title} — ${t('ảnh')} ${i + 1}`}
                    className={slides.frameClass(i)} decoding="async" />
             : <img key={i} alt="" aria-hidden="true" className="is-deferred" />
         )}
 
         {total > 1 && (
-          <button className="viewer-nav next" onClick={() => slides.step(1)} aria-label="Ảnh tiếp theo">›</button>
+          <button className="viewer-nav next" onClick={() => slides.step(1)} aria-label={t('Ảnh tiếp theo')}>›</button>
         )}
       </div>
 
       <footer className="viewer-foot">
-        <p className="viewer-caption">{PHOTO_CAPTIONS[idx] ?? `Ảnh ${idx + 1}`}</p>
+        <p className="viewer-caption">{PHOTO_CAPTIONS[idx] ? t(PHOTO_CAPTIONS[idx]) : `${t('Ảnh')} ${idx + 1}`}</p>
         <button className="viewer-grid-link" onClick={() => set({ photoIndex: null })}>
-          ⊞ Xem tất cả {total} ảnh
+          ⊞ {t('Xem tất cả')} {total} {t('ảnh')}
         </button>
       </footer>
     </div>
@@ -129,7 +130,7 @@ export function AmenitiesModal() {
   }, {});
 
   return (
-    <Modal title="Nơi này có những gì">
+    <Modal title={t('Nơi này có những gì')}>
       {Object.entries(groups).map(([group, items]) => (
         <section className="modal-section" key={group}>
           <h3>{group}</h3>
@@ -148,6 +149,7 @@ export function AmenitiesModal() {
 }
 
 const REVIEW_SORTS = [['recent', 'Mới nhất'], ['high', 'Điểm cao nhất'], ['low', 'Điểm thấp nhất']];
+// NOTE: labels above are wrapped with t() at the render site.
 
 export function ReviewsModal() {
   const state = useStore();
@@ -164,18 +166,18 @@ export function ReviewsModal() {
         : 0);
 
   return (
-    <Modal title={`★ ${d.card.rating.toFixed(2)} · ${d.reviews.length} đánh giá`} size="wide">
+    <Modal title={`★ ${d.card.rating.toFixed(2)} · ${d.reviews.length} ${t('đánh giá')}`} size="wide">
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
-        <input type="search" className="field" style={{ flex: '1 1 220px' }} placeholder="Tìm trong đánh giá"
+        <input type="search" className="field" style={{ flex: '1 1 220px' }} placeholder={t('Tìm trong đánh giá')}
                value={state.reviewQuery} onChange={e => set({ reviewQuery: e.target.value })} />
         <select className="field" style={{ flex: '0 0 200px', width: 'auto' }}
                 value={state.reviewSort} onChange={e => set({ reviewSort: e.target.value })}>
-          {REVIEW_SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          {REVIEW_SORTS.map(([v, l]) => <option key={v} value={v}>{t(l)}</option>)}
         </select>
       </div>
       <StarDistribution counts={d.ratingBreakdown.starCounts} total={d.reviews.length} />
 
-      {!list.length && <p style={{ fontSize: 14, color: 'var(--ink-muted)' }}>Không có đánh giá nào khớp từ khoá.</p>}
+      {!list.length && <p style={{ fontSize: 14, color: 'var(--ink-muted)' }}>{t('Không có đánh giá nào khớp từ khoá.')}</p>}
       <div className="review-grid">
         {list.map(r => (
           <article className="review" key={r.id ?? `${r.authorName}-${r.when}`}>
@@ -199,6 +201,7 @@ export function ReviewsModal() {
 /* ---------------------------------------------------------------- checkout */
 
 const CHECKOUT_STEPS = ['Chuyến đi', 'Thanh toán', 'Xác nhận'];
+// NOTE: step labels above are wrapped with t() at the render site.
 
 /**
  * docs/07 §2 — the list comes from the server so the payment page and the
@@ -287,23 +290,23 @@ export function CheckoutModal() {
   };
 
   return (
-    <Modal title="Đặt chỗ" foot={<>
+    <Modal title={t('Đặt chỗ')} foot={<>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 16, fontWeight: 800 }}>
           {money(state.payDeposit ? Math.ceil(q.total / 2) : q.total)}
         </div>
         <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>
-          {state.payDeposit ? `trả trước · tổng ${money(q.total)}` : `${q.nights} đêm · đã gồm thuế`}
+          {state.payDeposit ? `${t('trả trước · tổng')} ${money(q.total)}` : `${q.nights} ${t('đêm · đã gồm thuế')}`}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 10 }}>
-        {step > 0 && <button className="btn btn-outline btn-sm" onClick={() => set({ checkoutStep: step - 1 })}>Quay lại</button>}
+        {step > 0 && <button className="btn btn-outline btn-sm" onClick={() => set({ checkoutStep: step - 1 })}>{t('Quay lại')}</button>}
         {step < 2
           ? <button className="btn btn-primary btn-sm" disabled={blocked || busy} onClick={next}>
-              {busy ? 'Đang giữ chỗ…' : 'Tiếp tục'}
+              {busy ? t('Đang giữ chỗ…') : t('Tiếp tục')}
             </button>
           : <button className="btn btn-primary btn-sm" disabled={blocked || busy} onClick={confirm}>
-              {busy ? 'Đang xử lý…' : isRequest ? 'Gửi yêu cầu đặt' : 'Xác nhận và thanh toán'}
+              {busy ? t('Đang xử lý…') : isRequest ? t('Gửi yêu cầu đặt') : t('Xác nhận và thanh toán')}
             </button>}
       </div>
     </>}>
@@ -311,7 +314,7 @@ export function CheckoutModal() {
       <div className="stepper-bar">
         {CHECKOUT_STEPS.map((label, i) => (
           <div key={label} className={`step-dot ${i === step ? 'is-active' : ''} ${i < step ? 'is-done' : ''}`}>
-            <span className="n">{i < step ? '✓' : i + 1}</span>{label}
+            <span className="n">{i < step ? '✓' : i + 1}</span>{t(label)}
           </div>
         ))}
       </div>
@@ -332,15 +335,15 @@ export function CheckoutModal() {
 
       {blocked && (
         <div className="book-alert is-error">
-          <b>Chưa đặt được</b>
+          <b>{t('Chưa đặt được')}</b>
           <span>{q.guestsExceeded
-            ? `Chỗ nghỉ này nhận tối đa ${q.maxGuests} khách.`
-            : `Chỗ nghỉ này yêu cầu tối thiểu ${q.minNights} đêm.`}</span>
+            ? `${t('Chỗ nghỉ này nhận tối đa')} ${q.maxGuests} ${t('khách')}.`
+            : `${t('Chỗ nghỉ này yêu cầu tối thiểu')} ${q.minNights} ${t('đêm')}.`}</span>
         </div>
       )}
 
       {state.bookingError && (
-        <div className="book-alert is-error"><b>Không đặt được</b><span>{state.bookingError}</span></div>
+        <div className="book-alert is-error"><b>{t('Không đặt được')}</b><span>{state.bookingError}</span></div>
       )}
     </Modal>
   );
@@ -351,15 +354,15 @@ function StepTrip({ q }) {
 
   return <>
     <section className="modal-section">
-      <h3>Chuyến đi của bạn</h3>
+      <h3>{t('Chuyến đi của bạn')}</h3>
       <div style={{ display: 'grid', gap: 12, marginTop: 14, fontSize: 14.5 }}>
         <div className="book-line">
-          <span><b>Ngày</b><br />{longDate(state.checkIn)} – {longDate(state.checkOut)}</span>
-          <button className="text-btn" onClick={() => openOverlay('dates')}>Chỉnh sửa</button>
+          <span><b>{t('Ngày')}</b><br />{longDate(state.checkIn)} – {longDate(state.checkOut)}</span>
+          <button className="text-btn" onClick={() => openOverlay('dates')}>{t('Chỉnh sửa')}</button>
         </div>
         <div className="book-line">
-          <span><b>Khách</b><br />{q.guests} khách</span>
-          <button className="text-btn" onClick={() => openOverlay('guests')}>Chỉnh sửa</button>
+          <span><b>{t('Khách')}</b><br />{q.guests} {t('khách')}</span>
+          <button className="text-btn" onClick={() => openOverlay('guests')}>{t('Chỉnh sửa')}</button>
         </div>
       </div>
     </section>
@@ -368,32 +371,32 @@ function StepTrip({ q }) {
         the listing has any; the server requires the tick in that case. */}
     {!!state.detail?.houseRules?.length && (
       <section className="modal-section">
-        <h3>Nội quy nhà</h3>
+        <h3>{t('Nội quy nhà')}</h3>
         <ul style={{ margin: '10px 0 0', paddingLeft: 18, fontSize: 14, lineHeight: 1.7 }}>
           {state.detail.houseRules.map((r, i) => <li key={i}>{r}</li>)}
         </ul>
         <label className="check-row" style={{ marginTop: 12 }}>
           <input type="checkbox" checked={state.agreedToRules}
                  onChange={e => set({ agreedToRules: e.target.checked })} />
-          <span>Tôi đã đọc và đồng ý với nội quy nhà</span>
+          <span>{t('Tôi đã đọc và đồng ý với nội quy nhà')}</span>
         </label>
       </section>
     )}
 
     <section className="modal-section">
-      <h3>Thông tin liên hệ</h3>
+      <h3>{t('Thông tin liên hệ')}</h3>
       <div style={{ marginTop: 14 }}>
-        <label className="form-field"><span className="cap">Họ tên</span>
+        <label className="form-field"><span className="cap">{t('Họ tên')}</span>
           <input type="text" placeholder="Nguyễn Văn A"
                  value={state.checkoutName || state.user?.fullName || ''}
                  onChange={e => set({ checkoutName: e.target.value })} /></label>
-        <label className="form-field"><span className="cap">Email</span>
+        <label className="form-field"><span className="cap">{t('Email')}</span>
           <input type="email" placeholder="ban@email.com"
                  value={state.checkoutEmail || state.user?.email || ''}
                  onChange={e => set({ checkoutEmail: e.target.value })} /></label>
         <label className="form-field">
-          <span className="cap">Lời nhắn cho chủ nhà <span style={{ fontWeight: 400 }}>(không bắt buộc)</span></span>
-          <textarea rows={3} placeholder="Chúng mình đến khoảng 20:00…"
+          <span className="cap">{t('Lời nhắn cho chủ nhà')} <span style={{ fontWeight: 400 }}>{t('(không bắt buộc)')}</span></span>
+          <textarea rows={3} placeholder={t('Chúng mình đến khoảng 20:00…')}
                     value={state.checkoutNote} onChange={e => set({ checkoutNote: e.target.value })}
                     style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
         </label>
@@ -401,7 +404,7 @@ function StepTrip({ q }) {
     </section>
 
     <section className="modal-section">
-      <h3>Chính sách huỷ</h3>
+      <h3>{t('Chính sách huỷ')}</h3>
       <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-body)', margin: '10px 0 0' }}>
         <b>{q.cancellationTier}</b> — {q.cancellationSummary}
       </p>
@@ -432,19 +435,19 @@ function CouponField({ q }) {
 
   return (
     <div style={{ marginTop: 18 }}>
-      <label className="cap" htmlFor="coupon-code">Mã giảm giá</label>
+      <label className="cap" htmlFor="coupon-code">{t('Mã giảm giá')}</label>
       <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
         <input id="coupon-code" value={code} disabled={busy}
                onChange={e => setCode(e.target.value.toUpperCase())}
                placeholder="VD: CHAOMUNG10"
                style={{ flex: 1, padding: '11px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
         {q.couponApplied
-          ? <button type="button" className="btn btn-outline btn-sm" onClick={clear}>Bỏ mã</button>
-          : <button type="button" className="btn btn-dark btn-sm" disabled={busy || !code.trim()} onClick={apply}>Áp dụng</button>}
+          ? <button type="button" className="btn btn-outline btn-sm" onClick={clear}>{t('Bỏ mã')}</button>
+          : <button type="button" className="btn btn-dark btn-sm" disabled={busy || !code.trim()} onClick={apply}>{t('Áp dụng')}</button>}
       </div>
       {q.couponApplied && (
         <p className="notice notice-ok" style={{ marginTop: 8 }}>
-          Đã áp mã, giảm {money(q.couponDiscount)}.
+          {t('Đã áp mã, giảm')} {money(q.couponDiscount)}.
         </p>
       )}
       {q.couponError && (
@@ -473,16 +476,15 @@ function CreditChoice({ q }) {
     <>
       <button type="button" className={`opt ${state.useCredit ? 'is-on' : ''}`} style={{ marginTop: 18 }}
               onClick={() => set({ useCredit: !state.useCredit })}>
-        <b>Dùng số dư {money(usable)}</b>
-        <span>Bạn đang có {money(balance)}. Số dư chỉ trừ vào tiền phòng.</span>
+        <b>{t('Dùng số dư')} {money(usable)}</b>
+        <span>{t('Bạn đang có')} {money(balance)}. {t('Số dư chỉ trừ vào tiền phòng.')}</span>
       </button>
 
       {/* docs/07 §3 — nothing to charge today is not the same as nothing to
           charge later; the method on file is how docs/06 §3.3 collects. */}
       {state.useCredit && usable >= q.total && (
         <p className="notice notice-warn">
-          Số dư của bạn đủ trả toàn bộ đơn này. Vẫn cần một phương thức dự phòng cho các phát sinh về sau
-          như đổi lịch hoặc bồi thường — bạn sẽ không bị trừ tiền bây giờ.
+          {t('Số dư của bạn đủ trả toàn bộ đơn này. Vẫn cần một phương thức dự phòng cho các phát sinh về sau như đổi lịch hoặc bồi thường — bạn sẽ không bị trừ tiền bây giờ.')}
         </p>
       )}
     </>
@@ -507,12 +509,12 @@ function DepositChoice({ q }) {
     <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
       <button type="button" className={`opt ${!state.payDeposit ? 'is-on' : ''}`}
               onClick={() => set({ payDeposit: false })}>
-        <b>Trả toàn bộ {money(q.total)}</b><span>Xong luôn, không phải nhớ gì thêm</span>
+        <b>{t('Trả toàn bộ')} {money(q.total)}</b><span>{t('Xong luôn, không phải nhớ gì thêm')}</span>
       </button>
       <button type="button" className={`opt ${state.payDeposit ? 'is-on' : ''}`}
               onClick={() => set({ payDeposit: true })}>
-        <b>Trả trước {money(half)}</b>
-        <span>Phần còn lại {money(q.total - half)} tự động thu ngày {longDate(isoOf(dueOn))}</span>
+        <b>{t('Trả trước')} {money(half)}</b>
+        <span>{t('Phần còn lại')} {money(q.total - half)} {t('tự động thu ngày')} {longDate(isoOf(dueOn))}</span>
       </button>
     </div>
   );
@@ -534,21 +536,21 @@ function SplitChoice({ q }) {
     <div style={{ marginTop: 18 }}>
       <button type="button" className={`opt ${state.splitBill ? 'is-on' : ''}`}
               onClick={() => set({ splitBill: !state.splitBill })}>
-        <b>Chia hoá đơn với người khác</b>
-        <span>Mỗi người nhận một liên kết và trả phần của mình</span>
+        <b>{t('Chia hoá đơn với người khác')}</b>
+        <span>{t('Mỗi người nhận một liên kết và trả phần của mình')}</span>
       </button>
 
       {state.splitBill && <div style={{ marginTop: 12 }}>
         <label className="form-field">
-          <span className="cap">Email những người cùng trả (cách nhau bằng dấu phẩy)</span>
+          <span className="cap">{t('Email những người cùng trả (cách nhau bằng dấu phẩy)')}</span>
           <input value={emails} placeholder="an@vidu.vn, binh@vidu.vn"
                  onChange={e => { setEmails(e.target.value); set({ splitEmails: e.target.value }); }} />
         </label>
         <p style={{ fontSize: 13, color: 'var(--ink-muted)', margin: 0, lineHeight: 1.6 }}>
           {people.length
-            ? `${people.length + 1} người · mỗi người khoảng ${money(each)} · bạn trả phần lẻ`
-            : `Tối đa ${16} người kể cả bạn.`}
-          <br />Đơn chỉ được xác nhận khi tất cả đã trả, trong vòng 24 giờ.
+            ? `${people.length + 1} ${t('người · mỗi người khoảng')} ${money(each)} ${t('· bạn trả phần lẻ')}`
+            : `${t('Tối đa')} ${16} ${t('người kể cả bạn.')}`}
+          <br />{t('Đơn chỉ được xác nhận khi tất cả đã trả, trong vòng 24 giờ.')}
         </p>
       </div>}
     </div>
@@ -578,12 +580,12 @@ function StepPayment({ q }) {
 
   return (
     <section className="modal-section">
-      <h3>Chọn cách thanh toán</h3>
+      <h3>{t('Chọn cách thanh toán')}</h3>
       <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
         {offered.map(m => (
           <button type="button" key={m.key} className={`opt ${method === m.key ? 'is-on' : ''}`}
                   onClick={() => set({ payMethod: m.key })}>
-            <b>{m.label}</b><span>{m.hint}</span>
+            <b>{t(m.label)}</b><span>{t(m.hint)}</span>
           </button>
         ))}
       </div>
@@ -591,32 +593,32 @@ function StepPayment({ q }) {
       {/* docs/07 §4 — a guest who has saved a card should not retype it. */}
       {method === 'card' && !!usable.length && (
         <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
-          <span className="cap">Thẻ đã lưu</span>
+          <span className="cap">{t('Thẻ đã lưu')}</span>
           {usable.map(c => (
             <button type="button" key={c.id}
                     className={`opt ${state.payCardId === c.id ? 'is-on' : ''}`}
                     onClick={() => set({ payCardId: c.id, payCardLast4: c.last4 })}>
-              <b>{c.brandLabel} •••• {c.last4}</b><span>Hết hạn {c.expiry}</span>
+              <b>{c.brandLabel} •••• {c.last4}</b><span>{t('Hết hạn')} {c.expiry}</span>
             </button>
           ))}
           <button type="button" className={`opt ${state.payCardId ? '' : 'is-on'}`}
                   onClick={() => set({ payCardId: null, payCardLast4: null })}>
-            <b>Dùng thẻ khác</b><span>Nhập số thẻ bên dưới</span>
+            <b>{t('Dùng thẻ khác')}</b><span>{t('Nhập số thẻ bên dưới')}</span>
           </button>
         </div>
       )}
 
       {method === 'card' && !state.payCardId && <>
         <div className="field-grid" style={{ marginTop: 18 }}>
-          <label className="form-field" style={{ gridColumn: '1/-1' }}><span className="cap">Số thẻ</span>
+          <label className="form-field" style={{ gridColumn: '1/-1' }}><span className="cap">{t('Số thẻ')}</span>
             <input id="card-number" inputMode="numeric" placeholder="4242 4242 4242 4242" defaultValue="4242 4242 4242 4242" /></label>
-          <label className="form-field"><span className="cap">Hết hạn</span>
+          <label className="form-field"><span className="cap">{t('Hết hạn')}</span>
             <input id="card-exp" placeholder="12/28" defaultValue="12/28" /></label>
           <label className="form-field"><span className="cap">CVV</span>
             <input id="card-cvv" inputMode="numeric" placeholder="123" defaultValue="123" /></label>
         </div>
         <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.5 }}>
-          Bản demo dùng thẻ thử nghiệm, không có giao dịch thật nào được thực hiện.
+          {t('Bản demo dùng thẻ thử nghiệm, không có giao dịch thật nào được thực hiện.')}
         </p>
       </>}
 
@@ -627,20 +629,20 @@ function StepPayment({ q }) {
 
       {method === 'momo' && (
         <p style={{ marginTop: 18, fontSize: 14, color: 'var(--ink-body)', lineHeight: 1.6 }}>
-          Sau khi xác nhận, bạn sẽ được chuyển sang ứng dụng MoMo để hoàn tất thanh toán {money(q.total)}.
+          {t('Sau khi xác nhận, bạn sẽ được chuyển sang ứng dụng MoMo để hoàn tất thanh toán')} {money(q.total)}.
         </p>
       )}
 
       {method === 'zalopay' && (
         <p style={{ marginTop: 18, fontSize: 14, color: 'var(--ink-body)', lineHeight: 1.6 }}>
-          Sau khi xác nhận, bạn sẽ được chuyển sang ứng dụng ZaloPay để hoàn tất thanh toán {money(q.total)}.
+          {t('Sau khi xác nhận, bạn sẽ được chuyển sang ứng dụng ZaloPay để hoàn tất thanh toán')} {money(q.total)}.
         </p>
       )}
 
       {/* docs/07 §2.4 — the ways StayHost does not take, with the one reason. */}
       {!!refused?.notAccepted?.length && (
         <p style={{ marginTop: 18, fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.6 }}>
-          StayHost không nhận {refused.notAccepted.join(', ').toLowerCase()}. {refused.refusalReason}
+          {t('StayHost không nhận')} {refused.notAccepted.join(', ').toLowerCase()}. {refused.refusalReason}
         </p>
       )}
     </section>
@@ -653,21 +655,21 @@ function StepReview({ q }) {
 
   return <>
     <section className="modal-section">
-      <h3>Kiểm tra lần cuối</h3>
+      <h3>{t('Kiểm tra lần cuối')}</h3>
       <div style={{ display: 'grid', gap: 12, marginTop: 14, fontSize: 14.5 }}>
-        <div className="book-line"><span>Ngày</span><span>{longDate(state.checkIn)} – {longDate(state.checkOut)}</span></div>
-        <div className="book-line"><span>Khách</span><span>{q.guests} khách</span></div>
-        <div className="book-line"><span>Thanh toán bằng</span><span>{method?.label ?? 'Thẻ'}</span></div>
+        <div className="book-line"><span>{t('Ngày')}</span><span>{longDate(state.checkIn)} – {longDate(state.checkOut)}</span></div>
+        <div className="book-line"><span>{t('Khách')}</span><span>{q.guests} {t('khách')}</span></div>
+        <div className="book-line"><span>{t('Thanh toán bằng')}</span><span>{method ? t(method.label) : t('Thẻ')}</span></div>
       </div>
     </section>
 
     <section className="modal-section">
-      <h3>Chi tiết giá</h3>
+      <h3>{t('Chi tiết giá')}</h3>
       <PriceLines q={q} />
     </section>
 
     <section className="modal-section">
-      <h3>Chính sách huỷ</h3>
+      <h3>{t('Chính sách huỷ')}</h3>
       <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-body)', margin: '10px 0 0' }}>
         <b>{q.cancellationTier}</b> — {q.cancellationSummary}
       </p>
@@ -695,8 +697,8 @@ function HoldCountdown({ held }) {
 
   return (
     <div className="book-alert" style={{ marginBottom: 4 }}>
-      <b>Đang giữ chỗ cho bạn · {mm}:{ss}</b>
-      <span>Hết giờ mà chưa thanh toán xong thì ngày sẽ được mở lại cho khách khác.</span>
+      <b>{t('Đang giữ chỗ cho bạn')} · {mm}:{ss}</b>
+      <span>{t('Hết giờ mà chưa thanh toán xong thì ngày sẽ được mở lại cho khách khác.')}</span>
     </div>
   );
 }
@@ -721,7 +723,7 @@ export function PriceLines({ q, className = '' }) {
         </div>
       ))}
       <div className="book-rule" />
-      <div className="book-total"><span>Tổng ({state.currency.code})</span><span>{money(q.total)}</span></div>
+      <div className="book-total"><span>{t('Tổng')} ({state.currency.code})</span><span>{money(q.total)}</span></div>
     </div>
   );
 }
@@ -729,11 +731,11 @@ export function PriceLines({ q, className = '' }) {
 /** Fallback for quotes from before the server started sending `lines`. */
 function legacyLines(q) {
   const out = [
-    { label: `${money(q.pricePerNight)} × ${q.nights} đêm`, amount: q.subtotal + (q.lengthDiscount ?? 0) }
+    { label: `${money(q.pricePerNight)} × ${q.nights} ${t('đêm')}`, amount: q.subtotal + (q.lengthDiscount ?? 0) }
   ];
-  if (q.lengthDiscount > 0) out.push({ label: `Giảm giá ở dài ngày (${q.lengthDiscountPercent}%)`, amount: -q.lengthDiscount });
-  out.push({ label: 'Phí dọn dẹp', amount: q.cleaningFee });
-  out.push({ label: 'Phí dịch vụ StayHost', amount: q.serviceFee });
-  if (q.tax) out.push({ label: 'Thuế', amount: q.tax });
+  if (q.lengthDiscount > 0) out.push({ label: `${t('Giảm giá ở dài ngày')} (${q.lengthDiscountPercent}%)`, amount: -q.lengthDiscount });
+  out.push({ label: t('Phí dọn dẹp'), amount: q.cleaningFee });
+  out.push({ label: t('Phí dịch vụ StayHost'), amount: q.serviceFee });
+  if (q.tax) out.push({ label: t('Thuế'), amount: q.tax });
   return out;
 }

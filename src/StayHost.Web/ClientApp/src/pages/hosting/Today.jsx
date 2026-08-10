@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api.js';
 import { set, respondBooking, toast } from '../../lib/store.js';
 import { longDate } from '../../lib/format.js';
+import { t } from '../../lib/i18n.js';
 
 /**
  * docs/01 QL-01 — the board a host opens first: who is arriving, who is in the
@@ -38,8 +39,8 @@ export function Today() {
     <div style={{ marginTop: 24 }}>
       {empty && (
         <div className="empty-state">
-          <h3>Hôm nay không có việc gì cần làm</h3>
-          <p>Khi có khách đến, đang ở hoặc sắp đi, họ sẽ hiện ở đây.</p>
+          <h3>{t('Hôm nay không có việc gì cần làm')}</h3>
+          <p>{t('Khi có khách đến, đang ở hoặc sắp đi, họ sẽ hiện ở đây.')}</p>
           {/*
             * This is the tab a host lands on, and an empty one reads as an empty
             * account: a host came here looking for the listing they had just
@@ -47,15 +48,15 @@ export function Today() {
             */}
           <button className="btn btn-outline btn-sm" style={{ marginTop: 16 }}
                   onClick={() => set({ hostingTab: 'listings' })}>
-            Xem chỗ nghỉ của tôi
+            {t('Xem chỗ nghỉ của tôi')}
           </button>
         </div>
       )}
 
       {groups.filter(([, items]) => items.length).map(([title, items, hint]) => (
         <section key={title} style={{ marginBottom: 34 }}>
-          <h2 className="section-title" style={{ fontSize: 20 }}>{title} ({items.length})</h2>
-          <p className="section-sub">{hint}</p>
+          <h2 className="section-title" style={{ fontSize: 20 }}>{t(title)} ({items.length})</h2>
+          <p className="section-sub">{t(hint)}</p>
           {items.map(item => <TodayRow key={`${title}-${item.bookingId}`} item={item} onDone={load} />)}
         </section>
       ))}
@@ -78,9 +79,9 @@ function TodayRow({ item, onDone }) {
     <article className="host-booking">
       <div style={{ minWidth: 0 }}>
         <h3>{item.listingTitle}</h3>
-        <div className="meta">{item.guestName} · mã {item.reference}</div>
+        <div className="meta">{item.guestName} · {t('mã')} {item.reference}</div>
         <div className="meta">
-          {longDate(item.checkIn)} → {longDate(item.checkOut)} · {item.nights} đêm · {item.guests} khách
+          {longDate(item.checkIn)} → {longDate(item.checkOut)} · {item.nights} {t('đêm')} · {item.guests} {t('khách')}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
           <span className={`badge ${item.statusBadge}`}>{item.statusLabel}</span>
@@ -89,15 +90,15 @@ function TodayRow({ item, onDone }) {
       </div>
       <div className="host-booking-actions">
         {item.statusLabel === 'Chờ chủ nhà duyệt' && <>
-          <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => answer('confirm')}>Xác nhận</button>
-          <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => answer('decline')}>Từ chối</button>
+          <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => answer('confirm')}>{t('Xác nhận')}</button>
+          <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => answer('decline')}>{t('Từ chối')}</button>
         </>}
-        <button className="btn btn-outline btn-sm" onClick={() => navigate('/messages')}>Nhắn khách</button>
+        <button className="btn btn-outline btn-sm" onClick={() => navigate('/messages')}>{t('Nhắn khách')}</button>
         <button className="btn btn-outline btn-sm" onClick={() => {
           navigator.clipboard?.writeText(item.reference).then(
-            () => toast('Đã sao chép mã đặt chỗ.'),
+            () => toast(t('Đã sao chép mã đặt chỗ.')),
             () => toast(item.reference));
-        }}>Sao chép mã</button>
+        }}>{t('Sao chép mã')}</button>
       </div>
     </article>
   );

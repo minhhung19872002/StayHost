@@ -4,6 +4,7 @@ import { useStore } from '../lib/useStore.js';
 import { set, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, dateTime, longDate } from '../lib/format.js';
+import { t } from '../lib/i18n.js';
 
 const KINDS = [
   ['Damage', 'Bồi thường thiệt hại', 'Khách làm hỏng đồ đạc trong nhà.'],
@@ -31,10 +32,10 @@ export function Resolutions() {
     return (
       <div className="shell" style={{ paddingBlock: '60px 90px' }}>
         <div className="empty-state">
-          <h3>Đăng nhập để xem hồ sơ</h3>
-          <p>Trung tâm giải quyết dành cho khách và chủ nhà có đơn đặt trên StayHost.</p>
+          <h3>{t('Đăng nhập để xem hồ sơ')}</h3>
+          <p>{t('Trung tâm giải quyết dành cho khách và chủ nhà có đơn đặt trên StayHost.')}</p>
           <button className="btn btn-primary" style={{ marginTop: 18 }}
-                  onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>Đăng nhập</button>
+                  onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>{t('Đăng nhập')}</button>
         </div>
       </div>
     );
@@ -44,13 +45,12 @@ export function Resolutions() {
     <div className="shell" style={{ paddingBlock: '30px 90px' }}>
       <div className="page-head">
         <div>
-          <h1 className="section-title">Trung tâm giải quyết</h1>
+          <h1 className="section-title">{t('Trung tâm giải quyết')}</h1>
           <p className="section-sub">
-            Mở hồ sơ khi có thiệt hại hoặc tranh chấp. Bên còn lại có 24 giờ để trả lời;
-            nếu phản đối, StayHost sẽ phân xử.
+            {t('Mở hồ sơ khi có thiệt hại hoặc tranh chấp. Bên còn lại có 24 giờ để trả lời; nếu phản đối, StayHost sẽ phân xử.')}
           </p>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={() => setOpening(true)}>+ Mở hồ sơ</button>
+        <button className="btn btn-primary btn-sm" onClick={() => setOpening(true)}>{t('+ Mở hồ sơ')}</button>
       </div>
 
       {opening && <OpenCase preBooking={preBooking} onClose={() => setOpening(false)} onDone={() => { setOpening(false); load(); }} />}
@@ -59,8 +59,8 @@ export function Resolutions() {
 
       {cases?.length === 0 && (
         <div className="empty-state" style={{ marginTop: 24 }}>
-          <h3>Chưa có hồ sơ nào</h3>
-          <p>Mong là bạn không bao giờ cần tới trang này.</p>
+          <h3>{t('Chưa có hồ sơ nào')}</h3>
+          <p>{t('Mong là bạn không bao giờ cần tới trang này.')}</p>
         </div>
       )}
 
@@ -77,15 +77,15 @@ function CaseCard({ kase: c, onDone }) {
     setBusy(true);
     try {
       await api.respondResolution(c.id, { accept, note });
-      toast(accept ? 'Đã ghi nhận bạn đồng ý.' : 'Đã chuyển StayHost phân xử.');
+      toast(accept ? t('Đã ghi nhận bạn đồng ý.') : t('Đã chuyển StayHost phân xử.'));
       onDone();
     } catch (err) { toast(err.message); } finally { setBusy(false); }
   };
 
   const withdraw = async () => {
-    if (!confirm('Rút lại hồ sơ này?')) return;
+    if (!confirm(t('Rút lại hồ sơ này?'))) return;
     setBusy(true);
-    try { await api.withdrawResolution(c.id); toast('Đã rút hồ sơ.'); onDone(); }
+    try { await api.withdrawResolution(c.id); toast(t('Đã rút hồ sơ.')); onDone(); }
     catch (err) { toast(err.message); } finally { setBusy(false); }
   };
 
@@ -94,11 +94,11 @@ function CaseCard({ kase: c, onDone }) {
       <div style={{ minWidth: 0, flex: 1 }}>
         <h3>{c.kindLabel} · {c.listingTitle}</h3>
         <div className="meta">
-          Hồ sơ {c.reference} · đơn {c.bookingReference} · mở bởi {c.openedByName} ({c.openedByHost ? 'chủ nhà' : 'khách'})
+          {t('Hồ sơ')} {c.reference} · {t('đơn')} {c.bookingReference} · {t('mở bởi')} {c.openedByName} ({c.openedByHost ? t('chủ nhà') : t('khách')})
         </div>
         <div className="meta">
-          Yêu cầu <b style={{ color: 'var(--ink)' }}>{money(c.amountClaimed)}</b>
-          {c.amountAwarded > 0 && <> · đã chuyển <b style={{ color: 'var(--brand)' }}>{money(c.amountAwarded)}</b></>}
+          {t('Yêu cầu')} <b style={{ color: 'var(--ink)' }}>{money(c.amountClaimed)}</b>
+          {c.amountAwarded > 0 && <> · {t('đã chuyển')} <b style={{ color: 'var(--brand)' }}>{money(c.amountAwarded)}</b></>}
         </div>
 
         <p style={{ margin: '10px 0 0', fontSize: 14, lineHeight: 1.6, color: 'var(--ink-body)' }}>{c.description}</p>
@@ -106,21 +106,21 @@ function CaseCard({ kase: c, onDone }) {
         {!!c.evidenceUrls.length && (
           <div className="thumb-grid" style={{ marginTop: 12 }}>
             {c.evidenceUrls.map((url, i) => (
-              <figure className="thumb" key={i}><img src={url} alt={`Bằng chứng ${i + 1}`} loading="lazy" /></figure>
+              <figure className="thumb" key={i}><img src={url} alt={`${t('Bằng chứng')} ${i + 1}`} loading="lazy" /></figure>
             ))}
           </div>
         )}
 
         {c.response && (
           <div className="review-reply" style={{ marginLeft: 0 }}>
-            <b>Phản hồi của bên kia{c.respondedAt ? ` · ${dateTime(c.respondedAt)}` : ''}</b>
+            <b>{t('Phản hồi của bên kia')}{c.respondedAt ? ` · ${dateTime(c.respondedAt)}` : ''}</b>
             <p>{c.response}</p>
           </div>
         )}
 
         {c.decision && (
           <div className="book-alert" style={{ marginTop: 12 }}>
-            <b>StayHost phân xử{c.decidedByName ? ` · ${c.decidedByName}` : ''}</b>
+            <b>{t('StayHost phân xử')}{c.decidedByName ? ` · ${c.decidedByName}` : ''}</b>
             <span>{c.decision}</span>
           </div>
         )}
@@ -128,21 +128,21 @@ function CaseCard({ kase: c, onDone }) {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
           <span className={`badge ${c.statusBadge}`}>{c.statusLabel}</span>
           {c.status === 'AwaitingResponse' && (
-            <span className="badge pending">Hạn trả lời {dateTime(c.responseDueAt)}</span>
+            <span className="badge pending">{t('Hạn trả lời')} {dateTime(c.responseDueAt)}</span>
           )}
         </div>
 
         {c.needsMyResponse && (
           <div style={{ marginTop: 14, maxWidth: 560 }}>
             <label className="form-field">
-              <span className="cap">Ý kiến của bạn</span>
+              <span className="cap">{t('Ý kiến của bạn')}</span>
               <textarea rows={3} value={note} onChange={e => setNote(e.target.value)}
-                        placeholder="Giải thích ngắn gọn nếu bạn không đồng ý."
+                        placeholder={t('Giải thích ngắn gọn nếu bạn không đồng ý.')}
                         style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
             </label>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => respond(true)}>Đồng ý</button>
-              <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => respond(false)}>Phản đối</button>
+              <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => respond(true)}>{t('Đồng ý')}</button>
+              <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => respond(false)}>{t('Phản đối')}</button>
             </div>
           </div>
         )}
@@ -151,7 +151,7 @@ function CaseCard({ kase: c, onDone }) {
       </div>
 
       <div className="host-booking-actions">
-        {c.canWithdraw && <button className="btn btn-outline btn-sm" disabled={busy} onClick={withdraw}>Rút hồ sơ</button>}
+        {c.canWithdraw && <button className="btn btn-outline btn-sm" disabled={busy} onClick={withdraw}>{t('Rút hồ sơ')}</button>}
       </div>
     </article>
   );
@@ -164,7 +164,7 @@ function History({ events }) {
 
   return (
     <details style={{ marginTop: 14 }}>
-      <summary style={{ fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Lịch sử hồ sơ</summary>
+      <summary style={{ fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{t('Lịch sử hồ sơ')}</summary>
       <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
         {events.map((e, i) => (
           <div className="cal-row" key={i}>
@@ -174,7 +174,7 @@ function History({ events }) {
               {e.note && <span style={{ color: 'var(--ink-muted)' }}> · {e.note}</span>}
             </div>
             <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>
-              {ACTOR[e.actor.split(':')[0]] ?? e.actor}
+              {t(ACTOR[e.actor.split(':')[0]] ?? e.actor)}
             </span>
           </div>
         ))}
@@ -204,21 +204,21 @@ function OpenCase({ onClose, onDone, preBooking }) {
         description: f.description.value.trim(),
         evidenceUrls: f.evidence.value.split('\n').map(s => s.trim()).filter(Boolean)
       });
-      toast('Đã mở hồ sơ. Bên kia có 24 giờ để trả lời.');
+      toast(t('Đã mở hồ sơ. Bên kia có 24 giờ để trả lời.'));
       onDone();
     } catch (err) { toast(err.message); } finally { setBusy(false); }
   };
 
   return (
     <section className="modal-section" style={{ border: '1px solid var(--line)', borderRadius: 16, padding: 20, marginTop: 20 }}>
-      <h3>Mở hồ sơ mới</h3>
+      <h3>{t('Mở hồ sơ mới')}</h3>
 
       {!eligible.length ? (
-        <p className="section-sub">Bạn chưa có chuyến đi nào đủ điều kiện mở hồ sơ.</p>
+        <p className="section-sub">{t('Bạn chưa có chuyến đi nào đủ điều kiện mở hồ sơ.')}</p>
       ) : (
         <form onSubmit={submit} style={{ marginTop: 14 }}>
           <label className="form-field">
-            <span className="cap">Chuyến đi</span>
+            <span className="cap">{t('Chuyến đi')}</span>
             <select name="bookingId" required defaultValue={preBooking ?? ''}>
               {eligible.map(b => (
                 <option key={b.id} value={b.id}>
@@ -232,34 +232,34 @@ function OpenCase({ onClose, onDone, preBooking }) {
             {KINDS.map(([key, label, hint]) => (
               <button type="button" key={key} className={`opt ${kind === key ? 'is-on' : ''}`}
                       onClick={() => setKind(key)}>
-                <b>{label}</b><span>{hint}</span>
+                <b>{t(label)}</b><span>{t(hint)}</span>
               </button>
             ))}
           </div>
 
           <label className="form-field" style={{ marginTop: 14 }}>
-            <span className="cap">Số tiền yêu cầu (₫)</span>
+            <span className="cap">{t('Số tiền yêu cầu (₫)')}</span>
             <input type="number" name="amount" min={1} step={10000} required />
           </label>
 
           <label className="form-field">
-            <span className="cap">Mô tả sự việc <span style={{ fontWeight: 400 }}>(tối thiểu 20 ký tự)</span></span>
+            <span className="cap">{t('Mô tả sự việc')} <span style={{ fontWeight: 400 }}>{t('(tối thiểu 20 ký tự)')}</span></span>
             <textarea name="description" rows={4} required minLength={20}
-                      placeholder="Chuyện gì đã xảy ra, khi nào, thiệt hại ra sao."
+                      placeholder={t('Chuyện gì đã xảy ra, khi nào, thiệt hại ra sao.')}
                       style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
           </label>
 
           <label className="form-field">
-            <span className="cap">Ảnh bằng chứng <span style={{ fontWeight: 400 }}>(mỗi dòng một liên kết)</span></span>
+            <span className="cap">{t('Ảnh bằng chứng')} <span style={{ fontWeight: 400 }}>{t('(mỗi dòng một liên kết)')}</span></span>
             <textarea name="evidence" rows={3} placeholder="https://…"
                       style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 13, fontFamily: 'ui-monospace,monospace' }} />
           </label>
 
           <div style={{ display: 'flex', gap: 10 }}>
             <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
-              {busy ? 'Đang gửi…' : 'Gửi hồ sơ'}
+              {busy ? t('Đang gửi…') : t('Gửi hồ sơ')}
             </button>
-            <button type="button" className="btn btn-outline btn-sm" onClick={onClose}>Huỷ</button>
+            <button type="button" className="btn btn-outline btn-sm" onClick={onClose}>{t('Huỷ')}</button>
           </div>
         </form>
       )}

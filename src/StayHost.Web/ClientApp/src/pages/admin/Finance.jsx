@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { toast } from '../../lib/store.js';
 import { money, longDate } from '../../lib/format.js';
+import { t } from '../../lib/i18n.js';
 
 /** docs/07 TC-A-04 — fee revenue, money held for others, tax owed, losses. */
 export function FinancePanel() {
@@ -14,29 +15,29 @@ export function FinancePanel() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Báo cáo tài chính</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Báo cáo tài chính')}</h2>
       <p className="section-sub">
-        Doanh thu tính từ {longDate(d.from)} đến {longDate(d.to)}; các khoản giữ hộ là số dư hiện tại.
+        {t('Doanh thu tính từ')} {longDate(d.from)} {t('đến')} {longDate(d.to)}{t('; các khoản giữ hộ là số dư hiện tại.')}
       </p>
 
       <div className="stat-grid" style={{ marginTop: 16 }}>
-        <Figure label="Doanh thu phí" value={money(d.feeRevenue)} note="Phí khách + phí chủ nhà" />
-        <Figure label="Đang giữ hộ" value={money(d.heldForOthers)} note="Tiền của người khác" />
-        <Figure label="Thuế phải nộp" value={money(d.taxPayable)} note="Thu hộ cơ quan thuế" />
-        <Figure label="Thất thoát" value={money(d.losses)} note="Chi phí, nợ khó đòi, thua khiếu nại" />
+        <Figure label={t('Doanh thu phí')} value={money(d.feeRevenue)} note={t('Phí khách + phí chủ nhà')} />
+        <Figure label={t('Đang giữ hộ')} value={money(d.heldForOthers)} note={t('Tiền của người khác')} />
+        <Figure label={t('Thuế phải nộp')} value={money(d.taxPayable)} note={t('Thu hộ cơ quan thuế')} />
+        <Figure label={t('Thất thoát')} value={money(d.losses)} note={t('Chi phí, nợ khó đòi, thua khiếu nại')} />
       </div>
 
       {/* A report off an unbalanced ledger is a report of nothing. */}
       {d.ledgerDifference !== 0 && (
         <div className="book-alert is-error" style={{ marginTop: 12 }}>
-          <b>Sổ sách không cân: lệch {money(d.ledgerDifference)}</b>
-          <span>Mọi con số trên đây đều không đáng tin cho tới khi tìm ra chỗ lệch.</span>
+          <b>{t('Sổ sách không cân: lệch')} {money(d.ledgerDifference)}</b>
+          <span>{t('Mọi con số trên đây đều không đáng tin cho tới khi tìm ra chỗ lệch.')}</span>
         </div>
       )}
 
       <div className="table-wrap" style={{ marginTop: 16 }}>
         <table className="admin-table">
-          <thead><tr><th>Khoản</th><th>Nhóm</th><th>Số tiền</th></tr></thead>
+          <thead><tr><th>{t('Khoản')}</th><th>{t('Nhóm')}</th><th>{t('Số tiền')}</th></tr></thead>
           <tbody>
             {groups.flatMap(g => d.lines.filter(l => l.group === g).map(l => (
               <tr key={l.key}>
@@ -72,15 +73,15 @@ export function ReconciliationPanel() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Đối soát với cổng thanh toán</h2>
-      <p className="section-sub">Chạy mỗi ngày. Lệch một giao dịch là báo động, không được bỏ qua.</p>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Đối soát với cổng thanh toán')}</h2>
+      <p className="section-sub">{t('Chạy mỗi ngày. Lệch một giao dịch là báo động, không được bỏ qua.')}</p>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <label className="form-field" style={{ margin: 0, maxWidth: 200 }}>
-          <span className="cap">Ngày</span>
+          <span className="cap">{t('Ngày')}</span>
           <input type="date" value={day} onChange={e => setDay(e.target.value)} />
         </label>
-        <button className="btn btn-outline btn-sm" onClick={() => load(day)}>Đối soát</button>
+        <button className="btn btn-outline btn-sm" onClick={() => load(day)}>{t('Đối soát')}</button>
       </div>
 
       {!!d && (
@@ -88,14 +89,14 @@ export function ReconciliationPanel() {
           <div className={`book-alert ${d.balanced ? '' : 'is-error'}`} style={{ marginTop: 14 }}>
             <b>{d.summary}</b>
             <span>
-              Sàn {d.oursCount} giao dịch · {money(d.oursTotal)} — cổng {d.theirsCount} giao dịch · {money(d.theirsTotal)}
+              {t('Sàn')} {d.oursCount} {t('giao dịch')} · {money(d.oursTotal)} {t('— cổng')} {d.theirsCount} {t('giao dịch')} · {money(d.theirsTotal)}
             </span>
           </div>
 
           {!!d.discrepancies.length && (
             <div className="table-wrap" style={{ marginTop: 16 }}>
               <table className="admin-table">
-                <thead><tr><th>Mã</th><th>Loại lệch</th><th>Sàn</th><th>Cổng</th><th>Chênh</th></tr></thead>
+                <thead><tr><th>{t('Mã')}</th><th>{t('Loại lệch')}</th><th>{t('Sàn')}</th><th>{t('Cổng')}</th><th>{t('Chênh')}</th></tr></thead>
                 <tbody>
                   {d.discrepancies.map(x => (
                     <tr key={x.reference}>
@@ -156,51 +157,51 @@ export function TransactionsPanel() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Tra cứu giao dịch</h2>
-      <p className="section-sub">Tìm theo mã đơn, mã giao dịch hoặc email khách.</p>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Tra cứu giao dịch')}</h2>
+      <p className="section-sub">{t('Tìm theo mã đơn, mã giao dịch hoặc email khách.')}</p>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <label className="form-field" style={{ margin: 0, maxWidth: 320, flex: 1 }}>
-          <span className="cap">Từ khoá</span>
+          <span className="cap">{t('Từ khoá')}</span>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="SH1234ABCD" />
         </label>
-        <button className="btn btn-outline btn-sm" onClick={() => load(q)}>Tìm</button>
+        <button className="btn btn-outline btn-sm" onClick={() => load(q)}>{t('Tìm')}</button>
       </div>
 
       <div className="table-wrap" style={{ marginTop: 16 }}>
         <table className="admin-table">
           <thead>
-            <tr><th>Đơn</th><th>Khách</th><th>Số tiền</th><th>Trạng thái</th><th>Chuyển cho chủ nhà</th><th /></tr>
+            <tr><th>{t('Đơn')}</th><th>{t('Khách')}</th><th>{t('Số tiền')}</th><th>{t('Trạng thái')}</th><th>{t('Chuyển cho chủ nhà')}</th><th /></tr>
           </thead>
           <tbody>
-            {rows.map(t => (
-              <tr key={t.bookingId}>
-                <td><b>{t.bookingReference}</b><span>{t.paymentReference} · {t.listingTitle}</span></td>
-                <td>{t.guestEmail}</td>
+            {rows.map(tx => (
+              <tr key={tx.bookingId}>
+                <td><b>{tx.bookingReference}</b><span>{tx.paymentReference} · {tx.listingTitle}</span></td>
+                <td>{tx.guestEmail}</td>
                 <td>
-                  {money(t.amount)}
-                  {t.refunded > 0 && <span>đã hoàn {money(t.refunded)}</span>}
+                  {money(tx.amount)}
+                  {tx.refunded > 0 && <span>{t('đã hoàn')} {money(tx.refunded)}</span>}
                 </td>
-                <td>{t.bookingStatusLabel}<span>{t.paymentStatus}</span></td>
+                <td>{tx.bookingStatusLabel}<span>{tx.paymentStatus}</span></td>
                 <td>
-                  {t.payoutStatus === 'Paid' ? 'Đã chuyển' : t.payoutStatus === 'OnHold' ? 'Tạm giữ' : 'Chờ chuyển'}
-                  {!!t.payoutHoldReason && <span>{t.payoutHoldReason}</span>}
-                  {!!t.payoutReference && <span>{t.payoutReference}</span>}
+                  {tx.payoutStatus === 'Paid' ? t('Đã chuyển') : tx.payoutStatus === 'OnHold' ? t('Tạm giữ') : t('Chờ chuyển')}
+                  {!!tx.payoutHoldReason && <span>{tx.payoutHoldReason}</span>}
+                  {!!tx.payoutReference && <span>{tx.payoutReference}</span>}
                 </td>
                 <td style={{ whiteSpace: 'nowrap' }}>
-                  <button className="link-btn" disabled={busy} onClick={() => refund(t)}>Hoàn tiền</button>
-                  {t.payoutStatus === 'OnHold' && (
+                  <button className="link-btn" disabled={busy} onClick={() => refund(tx)}>{t('Hoàn tiền')}</button>
+                  {tx.payoutStatus === 'OnHold' && (
                     <button className="link-btn" style={{ marginLeft: 8 }} disabled={busy}
-                            onClick={() => adjust(t, true)}>Mở lại</button>
+                            onClick={() => adjust(tx, true)}>{t('Mở lại')}</button>
                   )}
-                  {t.payoutStatus === 'Scheduled' && (
+                  {tx.payoutStatus === 'Scheduled' && (
                     <button className="link-btn" style={{ marginLeft: 8 }} disabled={busy}
-                            onClick={() => adjust(t, false)}>Tạm giữ</button>
+                            onClick={() => adjust(tx, false)}>{t('Tạm giữ')}</button>
                   )}
                 </td>
               </tr>
             ))}
-            {!rows.length && <tr><td colSpan={6}>Không có giao dịch nào khớp.</td></tr>}
+            {!rows.length && <tr><td colSpan={6}>{t('Không có giao dịch nào khớp.')}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -260,18 +261,18 @@ export function ChargebackPanel() {
     <section style={{ marginTop: 40 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <div>
-          <h2 className="section-title" style={{ fontSize: 20 }}>Khiếu nại với ngân hàng</h2>
+          <h2 className="section-title" style={{ fontSize: 20 }}>{t('Khiếu nại với ngân hàng')}</h2>
           <p className="section-sub" style={{ margin: 0 }}>
-            Bằng chứng phải gửi trong 7 ngày. Chủ nhà chỉ mất tiền khi phân xử kết luận lỗi thuộc về họ.
+            {t('Bằng chứng phải gửi trong 7 ngày. Chủ nhà chỉ mất tiền khi phân xử kết luận lỗi thuộc về họ.')}
           </p>
         </div>
-        <button className="btn btn-outline btn-sm" disabled={busy} onClick={open}>+ Mở hồ sơ</button>
+        <button className="btn btn-outline btn-sm" disabled={busy} onClick={open}>{t('+ Mở hồ sơ')}</button>
       </div>
 
       <div className="table-wrap" style={{ marginTop: 16 }}>
         <table className="admin-table">
           <thead>
-            <tr><th>Đơn</th><th>Số tiền</th><th>Trạng thái</th><th>Hạn gửi bằng chứng</th><th /></tr>
+            <tr><th>{t('Đơn')}</th><th>{t('Số tiền')}</th><th>{t('Trạng thái')}</th><th>{t('Hạn gửi bằng chứng')}</th><th /></tr>
           </thead>
           <tbody>
             {rows.map(c => (
@@ -282,28 +283,28 @@ export function ChargebackPanel() {
                   <span className={`badge ${c.status === 'Won' ? 'confirmed' : c.status === 'Received' ? 'pending' : 'cancelled'}`}>
                     {c.statusLabel}
                   </span>
-                  {c.hostAtFault && <span>Chủ nhà chịu khoản này</span>}
+                  {c.hostAtFault && <span>{t('Chủ nhà chịu khoản này')}</span>}
                 </td>
                 <td>
                   {longDate(c.evidenceDueBy)}
-                  {c.evidenceOverdue && <span>Đã quá hạn</span>}
+                  {c.evidenceOverdue && <span>{t('Đã quá hạn')}</span>}
                 </td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   {c.status === 'Received' && (
-                    <button className="link-btn" disabled={busy} onClick={() => contest(c)}>Gửi bằng chứng</button>
+                    <button className="link-btn" disabled={busy} onClick={() => contest(c)}>{t('Gửi bằng chứng')}</button>
                   )}
                   {(c.status === 'Received' || c.status === 'Contested') && (
                     <>
                       <button className="link-btn" style={{ marginLeft: 8 }} disabled={busy}
-                              onClick={() => decide(c, true)}>Thắng</button>
+                              onClick={() => decide(c, true)}>{t('Thắng')}</button>
                       <button className="link-btn" style={{ marginLeft: 8 }} disabled={busy}
-                              onClick={() => decide(c, false)}>Thua</button>
+                              onClick={() => decide(c, false)}>{t('Thua')}</button>
                     </>
                   )}
                 </td>
               </tr>
             ))}
-            {!rows.length && <tr><td colSpan={5}>Chưa có hồ sơ nào.</td></tr>}
+            {!rows.length && <tr><td colSpan={5}>{t('Chưa có hồ sơ nào.')}</td></tr>}
           </tbody>
         </table>
       </div>

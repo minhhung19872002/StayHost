@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { set, loadHostCalendar, toast } from '../../lib/store.js';
 import { shortMoney, isoOf, parseIso, longDate } from '../../lib/format.js';
+import { t } from '../../lib/i18n.js';
 
 const DOW = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
@@ -30,7 +31,7 @@ export function MultiCalendar() {
   if (!data.rows.length) {
     return (
       <div className="empty-state" style={{ marginTop: 24 }}>
-        <h3>Chưa có chỗ nghỉ nào để xem lịch</h3>
+        <h3>{t('Chưa có chỗ nghỉ nào để xem lịch')}</h3>
       </div>
     );
   }
@@ -39,12 +40,12 @@ export function MultiCalendar() {
     <div style={{ marginTop: 24 }}>
       <div className="page-head" style={{ marginBottom: 12 }}>
         <p className="section-sub" style={{ margin: 0 }}>
-          {data.rows.length} chỗ nghỉ · {data.days} ngày từ {from}
+          {data.rows.length} {t('chỗ nghỉ')} · {data.days} {t('ngày từ')} {from}
         </p>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="round-btn" onClick={() => shift(-30)} aria-label="Lùi 30 ngày">‹</button>
-          <button className="btn btn-outline btn-sm" onClick={() => setFrom(isoOf(new Date()))}>Hôm nay</button>
-          <button className="round-btn" onClick={() => shift(30)} aria-label="Tiến 30 ngày">›</button>
+          <button className="round-btn" onClick={() => shift(-30)} aria-label={t('Lùi 30 ngày')}>‹</button>
+          <button className="btn btn-outline btn-sm" onClick={() => setFrom(isoOf(new Date()))}>{t('Hôm nay')}</button>
+          <button className="round-btn" onClick={() => shift(30)} aria-label={t('Tiến 30 ngày')}>›</button>
         </div>
       </div>
 
@@ -71,13 +72,13 @@ export function MultiCalendar() {
                 set({ overlay: 'host-block', hostMonthOffset: 0 });
               }}>
                 <b>{row.title}</b>
-                <span>{row.isPublished ? 'Đang hiển thị' : 'Bản nháp'}</span>
+                <span>{row.isPublished ? t('Đang hiển thị') : t('Bản nháp')}</span>
               </button>
 
               {row.days.map(d => (
                 <div className={`multi-cal-cell is-${d.state}`} key={d.date}
-                     title={`${d.date} · ${d.state === 'booked' ? d.bookingReference : d.state === 'blocked' ? 'đã khoá' : 'còn trống'}`}
-                     onClick={() => d.state === 'booked' && toast(`Đơn ${d.bookingReference}`)}>
+                     title={`${d.date} · ${d.state === 'booked' ? d.bookingReference : d.state === 'blocked' ? t('đã khoá') : t('còn trống')}`}
+                     onClick={() => d.state === 'booked' && toast(`${t('Đơn')} ${d.bookingReference}`)}>
                   {d.state === 'open' ? shortMoney(d.rate) : d.state === 'booked' ? '●' : '×'}
                 </div>
               ))}
@@ -87,9 +88,9 @@ export function MultiCalendar() {
       </div>
 
       <div className="host-cal-legend" style={{ marginTop: 12 }}>
-        <span><i className="sw booked" /> Đã có khách</span>
-        <span><i className="sw blocked" /> Bạn khoá</span>
-        <span><i className="sw seasonal" /> Còn trống (hiện giá)</span>
+        <span><i className="sw booked" /> {t('Đã có khách')}</span>
+        <span><i className="sw blocked" /> {t('Bạn khoá')}</span>
+        <span><i className="sw seasonal" /> {t('Còn trống (hiện giá)')}</span>
       </div>
 
       <CalendarSync rows={data.rows} />
@@ -130,11 +131,11 @@ function CalendarSync({ rows }) {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Đồng bộ lịch với nền tảng khác</h2>
-      <p className="section-sub">Lịch nhập về chỉ khoá ngày, không tạo đơn và không sinh tiền.</p>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Đồng bộ lịch với nền tảng khác')}</h2>
+      <p className="section-sub">{t('Lịch nhập về chỉ khoá ngày, không tạo đơn và không sinh tiền.')}</p>
 
       <label className="form-field" style={{ maxWidth: 420, marginTop: 14 }}>
-        <span className="cap">Chỗ nghỉ</span>
+        <span className="cap">{t('Chỗ nghỉ')}</span>
         <select value={listingId} onChange={e => setListingId(Number(e.target.value))}>
           {rows.map(r => <option key={r.listingId} value={r.listingId}>{r.title}</option>)}
         </select>
@@ -142,13 +143,13 @@ function CalendarSync({ rows }) {
 
       {!board ? <div className="stat skeleton" style={{ height: 120, border: 0, marginTop: 16 }} /> : <>
         <div className="feed-export">
-          <span className="cap">Địa chỉ để nền tảng khác đọc lịch của bạn</span>
+          <span className="cap">{t('Địa chỉ để nền tảng khác đọc lịch của bạn')}</span>
           <div className="feed-url">
             <code>{board.exportUrl}</code>
             <button className="btn btn-outline btn-sm" onClick={() => {
               navigator.clipboard?.writeText(board.exportUrl);
-              toast('Đã chép địa chỉ lịch.');
-            }}>Chép</button>
+              toast(t('Đã chép địa chỉ lịch.'));
+            }}>{t('Chép')}</button>
           </div>
         </div>
 
@@ -159,32 +160,32 @@ function CalendarSync({ rows }) {
               <div className="team-sub">
                 {f.lastError
                   ? f.lastError
-                  : `${f.eventCount} khoảng ngày · lần cuối ${f.lastSyncedAt ? longDate(f.lastSyncedAt) : 'chưa chạy'}`}
+                  : `${f.eventCount} ${t('khoảng ngày')} · ${t('lần cuối')} ${f.lastSyncedAt ? longDate(f.lastSyncedAt) : t('chưa chạy')}`}
               </div>
               {/* docs/01 QL-11 — a clash with a confirmed StayHost booking. */}
               {f.overlapWarning && <div className="notice notice-warn" style={{ marginTop: 6 }}>{f.overlapWarning}</div>}
             </div>
             <span className={`badge ${f.lastError ? 'cancelled' : 'confirmed'}`}>
-              {f.lastError ? 'Lỗi' : 'Đang chạy'}
+              {f.lastError ? t('Lỗi') : t('Đang chạy')}
             </span>
             <button className="btn btn-outline btn-sm" disabled={busy}
-                    onClick={() => run(() => api.syncCalendarFeed(listingId, f.id))}>Đồng bộ ngay</button>
+                    onClick={() => run(() => api.syncCalendarFeed(listingId, f.id))}>{t('Đồng bộ ngay')}</button>
             <button className="btn btn-outline btn-sm" disabled={busy}
-                    onClick={() => confirm(`Bỏ lịch "${f.label}" và mở lại những ngày nó khoá?`)
-                      && run(() => api.removeCalendarFeed(listingId, f.id))}>Bỏ</button>
+                    onClick={() => confirm(`${t('Bỏ lịch')} "${f.label}" ${t('và mở lại những ngày nó khoá?')}`)
+                      && run(() => api.removeCalendarFeed(listingId, f.id))}>{t('Bỏ')}</button>
           </div>
         ))}
 
         <form onSubmit={add} className="field-grid" style={{ maxWidth: 620, marginTop: 16 }}>
           <label className="form-field" style={{ gridColumn: '1/-1' }}>
-            <span className="cap">Địa chỉ lịch (.ics)</span>
+            <span className="cap">{t('Địa chỉ lịch (.ics)')}</span>
             <input type="url" required value={url} placeholder="https://..."
                    onChange={e => setUrl(e.target.value)} />
           </label>
-          <label className="form-field"><span className="cap">Tên gọi</span>
-            <input value={label} placeholder="Nền tảng khác" onChange={e => setLabel(e.target.value)} /></label>
+          <label className="form-field"><span className="cap">{t('Tên gọi')}</span>
+            <input value={label} placeholder={t('Nền tảng khác')} onChange={e => setLabel(e.target.value)} /></label>
           <div style={{ display: 'flex', alignItems: 'end' }}>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>Nối lịch</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{t('Nối lịch')}</button>
           </div>
         </form>
       </>}

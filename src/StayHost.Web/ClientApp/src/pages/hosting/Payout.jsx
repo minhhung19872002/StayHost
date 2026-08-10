@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { toast } from '../../lib/store.js';
 import { money, longDate, dateTime } from '../../lib/format.js';
+import { t } from '../../lib/i18n.js';
 
 const SCHEDULES = [
   ['PerBooking', 'Sau từng đơn', '24 giờ sau khi khách nhận phòng.'],
@@ -39,7 +40,7 @@ export function Payout() {
       const saved = await api.saveHostPayout(form);
       setData(saved);
       setForm(f => ({ ...f, accountNumber: '' }));
-      toast('Đã lưu tài khoản nhận tiền.');
+      toast(t('Đã lưu tài khoản nhận tiền.'));
     } catch (err) {
       toast(err.message);
     } finally {
@@ -52,44 +53,43 @@ export function Payout() {
   return (
     <div style={{ marginTop: 24 }}>
       <section>
-        <h2 className="section-title" style={{ fontSize: 20 }}>Tài khoản nhận tiền</h2>
+        <h2 className="section-title" style={{ fontSize: 20 }}>{t('Tài khoản nhận tiền')}</h2>
         <p className="section-sub">
           {data.accountLast4
-            ? `Đang trả về ${data.bankName ?? 'ngân hàng'} •••• ${data.accountLast4}`
-            : 'Chưa có tài khoản nào — thêm để nhận được tiền.'}
+            ? `${t('Đang trả về')} ${data.bankName ?? t('ngân hàng')} •••• ${data.accountLast4}`
+            : t('Chưa có tài khoản nào — thêm để nhận được tiền.')}
         </p>
 
         {/* docs/07 §12.2 — a host whose money is not moving needs to be told why
             here, on the screen they came to, not left to guess from a silence. */}
         {!!data.accountLast4 && !data.verified && (
           <p className="notice notice-warn">
-            Tài khoản chưa xác minh. Chúng tôi chỉ chuyển tiền sau khi chuyển thử thành công
-            và tên chủ tài khoản khớp hồ sơ đã xác minh danh tính.
+            {t('Tài khoản chưa xác minh. Chúng tôi chỉ chuyển tiền sau khi chuyển thử thành công và tên chủ tài khoản khớp hồ sơ đã xác minh danh tính.')}
           </p>
         )}
         {!!data.frozenUntil && (
           <p className="notice notice-warn">
-            Bạn vừa đổi tài khoản nhận tiền, các khoản chuyển tạm hoãn tới {dateTime(data.frozenUntil)}.
+            {t('Bạn vừa đổi tài khoản nhận tiền, các khoản chuyển tạm hoãn tới')} {dateTime(data.frozenUntil)}.
           </p>
         )}
         {data.owedToPlatform > 0 && (
           <p className="notice notice-warn">
-            Bạn còn nợ StayHost {money(data.owedToPlatform)} — khoản này được khấu trừ vào lần chuyển kế tiếp.
+            {t('Bạn còn nợ StayHost')} {money(data.owedToPlatform)} {t('— khoản này được khấu trừ vào lần chuyển kế tiếp.')}
           </p>
         )}
 
         <form onSubmit={save} style={{ maxWidth: 560, marginTop: 16 }}>
           <div className="field-grid">
-            <label className="form-field"><span className="cap">Ngân hàng</span>
+            <label className="form-field"><span className="cap">{t('Ngân hàng')}</span>
               <input value={form.bankName} placeholder="Vietcombank"
                      onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))} /></label>
-            <label className="form-field"><span className="cap">Chủ tài khoản</span>
+            <label className="form-field"><span className="cap">{t('Chủ tài khoản')}</span>
               <input value={form.accountName} placeholder="NGUYEN VAN A"
                      onChange={e => setForm(f => ({ ...f, accountName: e.target.value }))} /></label>
             <label className="form-field" style={{ gridColumn: '1/-1' }}>
-              <span className="cap">Số tài khoản</span>
+              <span className="cap">{t('Số tài khoản')}</span>
               <input value={form.accountNumber} inputMode="numeric"
-                     placeholder={data.accountLast4 ? `•••• ${data.accountLast4} — nhập lại để đổi` : '0071000987654'}
+                     placeholder={data.accountLast4 ? `•••• ${data.accountLast4} ${t('— nhập lại để đổi')}` : '0071000987654'}
                      onChange={e => setForm(f => ({ ...f, accountNumber: e.target.value }))} />
             </label>
           </div>
@@ -98,33 +98,33 @@ export function Payout() {
             {SCHEDULES.map(([key, label, hint]) => (
               <button type="button" key={key} className={`opt ${form.schedule === key ? 'is-on' : ''}`}
                       onClick={() => setForm(f => ({ ...f, schedule: key }))}>
-                <b>{label}</b><span>{hint}</span>
+                <b>{t(label)}</b><span>{t(hint)}</span>
               </button>
             ))}
           </div>
 
           <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.5, margin: '14px 0' }}>
-            StayHost chỉ lưu 4 số cuối của tài khoản.
+            {t('StayHost chỉ lưu 4 số cuối của tài khoản.')}
           </p>
           <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? 'Đang lưu…' : 'Lưu tài khoản'}
+            {busy ? t('Đang lưu…') : t('Lưu tài khoản')}
           </button>
         </form>
       </section>
 
       <section style={{ marginTop: 40 }}>
-        <h2 className="section-title" style={{ fontSize: 20 }}>Lịch trả tiền</h2>
+        <h2 className="section-title" style={{ fontSize: 20 }}>{t('Lịch trả tiền')}</h2>
         <p className="section-sub">
           {pending.length
-            ? `${pending.length} khoản sắp chuyển · tổng ${money(pending.reduce((s, r) => s + r.amount, 0))}`
-            : 'Chưa có khoản nào chờ chuyển.'}
+            ? `${pending.length} ${t('khoản sắp chuyển · tổng')} ${money(pending.reduce((s, r) => s + r.amount, 0))}`
+            : t('Chưa có khoản nào chờ chuyển.')}
         </p>
 
         {!!data.upcoming.length && (
           <div className="table-wrap" style={{ marginTop: 16 }}>
             <table className="admin-table">
               <thead>
-                <tr><th>Đơn</th><th>Chỗ nghỉ</th><th>Ngày chuyển</th><th>Số tiền</th><th>Trạng thái</th></tr>
+                <tr><th>{t('Đơn')}</th><th>{t('Chỗ nghỉ')}</th><th>{t('Ngày chuyển')}</th><th>{t('Số tiền')}</th><th>{t('Trạng thái')}</th></tr>
               </thead>
               <tbody>
                 {data.upcoming.map(r => (
@@ -141,7 +141,7 @@ export function Payout() {
                       )}
                       {!r.holdReason && r.attempts > 1 && (
                         <div style={{ fontSize: 12, color: 'var(--ink-muted)', marginTop: 4 }}>
-                          Đã thử {r.attempts} lần
+                          {t('Đã thử')} {r.attempts} {t('lần')}
                         </div>
                       )}
                     </td>
@@ -157,9 +157,9 @@ export function Payout() {
           is grouped the way the statement will read, with the bookings inside. */}
       {!!data.history?.length && (
         <section style={{ marginTop: 40 }}>
-          <h2 className="section-title" style={{ fontSize: 20 }}>Đã chuyển</h2>
+          <h2 className="section-title" style={{ fontSize: 20 }}>{t('Đã chuyển')}</h2>
           <p className="section-sub">
-            Mỗi mã chuyển là một lần chuyển khoản; các đơn trong cùng một ngày đi chung một lần.
+            {t('Mỗi mã chuyển là một lần chuyển khoản; các đơn trong cùng một ngày đi chung một lần.')}
           </p>
 
           <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>
@@ -183,7 +183,7 @@ export function Payout() {
                   ))}
                   {g.deducted > 0 && (
                     <div style={{ fontSize: 12.5, color: 'var(--ink-muted)', marginTop: 2 }}>
-                      Đã khấu trừ {money(g.deducted)} vào khoản nợ StayHost.
+                      {t('Đã khấu trừ')} {money(g.deducted)} {t('vào khoản nợ StayHost.')}
                     </div>
                   )}
                 </div>
@@ -228,22 +228,22 @@ export function SuperhostProgress() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Tiến độ Siêu chủ nhà</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Tiến độ Siêu chủ nhà')}</h2>
       <p className="section-sub">
-        {data.isSuperhost ? 'Bạn đang là Siêu chủ nhà. ' : ''}
-        {data.wouldQualify ? 'Bạn đang đạt cả bốn tiêu chí.' : 'Còn tiêu chí chưa đạt.'}
-        {' '}Xét lại vào {longDate(data.nextReview)}.
+        {data.isSuperhost ? t('Bạn đang là Siêu chủ nhà.') + ' ' : ''}
+        {data.wouldQualify ? t('Bạn đang đạt cả bốn tiêu chí.') : t('Còn tiêu chí chưa đạt.')}
+        {' '}{t('Xét lại vào')} {longDate(data.nextReview)}.
       </p>
 
       <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
         {data.criteria.map(c => (
           <div className="cal-row" key={c.key}>
-            <span className={`badge ${c.met ? 'confirmed' : 'pending'}`}>{c.met ? 'Đạt' : 'Chưa đạt'}</span>
+            <span className={`badge ${c.met ? 'confirmed' : 'pending'}`}>{c.met ? t('Đạt') : t('Chưa đạt')}</span>
             <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>
               <b>{c.label}</b>
-              <span style={{ color: 'var(--ink-muted)' }}> · hiện tại {c.current}</span>
+              <span style={{ color: 'var(--ink-muted)' }}> · {t('hiện tại')} {c.current}</span>
             </div>
-            <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>mục tiêu {c.target}</span>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>{t('mục tiêu')} {c.target}</span>
           </div>
         ))}
       </div>

@@ -6,6 +6,7 @@ import {
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate } from '../lib/format.js';
+import { t } from '../lib/i18n.js';
 import { Icon } from '../components/Icon.jsx';
 import { Today } from './hosting/Today.jsx';
 import { Payout, SuperhostProgress } from './hosting/Payout.jsx';
@@ -44,10 +45,10 @@ export function Hosting() {
     return (
       <div className="shell" style={{ paddingBlock: '60px 90px' }}>
         <div className="empty-state">
-          <h3>Đăng nhập để quản lý chỗ nghỉ</h3>
-          <p>Trang chủ nhà cho bạn xem đơn đặt, lịch và doanh thu.</p>
+          <h3>{t('Đăng nhập để quản lý chỗ nghỉ')}</h3>
+          <p>{t('Trang chủ nhà cho bạn xem đơn đặt, lịch và doanh thu.')}</p>
           <button className="btn btn-primary" style={{ marginTop: 18 }}
-                  onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>Đăng nhập</button>
+                  onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>{t('Đăng nhập')}</button>
         </div>
       </div>
     );
@@ -74,12 +75,12 @@ export function Hosting() {
   if (d.listingCount === 0) {
     return (
       <div className="shell" style={{ paddingBlock: '40px 90px' }}>
-        <h1 className="section-title">Trang chủ nhà</h1>
-        <p className="section-sub">Bạn chưa có chỗ nghỉ nào. Đăng chỗ đầu tiên để bắt đầu nhận đặt.</p>
+        <h1 className="section-title">{t('Trang chủ nhà')}</h1>
+        <p className="section-sub">{t('Bạn chưa có chỗ nghỉ nào. Đăng chỗ đầu tiên để bắt đầu nhận đặt.')}</p>
         <div className="empty-state" style={{ marginTop: 22 }}>
-          <h3>Đăng chỗ nghỉ đầu tiên</h3>
-          <p>Mất khoảng 5 phút: mô tả không gian, thêm ảnh và đặt giá.</p>
-          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={newListing}>+ Đăng chỗ nghỉ</button>
+          <h3>{t('Đăng chỗ nghỉ đầu tiên')}</h3>
+          <p>{t('Mất khoảng 5 phút: mô tả không gian, thêm ảnh và đặt giá.')}</p>
+          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={newListing}>{t('+ Đăng chỗ nghỉ')}</button>
         </div>
       </div>
     );
@@ -91,19 +92,19 @@ export function Hosting() {
     <div className="shell" style={{ paddingBlock: '30px 90px' }}>
       <div className="page-head">
         <div>
-          <h1 className="section-title">Trang chủ nhà</h1>
+          <h1 className="section-title">{t('Trang chủ nhà')}</h1>
           <p className="section-sub">
-            Xin chào {state.user.fullName} — {d.publishedCount}/{d.listingCount} chỗ nghỉ đang hiển thị
+            {t('Xin chào')} {state.user.fullName} — {d.publishedCount}/{d.listingCount} {t('chỗ nghỉ đang hiển thị')}
           </p>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={newListing}>+ Đăng chỗ nghỉ</button>
+        <button className="btn btn-primary btn-sm" onClick={newListing}>{t('+ Đăng chỗ nghỉ')}</button>
       </div>
 
       <nav className="seg-tabs" role="tablist">
         {TABS.map(([key, label]) => (
           <button role="tab" key={key} aria-selected={tab === key}
                   className={`seg-tab ${tab === key ? 'is-active' : ''}`}
-                  onClick={() => set({ hostingTab: key })}>{label}</button>
+                  onClick={() => set({ hostingTab: key })}>{t(label)}</button>
         ))}
       </nav>
 
@@ -125,10 +126,10 @@ export function Hosting() {
 
 function Overview({ d, navigate }) {
   const cards = [
-    ['Chỗ nghỉ đang hiển thị', `${d.publishedCount}/${d.listingCount}`, 'Bản nháp không hiện với khách'],
-    ['Lượt đặt sắp tới', String(d.upcomingBookings), `${money(d.earningsUpcoming)} sẽ nhận`],
-    ['Đã nhận đến nay', money(d.earningsToDate), 'Sau phí dịch vụ StayHost'],
-    ['Điểm đánh giá', d.totalReviews ? `★ ${d.averageRating.toFixed(2)}` : 'Chưa có', `${d.totalReviews} đánh giá`]
+    [t('Chỗ nghỉ đang hiển thị'), `${d.publishedCount}/${d.listingCount}`, t('Bản nháp không hiện với khách')],
+    [t('Lượt đặt sắp tới'), String(d.upcomingBookings), `${money(d.earningsUpcoming)} ${t('sẽ nhận')}`],
+    [t('Đã nhận đến nay'), money(d.earningsToDate), t('Sau phí dịch vụ StayHost')],
+    [t('Điểm đánh giá'), d.totalReviews ? `★ ${d.averageRating.toFixed(2)}` : t('Chưa có'), `${d.totalReviews} ${t('đánh giá')}`]
   ];
 
   const pending = d.bookings.filter(b => b.status === 'PendingHostApproval');
@@ -146,14 +147,14 @@ function Overview({ d, navigate }) {
 
     {!!pending.length && (
       <section style={{ marginTop: 38 }}>
-        <h2 className="section-title" style={{ fontSize: 20 }}>Cần bạn xử lý ({pending.length})</h2>
-        <p className="section-sub">Khách đang chờ bạn xác nhận.</p>
+        <h2 className="section-title" style={{ fontSize: 20 }}>{t('Cần bạn xử lý')} ({pending.length})</h2>
+        <p className="section-sub">{t('Khách đang chờ bạn xác nhận.')}</p>
         {pending.map(b => <BookingRow key={b.id} booking={b} navigate={navigate} />)}
       </section>
     )}
 
     <section style={{ marginTop: 38 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Chỗ nghỉ của bạn</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Chỗ nghỉ của bạn')}</h2>
       <div className="host-listing-grid" style={{ marginTop: 16 }}>
         {d.listings.slice(0, 4).map(l => <ListingCard key={l.id} listing={l} navigate={navigate} />)}
       </div>
@@ -181,7 +182,7 @@ function ListingCard({ listing: l, navigate }) {
   const duplicate = async () => {
     if (busy) return;
     setBusy(true);
-    try { await api.duplicateListing(l.id); await loadHosting(); toast('Đã tạo bản sao ở dạng nháp.'); }
+    try { await api.duplicateListing(l.id); await loadHosting(); toast(t('Đã tạo bản sao ở dạng nháp.')); }
     catch (err) { toast(err.message); }
     finally { setBusy(false); }
   };
@@ -193,35 +194,35 @@ function ListingCard({ listing: l, navigate }) {
           ? <img src={l.images[0]} alt={l.title} loading="lazy" decoding="async" />
           : <div className="skeleton" style={{ width: '100%', height: '100%' }} />}
         <span className={`badge ${l.isPublished ? 'confirmed' : 'pending'} host-listing-state`}>
-          {l.isPublished ? 'Đang hiển thị' : 'Bản nháp'}
+          {l.isPublished ? t('Đang hiển thị') : t('Bản nháp')}
         </span>
       </div>
       <div className="host-listing-body">
         <h3>{l.title}</h3>
         {/* docs/01 AT-01 — a place still in review is not yet public. */}
         {l.reviewStatus === 'Pending' && (
-          <div className="badge pending" style={{ marginBottom: 6 }}>Đang chờ duyệt</div>
+          <div className="badge pending" style={{ marginBottom: 6 }}>{t('Đang chờ duyệt')}</div>
         )}
         {l.reviewStatus === 'Rejected' && (
           <div className="meta" style={{ color: 'var(--danger, #c0392b)', marginBottom: 6 }}>
-            Bị từ chối{l.reviewNote ? `: ${l.reviewNote}` : ''}. Chỉnh sửa và lưu để gửi lại duyệt.
+            {t('Bị từ chối')}{l.reviewNote ? `: ${l.reviewNote}` : ''}. {t('Chỉnh sửa và lưu để gửi lại duyệt.')}
           </div>
         )}
-        <div className="meta">{l.city} · {l.bedrooms} phòng ngủ · {l.maxGuests} khách</div>
+        <div className="meta">{l.city} · {l.bedrooms} {t('phòng ngủ')} · {l.maxGuests} {t('khách')}</div>
         <div className="meta">
-          <b style={{ color: 'var(--ink)' }}>{money(l.pricePerNight)}</b> / đêm
-          {l.reviewCount ? ` · ★ ${l.rating.toFixed(2)} (${l.reviewCount})` : ' · Chưa có đánh giá'}
+          <b style={{ color: 'var(--ink)' }}>{money(l.pricePerNight)}</b> {t('/ đêm')}
+          {l.reviewCount ? ` · ★ ${l.rating.toFixed(2)} (${l.reviewCount})` : ` · ${t('Chưa có đánh giá')}`}
         </div>
-        <div className="meta">{l.upcomingBookings} lượt đặt sắp tới · đã nhận {money(l.earningsToDate)}</div>
+        <div className="meta">{l.upcomingBookings} {t('lượt đặt sắp tới')} · {t('đã nhận')} {money(l.earningsToDate)}</div>
         <div className="host-listing-actions">
           <button className="btn btn-outline btn-sm"
-                  onClick={() => set({ editingListing: l, overlay: 'listing-editor' })}>Chỉnh sửa</button>
-          <button className="btn btn-outline btn-sm" onClick={openCalendar}>Lịch</button>
+                  onClick={() => set({ editingListing: l, overlay: 'listing-editor' })}>{t('Chỉnh sửa')}</button>
+          <button className="btn btn-outline btn-sm" onClick={openCalendar}>{t('Lịch')}</button>
           <button className="btn btn-outline btn-sm" onClick={toggleAdvice}>
-            {advice ? 'Ẩn gợi ý' : 'Gợi ý'}
+            {advice ? t('Ẩn gợi ý') : t('Gợi ý')}
           </button>
-          <button className="btn btn-outline btn-sm" onClick={duplicate} disabled={busy}>Nhân bản</button>
-          <button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${l.slug}`)}>Xem trang</button>
+          <button className="btn btn-outline btn-sm" onClick={duplicate} disabled={busy}>{t('Nhân bản')}</button>
+          <button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${l.slug}`)}>{t('Xem trang')}</button>
         </div>
         {advice && <ListingAdvice advice={advice} />}
       </div>
@@ -235,12 +236,12 @@ function ListingAdvice({ advice }) {
     <div className="host-advice" style={{ marginTop: 12, padding: 12, background: 'var(--surface-2, #f6f6f6)', borderRadius: 10 }}>
       {/* QL-09 — a price to consider; the host applies it, nothing changes on its own. */}
       <div className="meta" style={{ marginBottom: 8 }}>
-        <b style={{ color: 'var(--ink)' }}>Gợi ý giá: </b>
+        <b style={{ color: 'var(--ink)' }}>{t('Gợi ý giá:')} </b>
         {advice.price.isFirm ? `${money(advice.price.suggestedPrice)} · ` : ''}{advice.price.rationale}
       </div>
       {/* QL-18 — concrete improvements with a rough sense of impact. */}
       {advice.improvements.length === 0
-        ? <div className="meta">Tin đăng đang ở trạng thái tốt, chưa có gì cần cải thiện.</div>
+        ? <div className="meta">{t('Tin đăng đang ở trạng thái tốt, chưa có gì cần cải thiện.')}</div>
         : (
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             {advice.improvements.map((i, idx) => (
@@ -259,8 +260,8 @@ function Bookings({ d, navigate }) {
   if (!d.bookings.length) {
     return (
       <div className="empty-state" style={{ marginTop: 24 }}>
-        <h3>Chưa có lượt đặt nào</h3>
-        <p>Khi có khách đặt, đơn sẽ hiện ở đây.</p>
+        <h3>{t('Chưa có lượt đặt nào')}</h3>
+        <p>{t('Khi có khách đặt, đơn sẽ hiện ở đây.')}</p>
       </div>
     );
   }
@@ -274,7 +275,7 @@ function RespondDeadline({ at }) {
 
   return (
     <span className="badge pending">
-      {minutes < 60 ? `Còn ${minutes} phút để trả lời` : `Còn ${Math.round(minutes / 60)} giờ để trả lời`}
+      {minutes < 60 ? `${t('Còn')} ${minutes} ${t('phút để trả lời')}` : `${t('Còn')} ${Math.round(minutes / 60)} ${t('giờ để trả lời')}`}
     </span>
   );
 }
@@ -286,13 +287,13 @@ function BookingRow({ booking: b, navigate }) {
     <article className="host-booking">
       <div style={{ minWidth: 0 }}>
         <h3>{b.listingTitle}</h3>
-        <div className="meta">{b.guestName}{b.guestEmail ? ` · ${b.guestEmail}` : ''} · mã {b.reference}</div>
+        <div className="meta">{b.guestName}{b.guestEmail ? ` · ${b.guestEmail}` : ''} · {t('mã')} {b.reference}</div>
         <div className="meta">
-          {longDate(b.checkIn)} → {longDate(b.checkOut)} · {b.nights} đêm · {b.guests} khách
+          {longDate(b.checkIn)} → {longDate(b.checkOut)} · {b.nights} {t('đêm')} · {b.guests} {t('khách')}
         </div>
         <div className="meta">
-          Khách trả <b style={{ color: 'var(--ink)' }}>{money(b.total)}</b> ·
-          bạn nhận <b style={{ color: 'var(--brand)' }}>{money(b.hostPayout)}</b>
+          {t('Khách trả')} <b style={{ color: 'var(--ink)' }}>{money(b.total)}</b> ·
+          {' '}{t('bạn nhận')} <b style={{ color: 'var(--brand)' }}>{money(b.hostPayout)}</b>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
           <span className={`badge ${b.statusBadge}`}>{b.statusLabel}</span>
@@ -302,29 +303,29 @@ function BookingRow({ booking: b, navigate }) {
         {/* docs/01 CĐ-06 — a change the guest asked for, with accept/reject. */}
         {b.pendingChange && (
           <div className="notice notice-warn" style={{ marginTop: 10 }}>
-            <b>Yêu cầu đổi lịch:</b> {longDate(b.pendingChange.newCheckIn)} → {longDate(b.pendingChange.newCheckOut)} ·
-            {' '}{b.pendingChange.newGuests} khách · {b.pendingChange.differenceLabel}
+            <b>{t('Yêu cầu đổi lịch:')}</b> {longDate(b.pendingChange.newCheckIn)} → {longDate(b.pendingChange.newCheckOut)} ·
+            {' '}{b.pendingChange.newGuests} {t('khách')} · {b.pendingChange.differenceLabel}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button className="btn btn-primary btn-sm" onClick={() => respondChange(b.id, b.pendingChange.id, true)}>Chấp nhận đổi</button>
-              <button className="btn btn-outline btn-sm" onClick={() => respondChange(b.id, b.pendingChange.id, false)}>Từ chối</button>
+              <button className="btn btn-primary btn-sm" onClick={() => respondChange(b.id, b.pendingChange.id, true)}>{t('Chấp nhận đổi')}</button>
+              <button className="btn btn-outline btn-sm" onClick={() => respondChange(b.id, b.pendingChange.id, false)}>{t('Từ chối')}</button>
             </div>
           </div>
         )}
       </div>
       <div className="host-booking-actions">
         {awaitingHost && <>
-          <button className="btn btn-primary btn-sm" onClick={() => respondBooking(b.id, 'confirm')}>Xác nhận</button>
-          <button className="btn btn-outline btn-sm" onClick={() => respondBooking(b.id, 'decline')}>Từ chối</button>
+          <button className="btn btn-primary btn-sm" onClick={() => respondBooking(b.id, 'confirm')}>{t('Xác nhận')}</button>
+          <button className="btn btn-outline btn-sm" onClick={() => respondBooking(b.id, 'decline')}>{t('Từ chối')}</button>
         </>}
         {b.status === 'Completed' && (
           <button className="btn btn-outline btn-sm"
-                  onClick={() => set({ guestReviewBooking: b, overlay: 'guest-review' })}>Đánh giá khách</button>
+                  onClick={() => set({ guestReviewBooking: b, overlay: 'guest-review' })}>{t('Đánh giá khách')}</button>
         )}
         {/* docs/01 QL-13 — never a bare "huỷ": the warning comes first. */}
         {b.status === 'Confirmed' && (
-          <button className="btn btn-outline btn-sm" onClick={() => previewHostCancel(b.id)}>Huỷ đơn</button>
+          <button className="btn btn-outline btn-sm" onClick={() => previewHostCancel(b.id)}>{t('Huỷ đơn')}</button>
         )}
-        <button className="btn btn-outline btn-sm" onClick={() => navigate('/messages')}>Nhắn khách</button>
+        <button className="btn btn-outline btn-sm" onClick={() => navigate('/messages')}>{t('Nhắn khách')}</button>
       </div>
     </article>
   );
@@ -337,8 +338,8 @@ function Earnings({ d }) {
   if (!d.earningsByMonth.length) {
     return (
       <div className="empty-state" style={{ marginTop: 24 }}>
-        <h3>Chưa có doanh thu</h3>
-        <p>Biểu đồ sẽ hiện khi bạn có lượt đặt đầu tiên.</p>
+        <h3>{t('Chưa có doanh thu')}</h3>
+        <p>{t('Biểu đồ sẽ hiện khi bạn có lượt đặt đầu tiên.')}</p>
       </div>
     );
   }
@@ -351,29 +352,29 @@ function Earnings({ d }) {
       <div className="stat-grid">
         <div className="stat">
           <div className="value">{money(d.earningsToDate)}</div>
-          <div className="label">Đã nhận</div>
-          <div className="note">Các kỳ nghỉ đã hoàn tất</div>
+          <div className="label">{t('Đã nhận')}</div>
+          <div className="note">{t('Các kỳ nghỉ đã hoàn tất')}</div>
         </div>
         <div className="stat">
           <div className="value">{money(d.earningsUpcoming)}</div>
-          <div className="label">Sắp nhận</div>
-          <div className="note">{d.upcomingBookings} lượt đặt sắp tới</div>
+          <div className="label">{t('Sắp nhận')}</div>
+          <div className="note">{d.upcomingBookings} {t('lượt đặt sắp tới')}</div>
         </div>
         <div className="stat">
           <div className="value">{money(d.earningsToDate + d.earningsUpcoming)}</div>
-          <div className="label">Tổng cộng</div>
-          <div className="note">Sau phí dịch vụ chủ nhà {pct}%</div>
+          <div className="label">{t('Tổng cộng')}</div>
+          <div className="note">{t('Sau phí dịch vụ chủ nhà')} {pct}%</div>
         </div>
       </div>
 
       <section style={{ marginTop: 34 }}>
         <div className="page-head" style={{ marginBottom: 0 }}>
-          <h2 className="section-title" style={{ fontSize: 20 }}>Theo tháng nhận phòng</h2>
-          <a className="btn btn-outline btn-sm" href="/api/host/earnings.csv" download>Tải file doanh thu</a>
+          <h2 className="section-title" style={{ fontSize: 20 }}>{t('Theo tháng nhận phòng')}</h2>
+          <a className="btn btn-outline btn-sm" href="/api/host/earnings.csv" download>{t('Tải file doanh thu')}</a>
         </div>
         <div className="bar-chart">
           {d.earningsByMonth.map(m => (
-            <div className="bar-col" key={m.month} title={`${m.month}: ${money(m.amount)} · ${m.nights} đêm`}>
+            <div className="bar-col" key={m.month} title={`${m.month}: ${money(m.amount)} · ${m.nights} ${t('đêm')}`}>
               <div className="bar" style={{ height: `${Math.max(4, (Number(m.amount) / max) * 100)}%` }} />
               <span className="bar-label">{m.month}</span>
               <span className="bar-value">{money(m.amount)}</span>
@@ -386,19 +387,19 @@ function Earnings({ d }) {
       <TaxReport />
 
       <section style={{ marginTop: 34 }}>
-        <h2 className="section-title" style={{ fontSize: 20 }}>Cách StayHost tính tiền</h2>
+        <h2 className="section-title" style={{ fontSize: 20 }}>{t('Cách StayHost tính tiền')}</h2>
         <div className="know-grid" style={{ marginTop: 16 }}>
           <div className="know">
-            <h3><Icon name="star" size={18} /> Phí dịch vụ</h3>
-            <ul><li>StayHost giữ {pct}% trên tạm tính của mỗi lượt đặt thành công.</li></ul>
+            <h3><Icon name="star" size={18} /> {t('Phí dịch vụ')}</h3>
+            <ul><li>{t('StayHost giữ')} {pct}% {t('trên tạm tính của mỗi lượt đặt thành công.')}</li></ul>
           </div>
           <div className="know">
-            <h3><Icon name="heart" size={18} /> Bạn nhận</h3>
-            <ul><li>Toàn bộ tiền phòng và phí dọn dẹp trừ phí dịch vụ, chuyển 24 giờ sau khi khách nhận phòng.</li></ul>
+            <h3><Icon name="heart" size={18} /> {t('Bạn nhận')}</h3>
+            <ul><li>{t('Toàn bộ tiền phòng và phí dọn dẹp trừ phí dịch vụ, chuyển 24 giờ sau khi khách nhận phòng.')}</li></ul>
           </div>
           <div className="know">
-            <h3><Icon name="globe" size={18} /> Huỷ &amp; hoàn</h3>
-            <ul><li>Phí vệ sinh luôn được hoàn 100% cho khách ở mọi chính sách huỷ.</li></ul>
+            <h3><Icon name="globe" size={18} /> {t('Huỷ & hoàn')}</h3>
+            <ul><li>{t('Phí vệ sinh luôn được hoàn 100% cho khách ở mọi chính sách huỷ.')}</li></ul>
           </div>
         </div>
       </section>
@@ -427,34 +428,34 @@ function TaxReport() {
   return (
     <section style={{ marginTop: 34 }}>
       <div className="page-head" style={{ marginBottom: 0 }}>
-        <h2 className="section-title" style={{ fontSize: 20 }}>Báo cáo thuế</h2>
+        <h2 className="section-title" style={{ fontSize: 20 }}>{t('Báo cáo thuế')}</h2>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {report.years.length > 1 && (
             <select value={report.year} onChange={e => setYear(Number(e.target.value))}
                     style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 14 }}>
-              {report.years.map(y => <option key={y} value={y}>Năm {y}</option>)}
+              {report.years.map(y => <option key={y} value={y}>{t('Năm')} {y}</option>)}
             </select>
           )}
           <a className="btn btn-outline btn-sm" download
-             href={`/api/host/tax-report.csv?year=${report.year}`}>Tải báo cáo thuế</a>
+             href={`/api/host/tax-report.csv?year=${report.year}`}>{t('Tải báo cáo thuế')}</a>
         </div>
       </div>
 
       <p className="section-sub">{report.note}</p>
 
       {report.stays === 0 ? (
-        <p className="section-sub" style={{ marginTop: 12 }}>Năm {report.year} chưa có đơn nào hoàn tất.</p>
+        <p className="section-sub" style={{ marginTop: 12 }}>{t('Năm')} {report.year} {t('chưa có đơn nào hoàn tất.')}</p>
       ) : (
         <>
           <div className="table-wrap" style={{ marginTop: 16 }}>
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Tháng</th><th>Số đơn</th>
-                  <th style={{ textAlign: 'right' }}>Khách trả</th>
-                  <th style={{ textAlign: 'right' }}>Thuế</th>
-                  <th style={{ textAlign: 'right' }}>Phí dịch vụ</th>
-                  <th style={{ textAlign: 'right' }}>Bạn nhận</th>
+                  <th>{t('Tháng')}</th><th>{t('Số đơn')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('Khách trả')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('Thuế')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('Phí dịch vụ')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('Bạn nhận')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -469,7 +470,7 @@ function TaxReport() {
                   </tr>
                 ))}
                 <tr>
-                  <td><b>Cả năm {report.year}</b></td>
+                  <td><b>{t('Cả năm')} {report.year}</b></td>
                   <td><b>{report.stays}</b></td>
                   <td style={{ textAlign: 'right' }}><b>{money(report.guestPaid)}</b></td>
                   <td style={{ textAlign: 'right' }}><b>{money(report.tax)}</b></td>
@@ -484,7 +485,7 @@ function TaxReport() {
             <div className="table-wrap" style={{ marginTop: 16 }}>
               <table className="admin-table">
                 <thead>
-                  <tr><th>Loại thuế</th><th>Số đơn</th><th style={{ textAlign: 'right' }}>Số tiền</th></tr>
+                  <tr><th>{t('Loại thuế')}</th><th>{t('Số đơn')}</th><th style={{ textAlign: 'right' }}>{t('Số tiền')}</th></tr>
                 </thead>
                 <tbody>
                   {report.taxes.map(t => (
@@ -522,34 +523,34 @@ function PerformanceReport() {
   return (
     <section style={{ marginTop: 34 }}>
       <div className="page-head" style={{ marginBottom: 0 }}>
-        <h2 className="section-title" style={{ fontSize: 20 }}>Hiệu suất tin đăng</h2>
+        <h2 className="section-title" style={{ fontSize: 20 }}>{t('Hiệu suất tin đăng')}</h2>
         <select value={days} onChange={e => setDays(Number(e.target.value))}
                 style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 14 }}>
-          <option value={7}>7 ngày qua</option>
-          <option value={30}>30 ngày qua</option>
-          <option value={90}>90 ngày qua</option>
+          <option value={7}>{t('7 ngày qua')}</option>
+          <option value={30}>{t('30 ngày qua')}</option>
+          <option value={90}>{t('90 ngày qua')}</option>
         </select>
       </div>
 
       {rows.length === 0 ? (
-        <p className="section-sub" style={{ marginTop: 12 }}>Bạn chưa có tin đăng nào.</p>
+        <p className="section-sub" style={{ marginTop: 12 }}>{t('Bạn chưa có tin đăng nào.')}</p>
       ) : (
         <div className="table-wrap" style={{ marginTop: 16 }}>
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Tin đăng</th>
-                <th style={{ textAlign: 'right' }}>Lượt xem</th>
-                <th style={{ textAlign: 'right' }}>Lượt lưu</th>
-                <th style={{ textAlign: 'right' }}>Lượt đặt</th>
-                <th style={{ textAlign: 'right' }}>Xem → đặt</th>
-                <th style={{ textAlign: 'right' }}>Lấp đầy</th>
+                <th>{t('Tin đăng')}</th>
+                <th style={{ textAlign: 'right' }}>{t('Lượt xem')}</th>
+                <th style={{ textAlign: 'right' }}>{t('Lượt lưu')}</th>
+                <th style={{ textAlign: 'right' }}>{t('Lượt đặt')}</th>
+                <th style={{ textAlign: 'right' }}>{t('Xem → đặt')}</th>
+                <th style={{ textAlign: 'right' }}>{t('Lấp đầy')}</th>
               </tr>
             </thead>
             <tbody>
               {rows.map(r => (
                 <tr key={r.listingId}>
-                  <td>{r.title}{!r.isPublished && <span className="meta"> · ẩn</span>}</td>
+                  <td>{r.title}{!r.isPublished && <span className="meta"> · {t('ẩn')}</span>}</td>
                   <td style={{ textAlign: 'right' }}>{r.views}</td>
                   <td style={{ textAlign: 'right' }}>{r.saves}</td>
                   <td style={{ textAlign: 'right' }}>{r.bookings}</td>

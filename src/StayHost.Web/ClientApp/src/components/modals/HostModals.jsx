@@ -4,6 +4,7 @@ import { set, loadHostCalendar, loadHosting, confirmHostCancel, toast } from '..
 import { api } from '../../lib/api.js';
 import { money, shortMoney, longDate, isoOf } from '../../lib/format.js';
 import { Modal } from './Modal.jsx';
+import { t } from '../../lib/i18n.js';
 
 /* --------------------------------------------------------- host calendar */
 
@@ -49,42 +50,42 @@ export function HostCalendarModal() {
   };
 
   return (
-    <Modal title="Lịch & giá">
+    <Modal title={t('Lịch & giá')}>
       <HostMonths cal={cal} offset={state.hostMonthOffset} />
 
       <BulkDays listingId={cal.listingId} basePrice={cal.basePrice ?? 0} onDone={reload} />
       <CalendarRules listingId={cal.listingId} />
 
       <section className="modal-section">
-        <h3>Khoá lịch</h3>
-        <span className="hint">Chặn khoảng ngày bạn không muốn nhận khách (bảo trì, gia đình dùng…).</span>
+        <h3>{t('Khoá lịch')}</h3>
+        <span className="hint">{t('Chặn khoảng ngày bạn không muốn nhận khách (bảo trì, gia đình dùng…).')}</span>
         <form onSubmit={addBlock} style={{ marginTop: 14 }}>
           <div className="field-grid">
-            <label className="form-field"><span className="cap">Từ ngày</span><input type="date" name="from" required /></label>
-            <label className="form-field"><span className="cap">Đến ngày</span><input type="date" name="to" required /></label>
+            <label className="form-field"><span className="cap">{t('Từ ngày')}</span><input type="date" name="from" required /></label>
+            <label className="form-field"><span className="cap">{t('Đến ngày')}</span><input type="date" name="to" required /></label>
           </div>
-          <label className="form-field"><span className="cap">Ghi chú</span><input name="note" placeholder="Bảo trì hồ bơi" /></label>
-          <button type="submit" className="btn btn-dark btn-block">Khoá lịch</button>
+          <label className="form-field"><span className="cap">{t('Ghi chú')}</span><input name="note" placeholder={t('Bảo trì hồ bơi')} /></label>
+          <button type="submit" className="btn btn-dark btn-block">{t('Khoá lịch')}</button>
         </form>
       </section>
 
       <section className="modal-section">
-        <h3>Giá theo mùa</h3>
+        <h3>{t('Giá theo mùa')}</h3>
         <span className="hint">
-          Giá cơ bản hiện tại: <b>{money(cal.basePrice ?? 0)}</b> / đêm.
-          Quy tắc mùa sẽ thay thế giá này trong khoảng ngày đã chọn.
+          {t('Giá cơ bản hiện tại:')} <b>{money(cal.basePrice ?? 0)}</b> / {t('đêm')}.
+          {' '}{t('Quy tắc mùa sẽ thay thế giá này trong khoảng ngày đã chọn.')}
         </span>
         <form onSubmit={addRule} style={{ marginTop: 14 }}>
           <div className="field-grid">
-            <label className="form-field" style={{ gridColumn: '1/-1' }}><span className="cap">Tên đợt</span>
+            <label className="form-field" style={{ gridColumn: '1/-1' }}><span className="cap">{t('Tên đợt')}</span>
               <input name="name" placeholder="Tết Nguyên đán" required /></label>
-            <label className="form-field"><span className="cap">Từ ngày</span><input type="date" name="from" required /></label>
-            <label className="form-field"><span className="cap">Đến ngày</span><input type="date" name="to" required /></label>
-            <label className="form-field"><span className="cap">Giá mỗi đêm (₫)</span>
+            <label className="form-field"><span className="cap">{t('Từ ngày')}</span><input type="date" name="from" required /></label>
+            <label className="form-field"><span className="cap">{t('Đến ngày')}</span><input type="date" name="to" required /></label>
+            <label className="form-field"><span className="cap">{t('Giá mỗi đêm (₫)')}</span>
               <input type="number" name="rate" min={50000} step={10000}
                      defaultValue={Math.round((cal.basePrice ?? 800000) * 1.5)} required /></label>
           </div>
-          <button type="submit" className="btn btn-outline btn-block">Thêm quy tắc giá</button>
+          <button type="submit" className="btn btn-outline btn-block">{t('Thêm quy tắc giá')}</button>
         </form>
 
         {!!cal.priceRules?.length && (
@@ -93,12 +94,12 @@ export function HostCalendarModal() {
               <div className="cal-row" key={r.id}>
                 <span className="badge pending">{r.name}</span>
                 <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>
-                  {r.from} → {r.to} · <b>{money(r.nightlyRate)}</b>/đêm
+                  {r.from} → {r.to} · <b>{money(r.nightlyRate)}</b>/{t('đêm')}
                 </div>
                 <button className="text-btn" onClick={async () => {
                   try { await api.removePriceRule(r.id); await reload(); toast('Đã bỏ quy tắc giá.'); }
                   catch (err) { toast(err.message); }
-                }}>Bỏ</button>
+                }}>{t('Bỏ')}</button>
               </div>
             ))}
           </div>
@@ -107,28 +108,28 @@ export function HostCalendarModal() {
 
       {cal.bookings?.length ? (
         <div style={{ marginTop: 24 }}>
-          <b style={{ fontSize: 13 }}>Lịch khách đã đặt</b>
+          <b style={{ fontSize: 13 }}>{t('Lịch khách đã đặt')}</b>
           <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
             {cal.bookings.map(b => (
               <div className="cal-row" key={b.reference}>
-                <span className="badge confirmed">Đã đặt</span>
+                <span className="badge confirmed">{t('Đã đặt')}</span>
                 <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>
                   {b.checkIn} → {b.checkOut}
-                  <span style={{ color: 'var(--ink-muted)' }}> · {b.guests} khách · {b.reference}</span>
+                  <span style={{ color: 'var(--ink-muted)' }}> · {b.guests} {t('khách')} · {b.reference}</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      ) : <p style={{ marginTop: 24, fontSize: 13, color: 'var(--ink-muted)' }}>Chưa có lượt đặt nào sắp tới.</p>}
+      ) : <p style={{ marginTop: 24, fontSize: 13, color: 'var(--ink-muted)' }}>{t('Chưa có lượt đặt nào sắp tới.')}</p>}
 
       {!!cal.blocks?.length && (
         <div style={{ marginTop: 22 }}>
-          <b style={{ fontSize: 13 }}>Bạn đang khoá</b>
+          <b style={{ fontSize: 13 }}>{t('Bạn đang khoá')}</b>
           <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
             {cal.blocks.map(b => (
               <div className="cal-row" key={b.id}>
-                <span className="badge cancelled">Khoá</span>
+                <span className="badge cancelled">{t('Khoá')}</span>
                 <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>
                   {b.from} → {b.to}
                   {b.note && <span style={{ color: 'var(--ink-muted)' }}> · {b.note}</span>}
@@ -136,7 +137,7 @@ export function HostCalendarModal() {
                 <button className="text-btn" onClick={async () => {
                   try { await api.removeBlock(b.id); await reload(); toast('Đã bỏ khoá lịch.'); }
                   catch (err) { toast(err.message); }
-                }}>Bỏ</button>
+                }}>{t('Bỏ')}</button>
               </div>
             ))}
           </div>
@@ -182,32 +183,32 @@ function BulkDays({ listingId, basePrice, onDone }) {
 
   return (
     <section className="modal-section">
-      <h3>Sửa nhiều ngày cùng lúc</h3>
+      <h3>{t('Sửa nhiều ngày cùng lúc')}</h3>
       <span className="hint">
-        Giá theo ngày được ưu tiên cao nhất, đè lên giá mùa và giá cuối tuần.
-        Giá cơ bản hiện tại: <b>{money(basePrice)}</b>/đêm.
+        {t('Giá theo ngày được ưu tiên cao nhất, đè lên giá mùa và giá cuối tuần.')}
+        {' '}{t('Giá cơ bản hiện tại:')} <b>{money(basePrice)}</b>/{t('đêm')}.
       </span>
       <form onSubmit={submit} style={{ marginTop: 14 }}>
         <div className="field-grid">
-          <label className="form-field"><span className="cap">Từ ngày</span>
+          <label className="form-field"><span className="cap">{t('Từ ngày')}</span>
             <input type="date" name="from" required /></label>
-          <label className="form-field"><span className="cap">Đến ngày</span>
+          <label className="form-field"><span className="cap">{t('Đến ngày')}</span>
             <input type="date" name="to" required /></label>
-          <label className="form-field"><span className="cap">Giá mỗi đêm (₫)</span>
-            <input type="number" name="rate" min={0} step={10000} placeholder="Để trống nếu không đổi" /></label>
-          <label className="form-field"><span className="cap">Số đêm tối thiểu</span>
-            <input type="number" name="minNights" min={0} max={90} placeholder="Để trống nếu không đổi" /></label>
-          <label className="form-field"><span className="cap">Trạng thái</span>
+          <label className="form-field"><span className="cap">{t('Giá mỗi đêm (₫)')}</span>
+            <input type="number" name="rate" min={0} step={10000} placeholder={t('Để trống nếu không đổi')} /></label>
+          <label className="form-field"><span className="cap">{t('Số đêm tối thiểu')}</span>
+            <input type="number" name="minNights" min={0} max={90} placeholder={t('Để trống nếu không đổi')} /></label>
+          <label className="form-field"><span className="cap">{t('Trạng thái')}</span>
             <select name="blocked" defaultValue="keep">
-              <option value="keep">Giữ nguyên</option>
-              <option value="block">Khoá các ngày này</option>
-              <option value="open">Mở lại các ngày này</option>
+              <option value="keep">{t('Giữ nguyên')}</option>
+              <option value="block">{t('Khoá các ngày này')}</option>
+              <option value="open">{t('Mở lại các ngày này')}</option>
             </select></label>
-          <label className="form-field"><span className="cap">Ghi chú</span>
-            <input name="label" placeholder="Cao điểm hè" /></label>
+          <label className="form-field"><span className="cap">{t('Ghi chú')}</span>
+            <input name="label" placeholder={t('Cao điểm hè')} /></label>
         </div>
         <button type="submit" className="btn btn-dark btn-block" disabled={busy}>
-          {busy ? 'Đang áp dụng…' : 'Áp dụng cho khoảng ngày'}
+          {busy ? t('Đang áp dụng…') : t('Áp dụng cho khoảng ngày')}
         </button>
       </form>
     </section>
@@ -249,55 +250,55 @@ function CalendarRules({ listingId }) {
 
   return (
     <section className="modal-section">
-      <h3>Quy tắc lịch</h3>
-      <span className="hint">Những quy tắc này quyết định khách có đặt được hay không.</span>
+      <h3>{t('Quy tắc lịch')}</h3>
+      <span className="hint">{t('Những quy tắc này quyết định khách có đặt được hay không.')}</span>
 
       <div className="field-grid" style={{ marginTop: 14 }}>
-        <label className="form-field"><span className="cap">Số đêm tối thiểu</span>
+        <label className="form-field"><span className="cap">{t('Số đêm tối thiểu')}</span>
           <input type="number" min={1} max={365} value={rules.minNights}
                  onChange={e => num('minNights', e.target.value)} /></label>
-        <label className="form-field"><span className="cap">Số đêm tối đa (0 = không giới hạn)</span>
+        <label className="form-field"><span className="cap">{t('Số đêm tối đa (0 = không giới hạn)')}</span>
           <input type="number" min={0} max={365} value={rules.maxNights}
                  onChange={e => num('maxNights', e.target.value)} /></label>
-        <label className="form-field"><span className="cap">Báo trước (giờ)</span>
+        <label className="form-field"><span className="cap">{t('Báo trước (giờ)')}</span>
           <input type="number" min={0} max={720} value={rules.advanceNoticeHours}
                  onChange={e => num('advanceNoticeHours', e.target.value)} /></label>
-        <label className="form-field"><span className="cap">Giờ cắt đặt trong ngày</span>
+        <label className="form-field"><span className="cap">{t('Giờ cắt đặt trong ngày')}</span>
           <input type="number" min={0} max={23} value={rules.sameDayCutoffHour ?? ''}
-                 placeholder="Không giới hạn"
+                 placeholder={t('Không giới hạn')}
                  onChange={e => field('sameDayCutoffHour', e.target.value === '' ? null : Number(e.target.value))} /></label>
-        <label className="form-field"><span className="cap">Mở lịch trước (tháng, 0 = vô hạn)</span>
+        <label className="form-field"><span className="cap">{t('Mở lịch trước (tháng, 0 = vô hạn)')}</span>
           <input type="number" min={0} max={24} value={rules.calendarVisibilityMonths}
                  onChange={e => num('calendarVisibilityMonths', e.target.value)} /></label>
-        <label className="form-field"><span className="cap">Ngày dọn dẹp giữa hai khách</span>
+        <label className="form-field"><span className="cap">{t('Ngày dọn dẹp giữa hai khách')}</span>
           <input type="number" min={0} max={14} value={rules.turnoverDays}
                  onChange={e => num('turnoverDays', e.target.value)} /></label>
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <span className="cap">Không nhận phòng vào</span>
+        <span className="cap">{t('Không nhận phòng vào')}</span>
         <div className="pill-row" style={{ marginTop: 8 }}>
           {WEEKDAYS.map(([day, label]) => (
             <button type="button" key={`in-${day}`}
                     className={`pill ${isOn(rules.blockedCheckInDays, day) ? 'is-on' : ''}`}
-                    onClick={() => toggleDay('blockedCheckInDays', day)}>{label}</button>
+                    onClick={() => toggleDay('blockedCheckInDays', day)}>{t(label)}</button>
           ))}
         </div>
       </div>
 
       <div style={{ marginTop: 14 }}>
-        <span className="cap">Không trả phòng vào</span>
+        <span className="cap">{t('Không trả phòng vào')}</span>
         <div className="pill-row" style={{ marginTop: 8 }}>
           {WEEKDAYS.map(([day, label]) => (
             <button type="button" key={`out-${day}`}
                     className={`pill ${isOn(rules.blockedCheckOutDays, day) ? 'is-on' : ''}`}
-                    onClick={() => toggleDay('blockedCheckOutDays', day)}>{label}</button>
+                    onClick={() => toggleDay('blockedCheckOutDays', day)}>{t(label)}</button>
           ))}
         </div>
       </div>
 
       <button className="btn btn-outline btn-block" style={{ marginTop: 18 }} disabled={busy} onClick={save}>
-        {busy ? 'Đang lưu…' : 'Lưu quy tắc lịch'}
+        {busy ? t('Đang lưu…') : t('Lưu quy tắc lịch')}
       </button>
     </section>
   );
@@ -323,11 +324,11 @@ function HostMonths({ cal, offset }) {
   return (
     <section className="modal-section">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
-        <h3 style={{ margin: 0 }}>Lịch trống</h3>
+        <h3 style={{ margin: 0 }}>{t('Lịch trống')}</h3>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="round-btn" aria-label="Tháng trước"
+          <button className="round-btn" aria-label={t('Tháng trước')}
                   onClick={() => set({ hostMonthOffset: Math.max(0, offset - 1) })}>‹</button>
-          <button className="round-btn" aria-label="Tháng sau"
+          <button className="round-btn" aria-label={t('Tháng sau')}
                   onClick={() => set({ hostMonthOffset: offset + 1 })}>›</button>
         </div>
       </div>
@@ -339,9 +340,9 @@ function HostMonths({ cal, offset }) {
         })}
       </div>
       <div className="host-cal-legend">
-        <span><i className="sw booked" /> Đã có khách</span>
-        <span><i className="sw blocked" /> Bạn khoá</span>
-        <span><i className="sw seasonal" /> Giá mùa</span>
+        <span><i className="sw booked" /> {t('Đã có khách')}</span>
+        <span><i className="sw blocked" /> {t('Bạn khoá')}</span>
+        <span><i className="sw seasonal" /> {t('Giá mùa')}</span>
       </div>
     </section>
   );
@@ -369,9 +370,9 @@ function MonthPanel({ monthStart, booked, blocked, seasonal, basePrice }) {
 
   return (
     <div className="host-cal-month">
-      <div className="host-cal-head">{HOST_MONTHS[month]} {year}</div>
+      <div className="host-cal-head">{t(HOST_MONTHS[month])} {year}</div>
       <div className="host-cal-grid">
-        {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <span className="host-dow" key={d}>{d}</span>)}
+        {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <span className="host-dow" key={d}>{t(d)}</span>)}
         {cells}
       </div>
     </div>
@@ -406,7 +407,7 @@ export function GuestReviewModal() {
   };
 
   return (
-    <Modal title="Đánh giá khách" size="narrow">
+    <Modal title={t('Đánh giá khách')} size="narrow">
       <div style={{ paddingBottom: 16, borderBottom: '1px solid var(--divider)' }}>
         <div style={{ fontSize: 15, fontWeight: 700 }}>{b.guestName}</div>
         <div style={{ fontSize: 13, color: 'var(--ink-muted)' }}>
@@ -416,10 +417,10 @@ export function GuestReviewModal() {
 
       <form onSubmit={submit}>
         <div style={{ padding: '18px 0', borderBottom: '1px solid var(--divider)' }}>
-          <b style={{ fontSize: 15 }}>Khách này thế nào?</b>
+          <b style={{ fontSize: 15 }}>{t('Khách này thế nào?')}</b>
           <div className="star-row" style={{ marginTop: 10 }}>
             {[1, 2, 3, 4, 5].map(n => (
-              <button type="button" key={n} aria-label={`${n} sao`}
+              <button type="button" key={n} aria-label={`${n} ${t('sao')}`}
                       className={`star ${n <= draft.rating ? 'is-on' : ''}`}
                       onClick={() => setDraft(d => ({ ...d, rating: n }))}>★</button>
             ))}
@@ -427,21 +428,21 @@ export function GuestReviewModal() {
         </div>
 
         <div className="count-row">
-          <div className="tx"><b>Bạn sẽ đón lại khách này?</b></div>
+          <div className="tx"><b>{t('Bạn sẽ đón lại khách này?')}</b></div>
           <button type="button" className={`pill ${draft.wouldHostAgain ? 'is-on' : ''}`}
                   onClick={() => setDraft(d => ({ ...d, wouldHostAgain: !d.wouldHostAgain }))}>
-            {draft.wouldHostAgain ? 'Có' : 'Không'}
+            {draft.wouldHostAgain ? t('Có') : t('Không')}
           </button>
         </div>
 
         <label className="form-field" style={{ marginTop: 18 }}>
-          <span className="cap">Nhận xét</span>
+          <span className="cap">{t('Nhận xét')}</span>
           <textarea name="text" rows={5} required minLength={10}
-                    placeholder="Khách giữ gìn nhà cửa, trao đổi rõ ràng…"
+                    placeholder={t('Khách giữ gìn nhà cửa, trao đổi rõ ràng…')}
                     style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
         </label>
 
-        <button type="submit" className="btn btn-primary btn-block">Gửi đánh giá</button>
+        <button type="submit" className="btn btn-primary btn-block">{t('Gửi đánh giá')}</button>
       </form>
     </Modal>
   );
@@ -468,10 +469,10 @@ export function HostCancelModal() {
   };
 
   return (
-    <Modal title="Huỷ đơn của khách">
+    <Modal title={t('Huỷ đơn của khách')}>
       <div className="book-alert">
-        <b>Việc này không thể hoàn tác</b>
-        <span>{p.guestName} đã đặt {p.nights} đêm từ {longDate(p.checkIn)} · mã {p.reference}</span>
+        <b>{t('Việc này không thể hoàn tác')}</b>
+        <span>{p.guestName} {t('đã đặt')} {p.nights} {t('đêm')} {t('từ')} {longDate(p.checkIn)} · {t('mã')} {p.reference}</span>
       </div>
 
       <ul className="consequences">
@@ -479,21 +480,21 @@ export function HostCancelModal() {
       </ul>
 
       <div className="kv-grid" style={{ marginTop: 16 }}>
-        <div className="kv"><span className="kv-label">Khách được hoàn</span><b>{money(p.guestRefund)}</b></div>
-        <div className="kv"><span className="kv-label">Bạn mất khoản nhận</span><b>{money(p.hostPayoutLost)}</b></div>
+        <div className="kv"><span className="kv-label">{t('Khách được hoàn')}</span><b>{money(p.guestRefund)}</b></div>
+        <div className="kv"><span className="kv-label">{t('Bạn mất khoản nhận')}</span><b>{money(p.hostPayoutLost)}</b></div>
       </div>
 
       <label className="form-field" style={{ marginTop: 16 }}>
-        <span className="cap">Lý do huỷ <span style={{ fontWeight: 400 }}>(khách sẽ đọc được)</span></span>
+        <span className="cap">{t('Lý do huỷ')} <span style={{ fontWeight: 400 }}>{t('(khách sẽ đọc được)')}</span></span>
         <input value={reason} onChange={e => setReason(e.target.value)}
-               placeholder="Ví dụ: nhà đang sửa chữa đột xuất" />
+               placeholder={t('Ví dụ: nhà đang sửa chữa đột xuất')} />
       </label>
 
       <button className="btn btn-block" style={{ marginTop: 6 }} disabled={busy} onClick={go}>
-        {busy ? 'Đang huỷ…' : 'Tôi hiểu hậu quả, vẫn huỷ đơn'}
+        {busy ? t('Đang huỷ…') : t('Tôi hiểu hậu quả, vẫn huỷ đơn')}
       </button>
       <button className="btn btn-primary btn-block" style={{ marginTop: 8 }}
-              onClick={() => set({ overlay: null, hostCancel: null })}>Giữ đơn lại</button>
+              onClick={() => set({ overlay: null, hostCancel: null })}>{t('Giữ đơn lại')}</button>
     </Modal>
   );
 }

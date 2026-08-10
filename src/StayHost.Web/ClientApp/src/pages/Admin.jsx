@@ -4,6 +4,7 @@ import { useStore } from '../lib/useStore.js';
 import { set, loadAdmin, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate, dateTime } from '../lib/format.js';
+import { t } from '../lib/i18n.js';
 import { FinancePanel, ReconciliationPanel, TransactionsPanel, ChargebackPanel } from './admin/Finance.jsx';
 import { UserAdminPanel, AppealsPanel, OversightPanel, DataRequestsPanel } from './admin/Users.jsx';
 
@@ -20,8 +21,8 @@ export function Admin() {
 
   useEffect(() => { if (state.user?.role === 'Admin') loadAdmin(); }, [state.user]);
 
-  if (!state.user) return <Gate message="Đăng nhập để vào trang quản trị" showLogin />;
-  if (state.user.role !== 'Admin') return <Gate message="Tài khoản của bạn không có quyền quản trị" />;
+  if (!state.user) return <Gate message={t('Đăng nhập để vào trang quản trị')} showLogin />;
+  if (state.user.role !== 'Admin') return <Gate message={t('Tài khoản của bạn không có quyền quản trị')} />;
 
   const d = state.admin;
 
@@ -52,19 +53,19 @@ export function Admin() {
 
   return (
     <div className="shell" style={{ paddingBlock: '30px 90px' }}>
-      <h1 className="section-title">Quản trị StayHost</h1>
-      <p className="section-sub">Tổng quan nền tảng, kiểm duyệt chỗ nghỉ và xử lý báo cáo</p>
+      <h1 className="section-title">{t('Quản trị StayHost')}</h1>
+      <p className="section-sub">{t('Tổng quan nền tảng, kiểm duyệt chỗ nghỉ và xử lý báo cáo')}</p>
 
       <div className="stat-grid" style={{ marginTop: 22 }}>
-        <Stat label="Doanh thu nền tảng" value={money(d.platformRevenue)} note={`Tổng giao dịch ${money(d.grossVolume)}`} />
-        <Stat label="Chỗ nghỉ" value={`${d.publishedListings}/${d.listings}`} note={`${d.drafts} bản nháp`} />
-        <Stat label="Lượt đặt" value={String(d.bookings)} note={`${d.activeBookings} đang hiệu lực`} />
-        <Stat label="Người dùng" value={String(d.users)} note={`${d.hosts} chủ nhà`} />
+        <Stat label={t('Doanh thu nền tảng')} value={money(d.platformRevenue)} note={`${t('Tổng giao dịch')} ${money(d.grossVolume)}`} />
+        <Stat label={t('Chỗ nghỉ')} value={`${d.publishedListings}/${d.listings}`} note={`${d.drafts} ${t('bản nháp')}`} />
+        <Stat label={t('Lượt đặt')} value={String(d.bookings)} note={`${d.activeBookings} ${t('đang hiệu lực')}`} />
+        <Stat label={t('Người dùng')} value={String(d.users)} note={`${d.hosts} ${t('chủ nhà')}`} />
       </div>
 
       <div className="stat-grid" style={{ marginTop: 16 }}>
-        <Stat label="Báo cáo đang mở" value={String(d.openReports)} note="Cần xử lý" />
-        <Stat label="Email chờ gửi" value={String(d.queuedEmails)} note="Hàng đợi giao dịch" />
+        <Stat label={t('Báo cáo đang mở')} value={String(d.openReports)} note={t('Cần xử lý')} />
+        <Stat label={t('Email chờ gửi')} value={String(d.queuedEmails)} note={t('Hàng đợi giao dịch')} />
       </div>
 
       <ShieldPanel />
@@ -85,7 +86,7 @@ export function Admin() {
       <AuditLog rows={d.auditLog} />
 
       <section style={{ marginTop: 40 }}>
-        <h2 className="section-title" style={{ fontSize: 20 }}>Báo cáo</h2>
+        <h2 className="section-title" style={{ fontSize: 20 }}>{t('Báo cáo')}</h2>
         {d.reports.length ? (
           <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
             {d.reports.map(r => {
@@ -98,26 +99,26 @@ export function Admin() {
                         message or a review, so the queue has to say which. */}
                     <h3><span className="badge" style={{ marginRight: 8 }}>{r.targetLabel}</span>{r.subjectTitle}</h3>
                     <div className="meta">{r.reason}{r.detail ? ` — ${r.detail}` : ''}</div>
-                    <div className="meta">Báo cáo bởi {r.reporterName} · {longDate(r.createdAt.slice(0, 10))}</div>
-                    {r.resolution && <div className="meta">Kết luận: {r.resolution}</div>}
-                    <span className={`badge ${cls}`} style={{ marginTop: 8 }}>{label}</span>
+                    <div className="meta">{t('Báo cáo bởi')} {r.reporterName} · {longDate(r.createdAt.slice(0, 10))}</div>
+                    {r.resolution && <div className="meta">{t('Kết luận:')} {r.resolution}</div>}
+                    <span className={`badge ${cls}`} style={{ marginTop: 8 }}>{t(label)}</span>
                   </div>
                   <div className="host-booking-actions">
                     {open && <>
-                      <button className="btn btn-primary btn-sm" onClick={() => resolve(r.id, 'Resolved')}>Đã xử lý</button>
-                      <button className="btn btn-outline btn-sm" onClick={() => resolve(r.id, 'Dismissed')}>Bỏ qua</button>
+                      <button className="btn btn-primary btn-sm" onClick={() => resolve(r.id, 'Resolved')}>{t('Đã xử lý')}</button>
+                      <button className="btn btn-outline btn-sm" onClick={() => resolve(r.id, 'Dismissed')}>{t('Bỏ qua')}</button>
                     </>}
                     {/* Only a listing can be unpublished; the other three
                         subjects are handled from the user console. */}
                     {r.target === 'Listing' && r.subjectId && (
-                      <button className="btn btn-outline btn-sm" onClick={() => publish(r.subjectId, false)}>Gỡ chỗ nghỉ</button>
+                      <button className="btn btn-outline btn-sm" onClick={() => publish(r.subjectId, false)}>{t('Gỡ chỗ nghỉ')}</button>
                     )}
                   </div>
                 </article>
               );
             })}
           </div>
-        ) : <p className="section-sub">Chưa có báo cáo nào.</p>}
+        ) : <p className="section-sub">{t('Chưa có báo cáo nào.')}</p>}
       </section>
 
       <SupportQueue />
@@ -135,11 +136,11 @@ export function Admin() {
       <ReviewFraudPanel navigate={navigate} />
 
       <section style={{ marginTop: 40 }}>
-        <h2 className="section-title" style={{ fontSize: 20 }}>Chỗ nghỉ mới nhất</h2>
+        <h2 className="section-title" style={{ fontSize: 20 }}>{t('Chỗ nghỉ mới nhất')}</h2>
         <div className="table-wrap">
           <table className="admin-table">
             <thead>
-              <tr><th>Chỗ nghỉ</th><th>Chủ nhà</th><th>Giá</th><th>Đánh giá</th><th>Trạng thái</th><th /></tr>
+              <tr><th>{t('Chỗ nghỉ')}</th><th>{t('Chủ nhà')}</th><th>{t('Giá')}</th><th>{t('Đánh giá')}</th><th>{t('Trạng thái')}</th><th /></tr>
             </thead>
             <tbody>
               {d.recentListings.map(l => (
@@ -152,12 +153,12 @@ export function Admin() {
                   <td>{money(l.pricePerNight)}</td>
                   <td>{l.reviewCount ? `★ ${l.rating.toFixed(2)} (${l.reviewCount})` : '—'}</td>
                   <td><span className={`badge ${l.isPublished ? 'confirmed' : 'pending'}`}>
-                    {l.isPublished ? 'Hiển thị' : 'Nháp'}</span></td>
+                    {l.isPublished ? t('Hiển thị') : t('Nháp')}</span></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button className="btn btn-outline btn-sm" onClick={() => publish(l.id, !l.isPublished)}>
-                      {l.isPublished ? 'Gỡ hiển thị' : 'Duyệt'}
+                      {l.isPublished ? t('Gỡ hiển thị') : t('Duyệt')}
                     </button>
-                    <button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${l.slug}`)}>Xem</button>
+                    <button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${l.slug}`)}>{t('Xem')}</button>
                   </td>
                 </tr>
               ))}
@@ -201,15 +202,15 @@ function ModerationQueue() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Chờ duyệt trước khi hiển thị</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Chờ duyệt trước khi hiển thị')}</h2>
       <p className="section-sub">
-        {rows.length ? `${rows.length} tin đăng đang chờ kiểm duyệt` : 'Không có tin nào đang chờ duyệt'}
+        {rows.length ? `${rows.length} ${t('tin đăng đang chờ kiểm duyệt')}` : t('Không có tin nào đang chờ duyệt')}
       </p>
       {rows.length > 0 && (
         <div className="table-wrap" style={{ marginTop: 16 }}>
           <table className="admin-table">
             <thead>
-              <tr><th>Chỗ nghỉ</th><th>Chủ nhà</th><th>Giá</th><th>Gửi lúc</th><th /></tr>
+              <tr><th>{t('Chỗ nghỉ')}</th><th>{t('Chủ nhà')}</th><th>{t('Giá')}</th><th>{t('Gửi lúc')}</th><th /></tr>
             </thead>
             <tbody>
               {rows.map(l => (
@@ -219,9 +220,9 @@ function ModerationQueue() {
                   <td>{money(l.pricePerNight)}</td>
                   <td>{l.submittedForReviewAt ? dateTime(l.submittedForReviewAt) : '—'}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
-                    <button className="btn btn-primary btn-sm" onClick={() => decide(l.id, 'approve')}>Duyệt</button>
-                    <button className="btn btn-outline btn-sm" onClick={() => decide(l.id, 'reject')}>Từ chối</button>
-                    <button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${l.slug}`)}>Xem</button>
+                    <button className="btn btn-primary btn-sm" onClick={() => decide(l.id, 'approve')}>{t('Duyệt')}</button>
+                    <button className="btn btn-outline btn-sm" onClick={() => decide(l.id, 'reject')}>{t('Từ chối')}</button>
+                    <button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${l.slug}`)}>{t('Xem')}</button>
                   </td>
                 </tr>
               ))}
@@ -241,15 +242,15 @@ function ReviewFraudPanel({ navigate }) {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Đánh giá nghi gian lận</h2>
-      <p className="section-sub">{rows.length} đánh giá cần xem lại (tài khoản phụ / tự đánh giá)</p>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Đánh giá nghi gian lận')}</h2>
+      <p className="section-sub">{rows.length} {t('đánh giá cần xem lại (tài khoản phụ / tự đánh giá)')}</p>
       {rows.length === 0
-        ? <p className="section-sub">Không có đánh giá nào đáng ngờ.</p>
+        ? <p className="section-sub">{t('Không có đánh giá nào đáng ngờ.')}</p>
         : (
           <div className="table-wrap" style={{ marginTop: 16 }}>
             <table className="admin-table">
               <thead>
-                <tr><th>Chỗ nghỉ</th><th>Người đánh giá</th><th>Điểm</th><th>Nguy cơ</th><th>Dấu hiệu</th><th /></tr>
+                <tr><th>{t('Chỗ nghỉ')}</th><th>{t('Người đánh giá')}</th><th>{t('Điểm')}</th><th>{t('Nguy cơ')}</th><th>{t('Dấu hiệu')}</th><th /></tr>
               </thead>
               <tbody>
                 {rows.map(r => (
@@ -263,7 +264,7 @@ function ReviewFraudPanel({ navigate }) {
                         {r.reasons.map((x, i) => <li key={i} className="meta">{x}</li>)}
                       </ul>
                     </td>
-                    <td><button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${r.listingId}`)}>Xem</button></td>
+                    <td><button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${r.listingId}`)}>{t('Xem')}</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -291,15 +292,15 @@ function NeighborReportsPanel() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Phản ánh hàng xóm</h2>
-      <p className="section-sub">{open} đang mở · {rows.length} tổng cộng</p>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Phản ánh hàng xóm')}</h2>
+      <p className="section-sub">{open} {t('đang mở')} · {rows.length} {t('tổng cộng')}</p>
       {rows.length === 0
-        ? <p className="section-sub">Chưa có phản ánh nào.</p>
+        ? <p className="section-sub">{t('Chưa có phản ánh nào.')}</p>
         : (
           <div className="table-wrap" style={{ marginTop: 16 }}>
             <table className="admin-table">
               <thead>
-                <tr><th>Địa điểm</th><th>Loại</th><th>Nội dung</th><th>Liên hệ</th><th>Trạng thái</th><th /></tr>
+                <tr><th>{t('Địa điểm')}</th><th>{t('Loại')}</th><th>{t('Nội dung')}</th><th>{t('Liên hệ')}</th><th>{t('Trạng thái')}</th><th /></tr>
               </thead>
               <tbody>
                 {rows.map(r => (
@@ -309,11 +310,11 @@ function NeighborReportsPanel() {
                     <td style={{ maxWidth: 280, whiteSpace: 'normal' }}>{r.detail}</td>
                     <td>{r.contact || '—'}</td>
                     <td><span className={`badge ${r.status === 'Open' ? 'pending' : 'confirmed'}`}>
-                      {r.status === 'Open' ? 'Mới' : r.status === 'Dismissed' ? 'Đã bỏ qua' : 'Đã xử lý'}</span></td>
+                      {r.status === 'Open' ? t('Mới') : r.status === 'Dismissed' ? t('Đã bỏ qua') : t('Đã xử lý')}</span></td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       {r.status === 'Open' && <>
-                        <button className="btn btn-outline btn-sm" onClick={() => resolve(r.id, 'Resolved')}>Đã xử lý</button>
-                        <button className="btn btn-outline btn-sm" onClick={() => resolve(r.id, 'Dismissed')}>Bỏ qua</button>
+                        <button className="btn btn-outline btn-sm" onClick={() => resolve(r.id, 'Resolved')}>{t('Đã xử lý')}</button>
+                        <button className="btn btn-outline btn-sm" onClick={() => resolve(r.id, 'Dismissed')}>{t('Bỏ qua')}</button>
                       </>}
                     </td>
                   </tr>
@@ -340,17 +341,17 @@ function DeclineMonitor() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Giám sát từ chối khách</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Giám sát từ chối khách')}</h2>
       <p className="section-sub">
-        {rows.length} chủ nhà có lượt từ chối · {flaggedTotal} lý do cần xem lại (nghi phân biệt đối xử)
+        {rows.length} {t('chủ nhà có lượt từ chối')} · {flaggedTotal} {t('lý do cần xem lại (nghi phân biệt đối xử)')}
       </p>
       {rows.length === 0
-        ? <p className="section-sub">Chưa có lượt từ chối nào.</p>
+        ? <p className="section-sub">{t('Chưa có lượt từ chối nào.')}</p>
         : (
           <div className="table-wrap" style={{ marginTop: 16 }}>
             <table className="admin-table">
               <thead>
-                <tr><th>Chủ nhà</th><th>Từ chối / Đã phản hồi</th><th>Tỉ lệ</th><th>Lý do cần xem lại</th></tr>
+                <tr><th>{t('Chủ nhà')}</th><th>{t('Từ chối / Đã phản hồi')}</th><th>{t('Tỉ lệ')}</th><th>{t('Lý do cần xem lại')}</th></tr>
               </thead>
               <tbody>
                 {rows.map(r => (
@@ -418,39 +419,39 @@ function HelpArticlesAdmin() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Bài viết trợ giúp</h2>
-      <p className="section-sub">{rows.length} bài · sửa nội dung trung tâm trợ giúp (AT-07)</p>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Bài viết trợ giúp')}</h2>
+      <p className="section-sub">{rows.length} {t('bài · sửa nội dung trung tâm trợ giúp (AT-07)')}</p>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '12px 0' }}>
-        <button className="btn btn-sm" onClick={() => setDraft({ ...BLANK_ARTICLE })}>+ Bài mới</button>
+        <button className="btn btn-sm" onClick={() => setDraft({ ...BLANK_ARTICLE })}>{t('+ Bài mới')}</button>
       </div>
 
       {draft && (
         <div style={{ padding: 14, border: '1px solid var(--line)', borderRadius: 12, marginBottom: 16 }}>
           <div className="field-grid">
-            <label className="form-field"><span className="cap">Tiêu đề *</span>
+            <label className="form-field"><span className="cap">{t('Tiêu đề *')}</span>
               <input value={draft.title} onChange={e => field('title', e.target.value)} /></label>
-            <label className="form-field"><span className="cap">Đường dẫn (slug)</span>
-              <input value={draft.slug} placeholder="tự tạo từ tiêu đề" onChange={e => field('slug', e.target.value)} /></label>
-            <label className="form-field"><span className="cap">Danh mục</span>
+            <label className="form-field"><span className="cap">{t('Đường dẫn (slug)')}</span>
+              <input value={draft.slug} placeholder={t('tự tạo từ tiêu đề')} onChange={e => field('slug', e.target.value)} /></label>
+            <label className="form-field"><span className="cap">{t('Danh mục')}</span>
               <input value={draft.category} onChange={e => field('category', e.target.value)} /></label>
-            <label className="form-field"><span className="cap">Đối tượng</span>
+            <label className="form-field"><span className="cap">{t('Đối tượng')}</span>
               <select value={draft.audience} onChange={e => field('audience', e.target.value)}>
-                <option value="Everyone">Chung</option>
-                <option value="Guest">Khách</option>
-                <option value="Host">Chủ nhà</option>
+                <option value="Everyone">{t('Chung')}</option>
+                <option value="Guest">{t('Khách')}</option>
+                <option value="Host">{t('Chủ nhà')}</option>
               </select></label>
-            <label className="form-field"><span className="cap">Thứ tự</span>
+            <label className="form-field"><span className="cap">{t('Thứ tự')}</span>
               <input type="number" value={draft.sortOrder} onChange={e => field('sortOrder', Number(e.target.value) || 0)} /></label>
           </div>
-          <label className="form-field"><span className="cap">Tóm tắt</span>
+          <label className="form-field"><span className="cap">{t('Tóm tắt')}</span>
             <input value={draft.summary} onChange={e => field('summary', e.target.value)} /></label>
-          <label className="form-field"><span className="cap">Nội dung *</span>
+          <label className="form-field"><span className="cap">{t('Nội dung *')}</span>
             <textarea rows={8} value={draft.body} onChange={e => field('body', e.target.value)}
               style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} /></label>
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            <button className="btn btn-primary btn-sm" onClick={save}>Lưu</button>
-            <button className="btn btn-outline btn-sm" onClick={() => setDraft(null)}>Huỷ</button>
+            <button className="btn btn-primary btn-sm" onClick={save}>{t('Lưu')}</button>
+            <button className="btn btn-outline btn-sm" onClick={() => setDraft(null)}>{t('Huỷ')}</button>
           </div>
         </div>
       )}
@@ -458,17 +459,17 @@ function HelpArticlesAdmin() {
       <div className="table-wrap">
         <table className="admin-table">
           <thead>
-            <tr><th>Bài</th><th>Danh mục</th><th>Đối tượng</th><th /></tr>
+            <tr><th>{t('Bài')}</th><th>{t('Danh mục')}</th><th>{t('Đối tượng')}</th><th /></tr>
           </thead>
           <tbody>
             {rows.map(a => (
               <tr key={a.id}>
                 <td><b>{a.title}</b><span>{a.slug}</span></td>
                 <td>{a.category}</td>
-                <td>{a.audience === 'Guest' ? 'Khách' : a.audience === 'Host' ? 'Chủ nhà' : 'Chung'}</td>
+                <td>{a.audience === 'Guest' ? t('Khách') : a.audience === 'Host' ? t('Chủ nhà') : t('Chung')}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
-                  <button className="btn btn-outline btn-sm" onClick={() => setDraft({ ...a })}>Sửa</button>
-                  <button className="btn btn-outline btn-sm" onClick={() => remove(a)}>Xoá</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => setDraft({ ...a })}>{t('Sửa')}</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => remove(a)}>{t('Xoá')}</button>
                 </td>
               </tr>
             ))}
@@ -510,12 +511,12 @@ function FeatureFlags() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Bật tính năng theo tỉ lệ</h2>
-      <p className="section-sub">{rows.length} tính năng · thay đổi áp dụng ở lần tải trang kế tiếp</p>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Bật tính năng theo tỉ lệ')}</h2>
+      <p className="section-sub">{rows.length} {t('tính năng · thay đổi áp dụng ở lần tải trang kế tiếp')}</p>
       <div className="table-wrap" style={{ marginTop: 16 }}>
         <table className="admin-table">
           <thead>
-            <tr><th>Tính năng</th><th>Trạng thái</th><th>Tỉ lệ (%)</th></tr>
+            <tr><th>{t('Tính năng')}</th><th>{t('Trạng thái')}</th><th>{t('Tỉ lệ (%)')}</th></tr>
           </thead>
           <tbody>
             {rows.map(f => (
@@ -524,7 +525,7 @@ function FeatureFlags() {
                 <td>
                   <button className={`pill ${f.enabled ? 'is-on' : ''}`}
                           onClick={() => save(f, { enabled: !f.enabled })}>
-                    {f.enabled ? 'Đang bật' : 'Đang tắt'}
+                    {f.enabled ? t('Đang bật') : t('Đang tắt')}
                   </button>
                 </td>
                 <td>
@@ -560,8 +561,8 @@ function Arbitration() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Phân xử tranh chấp</h2>
-      <p className="section-sub">{open.length} hồ sơ đang mở · {cases.length} tổng cộng</p>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Phân xử tranh chấp')}</h2>
+      <p className="section-sub">{open.length} {t('hồ sơ đang mở')} · {cases.length} {t('tổng cộng')}</p>
 
       <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
         {cases.map(c => <ArbitrationCase key={c.id} kase={c} onDone={load} />)}
@@ -593,21 +594,21 @@ function ArbitrationCase({ kase: c, onDone }) {
       <div style={{ minWidth: 0, flex: 1 }}>
         <h3>{c.kindLabel} · {c.listingTitle}</h3>
         <div className="meta">
-          Hồ sơ {c.reference} · đơn {c.bookingReference} · {c.openedByName} ({c.openedByHost ? 'chủ nhà' : 'khách'})
+          Hồ sơ {c.reference} · {t('đơn')} {c.bookingReference} · {c.openedByName} ({c.openedByHost ? t('chủ nhà') : t('khách')})
         </div>
         <div className="meta">
-          Yêu cầu <b style={{ color: 'var(--ink)' }}>{money(c.amountClaimed)}</b>
-          {c.amountAwarded > 0 && <> · đã chuyển <b style={{ color: 'var(--brand)' }}>{money(c.amountAwarded)}</b></>}
+          {t('Yêu cầu')} <b style={{ color: 'var(--ink)' }}>{money(c.amountClaimed)}</b>
+          {c.amountAwarded > 0 && <> · {t('đã chuyển')} <b style={{ color: 'var(--brand)' }}>{money(c.amountAwarded)}</b></>}
         </div>
         <p style={{ margin: '10px 0 0', fontSize: 13.5, lineHeight: 1.6, color: 'var(--ink-body)' }}>{c.description}</p>
         {c.response && (
           <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ink-muted)' }}>
-            <b>Bên kia:</b> {c.response}
+            <b>{t('Bên kia:')}</b> {c.response}
           </p>
         )}
         {c.decision && (
           <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--brand-dark)' }}>
-            <b>Đã phân xử:</b> {c.decision}
+            <b>{t('Đã phân xử:')}</b> {c.decision}
           </p>
         )}
         <span className={`badge ${c.statusBadge}`} style={{ marginTop: 8 }}>{c.statusLabel}</span>
@@ -615,17 +616,17 @@ function ArbitrationCase({ kase: c, onDone }) {
         {canDecide && (
           <form onSubmit={decide} style={{ marginTop: 14, maxWidth: 560 }}>
             <div className="field-grid">
-              <label className="form-field"><span className="cap">Số tiền chuyển (₫)</span>
+              <label className="form-field"><span className="cap">{t('Số tiền chuyển (₫)')}</span>
                 <input type="number" name="amount" min={0} step={10000}
                        defaultValue={c.amountClaimed} required /></label>
               <label className="form-field" style={{ gridColumn: '1/-1' }}>
-                <span className="cap">Lý do phân xử</span>
+                <span className="cap">{t('Lý do phân xử')}</span>
                 <input name="decision" required minLength={10}
-                       placeholder="Bằng chứng cho thấy thiệt hại có thật nhưng thấp hơn mức yêu cầu." />
+                       placeholder={t('Bằng chứng cho thấy thiệt hại có thật nhưng thấp hơn mức yêu cầu.')} />
               </label>
             </div>
             <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
-              {busy ? 'Đang xử lý…' : 'Phân xử và chuyển tiền'}
+              {busy ? t('Đang xử lý…') : t('Phân xử và chuyển tiền')}
             </button>
           </form>
         )}
@@ -649,24 +650,24 @@ function TaxRules({ settings }) {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Phí và thuế</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Phí và thuế')}</h2>
       <p className="section-sub">
-        Phí dịch vụ khách {Math.round(settings.guestServiceFeeRate * 100)}% ·
-        phí chủ nhà {Math.round(settings.hostServiceFeeRate * 100)}% ·
-        trần giảm giá {settings.maxDiscountPercent}%
+        {t('Phí dịch vụ khách')} {Math.round(settings.guestServiceFeeRate * 100)}% ·
+        {' '}{t('phí chủ nhà')} {Math.round(settings.hostServiceFeeRate * 100)}% ·
+        {' '}{t('trần giảm giá')} {settings.maxDiscountPercent}%
       </p>
 
       <div className="table-wrap" style={{ marginTop: 16 }}>
         <table className="admin-table">
           <thead>
-            <tr><th>Khu vực</th><th>Tên</th><th>Cách tính</th><th>Giá trị</th><th>Bật</th><th /></tr>
+            <tr><th>{t('Khu vực')}</th><th>{t('Tên')}</th><th>{t('Cách tính')}</th><th>{t('Giá trị')}</th><th>{t('Bật')}</th><th /></tr>
           </thead>
           <tbody>
             {rules.map(r => (
               <tr key={r.id}>
-                <td><b>{r.city ?? 'Toàn quốc'}</b><span>{r.country}</span></td>
+                <td><b>{r.city ?? t('Toàn quốc')}</b><span>{r.country}</span></td>
                 <td>{r.name}</td>
-                <td>{METHOD_LABELS[r.method] ?? r.method}</td>
+                <td>{t(METHOD_LABELS[r.method] ?? r.method)}</td>
                 <td>
                   <input type="number" step="0.0001" min="0" value={r.value} style={{ width: 120 }}
                          onChange={e => patch(r.id, 'value', Number(e.target.value))} />
@@ -675,7 +676,7 @@ function TaxRules({ settings }) {
                   <input type="checkbox" checked={r.isActive}
                          onChange={e => patch(r.id, 'isActive', e.target.checked)} />
                 </td>
-                <td><button className="btn btn-outline btn-sm" onClick={() => save(r)}>Lưu</button></td>
+                <td><button className="btn btn-outline btn-sm" onClick={() => save(r)}>{t('Lưu')}</button></td>
               </tr>
             ))}
           </tbody>
@@ -698,13 +699,13 @@ function AuditLog({ rows }) {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Nhật ký quản trị</h2>
-      <p className="section-sub">{rows.length} thao tác gần nhất</p>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Nhật ký quản trị')}</h2>
+      <p className="section-sub">{rows.length} {t('thao tác gần nhất')}</p>
 
       <div className="table-wrap" style={{ marginTop: 16 }}>
         <table className="admin-table">
           <thead>
-            <tr><th>Lúc</th><th>Người làm</th><th>Hành động</th><th>Đối tượng</th><th>Trước → sau</th></tr>
+            <tr><th>{t('Lúc')}</th><th>{t('Người làm')}</th><th>{t('Hành động')}</th><th>Đối tượng</th><th>{t('Trước → sau')}</th></tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
@@ -734,25 +735,25 @@ function LedgerPanel({ ledger }) {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Sổ ghi tiền</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Sổ ghi tiền')}</h2>
       <p className="section-sub">
-        {ledger.transactions} giao dịch · {ledger.entries} bút toán ·{' '}
+        {ledger.transactions} {t('giao dịch')} · {ledger.entries} {t('bút toán')} ·{' '}
         <span className={`badge ${balanced ? 'confirmed' : 'cancelled'}`}>
-          {balanced ? 'Cân bằng' : `LỆCH ${money(ledger.imbalance)}`}
+          {balanced ? t('Cân bằng') : `${t('LỆCH')} ${money(ledger.imbalance)}`}
         </span>
       </p>
 
       {!balanced && (
         <div className="book-alert is-error" style={{ marginTop: 12 }}>
-          <b>Sổ sách không cân</b>
-          <span>Tổng tiền vào không bằng tổng tiền ra. Dừng mọi thao tác tài chính và kiểm tra ngay.</span>
+          <b>{t('Sổ sách không cân')}</b>
+          <span>{t('Tổng tiền vào không bằng tổng tiền ra. Dừng mọi thao tác tài chính và kiểm tra ngay.')}</span>
         </div>
       )}
 
       <div className="table-wrap" style={{ marginTop: 16 }}>
         <table className="admin-table">
           <thead>
-            <tr><th>Tài khoản</th><th>Nợ</th><th>Có</th><th>Số dư</th></tr>
+            <tr><th>{t('Tài khoản')}</th><th>{t('Nợ')}</th><th>Có</th><th>{t('Số dư')}</th></tr>
           </thead>
           <tbody>
             {ledger.accounts.map(a => (
@@ -764,7 +765,7 @@ function LedgerPanel({ ledger }) {
               </tr>
             ))}
             {!ledger.accounts.length && (
-              <tr><td colSpan={4}>Chưa có giao dịch nào được ghi sổ.</td></tr>
+              <tr><td colSpan={4}>{t('Chưa có giao dịch nào được ghi sổ.')}</td></tr>
             )}
           </tbody>
         </table>
@@ -778,10 +779,10 @@ function Gate({ message, showLogin }) {
     <div className="shell" style={{ paddingBlock: '60px 90px' }}>
       <div className="empty-state">
         <h3>{message}</h3>
-        <p>Trang này dành cho đội vận hành StayHost.</p>
+        <p>{t('Trang này dành cho đội vận hành StayHost.')}</p>
         {showLogin && (
           <button className="btn btn-primary" style={{ marginTop: 18 }}
-                  onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>Đăng nhập</button>
+                  onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>{t('Đăng nhập')}</button>
         )}
       </div>
     </div>
@@ -849,19 +850,19 @@ function ShieldPanel() {
     <section style={{ marginTop: 40 }}>
       <h2 className="section-title" style={{ fontSize: 20 }}>StayShield</h2>
       <p className="section-sub">
-        Chính sách hỗ trợ của sàn. Quyết định nào cũng phải nêu lý do và được ghi vào nhật ký.
+        {t('Chính sách hỗ trợ của sàn. Quyết định nào cũng phải nêu lý do và được ghi vào nhật ký.')}
       </p>
 
       {fund && (
         <div className="stat-grid" style={{ marginTop: 16 }}>
-          <Stat label="Số dư quỹ" value={money(fund.balance)}
-                note={`Trích ${(fund.contributionRate * 100).toFixed(0)}% phí dịch vụ`} />
-          <Stat label="Trích tháng này" value={money(fund.contributedThisMonth)} note="Từ doanh thu phí" />
-          <Stat label="Chi tháng này" value={money(fund.spentThisMonth)}
+          <Stat label={t('Số dư quỹ')} value={money(fund.balance)}
+                note={`${t('Trích')} ${(fund.contributionRate * 100).toFixed(0)}% ${t('phí dịch vụ')}`} />
+          <Stat label={t('Trích tháng này')} value={money(fund.contributedThisMonth)} note={t('Từ doanh thu phí')} />
+          <Stat label={t('Chi tháng này')} value={money(fund.spentThisMonth)}
                 note={fund.alarm
-                  ? `Vượt ngưỡng ${(fund.alarmRate * 100).toFixed(0)}% — báo tài chính`
-                  : 'Trong ngưỡng'} />
-          <Stat label="Thu hồi tháng này" value={money(fund.recoveredThisMonth)} note="Hoàn lại quỹ" />
+                  ? `${t('Vượt ngưỡng')} ${(fund.alarmRate * 100).toFixed(0)}% ${t('— báo tài chính')}`
+                  : t('Trong ngưỡng')} />
+          <Stat label={t('Thu hồi tháng này')} value={money(fund.recoveredThisMonth)} note={t('Hoàn lại quỹ')} />
         </div>
       )}
 
@@ -871,36 +872,36 @@ function ShieldPanel() {
             <article className="host-booking" key={c.id}>
               <div style={{ minWidth: 0 }}>
                 <h3>{c.kindLabel} · {c.reference}</h3>
-                <div className="meta">{c.listingTitle} · đơn {c.bookingReference} · {c.openedByName}</div>
+                <div className="meta">{c.listingTitle} · {t('đơn')} {c.bookingReference} · {c.openedByName}</div>
                 <div className="meta">{c.description}</div>
-                {c.claimed > 0 && <div className="meta">Yêu cầu {money(c.claimed)}</div>}
-                {c.approved > 0 && <div className="meta">Đã duyệt {money(c.approved)}
-                  {c.paidFromFund > 0 ? ` · quỹ chi ${money(c.paidFromFund)}` : ''}</div>}
-                <div className="meta">Hạn ra quyết định {dateTime(c.decisionDueAt)}</div>
+                {c.claimed > 0 && <div className="meta">{t('Yêu cầu')} {money(c.claimed)}</div>}
+                {c.approved > 0 && <div className="meta">{t('Đã duyệt')} {money(c.approved)}
+                  {c.paidFromFund > 0 ? ` · ${t('quỹ chi')} ${money(c.paidFromFund)}` : ''}</div>}
+                <div className="meta">{t('Hạn ra quyết định')} {dateTime(c.decisionDueAt)}</div>
                 <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                   <span className={`badge ${c.statusBadge}`}>{c.statusLabel}</span>
-                  {c.needsManualReview && <span className="badge pending">Duyệt tay</span>}
-                  {c.appealed && <span className="badge pending">Khiếu nại</span>}
+                  {c.needsManualReview && <span className="badge pending">{t('Duyệt tay')}</span>}
+                  {c.appealed && <span className="badge pending">{t('Khiếu nại')}</span>}
                 </div>
               </div>
               <div className="host-booking-actions">
                 {(c.status !== 'Settled' && c.status !== 'Rejected') && <>
-                  <button className="btn btn-primary btn-sm" onClick={() => decide(c, true)}>Chấp nhận</button>
-                  <button className="btn btn-outline btn-sm" onClick={() => decide(c, false)}>Từ chối</button>
+                  <button className="btn btn-primary btn-sm" onClick={() => decide(c, true)}>{t('Chấp nhận')}</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => decide(c, false)}>{t('Từ chối')}</button>
                 </>}
                 {c.side === 'Guest' && (
                   <button className="btn btn-outline btn-sm" onClick={async () => {
                     try { setRehousing(await api.shieldRehousing(c.id)); }
                     catch (err) { toast(err.message); }
-                  }}>Tìm chỗ thay thế</button>
+                  }}>{t('Tìm chỗ thay thế')}</button>
                 )}
                 {c.paidFromFund > c.recoveredLater &&
-                  <button className="btn btn-outline btn-sm" onClick={() => recover(c)}>Thu hồi</button>}
+                  <button className="btn btn-outline btn-sm" onClick={() => recover(c)}>{t('Thu hồi')}</button>}
               </div>
             </article>
           ))}
         </div>
-      ) : <p className="section-sub" style={{ marginTop: 16 }}>Không có hồ sơ nào đang mở.</p>}
+      ) : <p className="section-sub" style={{ marginTop: 16 }}>{t('Không có hồ sơ nào đang mở.')}</p>}
 
       <Rehousing data={rehousing} onClose={() => setRehousing(null)} />
     </section>
@@ -919,37 +920,37 @@ function Rehousing({ data, onClose }) {
     <div className="rehouse">
       <div className="rehouse-head">
         <div style={{ minWidth: 0 }}>
-          <b>Chỗ thay thế cho hồ sơ {data.reference}</b>
+          <b>{t('Chỗ thay thế cho hồ sơ')} {data.reference}</b>
           <div className="meta">
-            {data.city} · {data.nights} đêm còn lại ({data.from} → {data.to}) · {data.guests} khách ·
-            {' '}khách đã trả {money(data.alreadyPaid)} cho những đêm này
+            {data.city} · {data.nights} {t('đêm còn lại')} ({data.from} → {data.to}) · {data.guests} {t('khách')} ·
+            {' '}{t('khách đã trả')} {money(data.alreadyPaid)} {t('cho những đêm này')}
           </div>
-          <div className="meta">Sàn bù chênh lệch tối đa {money(data.topUpCeiling)}</div>
+          <div className="meta">{t('Sàn bù chênh lệch tối đa')} {money(data.topUpCeiling)}</div>
         </div>
-        <button className="btn btn-outline btn-sm" onClick={onClose}>Đóng</button>
+        <button className="btn btn-outline btn-sm" onClick={onClose}>{t('Đóng')}</button>
       </div>
 
       {data.options.length ? (
         <div className="table-wrap" style={{ marginTop: 12 }}>
           <table className="admin-table">
             <thead>
-              <tr><th>Chỗ nghỉ</th><th>Sức chứa</th><th>Cách</th>
-                <th style={{ textAlign: 'right' }}>Giá</th>
-                <th style={{ textAlign: 'right' }}>Chênh lệch</th><th /></tr>
+              <tr><th>{t('Chỗ nghỉ')}</th><th>{t('Sức chứa')}</th><th>{t('Cách')}</th>
+                <th style={{ textAlign: 'right' }}>{t('Giá')}</th>
+                <th style={{ textAlign: 'right' }}>{t('Chênh lệch')}</th><th /></tr>
             </thead>
             <tbody>
               {data.options.map(o => (
                 <tr key={o.listingId}>
                   <td><b>{o.title}</b><span>{o.typeLabel} · ★ {o.rating.toFixed(2)} ({o.reviewCount})</span></td>
-                  <td>{o.maxGuests} khách · {o.bedrooms} phòng ngủ</td>
+                  <td>{o.maxGuests} {t('khách')} · {o.bedrooms} {t('phòng ngủ')}</td>
                   <td>{o.distanceKm} km</td>
                   <td style={{ textAlign: 'right' }}>{money(o.total)}</td>
                   <td style={{ textAlign: 'right' }}>
-                    {o.difference > 0 ? `+${money(o.difference)}` : 'Không chênh'}
+                    {o.difference > 0 ? `+${money(o.difference)}` : t('Không chênh')}
                   </td>
                   <td>
                     <span className={`badge ${o.withinTopUp ? 'confirmed' : 'pending'}`}>
-                      {o.withinTopUp ? 'Trong hạn mức' : 'Cần duyệt thêm'}
+                      {o.withinTopUp ? t('Trong hạn mức') : t('Cần duyệt thêm')}
                     </span>
                   </td>
                 </tr>
@@ -959,7 +960,7 @@ function Rehousing({ data, onClose }) {
         </div>
       ) : (
         <p className="section-sub" style={{ marginTop: 12 }}>
-          Không còn chỗ nào trống ở {data.city} cho những ngày này. Chuyển sang mức 2 hoặc mức 3.
+          {t('Không còn chỗ nào trống ở')} {data.city} {t('cho những ngày này. Chuyển sang mức 2 hoặc mức 3.')}
         </p>
       )}
     </div>
@@ -989,9 +990,9 @@ function RiskPanel() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Cảnh báo bất thường</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Cảnh báo bất thường')}</h2>
       <p className="section-sub">
-        Máy chỉ đánh dấu để người xem lại — không đơn nào bị chặn vì những dấu hiệu này.
+        {t('Máy chỉ đánh dấu để người xem lại — không đơn nào bị chặn vì những dấu hiệu này.')}
       </p>
 
       {flags.length ? (
@@ -1003,19 +1004,19 @@ function RiskPanel() {
                 <div className="meta">{f.detail}</div>
                 <div className="meta">
                   {f.userName} · {f.userEmail}
-                  {f.bookingReference ? ` · đơn ${f.bookingReference}` : ''}
+                  {f.bookingReference ? ` · ${t('đơn')} ${f.bookingReference}` : ''}
                   {' · '}{dateTime(f.createdAt)}
                 </div>
                 <span className={`badge ${f.severityBadge}`} style={{ marginTop: 8 }}>{f.severityLabel}</span>
               </div>
               <div className="host-booking-actions">
-                <button className="btn btn-primary btn-sm" onClick={() => resolve(f, true)}>Đã xử lý</button>
-                <button className="btn btn-outline btn-sm" onClick={() => resolve(f, false)}>Bỏ qua</button>
+                <button className="btn btn-primary btn-sm" onClick={() => resolve(f, true)}>{t('Đã xử lý')}</button>
+                <button className="btn btn-outline btn-sm" onClick={() => resolve(f, false)}>{t('Bỏ qua')}</button>
               </div>
             </article>
           ))}
         </div>
-      ) : <p className="section-sub">Không có cảnh báo nào đang mở.</p>}
+      ) : <p className="section-sub">{t('Không có cảnh báo nào đang mở.')}</p>}
     </section>
   );
 }
@@ -1046,26 +1047,26 @@ function SupportQueue() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Phiếu hỗ trợ ({tickets.length})</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Phiếu hỗ trợ')} ({tickets.length})</h2>
       {tickets.length ? (
         <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
-          {tickets.map(t => (
-            <article className="host-booking" key={t.id}>
+          {tickets.map(ticket => (
+            <article className="host-booking" key={ticket.id}>
               <div style={{ minWidth: 0 }}>
                 <h3>
-                  {t.urgent && <span className="badge cancelled" style={{ marginRight: 8 }}>Khẩn cấp</span>}
-                  {t.subject}
+                  {ticket.urgent && <span className="badge cancelled" style={{ marginRight: 8 }}>{t('Khẩn cấp')}</span>}
+                  {ticket.subject}
                 </h3>
-                <div className="meta">{t.requesterName}{t.bookingReference ? ` · đơn ${t.bookingReference}` : ''} · {longDate(t.createdAt.slice(0, 10))}</div>
-                <div className="meta" style={{ whiteSpace: 'pre-wrap' }}>{t.message}</div>
+                <div className="meta">{ticket.requesterName}{ticket.bookingReference ? ` · ${t('đơn')} ${ticket.bookingReference}` : ''} · {longDate(ticket.createdAt.slice(0, 10))}</div>
+                <div className="meta" style={{ whiteSpace: 'pre-wrap' }}>{ticket.message}</div>
               </div>
               <div className="host-booking-actions">
-                <button className="btn btn-primary btn-sm" onClick={() => resolve(t)}>Xử lý</button>
+                <button className="btn btn-primary btn-sm" onClick={() => resolve(ticket)}>{t('Xử lý')}</button>
               </div>
             </article>
           ))}
         </div>
-      ) : <p className="section-sub">Không có phiếu hỗ trợ nào đang mở.</p>}
+      ) : <p className="section-sub">{t('Không có phiếu hỗ trợ nào đang mở.')}</p>}
     </section>
   );
 }

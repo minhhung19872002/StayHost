@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../lib/useStore.js';
 import { toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
+import { t } from '../lib/i18n.js';
 
 /**
  * docs/01 CĐ-10, CĐ-11 — merge bookings into one trip and build a day-by-day
@@ -16,7 +17,7 @@ export function TripPlans() {
   useEffect(() => { if (state.user) load(); }, [state.user]);
 
   if (!state.user) return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
-    <div className="empty-state"><h3>Đăng nhập để lên lịch trình chuyến đi</h3></div></div>;
+    <div className="empty-state"><h3>{t('Đăng nhập để lên lịch trình chuyến đi')}</h3></div></div>;
   if (!plans) return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
     <div className="sk-line skeleton" style={{ width: 220, height: 26 }} /></div>;
 
@@ -36,28 +37,28 @@ export function TripPlans() {
     <div className="shell" style={{ paddingBlock: '28px 90px', maxWidth: 820 }}>
       <div className="page-head">
         <div>
-          <h1 className="section-title">Lịch trình chuyến đi</h1>
-          <p className="section-sub">Gộp nhiều đơn thành một chuyến, lên lịch theo ngày, mời bạn cùng thêm địa điểm.</p>
+          <h1 className="section-title">{t('Lịch trình chuyến đi')}</h1>
+          <p className="section-sub">{t('Gộp nhiều đơn thành một chuyến, lên lịch theo ngày, mời bạn cùng thêm địa điểm.')}</p>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={create}>+ Chuyến mới</button>
+        <button className="btn btn-primary btn-sm" onClick={create}>+ {t('Chuyến mới')}</button>
       </div>
 
       {plans.length === 0
-        ? <div className="empty-state" style={{ marginTop: 20 }}><h3>Chưa có chuyến nào</h3>
-            <p>Tạo một chuyến rồi thêm các đơn đã đặt vào.</p></div>
+        ? <div className="empty-state" style={{ marginTop: 20 }}><h3>{t('Chưa có chuyến nào')}</h3>
+            <p>{t('Tạo một chuyến rồi thêm các đơn đã đặt vào.')}</p></div>
         : <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
             {plans.map(p => (
               <div key={p.id} style={{ border: '1px solid var(--line)', borderRadius: 12, padding: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                   <div>
                     <b>{p.name}</b>
-                    <div className="meta">{p.bookingCount} đơn · {p.memberCount} bạn cùng đi{p.isOwner ? '' : ' · được mời'}</div>
+                    <div className="meta">{p.bookingCount} {t('đơn')} · {p.memberCount} {t('bạn cùng đi')}{p.isOwner ? '' : ` · ${t('được mời')}`}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button className="btn btn-outline btn-sm" onClick={() => setOpenId(openId === p.id ? null : p.id)}>
-                      {openId === p.id ? 'Đóng' : 'Mở'}
+                      {openId === p.id ? t('Đóng') : t('Mở')}
                     </button>
-                    {p.isOwner && <button className="btn btn-outline btn-sm" onClick={() => remove(p.id)}>Xoá</button>}
+                    {p.isOwner && <button className="btn btn-outline btn-sm" onClick={() => remove(p.id)}>{t('Xoá')}</button>}
                   </div>
                 </div>
                 {openId === p.id && <TripDetail id={p.id} onChanged={load} />}
@@ -108,44 +109,44 @@ function TripDetail({ id, onChanged }) {
   return (
     <div style={{ marginTop: 14, borderTop: '1px solid var(--divider)', paddingTop: 12 }}>
       {/* Bookings in the trip */}
-      <h4 style={{ margin: '0 0 6px', fontWeight: 800 }}>Đơn trong chuyến</h4>
-      {d.bookings.length === 0 ? <p className="meta">Chưa có đơn nào.</p>
+      <h4 style={{ margin: '0 0 6px', fontWeight: 800 }}>{t('Đơn trong chuyến')}</h4>
+      {d.bookings.length === 0 ? <p className="meta">{t('Chưa có đơn nào.')}</p>
         : d.bookings.map(b => (
             <div className="verify-row" key={b.bookingId}>
               <div style={{ flex: 1, minWidth: 0 }}><b>{b.listingTitle}</b>
                 <div className="meta">{b.city} · {b.checkIn} → {b.checkOut}</div></div>
-              {d.isOwner && <button className="btn btn-outline btn-sm" onClick={() => removeBooking(b.bookingId)}>Bỏ</button>}
+              {d.isOwner && <button className="btn btn-outline btn-sm" onClick={() => removeBooking(b.bookingId)}>{t('Bỏ')}</button>}
             </div>
           ))}
       {d.isOwner && addable.length > 0 && (
         <div style={{ marginTop: 6 }}>
           <select className="field" style={{ maxWidth: 320 }} defaultValue=""
                   onChange={e => { if (e.target.value) addBooking(Number(e.target.value)); e.target.value = ''; }}>
-            <option value="">+ Thêm đơn đã đặt…</option>
+            <option value="">+ {t('Thêm đơn đã đặt…')}</option>
             {addable.map(b => <option key={b.id} value={b.id}>{b.listingTitle} ({b.checkIn})</option>)}
           </select>
         </div>
       )}
 
       {/* Companions */}
-      <h4 style={{ margin: '16px 0 6px', fontWeight: 800 }}>Cùng đi</h4>
+      <h4 style={{ margin: '16px 0 6px', fontWeight: 800 }}>{t('Cùng đi')}</h4>
       <div className="chip-wrap">
-        {d.members.map(m => <span className="quick-chip" key={m.userId}>{m.name}{m.isOwner ? ' (chủ)' : ''}</span>)}
+        {d.members.map(m => <span className="quick-chip" key={m.userId}>{m.name}{m.isOwner ? ` (${t('chủ')})` : ''}</span>)}
       </div>
       {d.isOwner && invitable.length > 0 && (
         <select className="field" style={{ maxWidth: 320, marginTop: 6 }} defaultValue=""
                 onChange={e => { if (e.target.value) invite(Number(e.target.value)); e.target.value = ''; }}>
-          <option value="">+ Mời bạn bè…</option>
+          <option value="">+ {t('Mời bạn bè…')}</option>
           {invitable.map(f => <option key={f.userId} value={f.userId}>{f.name}</option>)}
         </select>
       )}
 
       {/* Itinerary by day */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0 6px' }}>
-        <h4 style={{ margin: 0, fontWeight: 800 }}>Lịch trình theo ngày</h4>
-        {d.canEdit && <button className="btn btn-outline btn-sm" onClick={addItem}>+ Thêm địa điểm</button>}
+        <h4 style={{ margin: 0, fontWeight: 800 }}>{t('Lịch trình theo ngày')}</h4>
+        {d.canEdit && <button className="btn btn-outline btn-sm" onClick={addItem}>+ {t('Thêm địa điểm')}</button>}
       </div>
-      {days.length === 0 ? <p className="meta">Chưa có mục nào. {d.canEdit ? 'Bấm “Thêm địa điểm”.' : ''}</p>
+      {days.length === 0 ? <p className="meta">{t('Chưa có mục nào.')} {d.canEdit ? t('Bấm “Thêm địa điểm”.') : ''}</p>
         : days.map(day => (
             <div key={day} style={{ marginBottom: 8 }}>
               <div className="meta" style={{ fontWeight: 700 }}>{day}</div>
@@ -154,7 +155,7 @@ function TripDetail({ id, onChanged }) {
                   <div style={{ flex: 1, minWidth: 0 }}>{it.title}
                     {it.note && <span className="meta"> · {it.note}</span>}
                     <span className="meta"> · {it.addedBy}</span></div>
-                  {d.canEdit && <button className="text-btn" onClick={() => removeItem(it.id)}>Xoá</button>}
+                  {d.canEdit && <button className="text-btn" onClick={() => removeItem(it.id)}>{t('Xoá')}</button>}
                 </div>
               ))}
             </div>

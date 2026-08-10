@@ -6,6 +6,7 @@ import { api } from '../lib/api.js';
 import { Avatar } from '../components/Avatar.jsx';
 import { Card } from '../components/Card.jsx';
 import { Icon } from '../components/Icon.jsx';
+import { t } from '../lib/i18n.js';
 
 /**
  * docs/01 TK-05, docs/02 C6 — somebody's public profile. Open to anybody, so it
@@ -73,26 +74,26 @@ export function UserProfile() {
   const facts = [
     p.location && ['map', p.location],
     p.occupation && ['workspace', p.occupation],
-    p.languages.length && ['globe', `Nói ${p.languages.join(', ')}`]
+    p.languages.length && ['globe', `${t('Nói')} ${p.languages.join(', ')}`]
   ].filter(Boolean);
 
   return (
     <div className="shell" style={{ paddingBlock: '24px 90px' }}>
-      <button className="back-link" onClick={() => navigate(-1)}>← Quay lại</button>
+      <button className="back-link" onClick={() => navigate(-1)}>← {t('Quay lại')}</button>
 
       <div className="profile-head">
         <div className="profile-card">
           <Avatar url={p.avatarUrl} initials={p.initials} className="host-avatar" size={96} />
           <h1 className="profile-name">{p.displayName}</h1>
           <p className="profile-role">
-            {p.isHost ? (p.isSuperhost ? 'Siêu chủ nhà' : 'Chủ nhà') : 'Khách'}
+            {p.isHost ? (p.isSuperhost ? t('Siêu chủ nhà') : t('Chủ nhà')) : t('Khách')}
           </p>
 
           {p.isHost && p.reviewCount > 0 && (
             <div className="profile-stats">
-              <div><b>{p.reviewCount}</b><span>Đánh giá</span></div>
-              {p.rating != null && <div><b>{p.rating} ★</b><span>Điểm trung bình</span></div>}
-              {p.responseRate && <div><b>{p.responseRate}</b><span>Tỉ lệ phản hồi</span></div>}
+              <div><b>{p.reviewCount}</b><span>{t('Đánh giá')}</span></div>
+              {p.rating != null && <div><b>{p.rating} ★</b><span>{t('Điểm trung bình')}</span></div>}
+              {p.responseRate && <div><b>{p.responseRate}</b><span>{t('Tỉ lệ phản hồi')}</span></div>}
             </div>
           )}
         </div>
@@ -118,7 +119,7 @@ export function UserProfile() {
           {p.bio && <p className="profile-bio">{p.bio}</p>}
 
           {!!p.interests.length && <>
-            <h2 className="profile-sub">Sở thích</h2>
+            <h2 className="profile-sub">{t('Sở thích')}</h2>
             <div className="chip-wrap">
               {p.interests.map(i => <span className="quick-chip" key={i}>{i}</span>)}
             </div>
@@ -126,24 +127,24 @@ export function UserProfile() {
 
           {isMe
             ? <button className="btn" style={{ marginTop: 18 }}
-                      onClick={() => openOverlay('profile')}>Chỉnh sửa hồ sơ</button>
+                      onClick={() => openOverlay('profile')}>{t('Chỉnh sửa hồ sơ')}</button>
             : <div style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
                 {p.isHost && p.listings.length > 0 && (
                   <button className="btn"
                           onClick={() => navigate(`/rooms/${p.listings[0].slug}`)}>
-                    Xem chỗ nghỉ để nhắn tin
+                    {t('Xem chỗ nghỉ để nhắn tin')}
                   </button>
                 )}
                 {/* docs/01 XH-01 — kết bạn / huỷ kết bạn. */}
                 {state.user && (
                   isFriend
-                    ? <button className="btn btn-outline" onClick={removeFriend}>Bạn bè ✓</button>
-                    : <button className="btn btn-primary" onClick={addFriend}>Kết bạn</button>
+                    ? <button className="btn btn-outline" onClick={removeFriend}>{t('Bạn bè')} ✓</button>
+                    : <button className="btn btn-primary" onClick={addFriend}>{t('Kết bạn')}</button>
                 )}
                 {/* docs/01 AT-10 — chặn hoặc bỏ chặn người dùng này. */}
                 {state.user && (
                   <button className="btn btn-outline" onClick={toggleBlock}>
-                    {blocked ? 'Bỏ chặn' : 'Chặn người dùng'}
+                    {blocked ? t('Bỏ chặn') : t('Chặn người dùng')}
                   </button>
                 )}
               </div>}
@@ -151,9 +152,9 @@ export function UserProfile() {
           {/* docs/01 XH-01/XH-02 — nơi người này đã đi và sắp đi (nếu được xem). */}
           {journey && (journey.been.length > 0 || journey.upcoming.length > 0) && (
             <div style={{ marginTop: 20 }}>
-              <h2 className="profile-sub">Hành trình</h2>
+              <h2 className="profile-sub">{t('Hành trình')}</h2>
               {journey.upcoming.length > 0 && <>
-                <div className="meta" style={{ fontWeight: 700, marginTop: 6 }}>Sắp đi</div>
+                <div className="meta" style={{ fontWeight: 700, marginTop: 6 }}>{t('Sắp đi')}</div>
                 <div className="chip-wrap">
                   {journey.upcoming.map((s, i) => (
                     <span className="quick-chip" key={`u${i}`}>{s.city} · {s.when}</span>
@@ -161,12 +162,12 @@ export function UserProfile() {
                 </div>
               </>}
               {journey.been.length > 0 && <>
-                <div className="meta" style={{ fontWeight: 700, marginTop: 10 }}>Đã đến</div>
+                <div className="meta" style={{ fontWeight: 700, marginTop: 10 }}>{t('Đã đến')}</div>
                 <div className="chip-wrap">
                   {journey.been.slice(0, 20).map((s, i) => (
                     <span className="quick-chip" key={`b${i}`}
                           style={isFriend ? { cursor: 'pointer' } : undefined}
-                          title={isFriend ? 'Hỏi bạn về nơi này' : undefined}
+                          title={isFriend ? t('Hỏi bạn về nơi này') : undefined}
                           onClick={() => { if (isFriend) askAbout(s); }}>
                       {s.city}{isFriend ? ' 💬' : ''}
                     </span>
@@ -183,18 +184,18 @@ export function UserProfile() {
 
       {!!p.listings.length && <>
         <h2 className="section-title" style={{ marginTop: 40 }}>
-          Chỗ nghỉ của {p.displayName}
+          {t('Chỗ nghỉ của')} {p.displayName}
         </h2>
         <div className="card-grid" style={{ marginTop: 16 }}>
           {p.listings.map(c => <Card key={c.id} card={c} />)}
         </div>
       </>}
 
-      <ReviewList title={`Đánh giá về ${p.displayName} với vai trò chủ nhà`} items={p.reviewsAsHost} />
-      <ReviewList title={`Đánh giá về ${p.displayName} với vai trò khách`} items={p.reviewsAsGuest} />
+      <ReviewList title={`${t('Đánh giá về')} ${p.displayName} ${t('với vai trò chủ nhà')}`} items={p.reviewsAsHost} />
+      <ReviewList title={`${t('Đánh giá về')} ${p.displayName} ${t('với vai trò khách')}`} items={p.reviewsAsGuest} />
 
       {!p.reviewsAsHost.length && !p.reviewsAsGuest.length && (
-        <p className="section-sub" style={{ marginTop: 32 }}>Chưa có đánh giá nào.</p>
+        <p className="section-sub" style={{ marginTop: 32 }}>{t('Chưa có đánh giá nào.')}</p>
       )}
 
       {/* docs/01 AT-02 — reporting a person, not just something they wrote. Kept
@@ -204,7 +205,7 @@ export function UserProfile() {
         <div style={{ marginTop: 40, borderTop: '1px solid var(--divider)', paddingTop: 20 }}>
           <button className="text-btn"
                   onClick={() => openReport('user', Number(id), p.displayName)}>
-            ⚑ Báo cáo người dùng này
+            ⚑ {t('Báo cáo người dùng này')}
           </button>
         </div>
       )}
@@ -262,22 +263,22 @@ function FriendChat({ userId, name }) {
   if (!msgs) return null;
   return (
     <div style={{ marginTop: 22 }}>
-      <h2 className="profile-sub">Nhắn tin với {name}</h2>
+      <h2 className="profile-sub">{t('Nhắn tin với')} {name}</h2>
       <div style={{ display: 'grid', gap: 6, margin: '8px 0', maxHeight: 260, overflowY: 'auto' }}>
         {msgs.length === 0
-          ? <p className="meta">Chưa có tin nhắn. Hỏi bạn ấy về một nơi đã ở!</p>
+          ? <p className="meta">{t('Chưa có tin nhắn. Hỏi bạn ấy về một nơi đã ở!')}</p>
           : msgs.map(m => (
               <div key={m.id} className={`bubble ${m.mine ? 'mine' : ''}`}>
-                {m.listingTitle && <span className="bubble-note">Về: {m.listingTitle}</span>}
+                {m.listingTitle && <span className="bubble-note">{t('Về:')} {m.listingTitle}</span>}
                 <p>{m.body}</p>
               </div>
             ))}
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <input style={{ flex: 1, padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 16 }}
-               value={text} placeholder="Nhắn cho bạn…" onChange={e => setText(e.target.value)}
+               value={text} placeholder={t('Nhắn cho bạn…')} onChange={e => setText(e.target.value)}
                onKeyDown={e => { if (e.key === 'Enter') send(); }} />
-        <button className="btn btn-primary btn-sm" disabled={busy || !text.trim()} onClick={send}>Gửi</button>
+        <button className="btn btn-primary btn-sm" disabled={busy || !text.trim()} onClick={send}>{t('Gửi')}</button>
       </div>
     </div>
   );

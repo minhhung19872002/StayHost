@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Card } from '../components/Card.jsx';
+import { t } from '../lib/i18n.js';
 
 /**
  * docs/01 TM-26 — a landing page for one city, so a visitor arriving from a
@@ -24,9 +25,9 @@ export function City() {
     return (
       <div className="shell" style={{ paddingBlock: '40px 90px' }}>
         <div className="empty-state">
-          <h3>Chưa có chỗ nghỉ ở nơi này</h3>
-          <p>StayHost chưa có tin đăng nào cho thành phố bạn tìm.</p>
-          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={() => navigate('/')}>Về trang chủ</button>
+          <h3>{t('Chưa có chỗ nghỉ ở nơi này')}</h3>
+          <p>{t('StayHost chưa có tin đăng nào cho thành phố bạn tìm.')}</p>
+          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={() => navigate('/')}>{t('Về trang chủ')}</button>
         </div>
       </div>
     );
@@ -40,9 +41,9 @@ export function City() {
 
   return (
     <div className="shell" style={{ paddingBlock: '28px 80px' }}>
-      <h1 className="section-title" style={{ fontSize: 28 }}>Chỗ nghỉ tại {page.city}</h1>
+      <h1 className="section-title" style={{ fontSize: 28 }}>{t('Chỗ nghỉ tại')} {page.city}</h1>
       <p className="section-sub" style={{ maxWidth: 720, fontSize: 15, lineHeight: 1.6 }}>{page.blurb}</p>
-      <p className="section-sub">{page.count} chỗ nghỉ đang mở đặt</p>
+      <p className="section-sub">{page.count} {t('chỗ nghỉ đang mở đặt')}</p>
 
       <div className="card-grid" style={{ marginTop: 20 }}>
         {page.listings.map(c => <Card key={c.id} card={c} lazy />)}
@@ -50,7 +51,7 @@ export function City() {
 
       <div style={{ marginTop: 28 }}>
         <button className="btn btn-dark" onClick={() => navigate(`/?q=${encodeURIComponent(page.city)}`)}>
-          Xem tất cả chỗ nghỉ ở {page.city}
+          {t('Xem tất cả chỗ nghỉ ở')} {page.city}
         </button>
       </div>
     </div>

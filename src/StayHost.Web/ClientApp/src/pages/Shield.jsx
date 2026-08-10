@@ -4,6 +4,7 @@ import { useStore } from '../lib/useStore.js';
 import { set, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate, dateTime } from '../lib/format.js';
+import { t } from '../lib/i18n.js';
 
 /** Who did a thing, in words rather than in the actor codes the server stores. */
 const ACTOR = { guest: 'Khách', host: 'Chủ nhà', admin: 'StayHost', system: 'Tự động' };
@@ -37,7 +38,7 @@ export function ShieldTerms() {
       <div className="seg-tabs" style={{ marginTop: 16 }}>
         {[['guest', 'Dành cho khách'], ['host', 'Dành cho chủ nhà']].map(([key, label]) => (
           <button key={key} className={`seg-tab ${side === key ? 'is-active' : ''}`}
-                  onClick={() => setSide(key)}>{label}</button>
+                  onClick={() => setSide(key)}>{t(label)}</button>
         ))}
       </div>
 
@@ -52,15 +53,15 @@ export function ShieldTerms() {
         ))}
 
         <section className="detail-section">
-          <h2>Không áp dụng khi</h2>
+          <h2>{t('Không áp dụng khi')}</h2>
           <ul className="shield-list is-muted">{terms.exclusions.map((p, i) => <li key={i}>{p}</li>)}</ul>
         </section>
 
         <p className="shield-disclaimer">{terms.disclaimer}</p>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
-          <button className="btn btn-primary btn-sm" onClick={() => navigate('/shield')}>Hồ sơ của tôi</button>
-          <button className="btn btn-outline btn-sm" onClick={() => navigate('/help')}>Trung tâm trợ giúp</button>
+          <button className="btn btn-primary btn-sm" onClick={() => navigate('/shield')}>{t('Hồ sơ của tôi')}</button>
+          <button className="btn btn-outline btn-sm" onClick={() => navigate('/help')}>{t('Trung tâm trợ giúp')}</button>
         </div>
       </>}
     </div>
@@ -80,19 +81,19 @@ function Overview() {
 
   if (!state.user) {
     return <div className="shell" style={{ paddingBlock: '60px 90px' }}>
-      <div className="empty-state"><h3>Đăng nhập để xem hồ sơ StayShield</h3>
+      <div className="empty-state"><h3>{t('Đăng nhập để xem hồ sơ StayShield')}</h3>
         <button className="btn btn-primary" style={{ marginTop: 18 }}
-                onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>Đăng nhập</button>
+                onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>{t('Đăng nhập')}</button>
       </div></div>;
   }
 
   return (
     <div className="shell" style={{ paddingBlock: '30px 90px' }}>
       <span className="shield-mark">StayShield</span>
-      <h1 className="section-title" style={{ marginTop: 10 }}>Hồ sơ StayShield</h1>
+      <h1 className="section-title" style={{ marginTop: 10 }}>{t('Hồ sơ StayShield')}</h1>
       <p className="section-sub">
-        Chính sách hỗ trợ của StayHost cho cả khách và chủ nhà.
-        {' '}<button className="text-btn" onClick={() => navigate('/shield/terms')}>Xem phạm vi và hạn mức</button>
+        {t('Chính sách hỗ trợ của StayHost cho cả khách và chủ nhà.')}
+        {' '}<button className="text-btn" onClick={() => navigate('/shield/terms')}>{t('Xem phạm vi và hạn mức')}</button>
       </p>
 
       {!rows ? <div className="stat skeleton" style={{ height: 200, border: 0, marginTop: 24 }} />
@@ -102,10 +103,10 @@ function Overview() {
           </div>
         ) : (
           <div className="empty-state" style={{ marginTop: 24 }}>
-            <h3>Chưa có hồ sơ nào</h3>
-            <p>Khi chuyến đi có vấn đề, mở hồ sơ ngay trong trang chuyến đi.</p>
+            <h3>{t('Chưa có hồ sơ nào')}</h3>
+            <p>{t('Khi chuyến đi có vấn đề, mở hồ sơ ngay trong trang chuyến đi.')}</p>
             <button className="btn btn-primary" style={{ marginTop: 18 }}
-                    onClick={() => navigate('/trips')}>Chuyến đi của tôi</button>
+                    onClick={() => navigate('/trips')}>{t('Chuyến đi của tôi')}</button>
           </div>
         )}
     </div>
@@ -117,14 +118,14 @@ function ClaimRow({ claim, onOpen }) {
     <article className="host-booking">
       <div style={{ minWidth: 0 }}>
         <h3>{claim.kindLabel}</h3>
-        <div className="meta">{claim.listingTitle} · đơn {claim.bookingReference} · mã {claim.reference}</div>
+        <div className="meta">{claim.listingTitle} · {t('đơn')} {claim.bookingReference} · {t('mã')} {claim.reference}</div>
         <div className="meta">{claim.description}</div>
-        {claim.approved > 0 && <div className="meta">Đã duyệt {money(claim.approved)}</div>}
-        {claim.decision && <div className="meta">Kết luận: {claim.decision}</div>}
+        {claim.approved > 0 && <div className="meta">{t('Đã duyệt')} {money(claim.approved)}</div>}
+        {claim.decision && <div className="meta">{t('Kết luận:')} {claim.decision}</div>}
         <span className={`badge ${claim.statusBadge}`} style={{ marginTop: 8 }}>{claim.statusLabel}</span>
       </div>
       <div className="host-booking-actions">
-        <button className="btn btn-outline btn-sm" onClick={onOpen}>Xem hồ sơ</button>
+        <button className="btn btn-outline btn-sm" onClick={onOpen}>{t('Xem hồ sơ')}</button>
       </div>
     </article>
   );
@@ -143,9 +144,9 @@ function Claim({ id }) {
 
   if (missing) {
     return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
-      <div className="empty-state"><h3>Không tìm thấy hồ sơ này</h3>
+      <div className="empty-state"><h3>{t('Không tìm thấy hồ sơ này')}</h3>
         <button className="btn btn-primary" style={{ marginTop: 18 }}
-                onClick={() => navigate('/shield')}>Về danh sách hồ sơ</button></div></div>;
+                onClick={() => navigate('/shield')}>{t('Về danh sách hồ sơ')}</button></div></div>;
   }
 
   if (!c) return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
@@ -154,19 +155,19 @@ function Claim({ id }) {
   const respond = async (answer, agreed) => {
     setBusy(true);
     try {
-      const note = prompt(answer === 'dispute' ? 'Vì sao bạn phản đối?' : 'Ghi chú (không bắt buộc)') ?? '';
+      const note = prompt(answer === 'dispute' ? t('Vì sao bạn phản đối?') : `${t('Ghi chú')} ${t('(không bắt buộc)')}`) ?? '';
       setC(await api.respondShield(c.id, { answer, agreedAmount: agreed ?? null, note: note.trim() || null }));
-      toast('Đã gửi phản hồi.');
+      toast(t('Đã gửi phản hồi.'));
     } catch (err) { toast(err.message); } finally { setBusy(false); }
   };
 
   const appeal = async () => {
-    const note = prompt('Bạn muốn chúng tôi xem lại điều gì?') ?? '';
+    const note = prompt(t('Bạn muốn chúng tôi xem lại điều gì?')) ?? '';
     if (!note.trim()) return;
     setBusy(true);
     try {
       setC(await api.appealShield(c.id, note.trim()));
-      toast('Đã gửi khiếu nại. Một người khác sẽ xem lại.');
+      toast(t('Đã gửi khiếu nại. Một người khác sẽ xem lại.'));
     } catch (err) { toast(err.message); } finally { setBusy(false); }
   };
 
@@ -180,29 +181,29 @@ function Claim({ id }) {
       <span className="shield-mark" style={{ marginTop: 12 }}>StayShield</span>
       <h1 className="section-title" style={{ marginTop: 8 }}>{c.kindLabel}</h1>
       <p className="section-sub">
-        Mã {c.reference} · đơn {c.bookingReference} · {c.listingTitle}
-        {' '}· mở ngày {longDate(c.createdAt.slice(0, 10))}
+        {t('Mã')} {c.reference} · {t('đơn')} {c.bookingReference} · {c.listingTitle}
+        {' '}· {t('mở ngày')} {longDate(c.createdAt.slice(0, 10))}
       </p>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
         <span className={`badge ${c.statusBadge}`}>{c.statusLabel}</span>
-        {c.needsManualReview && <span className="badge pending">Cần người xem lại</span>}
-        {c.appealed && <span className="badge pending">Đã khiếu nại một lần</span>}
+        {c.needsManualReview && <span className="badge pending">{t('Cần người xem lại')}</span>}
+        {c.appealed && <span className="badge pending">{t('Đã khiếu nại một lần')}</span>}
       </div>
 
       <section className="detail-section">
-        <h2>Nội dung</h2>
+        <h2>{t('Nội dung')}</h2>
         <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--ink-body)' }}>{c.description}</p>
 
         {!!c.items.length && (
           <div className="table-wrap" style={{ marginTop: 14 }}>
             <table className="admin-table">
-              <thead><tr><th>Món</th><th style={{ textAlign: 'right' }}>Giá trị</th>
-                <th style={{ textAlign: 'right' }}>Được tính</th></tr></thead>
+              <thead><tr><th>{t('Món')}</th><th style={{ textAlign: 'right' }}>{t('Giá trị')}</th>
+                <th style={{ textAlign: 'right' }}>{t('Được tính')}</th></tr></thead>
               <tbody>
                 {c.items.map(i => (
                   <tr key={i.id}>
-                    <td>{i.name}{i.declaredOnListing ? ' · đã khai báo' : ''}</td>
+                    <td>{i.name}{i.declaredOnListing ? ` · ${t('đã khai báo')}` : ''}</td>
                     <td style={{ textAlign: 'right' }}>{money(i.value)}</td>
                     <td style={{ textAlign: 'right' }}>{money(i.allowed)}</td>
                   </tr>
@@ -216,7 +217,7 @@ function Claim({ id }) {
           <div className="bubble-photos" style={{ marginTop: 14 }}>
             {c.evidence.map(e => (
               <a href={e.url} target="_blank" rel="noreferrer" key={e.id}>
-                <img src={e.url} alt={e.caption ?? 'Bằng chứng'} loading="lazy" />
+                <img src={e.url} alt={e.caption ?? t('Bằng chứng')} loading="lazy" />
               </a>
             ))}
           </div>
@@ -225,11 +226,11 @@ function Claim({ id }) {
 
       {(c.approved > 0 || c.creditGranted > 0) && (
         <section className="detail-section">
-          <h2>Kết quả</h2>
+          <h2>{t('Kết quả')}</h2>
           <div className="kv-grid">
-            <Kv label="Được duyệt" value={money(c.approved)} />
-            {c.deductible > 0 && <Kv label="Bạn tự chịu" value={money(c.deductible)} />}
-            {c.creditGranted > 0 && <Kv label="Số dư tặng thêm" value={money(c.creditGranted)} />}
+            <Kv label={t('Được duyệt')} value={money(c.approved)} />
+            {c.deductible > 0 && <Kv label={t('Bạn tự chịu')} value={money(c.deductible)} />}
+            {c.creditGranted > 0 && <Kv label={t('Số dư tặng thêm')} value={money(c.creditGranted)} />}
           </div>
           {c.decision && (
             <p style={{ margin: '14px 0 0', fontSize: 14.5, lineHeight: 1.7, color: 'var(--ink-body)' }}>
@@ -241,42 +242,42 @@ function Claim({ id }) {
 
       {waiting && !c.openedByMe && (
         <section className="detail-section">
-          <h2>Bạn có 24 giờ để phản hồi</h2>
-          <p className="section-sub">Hạn phản hồi: {dateTime(c.respondBy)}</p>
+          <h2>{t('Bạn có 24 giờ để phản hồi')}</h2>
+          <p className="section-sub">{t('Hạn phản hồi:')} {dateTime(c.respondBy)}</p>
           <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
             <button className="btn btn-primary btn-sm" disabled={busy}
-                    onClick={() => respond('accept')}>Đồng ý</button>
+                    onClick={() => respond('accept')}>{t('Đồng ý')}</button>
             {c.claimed > 0 && (
               <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => {
-                const raw = prompt(`Bạn đồng ý bao nhiêu trong ${money(c.claimed)}?`);
+                const raw = prompt(`${t('Bạn đồng ý bao nhiêu trong')} ${money(c.claimed)}?`);
                 const amount = Number((raw ?? '').replace(/\D/g, ''));
                 if (amount > 0) respond('partial', amount);
-              }}>Đồng ý một phần</button>
+              }}>{t('Đồng ý một phần')}</button>
             )}
             <button className="btn btn-outline btn-sm" disabled={busy}
-                    onClick={() => respond('dispute')}>Phản đối</button>
+                    onClick={() => respond('dispute')}>{t('Phản đối')}</button>
           </div>
         </section>
       )}
 
       {waiting && c.openedByMe && (
         <div className="book-alert" style={{ marginTop: 20 }}>
-          <b>Đang chờ bên kia phản hồi</b>
-          <span>Hết {dateTime(c.respondBy)} mà không có trả lời thì StayHost sẽ tự xem xét.</span>
+          <b>{t('Đang chờ bên kia phản hồi')}</b>
+          <span>{t('Hết')} {dateTime(c.respondBy)} {t('mà không có trả lời thì StayHost sẽ tự xem xét.')}</span>
         </div>
       )}
 
       {canAppeal && c.openedByMe && (
         <section className="detail-section">
-          <h2>Chưa đồng ý với quyết định?</h2>
-          <p className="section-sub">Bạn khiếu nại được một lần, trong 7 ngày. Người khác sẽ xem lại.</p>
+          <h2>{t('Chưa đồng ý với quyết định?')}</h2>
+          <p className="section-sub">{t('Bạn khiếu nại được một lần, trong 7 ngày. Người khác sẽ xem lại.')}</p>
           <button className="btn btn-outline btn-sm" style={{ marginTop: 12 }}
-                  disabled={busy} onClick={appeal}>Yêu cầu xem lại</button>
+                  disabled={busy} onClick={appeal}>{t('Yêu cầu xem lại')}</button>
         </section>
       )}
 
       <section className="detail-section">
-        <h2>Diễn biến</h2>
+        <h2>{t('Diễn biến')}</h2>
         <div style={{ display: 'grid', gap: 10 }}>
           {c.events.map(e => (
             <div className="cal-row" key={e.id}>
@@ -285,7 +286,7 @@ function Claim({ id }) {
                 <b>{e.toStatusLabel}</b>
                 {e.note && <span style={{ color: 'var(--ink-muted)' }}> · {e.note}</span>}
               </div>
-              <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>{ACTOR[e.actor.split(':')[0]] ?? e.actor}</span>
+              <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>{t(ACTOR[e.actor.split(':')[0]] ?? e.actor)}</span>
             </div>
           ))}
         </div>

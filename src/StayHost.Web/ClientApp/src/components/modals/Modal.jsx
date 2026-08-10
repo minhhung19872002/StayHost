@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { closeOverlay } from '../../lib/store.js';
+import { t } from '../../lib/i18n.js';
 
 /**
  * Shared chrome for every overlay: backdrop click and Escape close it, and the
@@ -20,7 +21,7 @@ export function Modal({ title, size = '', children, foot }) {
     <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) closeOverlay(); }}>
       <div className={`modal ${size}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal-head">
-          <button className="modal-close" onClick={closeOverlay} aria-label="Đóng">✕</button>
+          <button className="modal-close" onClick={closeOverlay} aria-label={t('Đóng')}>✕</button>
           <h2>{title}</h2>
           <span style={{ width: 32 }} />
         </div>
@@ -38,9 +39,9 @@ export function CountRow({ label, hint, value, display, onDec, onInc, decDisable
       <div className="tx"><b>{label}</b>{hint && <span>{hint}</span>}</div>
       <div className="count-ctl">
         <button type="button" className="round-btn" onClick={onDec}
-                disabled={decDisabled} aria-label={`Giảm ${label}`}>−</button>
+                disabled={decDisabled} aria-label={`${t('Giảm')} ${label}`}>−</button>
         <span className="num">{display ?? value}</span>
-        <button type="button" className="round-btn" onClick={onInc} aria-label={`Tăng ${label}`}>+</button>
+        <button type="button" className="round-btn" onClick={onInc} aria-label={`${t('Tăng')} ${label}`}>+</button>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Card } from '../components/Card.jsx';
+import { t } from '../lib/i18n.js';
 
 /**
  * docs/01 YT-05 — a wishlist shared by link, read-only, for anyone who has it.
@@ -21,9 +22,9 @@ export function SharedWishlist() {
     return (
       <div className="shell" style={{ paddingBlock: '40px 90px' }}>
         <div className="empty-state">
-          <h3>Không mở được danh sách này</h3>
-          <p>Liên kết có thể đã bị chủ danh sách tắt chia sẻ.</p>
-          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={() => navigate('/')}>Về trang chủ</button>
+          <h3>{t('Không mở được danh sách này')}</h3>
+          <p>{t('Liên kết có thể đã bị chủ danh sách tắt chia sẻ.')}</p>
+          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={() => navigate('/')}>{t('Về trang chủ')}</button>
         </div>
       </div>
     );
@@ -38,7 +39,7 @@ export function SharedWishlist() {
   return (
     <div className="shell" style={{ paddingBlock: '28px 80px' }}>
       <h1 className="section-title" style={{ fontSize: 26 }}>{detail.list.name}</h1>
-      <p className="section-sub">Danh sách yêu thích được chia sẻ · {detail.items.length} chỗ nghỉ</p>
+      <p className="section-sub">{t('Danh sách yêu thích được chia sẻ')} · {detail.items.length} {t('chỗ nghỉ')}</p>
 
       {detail.items.length ? (
         <div className="card-grid" style={{ marginTop: 20 }}>
@@ -50,7 +51,7 @@ export function SharedWishlist() {
           ))}
         </div>
       ) : (
-        <p className="section-sub" style={{ marginTop: 24 }}>Danh sách này chưa có chỗ nghỉ nào.</p>
+        <p className="section-sub" style={{ marginTop: 24 }}>{t('Danh sách này chưa có chỗ nghỉ nào.')}</p>
       )}
     </div>
   );

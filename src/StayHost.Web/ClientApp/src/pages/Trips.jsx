@@ -4,6 +4,7 @@ import { useStore } from '../lib/useStore.js';
 import { set, loadBookings, requireAuth, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate } from '../lib/format.js';
+import { t } from '../lib/i18n.js';
 
 // Status wording and badge colour come from the server (BookingLifecycle), so
 // the ten states of docs/03 §3 read the same everywhere.
@@ -40,10 +41,10 @@ export function Deadline({ booking }) {
   if (minutes <= 0) return null;
 
   const label = booking.holdExpiresAt
-    ? `Giữ chỗ còn ${minutes} phút`
+    ? `${t('Giữ chỗ còn')} ${minutes} ${t('phút')}`
     : minutes < 60
-      ? `Chủ nhà còn ${minutes} phút để trả lời`
-      : `Chủ nhà còn ${Math.round(minutes / 60)} giờ để trả lời`;
+      ? `${t('Chủ nhà còn')} ${minutes} ${t('phút để trả lời')}`
+      : `${t('Chủ nhà còn')} ${Math.round(minutes / 60)} ${t('giờ để trả lời')}`;
 
   return <span className="badge pending">{label}</span>;
 }
@@ -58,39 +59,39 @@ export function Trips() {
 
   return (
     <div className="shell" style={{ paddingBlock: '30px 90px' }}>
-      <h1 className="section-title">Chuyến đi của tôi</h1>
-      <p className="section-sub">{items.length} lượt đặt chỗ</p>
+      <h1 className="section-title">{t('Chuyến đi của tôi')}</h1>
+      <p className="section-sub">{items.length} {t('lượt đặt chỗ')}</p>
 
       {items.length ? items.map(b => (
           <article className="trip" key={b.id}>
             <img src={b.listingImage} alt={b.listingTitle} loading="lazy" decoding="async" />
             <div style={{ minWidth: 0 }}>
               <h3>{b.listingTitle}</h3>
-              <div className="meta">{b.listingCity} · Mã đặt chỗ {b.reference}</div>
+              <div className="meta">{b.listingCity} · {t('Mã đặt chỗ')} {b.reference}</div>
               <div className="meta">
-                {longDate(b.checkIn)} → {longDate(b.checkOut)} · {b.nights} đêm · {b.guests} khách
+                {longDate(b.checkIn)} → {longDate(b.checkOut)} · {b.nights} {t('đêm')} · {b.guests} {t('khách')}
               </div>
               <div className="meta">
-                <b style={{ color: 'var(--ink)' }}>{money(b.total)}</b> tổng cộng ·
-                thanh toán {PAYMENT[b.paymentStatus] ?? b.paymentStatus}
+                <b style={{ color: 'var(--ink)' }}>{money(b.total)}</b> {t('tổng cộng')} ·
+                {t('thanh toán')} {t(PAYMENT[b.paymentStatus] ?? b.paymentStatus)}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                 <span className={`badge ${b.statusBadge}`}>{b.statusLabel}</span>
-                {b.hasReview && <span className="badge confirmed">Đã đánh giá</span>}
+                {b.hasReview && <span className="badge confirmed">{t('Đã đánh giá')}</span>}
                 <Deadline booking={b} />
               </div>
             </div>
             <div style={{ display: 'grid', gap: 8 }}>
-              <button className="btn btn-dark btn-sm" onClick={() => navigate(`/trips/${b.id}`)}>Chi tiết &amp; hoá đơn</button>
-              {b.canReview && <button className="btn btn-primary btn-sm" onClick={() => openReview(b)}>Viết đánh giá</button>}
-              {b.canCancel && <button className="btn btn-outline btn-sm" onClick={() => previewCancel(b.id)}>Huỷ đặt chỗ</button>}
+              <button className="btn btn-dark btn-sm" onClick={() => navigate(`/trips/${b.id}`)}>{t('Chi tiết & hoá đơn')}</button>
+              {b.canReview && <button className="btn btn-primary btn-sm" onClick={() => openReview(b)}>{t('Viết đánh giá')}</button>}
+              {b.canCancel && <button className="btn btn-outline btn-sm" onClick={() => previewCancel(b.id)}>{t('Huỷ đặt chỗ')}</button>}
             </div>
           </article>
       )) : (
         <div className="empty-state" style={{ marginTop: 24 }}>
-          <h3>Chưa có chuyến đi nào</h3>
-          <p>Khi bạn đặt chỗ, thông tin chuyến đi sẽ hiện ở đây.</p>
-          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={() => navigate('/')}>Tìm chỗ nghỉ</button>
+          <h3>{t('Chưa có chuyến đi nào')}</h3>
+          <p>{t('Khi bạn đặt chỗ, thông tin chuyến đi sẽ hiện ở đây.')}</p>
+          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={() => navigate('/')}>{t('Tìm chỗ nghỉ')}</button>
         </div>
       )}
     </div>

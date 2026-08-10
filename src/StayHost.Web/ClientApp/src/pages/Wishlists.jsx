@@ -6,6 +6,7 @@ import { api } from '../lib/api.js';
 import { money } from '../lib/format.js';
 import { Card } from '../components/Card.jsx';
 import { Icon } from '../components/Icon.jsx';
+import { t } from '../lib/i18n.js';
 
 /** docs/01 YT-05 — turn a shareable link on/off and copy it. */
 function ShareWishlist({ list, onChanged }) {
@@ -28,9 +29,9 @@ function ShareWishlist({ list, onChanged }) {
   return (
     <>
       <button className="btn btn-outline btn-sm" onClick={toggle}>
-        {shared ? 'Tắt chia sẻ' : 'Chia sẻ'}
+        {shared ? t('Tắt chia sẻ') : t('Chia sẻ')}
       </button>
-      {shared && <button className="btn btn-dark btn-sm" onClick={copy}>Sao chép liên kết</button>}
+      {shared && <button className="btn btn-dark btn-sm" onClick={copy}>{t('Sao chép liên kết')}</button>}
     </>
   );
 }
@@ -51,7 +52,7 @@ function WishlistNote({ listId, listingId, note, onSaved }) {
   if (!editing) {
     return (
       <button className="wishlist-note-btn" onClick={() => { setText(note ?? ''); setEditing(true); }}>
-        {note ? `📝 ${note}` : '+ Thêm ghi chú'}
+        {note ? `📝 ${note}` : `+ ${t('Thêm ghi chú')}`}
       </button>
     );
   }
@@ -59,11 +60,11 @@ function WishlistNote({ listId, listingId, note, onSaved }) {
   return (
     <div className="wishlist-note-edit">
       <textarea rows={2} value={text} maxLength={500} autoFocus
-                placeholder="Ghi chú cho riêng bạn về chỗ này…"
+                placeholder={t('Ghi chú cho riêng bạn về chỗ này…')}
                 onChange={e => setText(e.target.value)} />
       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 6 }}>
-        <button className="btn btn-outline btn-sm" onClick={() => setEditing(false)}>Huỷ</button>
-        <button className="btn btn-dark btn-sm" onClick={save}>Lưu</button>
+        <button className="btn btn-outline btn-sm" onClick={() => setEditing(false)}>{t('Huỷ')}</button>
+        <button className="btn btn-dark btn-sm" onClick={save}>{t('Lưu')}</button>
       </div>
     </div>
   );
@@ -97,12 +98,12 @@ function Index() {
     <div className="shell" style={{ paddingBlock: '30px 90px' }}>
       <div className="page-head">
         <div>
-          <h1 className="section-title">Danh sách yêu thích</h1>
+          <h1 className="section-title">{t('Danh sách yêu thích')}</h1>
           <p className="section-sub">
-            {lists.length} danh sách · {lists.reduce((n, l) => n + l.count, 0)} chỗ nghỉ đã lưu
+            {lists.length} {t('danh sách')} · {lists.reduce((n, l) => n + l.count, 0)} {t('chỗ nghỉ đã lưu')}
           </p>
         </div>
-        <button className="btn btn-outline btn-sm" onClick={create}>+ Tạo danh sách</button>
+        <button className="btn btn-outline btn-sm" onClick={create}>+ {t('Tạo danh sách')}</button>
       </div>
 
       {lists.length ? (
@@ -119,16 +120,16 @@ function Index() {
               </div>
               <div className="wl-body">
                 <b>{list.name}</b>
-                <span>{list.count} chỗ nghỉ{list.isDefault ? ' · mặc định' : ''}</span>
+                <span>{list.count} {t('chỗ nghỉ')}{list.isDefault ? ` · ${t('mặc định')}` : ''}</span>
               </div>
             </article>
           ))}
         </div>
       ) : (
         <div className="empty-state" style={{ marginTop: 24 }}>
-          <h3>Chưa lưu chỗ nghỉ nào</h3>
-          <p>Nhấn ♥ trên bất kỳ chỗ nghỉ để lưu lại đây.</p>
-          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={() => navigate('/')}>Khám phá chỗ nghỉ</button>
+          <h3>{t('Chưa lưu chỗ nghỉ nào')}</h3>
+          <p>{t('Nhấn ♥ trên bất kỳ chỗ nghỉ để lưu lại đây.')}</p>
+          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={() => navigate('/')}>{t('Khám phá chỗ nghỉ')}</button>
         </div>
       )}
     </div>
@@ -139,7 +140,7 @@ function Index() {
 function CompareTable({ cards, onClose, navigate }) {
   const rows = [
     ['Giá / đêm', c => money(c.pricePerNight)],
-    ['Đánh giá', c => c.reviewCount ? `★ ${c.rating.toFixed(2)} (${c.reviewCount})` : 'Chưa có'],
+    ['Đánh giá', c => c.reviewCount ? `★ ${c.rating.toFixed(2)} (${c.reviewCount})` : t('Chưa có')],
     ['Thành phố', c => c.city],
     ['Loại', c => c.roomTypeLabel],
     ['Khách tối đa', c => `${c.maxGuests}`],
@@ -154,8 +155,8 @@ function CompareTable({ cards, onClose, navigate }) {
   return (
     <section style={{ marginTop: 20, marginBottom: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <h2 className="section-title" style={{ fontSize: 18 }}>So sánh {cards.length} chỗ</h2>
-        <button className="text-btn" onClick={onClose}>Đóng</button>
+        <h2 className="section-title" style={{ fontSize: 18 }}>{t('So sánh')} {cards.length} {t('chỗ')}</h2>
+        <button className="text-btn" onClick={onClose}>{t('Đóng')}</button>
       </div>
       <div className="table-wrap">
         <table className="admin-table compare-table">
@@ -173,7 +174,7 @@ function CompareTable({ cards, onClose, navigate }) {
           <tbody>
             {rows.map(([label, fn]) => (
               <tr key={label}>
-                <td style={{ fontWeight: 600, color: 'var(--ink-muted)' }}>{label}</td>
+                <td style={{ fontWeight: 600, color: 'var(--ink-muted)' }}>{t(label)}</td>
                 {cards.map(c => <td key={c.id}>{fn(c)}</td>)}
               </tr>
             ))}
@@ -219,21 +220,21 @@ function One() {
   return (
     <div className="shell" style={{ paddingBlock: '26px 90px' }}>
       <button className="back-link" onClick={() => { set({ activeWishlist: null }); loadWishlists(); }}>
-        ← Tất cả danh sách
+        ← {t('Tất cả danh sách')}
       </button>
 
       <div className="page-head" style={{ marginTop: 8 }}>
         <div>
           <h1 className="section-title">{list.name}</h1>
-          <p className="section-sub">{list.count} chỗ nghỉ</p>
+          <p className="section-sub">{list.count} {t('chỗ nghỉ')}</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn btn-outline btn-sm" onClick={rename}>Đổi tên</button>
+          <button className="btn btn-outline btn-sm" onClick={rename}>{t('Đổi tên')}</button>
           {detail.items.length >= 2 && (
-            <button className="btn btn-outline btn-sm" onClick={openCompare}>So sánh</button>
+            <button className="btn btn-outline btn-sm" onClick={openCompare}>{t('So sánh')}</button>
           )}
           <ShareWishlist list={list} onChanged={() => openWishlist(list.id)} />
-          {!list.isDefault && <button className="btn btn-outline btn-sm" onClick={remove}>Xoá danh sách</button>}
+          {!list.isDefault && <button className="btn btn-outline btn-sm" onClick={remove}>{t('Xoá danh sách')}</button>}
         </div>
       </div>
 
@@ -251,9 +252,9 @@ function One() {
         </div>
       ) : (
         <div className="empty-state" style={{ marginTop: 24 }}>
-          <h3>Danh sách này còn trống</h3>
-          <p>Nhấn ♥ trên chỗ nghỉ bạn thích để thêm vào đây.</p>
-          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={() => navigate('/')}>Khám phá chỗ nghỉ</button>
+          <h3>{t('Danh sách này còn trống')}</h3>
+          <p>{t('Nhấn ♥ trên chỗ nghỉ bạn thích để thêm vào đây.')}</p>
+          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={() => navigate('/')}>{t('Khám phá chỗ nghỉ')}</button>
         </div>
       )}
     </div>

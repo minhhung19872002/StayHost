@@ -5,6 +5,13 @@ import zh from './i18n/zh.js';
 import fr from './i18n/fr.js';
 import de from './i18n/de.js';
 import es from './i18n/es.js';
+import pagesEn from './i18n/pages-en.js';
+import pagesJa from './i18n/pages-ja.js';
+import pagesKo from './i18n/pages-ko.js';
+import pagesZh from './i18n/pages-zh.js';
+import pagesFr from './i18n/pages-fr.js';
+import pagesDe from './i18n/pages-de.js';
+import pagesEs from './i18n/pages-es.js';
 
 /**
  * docs/01 — interface translation, the dictionary way (like every localised site):
@@ -329,7 +336,15 @@ const EN = {
  * Any key missing from a language falls back to English, then to the Vietnamese
  * source — so a partially filled language stays readable rather than broken.
  */
-const DICT = { en: EN, ja, ko, zh, fr, de, es };
+const DICT = {
+  en: { ...EN, ...pagesEn },
+  ja: { ...ja, ...pagesJa },
+  ko: { ...ko, ...pagesKo },
+  zh: { ...zh, ...pagesZh },
+  fr: { ...fr, ...pagesFr },
+  de: { ...de, ...pagesDe },
+  es: { ...es, ...pagesEs },
+};
 
 export function t(s) {
   const code = state.language?.code || 'vi';

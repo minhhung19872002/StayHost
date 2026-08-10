@@ -6,6 +6,7 @@ import { api } from '../lib/api.js';
 import { money, longDate, dateTime } from '../lib/format.js';
 import { Icon } from '../components/Icon.jsx';
 import { Deadline, previewCancel, openReview } from './Trips.jsx';
+import { t } from '../lib/i18n.js';
 
 const PAYMENT = {
   Pending: 'Đang chờ',
@@ -47,12 +48,12 @@ export function Trip() {
 
   return (
     <div className="shell" style={{ paddingBlock: '24px 90px' }}>
-      <button className="back-link" onClick={() => navigate('/trips')}>← Tất cả chuyến đi</button>
+      <button className="back-link" onClick={() => navigate('/trips')}>← {t('Tất cả chuyến đi')}</button>
 
       <div className="page-head" style={{ marginTop: 10 }}>
         <div>
           <h1 className="section-title">{b.listingTitle}</h1>
-          <p className="section-sub">{b.listingCity} · mã đặt chỗ <b>{b.reference}</b></p>
+          <p className="section-sub">{b.listingCity} · {t('mã đặt chỗ')} <b>{b.reference}</b></p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <span className={`badge ${b.statusBadge}`}>{b.statusLabel}</span>
@@ -65,19 +66,19 @@ export function Trip() {
       <div className="trip-layout">
         <div style={{ minWidth: 0 }}>
           <section className="detail-section" style={{ paddingTop: 0 }}>
-            <h2>Chuyến đi của bạn</h2>
+            <h2>{t('Chuyến đi của bạn')}</h2>
             <div className="kv-grid">
               {/* docs/01 CĐ-03 — the listing's own hours, not a hardcoded pair. */}
-              <Kv label="Nhận phòng" value={longDate(b.checkIn)} hint={arrivalHint(b, 'in')} />
-              <Kv label="Trả phòng" value={longDate(b.checkOut)} hint={arrivalHint(b, 'out')} />
-              <Kv label="Số đêm" value={`${b.nights} đêm`} />
-              <Kv label="Khách" value={`${b.guests} khách`} />
-              <Kv label="Chủ nhà" value={b.hostName} />
-              <Kv label="Đặt lúc" value={longDate(b.createdAt.slice(0, 10))} />
+              <Kv label={t('Nhận phòng')} value={longDate(b.checkIn)} hint={arrivalHint(b, 'in')} />
+              <Kv label={t('Trả phòng')} value={longDate(b.checkOut)} hint={arrivalHint(b, 'out')} />
+              <Kv label={t('Số đêm')} value={`${b.nights} ${t('đêm')}`} />
+              <Kv label={t('Khách')} value={`${b.guests} ${t('khách')}`} />
+              <Kv label={t('Chủ nhà')} value={b.hostName} />
+              <Kv label={t('Đặt lúc')} value={longDate(b.createdAt.slice(0, 10))} />
             </div>
             {b.guestNote && (
               <p style={{ margin: '16px 0 0', fontSize: 14, color: 'var(--ink-body)' }}>
-                <b>Lời nhắn:</b> {b.guestNote}
+                <b>{t('Lời nhắn:')}</b> {b.guestNote}
               </p>
             )}
           </section>
@@ -85,24 +86,24 @@ export function Trip() {
           <CheckInSection booking={b} />
 
           <section className="detail-section">
-            <h2>Chính sách huỷ</h2>
+            <h2>{t('Chính sách huỷ')}</h2>
             <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.6, color: 'var(--ink-body)' }}>
               <b>{b.cancellationTier}</b> — {b.cancellationSummary}
             </p>
             {b.refundedAmount > 0 && (
               <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--brand-dark)' }}>
-                Đã hoàn {money(b.refundedAmount)} về phương thức thanh toán ban đầu.
+                {t('Đã hoàn')} {money(b.refundedAmount)} {t('về phương thức thanh toán ban đầu.')}
               </p>
             )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
               {b.canCancel && (
                 <button className="btn btn-outline btn-sm"
-                        onClick={() => previewCancel(b.id)}>Huỷ chuyến đi</button>
+                        onClick={() => previewCancel(b.id)}>{t('Huỷ chuyến đi')}</button>
               )}
               {/* docs/01 CĐ-12 — get help scoped to this exact booking. */}
               <button className="btn btn-outline btn-sm"
                       onClick={() => navigate('/resolutions', { state: { bookingId: b.id } })}>
-                Cần trợ giúp với đơn này
+                {t('Cần trợ giúp với đơn này')}
               </button>
             </div>
           </section>
@@ -116,11 +117,11 @@ export function Trip() {
           <History events={b.history} />
 
           <section className="detail-section">
-            <h2>Hỗ trợ</h2>
+            <h2>{t('Hỗ trợ')}</h2>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button className="btn btn-outline btn-sm" onClick={messageHost}>Nhắn tin cho chủ nhà</button>
-              <button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${b.listingSlug}`)}>Xem chỗ nghỉ</button>
-              {b.canReview && <button className="btn btn-primary btn-sm" onClick={() => openReview(b)}>Viết đánh giá</button>}
+              <button className="btn btn-outline btn-sm" onClick={messageHost}>{t('Nhắn tin cho chủ nhà')}</button>
+              <button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${b.listingSlug}`)}>{t('Xem chỗ nghỉ')}</button>
+              {b.canReview && <button className="btn btn-primary btn-sm" onClick={() => openReview(b)}>{t('Viết đánh giá')}</button>}
             </div>
           </section>
         </div>
@@ -159,14 +160,14 @@ function Countdown({ booking }) {
   const hours = Math.floor((minutes % 1440) / 60);
 
   const left = days > 0
-    ? `${days} ngày${hours ? ` ${hours} giờ` : ''}`
-    : hours > 0 ? `${hours} giờ ${minutes % 60} phút` : `${minutes} phút`;
+    ? `${days} ${t('ngày')}${hours ? ` ${hours} ${t('giờ')}` : ''}`
+    : hours > 0 ? `${hours} ${t('giờ')} ${minutes % 60} ${t('phút')}` : `${minutes} ${t('phút')}`;
 
   return (
     <div className="countdown">
-      <span className="cap">Còn</span>
+      <span className="cap">{t('Còn')}</span>
       <b>{left}</b>
-      <span>nữa là tới ngày nhận phòng</span>
+      <span>{t('nữa là tới ngày nhận phòng')}</span>
     </div>
   );
 }
@@ -196,21 +197,21 @@ function CheckInSection({ booking }) {
 
   return (
     <section className="detail-section">
-      <h2>Hướng dẫn nhận phòng</h2>
+      <h2>{t('Hướng dẫn nhận phòng')}</h2>
 
       <p className="guide-window">{g.windowLabel}</p>
 
       <div className="kv-grid">
-        <Kv label="Cách vào nhà" value={g.methodLabel} />
-        {g.addressLine && <Kv label="Địa chỉ" value={g.addressLine} />}
-        {g.hostPhone && <Kv label="Điện thoại chủ nhà" value={g.hostPhone} />}
-        {g.wifiName && <Kv label="Wifi" value={g.wifiName} hint={g.wifiPassword ? `Mật khẩu: ${g.wifiPassword}` : undefined} />}
+        <Kv label={t('Cách vào nhà')} value={g.methodLabel} />
+        {g.addressLine && <Kv label={t('Địa chỉ')} value={g.addressLine} />}
+        {g.hostPhone && <Kv label={t('Điện thoại chủ nhà')} value={g.hostPhone} />}
+        {g.wifiName && <Kv label="Wifi" value={g.wifiName} hint={g.wifiPassword ? `${t('Mật khẩu:')} ${g.wifiPassword}` : undefined} />}
       </div>
 
       {/* docs/01 CĐ-04 — either the code, or when it will be here. */}
       {g.doorCodeExpected && (
         <div className={`door-code ${g.doorCode ? 'is-ready' : ''}`}>
-          <span className="cap">Mã cửa</span>
+          <span className="cap">{t('Mã cửa')}</span>
           {g.doorCode
             ? <b>{g.doorCode}</b>
             : <span className="door-code-wait">{g.doorCodeNote}</span>}
@@ -220,14 +221,14 @@ function CheckInSection({ booking }) {
       {g.addressLine && (
         <a className="btn btn-outline btn-sm" style={{ marginTop: 14 }} target="_blank" rel="noreferrer"
            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(g.addressLine)}`}>
-          Chỉ đường
+          {t('Chỉ đường')}
         </a>
       )}
 
       {g.directions && <p className="guide-note">{g.directions}</p>}
 
       {!!g.applianceNotes.length && <>
-        <h3 className="guide-sub">Hướng dẫn thiết bị</h3>
+        <h3 className="guide-sub">{t('Hướng dẫn thiết bị')}</h3>
         <ul className="guide-list">
           {g.applianceNotes.map(n => <li key={n}>{n}</li>)}
         </ul>
@@ -282,28 +283,28 @@ function ChangeTrip({ booking }) {
 
   return (
     <section className="trip-section">
-      <h2>Đổi ngày hoặc số khách</h2>
+      <h2>{t('Đổi ngày hoặc số khách')}</h2>
       {pending ? (
         <div>
           <p style={{ fontSize: 14.5 }}>
-            Đã gửi: {longDate(pending.newCheckIn)} → {longDate(pending.newCheckOut)} · {pending.newGuests} khách.
+            {t('Đã gửi:')} {longDate(pending.newCheckIn)} → {longDate(pending.newCheckOut)} · {pending.newGuests} {t('khách')}.
             <br />{pending.differenceLabel}
           </p>
-          <button className="btn btn-outline btn-sm" style={{ marginTop: 10 }} onClick={withdraw}>Rút yêu cầu</button>
+          <button className="btn btn-outline btn-sm" style={{ marginTop: 10 }} onClick={withdraw}>{t('Rút yêu cầu')}</button>
         </div>
       ) : !open ? (
-        <button className="btn btn-outline btn-sm" onClick={() => setOpen(true)}>Yêu cầu đổi lịch</button>
+        <button className="btn btn-outline btn-sm" onClick={() => setOpen(true)}>{t('Yêu cầu đổi lịch')}</button>
       ) : (
         <div style={{ display: 'grid', gap: 10, maxWidth: 360 }}>
-          <label className="form-field"><span className="cap">Nhận phòng</span>
+          <label className="form-field"><span className="cap">{t('Nhận phòng')}</span>
             <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} /></label>
-          <label className="form-field"><span className="cap">Trả phòng</span>
+          <label className="form-field"><span className="cap">{t('Trả phòng')}</span>
             <input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} /></label>
-          <label className="form-field"><span className="cap">Số khách</span>
+          <label className="form-field"><span className="cap">{t('Số khách')}</span>
             <input type="number" min="1" value={guests} onChange={e => setGuests(e.target.value)} /></label>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button className="btn btn-outline btn-sm" onClick={() => setOpen(false)}>Huỷ</button>
-            <button className="btn btn-primary btn-sm" disabled={busy} onClick={submit}>Gửi yêu cầu</button>
+            <button className="btn btn-outline btn-sm" onClick={() => setOpen(false)}>{t('Huỷ')}</button>
+            <button className="btn btn-primary btn-sm" disabled={busy} onClick={submit}>{t('Gửi yêu cầu')}</button>
           </div>
         </div>
       )}
@@ -331,35 +332,34 @@ function ShieldPanel({ booking }) {
 
   return (
     <section className="detail-section">
-      <h2>Chỗ ở có vấn đề?</h2>
+      <h2>{t('Chỗ ở có vấn đề?')}</h2>
 
       {claims?.length ? (
         <>
           <p style={{ margin: '0 0 12px', fontSize: 14.5, color: 'var(--ink-body)' }}>
-            Bạn đã mở hồ sơ {claims[0].reference} — {claims[0].statusLabel}.
+            {t('Bạn đã mở hồ sơ')} {claims[0].reference} — {claims[0].statusLabel}.
           </p>
           <button className="btn btn-outline btn-sm"
-                  onClick={() => navigate(`/shield/${claims[0].id}`)}>Xem hồ sơ</button>
+                  onClick={() => navigate(`/shield/${claims[0].id}`)}>{t('Xem hồ sơ')}</button>
         </>
       ) : open ? (
         <>
           <p style={{ margin: '0 0 12px', fontSize: 14.5, lineHeight: 1.7, color: 'var(--ink-body)' }}>
-            Không vào được, chỗ ở khác xa mô tả hoặc không ở được? StayHost tìm chỗ khác
-            hoặc hoàn tiền cho bạn. Báo trong 72 giờ đầu kể từ giờ nhận phòng.
+            {t('Không vào được, chỗ ở khác xa mô tả hoặc không ở được? StayHost tìm chỗ khác hoặc hoàn tiền cho bạn. Báo trong 72 giờ đầu kể từ giờ nhận phòng.')}
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button className="btn btn-primary btn-sm"
                     onClick={() => set({ shieldBooking: booking, shieldSide: 'guest', overlay: 'shield' })}>
-              Báo vấn đề
+              {t('Báo vấn đề')}
             </button>
             <button className="btn btn-outline btn-sm"
-                    onClick={() => navigate('/shield/terms')}>StayShield là gì</button>
+                    onClick={() => navigate('/shield/terms')}>{t('StayShield là gì')}</button>
           </div>
         </>
       ) : (
         <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.7, color: 'var(--ink-muted)' }}>
-          Cửa sổ 72 giờ của StayShield đã khép. Bạn vẫn mở được yêu cầu ở{' '}
-          <button className="text-btn" onClick={() => navigate('/resolutions')}>Trung tâm giải quyết</button>.
+          {t('Cửa sổ 72 giờ của StayShield đã khép. Bạn vẫn mở được yêu cầu ở')}{' '}
+          <button className="text-btn" onClick={() => navigate('/resolutions')}>{t('Trung tâm giải quyết')}</button>.
         </p>
       )}
     </section>
@@ -375,18 +375,18 @@ function Balance({ booking }) {
 
   return (
     <section className="detail-section">
-      <h2>Thanh toán</h2>
+      <h2>{t('Thanh toán')}</h2>
       <div className="kv-grid">
-        <Kv label="Đã trả" value={money(booking.depositPaid)} />
-        <Kv label="Còn phải trả" value={money(booking.balanceDue)}
-            hint={booking.balanceDueOn ? `Thu tự động ngày ${longDate(booking.balanceDueOn)}` : undefined} />
+        <Kv label={t('Đã trả')} value={money(booking.depositPaid)} />
+        <Kv label={t('Còn phải trả')} value={money(booking.balanceDue)}
+            hint={booking.balanceDueOn ? `${t('Thu tự động ngày')} ${longDate(booking.balanceDueOn)}` : undefined} />
       </div>
       <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--ink-body)' }}>{booking.balanceLabel}</p>
 
       {!settled && (
         <button className="btn btn-primary btn-sm" style={{ marginTop: 16 }} disabled={busy}
                 onClick={async () => { setBusy(true); await payBalance(booking.id); setBusy(false); }}>
-          {busy ? 'Đang xử lý…' : `Trả nốt ${money(booking.balanceDue)} ngay`}
+          {busy ? t('Đang xử lý…') : `${t('Trả nốt')} ${money(booking.balanceDue)} ${t('ngay')}`}
         </button>
       )}
     </section>
@@ -398,7 +398,7 @@ function History({ events }) {
 
   return (
     <section className="detail-section">
-      <h2>Lịch sử đơn</h2>
+      <h2>{t('Lịch sử đơn')}</h2>
       <div style={{ display: 'grid', gap: 10 }}>
         {events.map((e, i) => (
           <div className="cal-row" key={i}>
@@ -408,7 +408,7 @@ function History({ events }) {
               {e.reason && <span style={{ color: 'var(--ink-muted)' }}> · {e.reason}</span>}
             </div>
             <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>
-              {ACTOR[e.actor.split(':')[0]] ?? e.actor}
+              {t(ACTOR[e.actor.split(':')[0]] ?? e.actor)}
             </span>
           </div>
         ))}
@@ -431,17 +431,17 @@ function Receipt({ booking: b }) {
   // The receipt mirrors whatever line items the booking was priced with, so a
   // change in Pricing.cs shows up on old and new receipts alike.
   const lines = b.lines ?? [
-    { label: `Tiền phòng · ${b.nights} đêm`, amount: b.subtotal },
-    { label: 'Phí dọn dẹp', amount: b.cleaningFee },
-    { label: 'Phí dịch vụ StayHost', amount: b.serviceFee },
-    ...(b.tax ? [{ label: 'Thuế', amount: b.tax }] : [])
+    { label: `${t('Tiền phòng')} · ${b.nights} ${t('đêm')}`, amount: b.subtotal },
+    { label: t('Phí dọn dẹp'), amount: b.cleaningFee },
+    { label: t('Phí dịch vụ StayHost'), amount: b.serviceFee },
+    ...(b.tax ? [{ label: t('Thuế'), amount: b.tax }] : [])
   ];
 
   return (
     <aside className="receipt" id="receipt">
       <div className="receipt-head">
         <span className="brand-mark" aria-hidden="true">S</span>
-        <div><b>Hoá đơn StayHost</b><span>{b.reference}</span></div>
+        <div><b>{t('Hoá đơn StayHost')}</b><span>{b.reference}</span></div>
       </div>
 
       <img src={b.listingImage} alt="" className="receipt-image" />
@@ -453,25 +453,25 @@ function Receipt({ booking: b }) {
           </div>
         ))}
         <div className="book-rule" />
-        <div className="book-total"><span>Tổng cộng</span><span>{money(b.total)}</span></div>
+        <div className="book-total"><span>{t('Tổng cộng')}</span><span>{money(b.total)}</span></div>
         {b.refundedAmount > 0 && (
           <div className="book-line" style={{ color: 'var(--brand-dark)' }}>
-            <span>Đã hoàn</span><span>−{money(b.refundedAmount)}</span>
+            <span>{t('Đã hoàn')}</span><span>−{money(b.refundedAmount)}</span>
           </div>
         )}
       </div>
 
       <div className="receipt-meta">
-        <div><Icon name="star" size={15} /> {PAYMENT[b.paymentStatus] ?? b.paymentStatus}</div>
-        {b.paymentReference && <div>Mã giao dịch {b.paymentReference}</div>}
-        {b.cardLast4 && <div>Thẻ •••• {b.cardLast4}</div>}
+        <div><Icon name="star" size={15} /> {t(PAYMENT[b.paymentStatus] ?? b.paymentStatus)}</div>
+        {b.paymentReference && <div>{t('Mã giao dịch')} {b.paymentReference}</div>}
+        {b.cardLast4 && <div>{t('Thẻ')} •••• {b.cardLast4}</div>}
       </div>
 
       {/* docs/01 ĐP-14 — a proper invoice document, opened in its own tab so it
           can be saved or printed on its own rather than the whole trip page. */}
       <a className="btn btn-dark btn-block btn-sm" style={{ marginTop: 18 }}
          href={`/api/bookings/${b.id}/invoice`} target="_blank" rel="noreferrer">
-        Tải hoá đơn
+        {t('Tải hoá đơn')}
       </a>
     </aside>
   );

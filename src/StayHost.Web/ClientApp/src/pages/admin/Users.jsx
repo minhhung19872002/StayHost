@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { toast } from '../../lib/store.js';
 import { money, longDate, dateTime } from '../../lib/format.js';
+import { t } from '../../lib/i18n.js';
 
 /* docs/08 §5.2 — each block names what it leaves alone. */
 const RESTRICTIONS = [
@@ -56,27 +57,26 @@ export function UserAdminPanel() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Quản trị người dùng</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Quản trị người dùng')}</h2>
       <p className="section-sub">
-        Tìm theo email, số điện thoại, tên, mã đơn, mã tin đăng hoặc mã giao dịch.
-        Để trống ô tìm là danh sách tài khoản mới nhất.
+        {t('Tìm theo email, số điện thoại, tên, mã đơn, mã tin đăng hoặc mã giao dịch. Để trống ô tìm là danh sách tài khoản mới nhất.')}
       </p>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <label className="form-field" style={{ margin: 0, maxWidth: 340, flex: 1 }}>
-          <span className="cap">Từ khoá</span>
+          <span className="cap">{t('Từ khoá')}</span>
           <input value={q} onChange={e => setQ(e.target.value)}
                  onKeyDown={e => e.key === 'Enter' && search(q)}
                  placeholder="guest@stayhost.vn" />
         </label>
-        <button className="btn btn-outline btn-sm" onClick={() => search(q)}>Tìm</button>
+        <button className="btn btn-outline btn-sm" onClick={() => search(q)}>{t('Tìm')}</button>
       </div>
 
       {!!rows.length && (
         <div className="table-wrap" style={{ marginTop: 16 }}>
           <table className="admin-table">
             <thead>
-              <tr><th>Người dùng</th><th>Vai trò</th><th>Trạng thái</th><th>Tham gia</th><th /></tr>
+              <tr><th>{t('Người dùng')}</th><th>{t('Vai trò')}</th><th>{t('Trạng thái')}</th><th>{t('Tham gia')}</th><th /></tr>
             </thead>
             <tbody>
               {rows.map(u => (
@@ -89,7 +89,7 @@ export function UserAdminPanel() {
                     </span>
                   </td>
                   <td>{longDate(u.joinedAt)}</td>
-                  <td><button className="link-btn" onClick={() => load(u.id)}>Mở hồ sơ</button></td>
+                  <td><button className="link-btn" onClick={() => load(u.id)}>{t('Mở hồ sơ')}</button></td>
                 </tr>
               ))}
             </tbody>
@@ -98,7 +98,7 @@ export function UserAdminPanel() {
       )}
 
       {!!open && (
-        <AdminModal title={`Hồ sơ · ${open.fullName}`} onClose={() => setOpen(null)}>
+        <AdminModal title={`${t('Hồ sơ')} · ${open.fullName}`} onClose={() => setOpen(null)}>
           <UserProfilePanel d={open} reload={() => load(open.id)} />
         </AdminModal>
       )}
@@ -126,7 +126,7 @@ function AdminModal({ title, onClose, children }) {
     <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal wide" role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal-head">
-          <button className="modal-close" onClick={onClose} aria-label="Đóng">✕</button>
+          <button className="modal-close" onClick={onClose} aria-label={t('Đóng')}>✕</button>
           <h2>{title}</h2>
           <span style={{ width: 32 }} />
         </div>
@@ -278,36 +278,36 @@ function UserProfilePanel({ d, reload }) {
       <div>
         <b style={{ fontSize: 17 }}>{d.fullName}</b>
         <div style={{ fontSize: 13, color: 'var(--ink-muted)' }}>
-          {d.email}{d.phone ? ` · ${d.phone}` : ''} · tham gia {longDate(d.joinedAt)}
+          {d.email}{d.phone ? ` · ${d.phone}` : ''} · {t('tham gia')} {longDate(d.joinedAt)}
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
         <span className={`badge ${d.isLocked ? 'cancelled' : 'confirmed'}`}>{d.statusLabel}</span>
-        {d.identityVerified && <span className="badge confirmed">Đã xác minh danh tính</span>}
-        {d.emailConfirmed && <span className="badge confirmed">Email đã xác thực</span>}
-        {d.phoneConfirmed && <span className="badge confirmed">SĐT đã xác thực</span>}
-        {d.isHost && <span className="badge">{d.isSuperhost ? 'Siêu chủ nhà' : 'Chủ nhà'}</span>}
-        {d.isGuestFavoriteHost && <span className="badge">Khách yêu thích</span>}
+        {d.identityVerified && <span className="badge confirmed">{t('Đã xác minh danh tính')}</span>}
+        {d.emailConfirmed && <span className="badge confirmed">{t('Email đã xác thực')}</span>}
+        {d.phoneConfirmed && <span className="badge confirmed">{t('SĐT đã xác thực')}</span>}
+        {d.isHost && <span className="badge">{d.isSuperhost ? t('Siêu chủ nhà') : t('Chủ nhà')}</span>}
+        {d.isGuestFavoriteHost && <span className="badge">{t('Khách yêu thích')}</span>}
         {!!d.coHostOf.length && <span className="badge">Co-host ({d.coHostOf.length})</span>}
-        {!!d.suspendedUntil && <span className="badge pending">Tới {dateTime(d.suspendedUntil)}</span>}
+        {!!d.suspendedUntil && <span className="badge pending">{t('Tới')} {dateTime(d.suspendedUntil)}</span>}
       </div>
 
       <div className="stat-grid" style={{ marginTop: 16 }}>
-        <Cell label="Đơn đặt" value={String(d.bookings)} note={`${d.cancellations} huỷ · ${d.cancellationRate}%`} />
-        <Cell label="Đánh giá" value={`${d.reviewsWritten} / ${d.reviewsReceived}`}
-              note={`đã viết / đã nhận · ${d.reportsAgainst} báo cáo bị nhận`} />
-        <Cell label="Số dư" value={money(d.balance)}
-              note={d.giftCards ? `${d.cards.length} thẻ · ${d.giftCards} thẻ quà (${money(d.giftCardRemaining)})`
-                                : (d.cards.join(' · ') || 'Chưa lưu thẻ nào')} />
-        <Cell label="Tranh chấp" value={String(d.totalDisputes)}
-              note={d.openDisputes ? `${d.openDisputes} đang mở` : 'không có hồ sơ nào đang mở'} />
-        <Cell label="Tài khoản nhận tiền"
+        <Cell label={t('Đơn đặt')} value={String(d.bookings)} note={`${d.cancellations} ${t('huỷ')} · ${d.cancellationRate}%`} />
+        <Cell label={t('Đánh giá')} value={`${d.reviewsWritten} / ${d.reviewsReceived}`}
+              note={`${t('đã viết / đã nhận ·')} ${d.reportsAgainst} ${t('báo cáo bị nhận')}`} />
+        <Cell label={t('Số dư')} value={money(d.balance)}
+              note={d.giftCards ? `${d.cards.length} ${t('thẻ')} · ${d.giftCards} ${t('thẻ quà')} (${money(d.giftCardRemaining)})`
+                                : (d.cards.join(' · ') || t('Chưa lưu thẻ nào'))} />
+        <Cell label={t('Tranh chấp')} value={String(d.totalDisputes)}
+              note={d.openDisputes ? `${d.openDisputes} ${t('đang mở')}` : t('không có hồ sơ nào đang mở')} />
+        <Cell label={t('Tài khoản nhận tiền')}
               value={d.payoutAccountLast4 ? `•••• ${d.payoutAccountLast4}` : '—'}
-              note={d.payoutBankName ?? 'Chỉ vai Tài chính xem được'} />
-        <Cell label="Hoạt động gần nhất"
+              note={d.payoutBankName ?? t('Chỉ vai Tài chính xem được')} />
+        <Cell label={t('Hoạt động gần nhất')}
               value={d.lastSeenAt ? dateTime(d.lastSeenAt).slice(0, 10) : '—'}
-              note={`${d.listings.length} tin đăng`} />
+              note={`${d.listings.length} ${t('tin đăng')}`} />
       </div>
 
       {!!d.coHostOf.length && (
@@ -319,7 +319,7 @@ function UserProfilePanel({ d, reload }) {
       {/* docs/08 §4 and QT-U-03 — same signal that catches fraud. */}
       {!!d.relatedAccounts.length && (
         <div style={{ marginTop: 18 }}>
-          <span className="cap">Tài khoản có liên quan</span>
+          <span className="cap">{t('Tài khoản có liên quan')}</span>
           <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
             {d.relatedAccounts.map(r => (
               <div key={r.id} style={{ fontSize: 13 }}>
@@ -333,13 +333,13 @@ function UserProfilePanel({ d, reload }) {
       {/* docs/08 §4 — tin đăng và tình trạng từng cái */}
       {!!d.listings.length && (
         <div style={{ marginTop: 18 }}>
-          <span className="cap">Tin đăng</span>
+          <span className="cap">{t('Tin đăng')}</span>
           <div style={{ display: 'grid', gap: 5, marginTop: 8, fontSize: 13 }}>
             {d.listings.map(l => (
               <div key={l.id}>
                 <b>{l.title}</b> · {l.city} ·{' '}
                 <span className={`badge ${l.published ? 'confirmed' : 'pending'}`}>
-                  {l.published ? 'Đang hiển thị' : 'Đã ẩn'}
+                  {l.published ? t('Đang hiển thị') : t('Đã ẩn')}
                 </span>
                 {' '}· {l.rating.toFixed(2)}★ ({l.reviewCount})
               </div>
@@ -351,10 +351,10 @@ function UserProfilePanel({ d, reload }) {
       {/* docs/08 §4 — lịch sử đơn đặt hai chiều, kèm cửa đọc tin nhắn của đúng một đơn */}
       {!!d.recentBookings.length && (
         <div style={{ marginTop: 18 }}>
-          <span className="cap">Đơn đặt gần đây</span>
+          <span className="cap">{t('Đơn đặt gần đây')}</span>
           <div className="table-wrap" style={{ marginTop: 8 }}>
             <table className="admin-table">
-              <thead><tr><th>Mã</th><th>Vai</th><th>Chỗ nghỉ</th><th>Ngày</th><th>Trạng thái</th><th /></tr></thead>
+              <thead><tr><th>{t('Mã')}</th><th>{t('Vai')}</th><th>{t('Chỗ nghỉ')}</th><th>{t('Ngày')}</th><th>{t('Trạng thái')}</th><th /></tr></thead>
               <tbody>
                 {d.recentBookings.map(b => (
                   <tr key={b.id}>
@@ -365,7 +365,7 @@ function UserProfilePanel({ d, reload }) {
                     <td>{b.statusLabel}</td>
                     <td>
                       {may('ViewBookingThread') && (
-                        <button className="link-btn" onClick={() => viewThread(b.id)}>Tin nhắn</button>
+                        <button className="link-btn" onClick={() => viewThread(b.id)}>{t('Tin nhắn')}</button>
                       )}
                     </td>
                   </tr>
@@ -378,12 +378,12 @@ function UserProfilePanel({ d, reload }) {
 
       {!!thread && (
         <div style={{ marginTop: 16 }}>
-          <span className="cap">Tin nhắn đơn {thread.reference}</span>
+          <span className="cap">{t('Tin nhắn đơn')} {thread.reference}</span>
           <p className="field-note" style={{ margin: '4px 0 8px' }}>
-            {thread.guestName} ↔ {thread.hostName} · {thread.listingTitle}. Lượt đọc này đã được ghi nhật ký riêng.
+            {thread.guestName} ↔ {thread.hostName} · {thread.listingTitle}. {t('Lượt đọc này đã được ghi nhật ký riêng.')}
           </p>
           <div style={{ display: 'grid', gap: 6, maxHeight: 260, overflowY: 'auto', fontSize: 13 }}>
-            {thread.messages.length === 0 && <span className="field-note">Đơn này chưa có tin nhắn nào.</span>}
+            {thread.messages.length === 0 && <span className="field-note">{t('Đơn này chưa có tin nhắn nào.')}</span>}
             {thread.messages.map((m, i) => (
               <div key={i}>
                 <b>{m.isSystem ? 'StayHost' : m.sender}</b>{' '}
@@ -392,19 +392,19 @@ function UserProfilePanel({ d, reload }) {
               </div>
             ))}
           </div>
-          <button className="link-btn" onClick={() => setThread(null)}>Đóng tin nhắn</button>
+          <button className="link-btn" onClick={() => setThread(null)}>{t('Đóng tin nhắn')}</button>
         </div>
       )}
 
       {/* docs/08 §4 — thiết bị và địa chỉ mạng đăng nhập gần đây */}
       {!!d.sessions.length && (
         <div style={{ marginTop: 18 }}>
-          <span className="cap">Thiết bị và địa chỉ mạng gần đây</span>
+          <span className="cap">{t('Thiết bị và địa chỉ mạng gần đây')}</span>
           <div style={{ display: 'grid', gap: 4, marginTop: 8, fontSize: 12.5 }}>
             {d.sessions.map((s, i) => (
               <div key={i} style={{ color: s.active ? 'inherit' : 'var(--ink-muted)' }}>
-                {dateTime(s.at)} · {s.ip ?? 'IP không rõ'} · {(s.device || '—').slice(0, 80)}
-                {s.active ? '' : ' · đã kết thúc'}
+                {dateTime(s.at)} · {s.ip ?? t('IP không rõ')} · {(s.device || '—').slice(0, 80)}
+                {s.active ? '' : ` · ${t('đã kết thúc')}`}
               </div>
             ))}
           </div>
@@ -413,18 +413,18 @@ function UserProfilePanel({ d, reload }) {
 
       {!!d.sanctions.length && (
         <div style={{ marginTop: 18 }}>
-          <span className="cap">Hồ sơ vi phạm</span>
+          <span className="cap">{t('Hồ sơ vi phạm')}</span>
           <div className="table-wrap" style={{ marginTop: 8 }}>
             <table className="admin-table">
-              <thead><tr><th>Mức</th><th>Lý do</th><th>Người quyết định</th><th>Khi nào</th></tr></thead>
+              <thead><tr><th>{t('Mức')}</th><th>{t('Lý do')}</th><th>{t('Người quyết định')}</th><th>{t('Khi nào')}</th></tr></thead>
               <tbody>
                 {d.sanctions.map(s => (
                   <tr key={s.id}>
                     <td>
                       <b>{s.levelLabel}</b>
                       {!!s.restrictionLabel && <span>{s.restrictionLabel}</span>}
-                      {s.overturnedOnAppeal && <span>Đã gỡ theo khiếu nại</span>}
-                      {!!s.liftedAt && !s.overturnedOnAppeal && <span>Đã gỡ</span>}
+                      {s.overturnedOnAppeal && <span>{t('Đã gỡ theo khiếu nại')}</span>}
+                      {!!s.liftedAt && !s.overturnedOnAppeal && <span>{t('Đã gỡ')}</span>}
                     </td>
                     <td>{s.reason}<span>{s.policy}</span></td>
                     <td>{s.decidedBy}</td>
@@ -456,8 +456,8 @@ function UserProfilePanel({ d, reload }) {
 
       {!!resetLink && (
         <div className="book-alert" style={{ marginTop: 16 }}>
-          <b>Liên kết đặt lại mật khẩu — gửi cho người dùng</b>
-          <span>Sống 2 giờ, chỉ dùng được một lần. Mọi phiên đăng nhập của họ đã bị huỷ.</span>
+          <b>{t('Liên kết đặt lại mật khẩu — gửi cho người dùng')}</b>
+          <span>{t('Sống 2 giờ, chỉ dùng được một lần. Mọi phiên đăng nhập của họ đã bị huỷ.')}</span>
           <code style={{ display: 'block', wordBreak: 'break-all', marginTop: 6, fontSize: 12 }}>
             {window.location.origin}{resetLink}
           </code>
@@ -465,7 +465,7 @@ function UserProfilePanel({ d, reload }) {
                   onClick={() => {
                     navigator.clipboard?.writeText(`${window.location.origin}${resetLink}`);
                     toast('Đã chép liên kết.');
-                  }}>Chép liên kết</button>
+                  }}>{t('Chép liên kết')}</button>
         </div>
       )}
 
@@ -473,7 +473,7 @@ function UserProfilePanel({ d, reload }) {
         <div style={{ marginTop: 16 }}>
           <span className="cap">{identity.documentLabel} •••• {identity.documentLast4}</span>
           <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', margin: '6px 0' }}>
-            Ảnh có đóng dấu mờ: <b>{identity.watermark}</b>. Lượt xem này đã được ghi nhật ký riêng.
+            {t('Ảnh có đóng dấu mờ:')} <b>{identity.watermark}</b>. {t('Lượt xem này đã được ghi nhật ký riêng.')}
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {[identity.frontImageUrl, identity.backImageUrl, identity.selfieImageUrl]
@@ -489,31 +489,31 @@ function UserProfilePanel({ d, reload }) {
       )}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
-        <button className="btn btn-outline btn-sm" onClick={showPreview}>Xem trước hậu quả khoá</button>
-        {may('Warn') && <button className="btn btn-outline btn-sm" disabled={busy} onClick={warn}>Cảnh cáo</button>}
-        {may('Restrict') && <button className="btn btn-outline btn-sm" disabled={busy} onClick={restrict}>Hạn chế</button>}
+        <button className="btn btn-outline btn-sm" onClick={showPreview}>{t('Xem trước hậu quả khoá')}</button>
+        {may('Warn') && <button className="btn btn-outline btn-sm" disabled={busy} onClick={warn}>{t('Cảnh cáo')}</button>}
+        {may('Restrict') && <button className="btn btn-outline btn-sm" disabled={busy} onClick={restrict}>{t('Hạn chế')}</button>}
         {may('Suspend') && !d.isLocked &&
-          <button className="btn btn-outline btn-sm" disabled={busy} onClick={suspend}>Tạm khoá</button>}
+          <button className="btn btn-outline btn-sm" disabled={busy} onClick={suspend}>{t('Tạm khoá')}</button>}
         {may('Ban') && !d.isLocked &&
-          <button className="btn btn-outline btn-sm" disabled={busy} onClick={ban}>Khoá vĩnh viễn</button>}
+          <button className="btn btn-outline btn-sm" disabled={busy} onClick={ban}>{t('Khoá vĩnh viễn')}</button>}
         {may('Restore') && d.isLocked &&
-          <button className="btn btn-primary btn-sm" disabled={busy} onClick={restore}>Khôi phục</button>}
+          <button className="btn btn-primary btn-sm" disabled={busy} onClick={restore}>{t('Khôi phục')}</button>}
         {may('ViewIdentityDocuments') &&
-          <button className="btn btn-outline btn-sm" onClick={viewIdentity}>Xem giấy tờ</button>}
+          <button className="btn btn-outline btn-sm" onClick={viewIdentity}>{t('Xem giấy tờ')}</button>}
         {may('EditProfile') &&
-          <button className="btn btn-outline btn-sm" disabled={busy} onClick={editProfile}>Sửa hồ sơ</button>}
+          <button className="btn btn-outline btn-sm" disabled={busy} onClick={editProfile}>{t('Sửa hồ sơ')}</button>}
         {may('Impersonate') && !d.isLocked &&
-          <button className="btn btn-outline btn-sm" disabled={busy} onClick={impersonate}>Thay mặt người dùng</button>}
+          <button className="btn btn-outline btn-sm" disabled={busy} onClick={impersonate}>{t('Thay mặt người dùng')}</button>}
         {may('ForcePasswordReset') && (
           <button className="btn btn-outline btn-sm" disabled={busy} onClick={resetPassword}>
-            Đặt lại mật khẩu
+            {t('Đặt lại mật khẩu')}
           </button>
         )}
         {may('ForceIdentityRecheck') && (
           <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => {
             const reason = ask('Buộc xác minh lại danh tính');
             if (reason) run(() => api.adminForceIdentityRecheck(d.id, { reason }), 'Đã yêu cầu xác minh lại.');
-          }}>Xác minh lại danh tính</button>
+          }}>{t('Xác minh lại danh tính')}</button>
         )}
       </div>
     </div>
@@ -560,15 +560,15 @@ export function AppealsPanel() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Khiếu nại quyết định</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Khiếu nại quyết định')}</h2>
       <p className="section-sub">
-        Mỗi quyết định được khiếu nại một lần. Người xét lại phải khác người ra quyết định.
+        {t('Mỗi quyết định được khiếu nại một lần. Người xét lại phải khác người ra quyết định.')}
       </p>
 
       <div className="table-wrap" style={{ marginTop: 16 }}>
         <table className="admin-table">
           <thead>
-            <tr><th>Người khiếu nại</th><th>Quyết định</th><th>Lý lẽ</th><th>Hạn trả lời</th><th /></tr>
+            <tr><th>{t('Người khiếu nại')}</th><th>{t('Quyết định')}</th><th>{t('Lý lẽ')}</th><th>{t('Hạn trả lời')}</th><th /></tr>
           </thead>
           <tbody>
             {rows.map(a => (
@@ -578,7 +578,7 @@ export function AppealsPanel() {
                 <td style={{ maxWidth: 320 }}>{a.argument}</td>
                 <td>
                   {longDate(a.dueBy)}
-                  {a.overdue && <span>Đã quá hạn</span>}
+                  {a.overdue && <span>{t('Đã quá hạn')}</span>}
                 </td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   {a.status !== 'Open'
@@ -586,14 +586,14 @@ export function AppealsPanel() {
                     : a.mayReview
                       ? <>
                           <button className="link-btn" disabled={busy}
-                                  onClick={() => decide(a, 'Upheld')}>Giữ nguyên</button>
+                                  onClick={() => decide(a, 'Upheld')}>{t('Giữ nguyên')}</button>
                           <button className="link-btn" style={{ marginLeft: 8 }} disabled={busy}
-                                  onClick={() => decide(a, 'Reduced')}>Giảm mức</button>
+                                  onClick={() => decide(a, 'Reduced')}>{t('Giảm mức')}</button>
                           <button className="link-btn" style={{ marginLeft: 8 }} disabled={busy}
-                                  onClick={() => decide(a, 'Overturned')}>Gỡ bỏ</button>
+                                  onClick={() => decide(a, 'Overturned')}>{t('Gỡ bỏ')}</button>
                         </>
                       : <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>
-                          Bạn đã ra quyết định này
+                          {t('Bạn đã ra quyết định này')}
                         </span>}
                 </td>
               </tr>
@@ -682,15 +682,15 @@ export function OversightPanel() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Giám sát quản trị viên</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Giám sát quản trị viên')}</h2>
       <p className="section-sub">
-        Khoản tiền từ {money(d.twoPersonThreshold)} trở lên cần hai người duyệt.
-        Mỗi tháng {d.randomReviewPercent}% quyết định được đọc lại.
+        {t('Khoản tiền từ')} {money(d.twoPersonThreshold)} {t('trở lên cần hai người duyệt.')}
+        {' '}{t('Mỗi tháng')} {d.randomReviewPercent}{t('% quyết định được đọc lại.')}
       </p>
 
       {!!d.flags.length && (
         <div className="book-alert is-error" style={{ marginTop: 14 }}>
-          <b>{d.flags.length} cảnh báo cần xem</b>
+          <b>{d.flags.length} {t('cảnh báo cần xem')}</b>
           {d.flags.map((f, i) => <span key={i}>{f.adminName}: {f.label} — {f.detail}</span>)}
         </div>
       )}
@@ -698,10 +698,10 @@ export function OversightPanel() {
       {/* docs/08 §5.6 — hồ sơ nghiêm trọng phải được Tối cao xem lại trong 24 giờ */}
       {!!d.severeQueue?.length && (
         <div style={{ marginTop: 16 }}>
-          <span className="cap">Hồ sơ nghiêm trọng chờ Quản trị tối cao xem lại</span>
+          <span className="cap">{t('Hồ sơ nghiêm trọng chờ Quản trị tối cao xem lại')}</span>
           <div className="table-wrap" style={{ marginTop: 8 }}>
             <table className="admin-table">
-              <thead><tr><th>Người dùng</th><th>Mức</th><th>Lý do</th><th>Hạn xem lại</th><th /></tr></thead>
+              <thead><tr><th>{t('Người dùng')}</th><th>{t('Mức')}</th><th>{t('Lý do')}</th><th>{t('Hạn xem lại')}</th><th /></tr></thead>
               <tbody>
                 {d.severeQueue.map(s => (
                   <tr key={s.sanctionId}>
@@ -709,11 +709,11 @@ export function OversightPanel() {
                     <td>{s.level}</td>
                     <td>{s.reason}<span>{s.ground}</span></td>
                     <td className={s.overdue ? 'is-error' : ''}>
-                      {dateTime(s.dueBy)}{s.overdue ? ' · QUÁ HẠN' : ''}
+                      {dateTime(s.dueBy)}{s.overdue ? ` · ${t('QUÁ HẠN')}` : ''}
                     </td>
                     <td>
                       <button className="link-btn" disabled={busy}
-                              onClick={() => signOffSevere(s.sanctionId)}>Đã xem lại</button>
+                              onClick={() => signOffSevere(s.sanctionId)}>{t('Đã xem lại')}</button>
                     </td>
                   </tr>
                 ))}
@@ -725,10 +725,10 @@ export function OversightPanel() {
 
       {!!d.pendingApprovals.length && (
         <div style={{ marginTop: 16 }}>
-          <span className="cap">Chờ người thứ hai duyệt</span>
+          <span className="cap">{t('Chờ người thứ hai duyệt')}</span>
           <div className="table-wrap" style={{ marginTop: 8 }}>
             <table className="admin-table">
-              <thead><tr><th>Việc</th><th>Số tiền</th><th>Người đề nghị</th><th /></tr></thead>
+              <thead><tr><th>{t('Việc')}</th><th>{t('Số tiền')}</th><th>{t('Người đề nghị')}</th><th /></tr></thead>
               <tbody>
                 {d.pendingApprovals.map(m => (
                   <tr key={m.id}>
@@ -739,12 +739,12 @@ export function OversightPanel() {
                       {m.mayApprove
                         ? <>
                             <button className="link-btn" disabled={busy}
-                                    onClick={() => decide(m, true)}>Duyệt</button>
+                                    onClick={() => decide(m, true)}>{t('Duyệt')}</button>
                             <button className="link-btn" style={{ marginLeft: 8 }} disabled={busy}
-                                    onClick={() => decide(m, false)}>Từ chối</button>
+                                    onClick={() => decide(m, false)}>{t('Từ chối')}</button>
                           </>
                         : <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>
-                            Bạn là người đề nghị
+                            {t('Bạn là người đề nghị')}
                           </span>}
                     </td>
                   </tr>
@@ -756,40 +756,40 @@ export function OversightPanel() {
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 18 }}>
-        <span className="cap">Quản trị viên và quyền</span>
+        <span className="cap">{t('Quản trị viên và quyền')}</span>
         <button className="btn btn-outline btn-sm" disabled={busy} onClick={mergeUsers}>
-          Hợp nhất tài khoản trùng
+          {t('Hợp nhất tài khoản trùng')}
         </button>
       </div>
 
       <div className="table-wrap" style={{ marginTop: 8 }}>
         <table className="admin-table">
           <thead>
-            <tr><th>Quản trị viên</th><th>Quyền</th><th>Đã xem</th><th>Quyết định</th><th>Bị khiếu nại</th><th>Rà soát</th><th /></tr>
+            <tr><th>{t('Quản trị viên')}</th><th>{t('Quyền')}</th><th>{t('Đã xem')}</th><th>{t('Quyết định')}</th><th>{t('Bị khiếu nại')}</th><th>{t('Rà soát')}</th><th /></tr>
           </thead>
           <tbody>
             {d.admins.map(a => (
               <tr key={a.adminUserId}>
                 <td>
                   <b>{a.name}</b>
-                  {!a.twoFactorEnabled && <span>Chưa bật bảo mật 2 lớp</span>}
+                  {!a.twoFactorEnabled && <span>{t('Chưa bật bảo mật 2 lớp')}</span>}
                 </td>
                 <td>{a.scopes}</td>
                 <td>{a.profilesViewed}</td>
                 <td>{a.decisions}</td>
                 <td>
                   {a.appealsUpheld}/{a.appealsAgainst}
-                  {a.looksUnreliable && <span>Tỉ lệ {a.overturnRatePercent}% bất thường</span>}
+                  {a.looksUnreliable && <span>{t('Tỉ lệ')} {a.overturnRatePercent}{t('% bất thường')}</span>}
                 </td>
                 <td>
-                  {a.accessReviewDue ? 'Tới hạn' : 'Đã rà soát'}
-                  {a.scopeLooksUnused && <span>Chưa dùng quyền quá 90 ngày</span>}
+                  {a.accessReviewDue ? t('Tới hạn') : t('Đã rà soát')}
+                  {a.scopeLooksUnused && <span>{t('Chưa dùng quyền quá 90 ngày')}</span>}
                 </td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   <button className="link-btn" disabled={busy}
-                          onClick={() => grantScopes(a.adminUserId)}>Sửa quyền</button>
+                          onClick={() => grantScopes(a.adminUserId)}>{t('Sửa quyền')}</button>
                   <button className="link-btn" style={{ marginLeft: 8 }} disabled={busy}
-                          onClick={() => markReviewed(a.adminUserId)}>Đã rà soát</button>
+                          onClick={() => markReviewed(a.adminUserId)}>{t('Đã rà soát')}</button>
                 </td>
               </tr>
             ))}
@@ -799,7 +799,7 @@ export function OversightPanel() {
 
       {!!d.randomSample.length && (
         <div style={{ marginTop: 18 }}>
-          <span className="cap">Mẫu rà soát ngẫu nhiên tháng này</span>
+          <span className="cap">{t('Mẫu rà soát ngẫu nhiên tháng này')}</span>
           <div style={{ display: 'grid', gap: 6, marginTop: 8, fontSize: 13 }}>
             {d.randomSample.map(x => (
               <div key={x.id}>
@@ -848,31 +848,31 @@ export function DataRequestsPanel() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>Yêu cầu dữ liệu cá nhân</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Yêu cầu dữ liệu cá nhân')}</h2>
       <p className="section-sub">
-        Xoá tài khoản là ẩn danh hoá: tên, ảnh, email, giấy tờ bị xoá; đơn đặt và sổ ghi tiền giữ nguyên.
+        {t('Xoá tài khoản là ẩn danh hoá: tên, ảnh, email, giấy tờ bị xoá; đơn đặt và sổ ghi tiền giữ nguyên.')}
       </p>
 
       <div className="table-wrap" style={{ marginTop: 16 }}>
         <table className="admin-table">
-          <thead><tr><th>Người dùng</th><th>Yêu cầu</th><th>Hạn</th><th>Trạng thái</th><th /></tr></thead>
+          <thead><tr><th>{t('Người dùng')}</th><th>{t('Yêu cầu')}</th><th>{t('Hạn')}</th><th>{t('Trạng thái')}</th><th /></tr></thead>
           <tbody>
             {rows.map(r => (
               <tr key={r.id}>
                 <td><b>{r.userName}</b><span>{r.email}</span></td>
                 <td>{r.kindLabel}</td>
-                <td>{longDate(r.dueBy)}{r.overdue && <span>Đã quá hạn</span>}</td>
+                <td>{longDate(r.dueBy)}{r.overdue && <span>{t('Đã quá hạn')}</span>}</td>
                 <td>
                   {r.statusLabel}
-                  {!!r.blockers.length && <span>Vướng: {r.blockers.join(', ')}</span>}
+                  {!!r.blockers.length && <span>{t('Vướng:')} {r.blockers.join(', ')}</span>}
                 </td>
                 <td>
                   {r.kind === 'Erase' && r.status === 'Open' && r.mayErase && (
-                    <button className="link-btn" disabled={busy} onClick={() => erase(r)}>Xoá</button>
+                    <button className="link-btn" disabled={busy} onClick={() => erase(r)}>{t('Xoá')}</button>
                   )}
                   {r.kind === 'Export' && r.status === 'Open' && (
                     <button className="link-btn" disabled={busy} onClick={() => fulfilExport(r)}>
-                      Cấp liên kết tải
+                      {t('Cấp liên kết tải')}
                     </button>
                   )}
                 </td>

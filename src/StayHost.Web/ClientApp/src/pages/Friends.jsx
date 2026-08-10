@@ -4,6 +4,7 @@ import { useStore } from '../lib/useStore.js';
 import { toast, loadMe } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { Avatar } from '../components/Avatar.jsx';
+import { t } from '../lib/i18n.js';
 
 const VISIBILITY = [
   ['Friends', 'Chỉ bạn bè'],
@@ -31,7 +32,7 @@ export function Friends() {
 
   if (!state.user) {
     return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
-      <div className="empty-state"><h3>Đăng nhập để kết nối bạn bè</h3></div>
+      <div className="empty-state"><h3>{t('Đăng nhập để kết nối bạn bè')}</h3></div>
     </div>;
   }
   if (!friends) return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
@@ -53,38 +54,38 @@ export function Friends() {
 
   return (
     <div className="shell" style={{ paddingBlock: '28px 90px', maxWidth: 760 }}>
-      <h1 className="section-title">Bạn bè</h1>
-      <p className="section-sub">Kết nối để xem nơi bạn bè đã đi và sắp đi.</p>
+      <h1 className="section-title">{t('Bạn bè')}</h1>
+      <p className="section-sub">{t('Kết nối để xem nơi bạn bè đã đi và sắp đi.')}</p>
 
       {/* docs/01 XH-02 — who may see my journey map. */}
       <section className="modal-section" style={{ marginTop: 12 }}>
-        <h3>Hành trình của tôi hiển thị với</h3>
+        <h3>{t('Hành trình của tôi hiển thị với')}</h3>
         <div className="pill-row" style={{ marginTop: 10 }}>
           {VISIBILITY.map(([v, label]) => (
             <button key={v} className={`pill ${state.user.journeyVisibility === v ? 'is-on' : ''}`}
-                    onClick={() => setVis(v)}>{label}</button>
+                    onClick={() => setVis(v)}>{t(label)}</button>
           ))}
         </div>
       </section>
 
       {requests.length > 0 && (
         <section style={{ marginTop: 28 }}>
-          <h2 className="section-title" style={{ fontSize: 18 }}>Lời mời kết bạn ({requests.length})</h2>
+          <h2 className="section-title" style={{ fontSize: 18 }}>{t('Lời mời kết bạn')} ({requests.length})</h2>
           {requests.map(r => (
             <div className="verify-row" key={r.id}>
               <Avatar url={r.avatarUrl} initials={r.initials} size={40} />
               <div style={{ flex: 1, minWidth: 0 }}><b>{r.name}</b></div>
-              <button className="btn btn-primary btn-sm" onClick={() => respond(r.id, 'accept')}>Chấp nhận</button>
-              <button className="btn btn-outline btn-sm" onClick={() => respond(r.id, 'decline')}>Từ chối</button>
+              <button className="btn btn-primary btn-sm" onClick={() => respond(r.id, 'accept')}>{t('Chấp nhận')}</button>
+              <button className="btn btn-outline btn-sm" onClick={() => respond(r.id, 'decline')}>{t('Từ chối')}</button>
             </div>
           ))}
         </section>
       )}
 
       <section style={{ marginTop: 28 }}>
-        <h2 className="section-title" style={{ fontSize: 18 }}>Bạn bè ({friends.length})</h2>
+        <h2 className="section-title" style={{ fontSize: 18 }}>{t('Bạn bè')} ({friends.length})</h2>
         {friends.length === 0
-          ? <p className="section-sub">Chưa có bạn bè nào. Mở hồ sơ của ai đó và bấm “Kết bạn”.</p>
+          ? <p className="section-sub">{t('Chưa có bạn bè nào. Mở hồ sơ của ai đó và bấm “Kết bạn”.')}</p>
           : friends.map(f => (
               <div className="verify-row" key={f.userId}>
                 <Avatar url={f.avatarUrl} initials={f.initials} size={40} />
@@ -92,8 +93,8 @@ export function Friends() {
                   <button className="text-btn" style={{ fontWeight: 700 }}
                           onClick={() => navigate(`/users/${f.userId}`)}>{f.name}</button>
                 </div>
-                <button className="btn btn-outline btn-sm" onClick={() => navigate(`/users/${f.userId}`)}>Hành trình</button>
-                <button className="btn btn-outline btn-sm" onClick={() => unfriend(f.userId)}>Huỷ kết bạn</button>
+                <button className="btn btn-outline btn-sm" onClick={() => navigate(`/users/${f.userId}`)}>{t('Hành trình')}</button>
+                <button className="btn btn-outline btn-sm" onClick={() => unfriend(f.userId)}>{t('Huỷ kết bạn')}</button>
               </div>
             ))}
       </section>
