@@ -73,6 +73,13 @@ public record SaveSearchRequest(
     int Guests, IReadOnlyList<string>? Amenities, string? RoomType, int Bedrooms,
     bool SuperhostOnly, bool InstantBookOnly, IReadOnlyList<string>? HostLanguages);
 
+/// <summary>docs/01 AT-03 — the neighbour report form and its admin view.</summary>
+public record NeighborConcernDto(string Value, string Label);
+public record NeighborReportRequest(string? Location, string? Category, string? Detail, string? Contact);
+public record NeighborReportDto(
+    int Id, string Location, string Category, string Detail, string? Contact,
+    string Status, string? Resolution, DateTime CreatedAt);
+
 /// <summary>docs/01 AT-12 — one host's decline record, for the discrimination monitor.</summary>
 public record DeclineMonitorDto(
     int HostId, string HostName, int Responded, int Declined, int DeclineRatePercent,

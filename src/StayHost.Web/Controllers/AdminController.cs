@@ -554,6 +554,47 @@ public class AdminController(
         return NoContent();
     }
 
+    /* ------------------------------------------ docs/01 AT-03, neighbour reports */
+
+    /// <summary>docs/01 AT-03 — neighbour reports waiting to be looked at.</summary>
+    [HttpGet("admin/neighbor-reports")]
+    public async Task<ActionResult<IReadOnlyList<NeighborReportDto>>> NeighborReportsList(CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Moderation, ct);
+        if (admin is null) return StatusCode(403, new { message = "Bạn không có quyền kiểm duyệt." });
+
+        var rows = await db.NeighborReports
+            .OrderBy(r => r.Status).ThenByDescending(r => r.CreatedAt)
+            .Take(200)
+            .Select(r => new NeighborReportDto(
+                r.Id, r.Location, StayHost.Domain.NeighborReports.ConcernLabel(r.Category),
+                r.Detail, r.Contact, r.Status.ToString(), r.Resolution, r.CreatedAt))
+            .ToListAsync(ct);
+        return Ok(rows);
+    }
+
+    /// <summary>docs/01 AT-03 — mark a neighbour report handled.</summary>
+    [HttpPost("admin/neighbor-reports/{id:int}/resolve")]
+    public async Task<IActionResult> ResolveNeighborReport(
+        int id, [FromBody] ResolveReportRequest req, CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Moderation, ct);
+        if (admin is null) return StatusCode(403, new { message = "Bạn không có quyền kiểm duyệt." });
+
+        var report = await db.NeighborReports.FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (report is null) return NotFound();
+
+        audit.Record(admin, "neighbor.resolve", $"neighbor:{report.Id}",
+            report.Status.ToString(), req.Status, req.Resolution);
+
+        report.Status = Enum.TryParse<ReportStatus>(req.Status, true, out var s) ? s : ReportStatus.Resolved;
+        report.Resolution = req.Resolution?.Trim();
+        report.ResolvedAt = report.Status is ReportStatus.Resolved or ReportStatus.Dismissed ? DateTime.UtcNow : null;
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     /* ---------------------------------- docs/01 AT-12, discrimination monitor */
 
     /// <summary>

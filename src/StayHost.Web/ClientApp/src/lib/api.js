@@ -352,6 +352,12 @@ export const api = {
   confirmWorkEmail: code =>
     request('/api/account/work-email/confirm', { method: 'POST', body: JSON.stringify({ kind: 'workemail', code }) }),
   removeWorkEmail: () => request('/api/account/work-email', { method: 'DELETE' }),
+  // docs/01 AT-03 — neighbour report channel (no account).
+  neighborConcerns: () => request('/api/neighbor-reports/concerns'),
+  submitNeighborReport: body => request('/api/neighbor-reports', { method: 'POST', body: JSON.stringify(body) }),
+  adminNeighborReports: () => request('/api/admin/neighbor-reports'),
+  resolveNeighborReport: (id, status, resolution) =>
+    request(`/api/admin/neighbor-reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ status, resolution }) }),
   // docs/01 YT-07 — compare 2–5 listings side by side.
   compareListings: ids => request(`/api/listings/compare?ids=${ids.join(',')}`),
   // docs/01 TĐ-03, TN-06 — machine translation.

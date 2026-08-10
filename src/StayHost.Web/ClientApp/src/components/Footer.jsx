@@ -43,7 +43,9 @@ const ROUTES = {
   'Dịch vụ': '/services',
   'Thẻ quà tặng': '/wallet',
   'StayShield cho khách': '/shield/terms',
-  'StayShield cho Chủ nhà': '/shield/terms'
+  'StayShield cho Chủ nhà': '/shield/terms',
+  // docs/01 AT-03 — the neighbour channel.
+  'Báo cáo lo ngại khu dân cư': '/neighbors'
 };
 
 export function Footer() {

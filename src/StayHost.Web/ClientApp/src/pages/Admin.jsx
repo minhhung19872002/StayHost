@@ -130,6 +130,8 @@ export function Admin() {
 
       <DeclineMonitor />
 
+      <NeighborReportsPanel />
+
       <section style={{ marginTop: 40 }}>
         <h2 className="section-title" style={{ fontSize: 20 }}>Chỗ nghỉ mới nhất</h2>
         <div className="table-wrap">
@@ -225,6 +227,58 @@ function ModerationQueue() {
           </table>
         </div>
       )}
+    </section>
+  );
+}
+
+/** docs/01 AT-03 — neighbour reports filed without an account. */
+function NeighborReportsPanel() {
+  const [rows, setRows] = useState(null);
+  const load = () => api.adminNeighborReports().then(setRows).catch(() => setRows([]));
+  useEffect(() => { load(); }, []);
+
+  const resolve = async (id, status) => {
+    const note = prompt('Ghi chú xử lý (không bắt buộc)') ?? '';
+    try { await api.resolveNeighborReport(id, status, note.trim() || null); await load(); toast('Đã cập nhật.'); }
+    catch (err) { toast(err.message); }
+  };
+
+  if (!rows) return null;
+  const open = rows.filter(r => r.status === 'Open').length;
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>Phản ánh hàng xóm</h2>
+      <p className="section-sub">{open} đang mở · {rows.length} tổng cộng</p>
+      {rows.length === 0
+        ? <p className="section-sub">Chưa có phản ánh nào.</p>
+        : (
+          <div className="table-wrap" style={{ marginTop: 16 }}>
+            <table className="admin-table">
+              <thead>
+                <tr><th>Địa điểm</th><th>Loại</th><th>Nội dung</th><th>Liên hệ</th><th>Trạng thái</th><th /></tr>
+              </thead>
+              <tbody>
+                {rows.map(r => (
+                  <tr key={r.id}>
+                    <td><b>{r.location}</b><span>{longDate(r.createdAt.slice(0, 10))}</span></td>
+                    <td>{r.category}</td>
+                    <td style={{ maxWidth: 280, whiteSpace: 'normal' }}>{r.detail}</td>
+                    <td>{r.contact || '—'}</td>
+                    <td><span className={`badge ${r.status === 'Open' ? 'pending' : 'confirmed'}`}>
+                      {r.status === 'Open' ? 'Mới' : r.status === 'Dismissed' ? 'Đã bỏ qua' : 'Đã xử lý'}</span></td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      {r.status === 'Open' && <>
+                        <button className="btn btn-outline btn-sm" onClick={() => resolve(r.id, 'Resolved')}>Đã xử lý</button>
+                        <button className="btn btn-outline btn-sm" onClick={() => resolve(r.id, 'Dismissed')}>Bỏ qua</button>
+                      </>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
     </section>
   );
 }

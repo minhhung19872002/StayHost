@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **191 xong · 0 làm một phần · 10 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **192 xong · 0 làm một phần · 9 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,13 +350,13 @@ cung cấp (Google Translate / DeepL / Azure) và trả tiền khoá API — đ�
 khách chứ không chờ code. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, chưa cắm
 khoá thì nút "Dịch" **không hiện** — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (10 mã)
+### 9.1 Chưa có (9 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
 | `TM-24` | Vẽ vùng tìm kiếm trên bản đồ | P2 |
 | `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
-| `AT-03` · `AT-08` | Kênh hàng xóm · trợ lý tự động | P2 |
+| `AT-08` | Trợ lý hỗ trợ tự động hiểu ngữ cảnh đơn | P2 |
 | `YT-06` | Bình chọn nhóm trong danh sách yêu thích chung | P2 |
 | `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
 
@@ -376,6 +376,13 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`AT-12` (giám sát từ chối khách) và `AT-03` (kênh hàng xóm) làm xong 10/08/2026. AT-12:
+`AntiDiscrimination.cs` (thuần, có test) dò lý do từ chối theo biên từ (không auto-chặn), admin
+monitor `GET /api/admin/decline-monitor` gom tỉ lệ từ chối + gắn cờ lý do nghi phân biệt. AT-03:
+`NeighborReport` + `NeighborReports.cs`, form công khai `/neighbors` (không cần tài khoản, nối
+từ footer "Báo cáo lo ngại khu dân cư"), có chống trùng theo session, admin xử lý ở panel. Xác
+minh sống: AT-12 gắn cờ đúng "Gia đình/trẻ em"; AT-03 gửi ẩn danh→admin thấy→xử lý, quyền chặn 403.
 
 `YT-07` (so sánh 2–5 chỗ) làm xong 10/08/2026. `CatalogService.CompareAsync` trả thẻ cho
 tối đa 5 tin (giữ đúng thứ tự chọn, chỉ tin công khai), endpoint `GET /api/listings/compare?ids=`.

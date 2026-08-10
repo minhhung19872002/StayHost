@@ -24,6 +24,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<SavedSearch> SavedSearches => Set<SavedSearch>();
     public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
     public DbSet<TranslationCache> TranslationCaches => Set<TranslationCache>();
+    public DbSet<NeighborReport> NeighborReports => Set<NeighborReport>();
     public DbSet<CalendarBlock> CalendarBlocks => Set<CalendarBlock>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AbuseReport> AbuseReports => Set<AbuseReport>();
@@ -356,6 +357,17 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.MaxPrice).HasPrecision(12, 2);
             e.HasOne(x => x.User).WithMany()
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/01 AT-03 — neighbour reports, filed without an account.
+        b.Entity<NeighborReport>(e =>
+        {
+            e.ToTable("neighbor_reports");
+            e.HasIndex(x => x.Status);
+            e.Property(x => x.Location).HasMaxLength(300).IsRequired();
+            e.Property(x => x.Detail).HasMaxLength(StayHost.Domain.NeighborReports.DetailMax).IsRequired();
+            e.Property(x => x.Contact).HasMaxLength(200);
+            e.Property(x => x.Resolution).HasMaxLength(1000);
         });
 
         // docs/01 TĐ-03 — cached machine translations, one per (source, target).

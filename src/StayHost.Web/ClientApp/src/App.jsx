@@ -33,6 +33,7 @@ import { UserProfile } from './pages/UserProfile.jsx';
 import { City } from './pages/City.jsx';
 import { SharedWishlist } from './pages/SharedWishlist.jsx';
 import { MySanctions, AppealByToken } from './pages/Sanctions.jsx';
+import { Neighbors } from './pages/Neighbors.jsx';
 
 export function App() {
   const state = useStore();
@@ -142,6 +143,7 @@ export function App() {
             {/* docs/08 §8 — quyết định về mình, và cửa khiếu nại cho cả người đã bị khoá */}
             <Route path="/account/sanctions" element={<MySanctions />} />
             <Route path="/appeal" element={<AppealByToken />} />
+            <Route path="/neighbors" element={<Neighbors />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<Browse />} />
           </Routes>
