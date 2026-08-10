@@ -114,8 +114,54 @@ public class ExperienceService(
             TaxRules = await catalog.ActiveTaxRulesAsync(ct)
         });
 
+        // docs/09 §2.7 (scenario 2) — the seats are claimed BEFORE the card is
+        // charged, and claimed with one conditional UPDATE so the database itself
+        // decides the race: two guests going for the last two seats both pass
+        // CanBook above, but only one UPDATE finds the seats still free. The loser
+        // is turned away having never been charged.
+        var taken = req.Private ? slot.Capacity : seats;
+
+        var claimed = req.Private
+            ? await db.ExperienceSlots
+                .Where(s => s.Id == slotId && !s.IsPrivate && s.SeatsTaken == 0)
+                .ExecuteUpdateAsync(set => set
+                    .SetProperty(s => s.SeatsTaken, s => s.Capacity)
+                    .SetProperty(s => s.IsPrivate, true), ct)
+            : await db.ExperienceSlots
+                .Where(s => s.Id == slotId && !s.IsPrivate && s.SeatsTaken + taken <= s.Capacity)
+                .ExecuteUpdateAsync(set => set
+                    .SetProperty(s => s.SeatsTaken, s => s.SeatsTaken + taken), ct);
+
+        if (claimed == 0)
+        {
+            // Somebody else got there between the check and the claim. Answer with
+            // what is actually left rather than a stale number.
+            var left = await db.ExperienceSlots.AsNoTracking()
+                .Where(s => s.Id == slotId)
+                .Select(s => s.Capacity - s.SeatsTaken)
+                .FirstOrDefaultAsync(ct);
+
+            return (null, left > 0
+                ? $"Vừa có người đặt trước bạn — chỉ còn {left} chỗ cho suất này."
+                : "Vừa có người đặt hết chỗ của suất này.");
+        }
+
         var attempt = gateway.Charge(price.Total, req.PaymentMethod ?? "card", req.CardLast4);
-        if (!attempt.Ok) return (null, attempt.Reason);
+        if (!attempt.Ok)
+        {
+            // Give the seats straight back; a refused card must not hold a seat.
+            if (req.Private)
+                await db.ExperienceSlots.Where(s => s.Id == slotId)
+                    .ExecuteUpdateAsync(set => set
+                        .SetProperty(s => s.SeatsTaken, 0)
+                        .SetProperty(s => s.IsPrivate, false), ct);
+            else
+                await db.ExperienceSlots.Where(s => s.Id == slotId)
+                    .ExecuteUpdateAsync(set => set
+                        .SetProperty(s => s.SeatsTaken, s => s.SeatsTaken - taken), ct);
+
+            return (null, attempt.Reason);
+        }
 
         var booking = new ExperienceBooking
         {
@@ -133,11 +179,6 @@ public class ExperienceService(
         };
 
         db.ExperienceBookings.Add(booking);
-
-        // A private booking takes every seat, so nobody else can join it.
-        slot.SeatsTaken += req.Private ? slot.Capacity : seats;
-        if (req.Private) slot.IsPrivate = true;
-
         await db.SaveChangesAsync(ct);
 
         db.LedgerEntries.AddRange(Ledger.CaptureExperience(booking, price, DateTime.UtcNow));

@@ -489,6 +489,10 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.CancelReason).HasMaxLength(300);
             e.HasOne(x => x.Experience).WithMany(x => x.Slots)
                 .HasForeignKey(x => x.ExperienceId).OnDelete(DeleteBehavior.Cascade);
+            // docs/09 §2.7 (scenario 2) — the seat count is claimed with a single
+            // conditional UPDATE in ExperienceService, so two guests racing for the
+            // last seats cannot both win. Nothing to configure here; the guard is
+            // the WHERE clause, which the database evaluates atomically.
         });
 
         b.Entity<ExperienceBooking>(e =>
