@@ -459,6 +459,7 @@ function AccountMenu() {
         <hr />
         <button role="menuitem" onClick={() => goTo('/wishlists')}>Danh sách yêu thích ({state.favCount})</button>
         <button role="menuitem" onClick={() => goTo('/trips')}>Chuyến đi của tôi</button>
+        <button role="menuitem" onClick={() => goTo('/friends')}>Bạn bè</button>
         <button role="menuitem" onClick={() => goTo('/host')}>Cho thuê nhà trên StayHost</button>
         <hr />
         <button role="menuitem" onClick={() => openOverlay('language')}>Ngôn ngữ &amp; tiền tệ</button>

@@ -28,6 +28,25 @@ export function UserProfile() {
     api.blocks().then(list => setBlocked(list.some(b => b.userId === Number(id)))).catch(() => {});
   }, [id, state.user, isMe]);
 
+  // docs/01 XH-01/XH-02 — friend state + their journey (if visible).
+  const [friends, setFriends] = useState([]);
+  const [journey, setJourney] = useState(null);
+  useEffect(() => {
+    setJourney(null);
+    if (state.user && !isMe) api.friends().then(setFriends).catch(() => setFriends([]));
+    api.friendJourney(Number(id)).then(setJourney).catch(() => setJourney(null));
+  }, [id, state.user, isMe]);
+  const isFriend = friends.some(f => f.userId === Number(id));
+
+  const addFriend = async () => {
+    try { const r = await api.sendFriendRequest(Number(id)); toast(r.message || 'Đã gửi lời mời.'); api.friends().then(setFriends).catch(() => {}); }
+    catch (err) { toast(err.message); }
+  };
+  const removeFriend = async () => {
+    try { await api.removeFriend(Number(id)); setFriends(fs => fs.filter(f => f.userId !== Number(id))); toast('Đã huỷ kết bạn.'); }
+    catch (err) { toast(err.message); }
+  };
+
   const toggleBlock = async () => {
     try {
       if (blocked) { await api.unblockUser(Number(id)); setBlocked(false); toast('Đã bỏ chặn.'); }
@@ -108,6 +127,12 @@ export function UserProfile() {
                     Xem chỗ nghỉ để nhắn tin
                   </button>
                 )}
+                {/* docs/01 XH-01 — kết bạn / huỷ kết bạn. */}
+                {state.user && (
+                  isFriend
+                    ? <button className="btn btn-outline" onClick={removeFriend}>Bạn bè ✓</button>
+                    : <button className="btn btn-primary" onClick={addFriend}>Kết bạn</button>
+                )}
                 {/* docs/01 AT-10 — chặn hoặc bỏ chặn người dùng này. */}
                 {state.user && (
                   <button className="btn btn-outline" onClick={toggleBlock}>
@@ -115,6 +140,29 @@ export function UserProfile() {
                   </button>
                 )}
               </div>}
+
+          {/* docs/01 XH-01/XH-02 — nơi người này đã đi và sắp đi (nếu được xem). */}
+          {journey && (journey.been.length > 0 || journey.upcoming.length > 0) && (
+            <div style={{ marginTop: 20 }}>
+              <h2 className="profile-sub">Hành trình</h2>
+              {journey.upcoming.length > 0 && <>
+                <div className="meta" style={{ fontWeight: 700, marginTop: 6 }}>Sắp đi</div>
+                <div className="chip-wrap">
+                  {journey.upcoming.map((s, i) => (
+                    <span className="quick-chip" key={`u${i}`}>{s.city} · {s.when}</span>
+                  ))}
+                </div>
+              </>}
+              {journey.been.length > 0 && <>
+                <div className="meta" style={{ fontWeight: 700, marginTop: 10 }}>Đã đến</div>
+                <div className="chip-wrap">
+                  {journey.been.slice(0, 20).map((s, i) => (
+                    <span className="quick-chip" key={`b${i}`}>{s.city}</span>
+                  ))}
+                </div>
+              </>}
+            </div>
+          )}
         </div>
       </div>
 

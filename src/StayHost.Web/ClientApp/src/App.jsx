@@ -34,6 +34,7 @@ import { City } from './pages/City.jsx';
 import { SharedWishlist } from './pages/SharedWishlist.jsx';
 import { MySanctions, AppealByToken } from './pages/Sanctions.jsx';
 import { Neighbors } from './pages/Neighbors.jsx';
+import { Friends } from './pages/Friends.jsx';
 
 export function App() {
   const state = useStore();
@@ -144,6 +145,7 @@ export function App() {
             <Route path="/account/sanctions" element={<MySanctions />} />
             <Route path="/appeal" element={<AppealByToken />} />
             <Route path="/neighbors" element={<Neighbors />} />
+            <Route path="/friends" element={<Friends />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<Browse />} />
           </Routes>

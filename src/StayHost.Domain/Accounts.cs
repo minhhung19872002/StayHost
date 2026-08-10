@@ -98,6 +98,12 @@ public class User
     public string? Interests { get; set; }
 
     /// <summary>
+    /// docs/01 XH-02 — who may see this person's journey map. Friends by default:
+    /// the social features are opt-in-ish but not broadcast to strangers.
+    /// </summary>
+    public JourneyVisibility JourneyVisibility { get; set; } = JourneyVisibility.Friends;
+
+    /// <summary>
     /// docs/01 TK-07 — a company email, proved with a code, so business travellers
     /// carry a work-verified badge. Held separately from the sign-in email; a free
     /// consumer mailbox never earns it (<see cref="Domain.WorkEmail"/>).

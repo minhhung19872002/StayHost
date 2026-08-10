@@ -73,6 +73,17 @@ public record SaveSearchRequest(
     int Guests, IReadOnlyList<string>? Amenities, string? RoomType, int Bedrooms,
     bool SuperhostOnly, bool InstantBookOnly, IReadOnlyList<string>? HostLanguages);
 
+/// <summary>docs/01 XH-01 — a friend, or a pending request, as the friends screen sees it.</summary>
+public record FriendDto(int UserId, string Name, string Initials, string? AvatarUrl);
+public record FriendRequestDto(int Id, int UserId, string Name, string Initials, string? AvatarUrl, DateTime CreatedAt);
+
+/// <summary>docs/01 XH-01/XH-02 — where a friend has been and is going.</summary>
+public record FriendJourneyDto(
+    string Name, string Visibility,
+    IReadOnlyList<JourneyStopDto> Been, IReadOnlyList<JourneyStopDto> Upcoming);
+public record JourneyStopDto(string City, double Latitude, double Longitude, int Nights, DateOnly When);
+public record JourneyVisibilityRequest(string? Visibility);
+
 /// <summary>docs/01 ĐG-11 — a review flagged as possible secondary-account fraud.</summary>
 public record ReviewFraudDto(
     int ReviewId, int ListingId, string ListingTitle, string HostName, string ReviewerName,
@@ -228,7 +239,9 @@ public record CurrentUserDto(
     /* ------------------------------------------------------ docs/01 TK-13 */
     string? EmergencyContactName = null,
     string? EmergencyContactPhone = null,
-    string? EmergencyContactRelation = null);
+    string? EmergencyContactRelation = null,
+    /* ------------------------------------------------------ docs/01 XH-02 */
+    string JourneyVisibility = "Friends");
 
 /* ------------------------------------------------------------------ hosting */
 

@@ -14,6 +14,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<Favorite> Favorites => Set<Favorite>();
     public DbSet<Wishlist> Wishlists => Set<Wishlist>();
     public DbSet<WishlistVote> WishlistVotes => Set<WishlistVote>();
+    public DbSet<Friendship> Friendships => Set<Friendship>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<User> Users => Set<User>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
@@ -1024,6 +1025,18 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.User).WithMany()
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/01 XH-01 — friend connections. One row per pair (normalised on insert).
+        b.Entity<Friendship>(e =>
+        {
+            e.ToTable("friendships");
+            e.HasIndex(x => new { x.RequesterId, x.AddresseeId }).IsUnique();
+            e.HasIndex(x => x.AddresseeId);
+            e.HasOne(x => x.Requester).WithMany()
+                .HasForeignKey(x => x.RequesterId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Addressee).WithMany()
+                .HasForeignKey(x => x.AddresseeId).OnDelete(DeleteBehavior.Restrict);
         });
 
         // docs/01 YT-06 — group votes on a shared wishlist. One vote per voter per place.

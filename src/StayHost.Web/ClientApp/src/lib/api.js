@@ -377,6 +377,15 @@ export const api = {
   savedSearches: () => request('/api/account/saved-searches'),
   saveSearch: body => request('/api/account/saved-searches', { method: 'POST', body: JSON.stringify(body) }),
   deleteSavedSearch: id => request(`/api/account/saved-searches/${id}`, { method: 'DELETE' }),
+  // docs/01 XH-01, XH-02 — friends and journeys.
+  friends: () => request('/api/friends'),
+  friendRequests: () => request('/api/friends/requests'),
+  sendFriendRequest: userId => request(`/api/friends/request/${userId}`, { method: 'POST' }),
+  respondFriend: (id, decision) => request(`/api/friends/${id}/respond/${decision}`, { method: 'POST' }),
+  removeFriend: userId => request(`/api/friends/${userId}`, { method: 'DELETE' }),
+  setJourneyVisibility: visibility =>
+    request('/api/friends/journey-visibility', { method: 'PUT', body: JSON.stringify({ visibility }) }),
+  friendJourney: userId => request(`/api/friends/${userId}/journey`),
   // docs/01 AT-10 — block list.
   blocks: () => request('/api/account/blocks'),
   blockUser: userId => request('/api/account/blocks', { method: 'POST', body: JSON.stringify({ userId }) }),

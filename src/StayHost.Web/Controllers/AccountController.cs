@@ -819,6 +819,7 @@ public class AccountController(
             user.WorkEmailConfirmed,
             user.EmergencyContactName,
             user.EmergencyContactPhone,
-            user.EmergencyContactRelation);
+            user.EmergencyContactRelation,
+            user.JourneyVisibility.ToString());
     }
 }

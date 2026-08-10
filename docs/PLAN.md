@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **196 xong · 0 làm một phần · 5 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **198 xong · 0 làm một phần · 3 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,7 +350,7 @@ cung cấp (Google Translate / DeepL / Azure) và trả tiền khoá API — đ�
 khách chứ không chờ code. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, chưa cắm
 khoá thì nút "Dịch" **không hiện** — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (5 mã)
+### 9.1 Chưa có (3 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
@@ -358,7 +358,7 @@ khoá thì nút "Dịch" **không hiện** — thà thiếu nút còn hơn nút 
 
 
 
-| `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
+| `CĐ-10` · `CĐ-11` · `XH-03` | Gộp chuyến & lịch trình · mời bạn cùng lên lịch · nhắn bạn hỏi về nơi ở | P2 |
 
 ### 9.2 Làm một phần — **không còn mã nào** (dọn xong 10/08/2026)
 
@@ -376,6 +376,15 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`XH-01` (kết bạn) + `XH-02` (bản đồ hành trình + riêng tư) làm xong 10/08/2026. `Friendships.cs`
+(thuần, có test): quy tắc kết bạn (không tự kết, chỉ người nhận duyệt), và `CanSeeJourney` theo
+quyền riêng tư (riêng tư/bạn bè/công khai). Entity `Friendship` (một hàng mỗi cặp), `User.JourneyVisibility`.
+`FriendsController`: gửi lời mời (gửi ngược = tự chấp nhận), duyệt/từ chối, huỷ kết bạn, đặt quyền
+riêng tư, và `journey` (nơi đã đến/sắp đi từ đơn đặt) có kiểm quyền xem. UI: trang `/friends`, nút
+"Kết bạn"/hành trình ở hồ sơ công khai, link ở menu tài khoản. Xác minh sống: A mời→B duyệt→A thấy
+B; hành trình bạn bè xem được, Private→403, Public→người lạ xem được, tự kết 400, huỷ kết bạn; hành
+trình guest có 7 đã đến/12 sắp đi.
 
 `YT-06` (bình chọn thích/không thích trong nhóm) làm xong 10/08/2026. Entity `WishlistVote`
 (một phiếu mỗi voter mỗi chỗ, voter = session hoặc `u{id}`), endpoint `POST
