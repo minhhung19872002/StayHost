@@ -61,7 +61,8 @@ public class ServiceMarketService(
 
     public async Task<ServiceDetailDto?> DetailAsync(string idOrSlug, CancellationToken ct)
     {
-        var query = db.ServiceOfferings.Include(o => o.Host).Include(o => o.Images);
+        var query = db.ServiceOfferings
+            .Include(o => o.Host).Include(o => o.Images).Include(o => o.AddOns);
 
         var o = int.TryParse(idOrSlug, out var id)
             ? await query.FirstOrDefaultAsync(x => x.Id == id, ct)
@@ -91,7 +92,12 @@ public class ServiceMarketService(
             o.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).ToList(),
             busy.Select(b => new BusySlotDto(b.StartsAt, b.StartsAt.AddMinutes(b.DurationMinutes))).ToList(),
             ServiceRules.RequiredNote(o.Category) is var kind && kind != ServiceRules.NoteKind.None
-                ? ServiceRules.NoteLabel(kind) : null);
+                ? ServiceRules.NoteLabel(kind) : null,
+            o.AddOns.Where(a => a.IsActive).OrderBy(a => a.SortOrder)
+                .Select(a => new ServiceAddOnDto(a.Id, a.Name, a.Price)).ToList(),
+            o.RequirementList,
+            o.TravelFeePerKm, o.MaxTravelKm, o.WorkingDaysMask, o.MaxJobsPerDay,
+            o.CertificateName, o.CertificateExpiresOn);
     }
 
     public async Task<ServiceQuoteDto?> QuoteAsync(int offeringId, QuoteServiceRequest req, CancellationToken ct)
@@ -100,14 +106,16 @@ public class ServiceMarketService(
         if (offering is null) return null;
 
         var check = ServiceRules.CanBook(await BuildCheckAsync(offering, req.StartsAt, req.Quantity,
-            req.Address, req.Latitude, req.Longitude, ct));
+            req.Address, req.Latitude, req.Longitude, ct, req.ConditionsConfirmed));
 
         var price = Pricing.QuoteService(new Pricing.ServiceRequest
         {
             Offering = offering,
             Quantity = req.Quantity,
             StartsAt = req.StartsAt,
-            TaxRules = await catalog.ActiveTaxRulesAsync(ct)
+            TaxRules = await catalog.ActiveTaxRulesAsync(ct),
+            AddOns = await ChosenAddOnsAsync(offering.Id, req.AddOnIds, ct),
+            DistanceKm = DistanceFor(offering, req.Latitude, req.Longitude)
         });
 
         return new ServiceQuoteDto(
@@ -117,9 +125,145 @@ public class ServiceMarketService(
             check.Ok, check.Ok ? null : check.Message);
     }
 
+    /* ------------------------------------------------ MR-S-01, the provider */
+
+    /// <summary>
+    /// docs/09 §3.2 (MR-S-01) — an individual provider lists through their own
+    /// host account; the partner business account of MR-S-09 is a later phase.
+    /// Like an experience, a service is submitted rather than published: a
+    /// category that needs a practising certificate cannot go on sale without
+    /// one, and a certificate that has already lapsed is no certificate at all.
+    /// </summary>
+    public async Task<(int? Id, string? Error)> SaveOfferingAsync(
+        User user, SaveServiceRequest req, CancellationToken ct)
+    {
+        var profile = await db.Hosts.FirstOrDefaultAsync(h => h.UserId == user.Id, ct);
+        if (profile is null) return (null, "Bạn cần có hồ sơ chủ nhà trước.");
+
+        var offering = req.Id is { } id
+            ? await db.ServiceOfferings
+                .Include(o => o.Images).Include(o => o.AddOns)
+                .FirstOrDefaultAsync(o => o.Id == id && o.HostId == profile.Id, ct)
+            : new ServiceOffering { HostId = profile.Id };
+        if (offering is null) return (null, "Không tìm thấy dịch vụ này.");
+
+        var title = (req.Title ?? "").Trim();
+        if (title.Length < 4) return (null, "Tên dịch vụ quá ngắn.");
+        if (req.BasePrice <= 0) return (null, "Giá phải lớn hơn 0.");
+        if (req.MinQuantity < 1 || req.MaxQuantity < req.MinQuantity)
+            return (null, "Số lượng nhận việc chưa hợp lệ.");
+        if (!Enum.TryParse<ServicePricing>(req.Pricing, true, out var pricing))
+            return (null, "Mô hình giá không hợp lệ.");
+
+        offering.Title = title;
+        offering.Category = (req.Category ?? "").Trim().ToLowerInvariant();
+        offering.City = (req.City ?? "").Trim();
+        offering.Summary = (req.Summary ?? "").Trim();
+        offering.Description = (req.Description ?? "").Trim();
+        offering.Pricing = pricing;
+        offering.BasePrice = req.BasePrice;
+        offering.MinQuantity = req.MinQuantity;
+        offering.MaxQuantity = req.MaxQuantity;
+        offering.DurationMinutes = Math.Clamp(req.DurationMinutes, 15, 60 * 12);
+        offering.TravelsToGuest = req.TravelsToGuest;
+        offering.ServiceRadiusKm = Math.Clamp(req.ServiceRadiusKm, 0, 200);
+        offering.Latitude = req.Latitude;
+        offering.Longitude = req.Longitude;
+        offering.OpensAtHour = Math.Clamp(req.OpensAtHour, 0, 23);
+        offering.ClosesAtHour = Math.Clamp(req.ClosesAtHour, 1, 24);
+
+        // docs/09 §3.3–§3.4 — the journey, the working week and the place itself.
+        offering.TravelFeePerKm = Math.Max(0, req.TravelFeePerKm);
+        offering.MaxTravelKm = Math.Clamp(req.MaxTravelKm, 0, 200);
+        offering.WorkingDaysMask = req.WorkingDaysMask is > 0 and < 128 ? req.WorkingDaysMask : 127;
+        offering.BufferMinutes = Math.Clamp(req.BufferMinutes, 0, 240);
+        offering.MaxJobsPerDay = Math.Clamp(req.MaxJobsPerDay, 0, 20);
+        offering.OnSiteRequirements = string.Join('\n', req.OnSiteRequirements ?? []);
+
+        // docs/09 §3.2 — the practising certificate this category demands.
+        offering.CertificateName = string.IsNullOrWhiteSpace(req.CertificateName)
+            ? null : req.CertificateName.Trim();
+        offering.CertificateExpiresOn = req.CertificateExpiresOn;
+
+        if (offering.Id == 0)
+        {
+            offering.Slug = Slugify(title);
+            db.ServiceOfferings.Add(offering);
+        }
+
+        if (req.Images is { Count: > 0 })
+        {
+            db.ServiceImages.RemoveRange(offering.Images);
+            offering.Images = req.Images
+                .Select((url, i) => new ServiceImage { Url = url, SortOrder = i })
+                .ToList();
+        }
+
+        if (req.AddOns is not null)
+        {
+            db.ServiceAddOns.RemoveRange(offering.AddOns);
+            offering.AddOns = req.AddOns
+                .Where(a => !string.IsNullOrWhiteSpace(a.Name) && a.Price >= 0)
+                .Select((a, i) => new ServiceAddOn
+                {
+                    Name = a.Name!.Trim(), Price = a.Price, SortOrder = i, IsActive = true
+                })
+                .ToList();
+        }
+
+        if (req.Publish)
+        {
+            if (offering.Images.Count == 0) return (null, "Cần ít nhất một ảnh thật trước khi mở bán.");
+
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            if (ServiceRules.NeedsCertificate(offering.Category))
+            {
+                if (string.IsNullOrWhiteSpace(offering.CertificateName))
+                    return (null, "Danh mục này bắt buộc có chứng chỉ hành nghề.");
+                if (ServiceRules.CertificateLapsed(offering.CertificateExpiresOn, today))
+                    return (null, "Chứng chỉ đã hết hạn, cần gia hạn trước khi mở bán.");
+            }
+
+            offering.IsPublished = true;
+            offering.HiddenByExpiredCertificate = false;
+        }
+
+        offering.RefreshSearchText();
+        await db.SaveChangesAsync(ct);
+        return (offering.Id, null);
+    }
+
+    /// <summary>The provider's own services, for their console.</summary>
+    public async Task<IReadOnlyList<ServiceDetailDto>> MineAsync(int userId, CancellationToken ct)
+    {
+        var profile = await db.Hosts.FirstOrDefaultAsync(h => h.UserId == userId, ct);
+        if (profile is null) return [];
+
+        var ids = await db.ServiceOfferings
+            .Where(o => o.HostId == profile.Id)
+            .Select(o => o.Slug)
+            .ToListAsync(ct);
+
+        var list = new List<ServiceDetailDto>();
+        foreach (var slug in ids)
+            if (await DetailAsync(slug, ct) is { } dto) list.Add(dto);
+
+        return list;
+    }
+
+    private static string Slugify(string title)
+    {
+        var normalized = SearchText.Normalize(title);
+        var slug = string.Concat(normalized.Select(c => char.IsLetterOrDigit(c) ? c : '-'))
+            .Trim('-');
+        while (slug.Contains("--")) slug = slug.Replace("--", "-");
+        return $"{slug}-{Guid.NewGuid().ToString("N")[..6]}";
+    }
+
     private async Task<ServiceRules.Request> BuildCheckAsync(
         ServiceOffering offering, DateTime startsAt, int quantity,
-        string? address, double? lat, double? lng, CancellationToken ct)
+        string? address, double? lat, double? lng, CancellationToken ct,
+        bool conditionsConfirmed = false)
     {
         var day = startsAt.Date;
         var busy = await db.ServiceBookings
@@ -140,9 +284,29 @@ public class ServiceMarketService(
             Latitude = lat,
             Longitude = lng,
             Busy = busy.Select(b => new ServiceRules.BusyJob(
-                b.StartsAt, b.StartsAt.AddMinutes(b.DurationMinutes), b.Latitude, b.Longitude)).ToList()
+                b.StartsAt, b.StartsAt.AddMinutes(b.DurationMinutes), b.Latitude, b.Longitude)).ToList(),
+            ConditionsConfirmed = conditionsConfirmed
         };
     }
+
+    /// <summary>
+    /// The extras the guest ticked, read back from the offering rather than
+    /// trusted from the request — a price that arrives from the browser is a
+    /// price the guest chose for themselves.
+    /// </summary>
+    private async Task<List<ServiceAddOn>> ChosenAddOnsAsync(
+        int offeringId, IReadOnlyList<int>? ids, CancellationToken ct) =>
+        ids is not { Count: > 0 }
+            ? []
+            : await db.ServiceAddOns
+                .Where(a => a.OfferingId == offeringId && a.IsActive && ids.Contains(a.Id))
+                .ToListAsync(ct);
+
+    /// <summary>How far the job is from the provider's base, for the travel fee.</summary>
+    private static double DistanceFor(ServiceOffering o, double? lat, double? lng) =>
+        o.TravelsToGuest && lat is { } la && lng is { } ln
+            ? ServiceRules.DistanceKm(o.Latitude, o.Longitude, la, ln)
+            : 0;
 
     public async Task<(ServiceBooking? Booking, string? Error)> BookAsync(
         User user, int offeringId, BookServiceRequest req, CancellationToken ct)
@@ -151,7 +315,8 @@ public class ServiceMarketService(
         if (offering is null) return (null, "Không tìm thấy dịch vụ này.");
 
         var check = ServiceRules.CanBook(await BuildCheckAsync(
-            offering, req.StartsAt, req.Quantity, req.Address, req.Latitude, req.Longitude, ct));
+            offering, req.StartsAt, req.Quantity, req.Address, req.Latitude, req.Longitude, ct,
+            req.ConditionsConfirmed));
         if (!check.Ok) return (null, check.Message);
 
         // docs/09 §3.5 (scenario 10) — a chef/massage/fitness job cannot be sent
@@ -159,12 +324,15 @@ public class ServiceMarketService(
         if (ServiceRules.NoteMissing(offering.Category, req.Note))
             return (null, $"Cần điền {ServiceRules.NoteLabel(ServiceRules.RequiredNote(offering.Category))} trước khi đặt.");
 
+        var chosen = await ChosenAddOnsAsync(offering.Id, req.AddOnIds, ct);
         var price = Pricing.QuoteService(new Pricing.ServiceRequest
         {
             Offering = offering,
             Quantity = req.Quantity,
             StartsAt = req.StartsAt,
-            TaxRules = await catalog.ActiveTaxRulesAsync(ct)
+            TaxRules = await catalog.ActiveTaxRulesAsync(ct),
+            AddOns = chosen,
+            DistanceKm = DistanceFor(offering, req.Latitude, req.Longitude)
         });
 
         var attempt = gateway.Charge(price.Total, req.PaymentMethod ?? "card", req.CardLast4);
@@ -187,7 +355,15 @@ public class ServiceMarketService(
             Tax = price.Tax,
             Total = price.Total,
             PlatformCut = price.PlatformCut,
-            ProviderPayout = price.ProviderPayout
+            ProviderPayout = price.ProviderPayout,
+            // docs/09 §3.3 — the receipt keeps its own copy of each extra's name
+            // and price, so retiring one later never rewrites an old booking.
+            AddOnsTotal = price.AddOnsTotal,
+            TravelFee = price.TravelFee,
+            ConditionsConfirmed = req.ConditionsConfirmed,
+            AddOns = chosen
+                .Select(a => new ServiceBookingAddOn { AddOnId = a.Id, Name = a.Name, Price = a.Price })
+                .ToList()
         };
 
         db.ServiceBookings.Add(booking);

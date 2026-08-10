@@ -226,6 +226,91 @@ public class ServiceTests
         Assert.False(ServiceRules.NeedsCertificate("luggage"));
     }
 
+    /* ------------------------------------- docs/09 §3.3–§3.4 (MR-S-03..07) */
+
+    [Fact]
+    public void Past_the_free_radius_a_provider_may_charge_instead_of_refusing()
+    {
+        var flat = Make(radius: 10);                      // no travel fee set
+        var willing = Make(radius: 10);
+        willing.TravelFeePerKm = 15_000m;
+        willing.MaxTravelKm = 20;
+
+        // Inside the radius nothing changes for either.
+        Assert.True(ServiceRules.WillTravelTo(flat, 8));
+        Assert.Equal(0m, ServiceRules.TravelFee(willing, 8));
+
+        // docs/09 §3.3 — the one who never set a fee still refuses…
+        Assert.False(ServiceRules.WillTravelTo(flat, 18));
+        // …the one who did will go, and charges for the extra 8 km only.
+        Assert.True(ServiceRules.WillTravelTo(willing, 18));
+        Assert.Equal(120_000m, ServiceRules.TravelFee(willing, 18));
+
+        // Past what they are willing to do, it is a refusal again.
+        Assert.False(ServiceRules.WillTravelTo(willing, 31));
+    }
+
+    [Fact]
+    public void A_provider_works_the_days_they_said_and_no_others()
+    {
+        var o = Make();
+        o.WorkingDaysMask = 0b0011111;                    // Monday–Friday
+
+        Assert.True(ServiceRules.WorksOn(o, DayOfWeek.Monday));
+        Assert.True(ServiceRules.WorksOn(o, DayOfWeek.Friday));
+        Assert.False(ServiceRules.WorksOn(o, DayOfWeek.Saturday));
+        Assert.False(ServiceRules.WorksOn(o, DayOfWeek.Sunday));
+
+        // The default is every day, so an offering that never said keeps working.
+        Assert.True(ServiceRules.WorksOn(Make(), DayOfWeek.Sunday));
+    }
+
+    [Fact]
+    public void A_job_with_conditions_cannot_be_booked_until_the_guest_confirms_them()
+    {
+        var o = Make();
+        o.OnSiteRequirements = "Có bếp nấu được\nBàn cho 6 người";
+
+        // docs/09 §3.3 (MR-S-07) — this is what makes DV-D fair: they were asked.
+        Assert.True(ServiceRules.ConditionsUnconfirmed(o, confirmed: false));
+        Assert.False(ServiceRules.ConditionsUnconfirmed(o, confirmed: true));
+        Assert.Equal(2, o.RequirementList.Count);
+
+        // A service that asks for nothing never blocks on this.
+        Assert.False(ServiceRules.ConditionsUnconfirmed(Make(), confirmed: false));
+
+        Assert.Equal(
+            ServiceRules.Refusal.ConditionsNotConfirmed,
+            ServiceRules.CanBook(Ask(o)).Reason);
+        Assert.True(ServiceRules.CanBook(Ask(o) with { ConditionsConfirmed = true }).Ok);
+    }
+
+    [Fact]
+    public void Extras_and_the_journey_are_part_of_what_is_being_sold()
+    {
+        var o = Make(ServicePricing.PerSession, 1_000_000m);
+        o.TravelFeePerKm = 10_000m;
+        o.MaxTravelKm = 20;
+
+        var price = Pricing.QuoteService(new Pricing.ServiceRequest
+        {
+            Offering = o, Quantity = 1, StartsAt = Now.AddDays(1),
+            AddOns = [new ServiceAddOn { Id = 1, Name = "Thực đơn 5 món", Price = 300_000m }],
+            DistanceKm = 15                                  // 5 km past the radius
+        });
+
+        Assert.Equal(300_000m, price.AddOnsTotal);
+        Assert.Equal(50_000m, price.TravelFee);
+        // docs/09 §3.3 — both sit in the subtotal, so the 15% provider fee follows.
+        Assert.Equal(1_350_000m, price.Subtotal);
+        Assert.Equal(202_500m, price.PlatformCut);
+        Assert.Equal(price.Total, price.Lines.Sum(l => l.Amount));
+
+        // Each extra is shown, not folded quietly into the base line.
+        Assert.Contains(price.Lines, l => l.Label == "Thực đơn 5 món");
+        Assert.Contains(price.Lines, l => l.Key == "travel-fee");
+    }
+
     /* ------------------------------------------------------------- MR-07 */
 
     [Fact]

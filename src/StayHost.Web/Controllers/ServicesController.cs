@@ -19,6 +19,29 @@ public class ServicesController(AuthService auth, ServiceMarketService market) :
         CancellationToken ct = default) =>
         Ok(await market.BrowseAsync(q, category, city, ct));
 
+    /* ------------------------------------------------ MR-S-01, the provider */
+
+    /// <summary>docs/09 §3.2 — the services this provider lists.</summary>
+    [HttpGet("mine")]
+    public async Task<ActionResult<IReadOnlyList<ServiceDetailDto>>> Mine(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        return Ok(await market.MineAsync(user.Id, ct));
+    }
+
+    /// <summary>docs/09 §3.2 — create or edit one, certificate and all.</summary>
+    [HttpPost]
+    public async Task<IActionResult> Save([FromBody] SaveServiceRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var (id, error) = await market.SaveOfferingAsync(user, req, ct);
+        return id is null ? BadRequest(new { message = error }) : Ok(new { id });
+    }
+
     [HttpGet("bookings")]
     public async Task<ActionResult<IReadOnlyList<ServiceBookingDto>>> MyBookings(CancellationToken ct)
     {

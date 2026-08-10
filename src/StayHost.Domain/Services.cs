@@ -75,6 +75,25 @@ public class ServiceOffering
     public string TimeZoneId { get; set; } = "Asia/Ho_Chi_Minh";
     public bool IsPublished { get; set; }
 
+    // --- docs/09 §3.3 (MR-S-04): work outside the radius, charged for rather
+    // than refused. Zero per km means "we do not travel further", which is the
+    // old behaviour and stays the default.
+    public decimal TravelFeePerKm { get; set; }
+    /// <summary>How far past the free radius the provider will still go.</summary>
+    public int MaxTravelKm { get; set; }
+
+    // --- docs/09 §3.4 (MR-S-05): the working week and how tightly it may pack.
+    /// <summary>Bitmask, Monday = 1 &lt;&lt; 0 … Sunday = 1 &lt;&lt; 6. 127 = every day.</summary>
+    public int WorkingDaysMask { get; set; } = 127;
+    /// <summary>Rest and clean-up between two jobs; 0 falls back to the platform default.</summary>
+    public int BufferMinutes { get; set; }
+    /// <summary>0 means no daily cap.</summary>
+    public int MaxJobsPerDay { get; set; }
+
+    // --- docs/09 §3.3 (MR-S-07): what the place must have, one per line. The
+    // guest confirms these before the job can be booked.
+    public string OnSiteRequirements { get; set; } = "";
+
     // --- docs/09 §3.2 (MR-S-02): the practising certificate and its expiry.
     // A lapsed certificate takes the listing down on its own; the provider is
     // warned thirty days ahead, once.
@@ -93,9 +112,47 @@ public class ServiceOffering
 
     public List<ServiceImage> Images { get; set; } = [];
 
+    /// <summary>docs/09 §3.3 (MR-S-03) — the paid extras this service offers.</summary>
+    public List<ServiceAddOn> AddOns { get; set; } = [];
+
+    /// <summary>The conditions the place must meet, as the guest sees them listed.</summary>
+    public IReadOnlyList<string> RequirementList =>
+        OnSiteRequirements.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
     public void RefreshSearchText() =>
         SearchText = StayHost.Domain.SearchText.Normalize(
             string.Join(' ', Title, Category, City, Country, Summary, Description, PartnerName ?? ""));
+}
+
+/// <summary>
+/// docs/09 §3.3 (MR-S-03) — an extra with a price of its own: a set menu, a
+/// longer session, more edited photos. Added to the subtotal, so the platform
+/// fee and the provider's share both follow it.
+/// </summary>
+public class ServiceAddOn
+{
+    public int Id { get; set; }
+    public int OfferingId { get; set; }
+    public ServiceOffering? Offering { get; set; }
+
+    public string Name { get; set; } = "";
+    public decimal Price { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>One extra chosen on one booking, priced as it was on the day.</summary>
+public class ServiceBookingAddOn
+{
+    public int Id { get; set; }
+    public int BookingId { get; set; }
+    public ServiceBooking? Booking { get; set; }
+
+    public int AddOnId { get; set; }
+    public ServiceAddOn? AddOn { get; set; }
+
+    public string Name { get; set; } = "";
+    public decimal Price { get; set; }
 }
 
 public class ServiceImage
@@ -134,6 +191,16 @@ public class ServiceBooking
     public decimal ServiceFee { get; set; }
     public decimal Tax { get; set; }
     public decimal Total { get; set; }
+
+    /// <summary>docs/09 §3.3 — the extras chosen, and what they came to.</summary>
+    public decimal AddOnsTotal { get; set; }
+    public List<ServiceBookingAddOn> AddOns { get; set; } = [];
+
+    /// <summary>docs/09 §3.3 (MR-S-04) — charged when the address is past the free radius.</summary>
+    public decimal TravelFee { get; set; }
+
+    /// <summary>docs/09 §3.3 (MR-S-07) — the guest said the place has what it needs.</summary>
+    public bool ConditionsConfirmed { get; set; }
 
     /// <summary>What the platform keeps: the host fee, or the commission on a partner job.</summary>
     public decimal PlatformCut { get; set; }
@@ -193,11 +260,56 @@ public static class ServiceRules
         AlreadyBooked,
         NoAddress,
         DoesNotTravel,
-        TooTight
+        TooTight,
+        ConditionsNotConfirmed,
+        DayFull
     }
 
     /// <summary>A job already on the provider's diary, with where it happens.</summary>
     public sealed record BusyJob(DateTime From, DateTime To, double Lat, double Lng);
+
+    /* ------------------------------------------ §3.3, distance and its price */
+
+    /// <summary>
+    /// docs/09 §3.3 (MR-S-04) — outside the free radius the spec offers a choice:
+    /// refuse, or charge for the journey. A provider who set a per-km fee has
+    /// chosen the second, up to however far they are willing to go.
+    /// </summary>
+    public static bool WillTravelTo(ServiceOffering o, double km) =>
+        km <= o.ServiceRadiusKm || (o.TravelFeePerKm > 0 && km <= o.ServiceRadiusKm + o.MaxTravelKm);
+
+    /// <summary>What the journey past the free radius costs; zero inside it.</summary>
+    public static decimal TravelFee(ServiceOffering o, double km)
+    {
+        var extra = km - o.ServiceRadiusKm;
+        return extra <= 0 || o.TravelFeePerKm <= 0
+            ? 0m
+            : Math.Round((decimal)extra * o.TravelFeePerKm, 0, MidpointRounding.AwayFromZero);
+    }
+
+    /* -------------------------------------------- §3.4, the working week */
+
+    /// <summary>docs/09 §3.4 — whether the provider works that weekday at all.</summary>
+    public static bool WorksOn(ServiceOffering o, DayOfWeek day)
+    {
+        // Monday is bit 0, so Sunday (DayOfWeek 0) sits at the end of the week.
+        var bit = day == DayOfWeek.Sunday ? 6 : (int)day - 1;
+        return (o.WorkingDaysMask & (1 << bit)) != 0;
+    }
+
+    /// <summary>The provider's own gap between jobs, or the platform default.</summary>
+    public static TimeSpan BufferFor(ServiceOffering o) =>
+        o.BufferMinutes > 0 ? TimeSpan.FromMinutes(o.BufferMinutes) : BufferBetweenJobs;
+
+    /* ------------------------------------------- §3.3, the place itself */
+
+    /// <summary>
+    /// docs/09 §3.3 (MR-S-07) — a job with conditions attached cannot be booked
+    /// until the guest has said the place meets them. This is what makes the
+    /// misdeclaration rule of §3.6 (DV-D) fair: they were asked.
+    /// </summary>
+    public static bool ConditionsUnconfirmed(ServiceOffering o, bool confirmed) =>
+        o.RequirementList.Count > 0 && !confirmed;
 
     /// <summary>docs/09 §3.4 — the mandatory rest/clean-up gap between two jobs.</summary>
     public static readonly TimeSpan BufferBetweenJobs = TimeSpan.FromMinutes(30);
@@ -224,6 +336,8 @@ public static class ServiceRules
         public double? Longitude { get; init; }
         /// <summary>Jobs already on this provider's diary, with their locations.</summary>
         public IReadOnlyCollection<BusyJob> Busy { get; init; } = [];
+        /// <summary>docs/09 §3.3 (MR-S-07) — the guest ticked the on-site conditions.</summary>
+        public bool ConditionsConfirmed { get; init; }
     }
 
     public static Check CanBook(Request req)
@@ -233,6 +347,21 @@ public static class ServiceRules
         if (req.StartsAt - req.Now < MinimumNotice)
             return Check.Fail(Refusal.TooSoon,
                 $"Cần đặt trước ít nhất {MinimumNotice.TotalHours:0} giờ.");
+
+        // docs/09 §3.4 (MR-S-05) — a day the provider does not work at all.
+        if (!WorksOn(o, req.StartsAt.DayOfWeek))
+            return Check.Fail(Refusal.OutsideHours, "Ngày này nhà cung cấp không nhận việc.");
+
+        // docs/09 §3.3 (MR-S-07) — asked before booking, so §3.6's DV-D is fair.
+        if (ConditionsUnconfirmed(o, req.ConditionsConfirmed))
+            return Check.Fail(Refusal.ConditionsNotConfirmed,
+                "Cần xác nhận nơi thực hiện có đủ điều kiện trước khi đặt.");
+
+        // docs/09 §3.4 — a provider's day has a ceiling on how many jobs fit.
+        if (o.MaxJobsPerDay > 0
+            && req.Busy.Count(b => b.From.Date == req.StartsAt.Date) >= o.MaxJobsPerDay)
+            return Check.Fail(Refusal.DayFull,
+                $"Ngày này đã kín ({o.MaxJobsPerDay} đơn).");
 
         var hour = req.StartsAt.Hour;
         var endHour = req.StartsAt.AddMinutes(o.DurationMinutes).Hour;
@@ -251,10 +380,15 @@ public static class ServiceRules
 
             if (req.Latitude is { } lat && req.Longitude is { } lng)
             {
+                // docs/09 §3.3 (MR-S-04) — past the free radius the spec allows a
+                // travel charge instead of a refusal, so only a provider who never
+                // set one (or a distance past what they will do) is turned away.
                 var km = DistanceKm(o.Latitude, o.Longitude, lat, lng);
-                if (km > o.ServiceRadiusKm)
+                if (!WillTravelTo(o, km))
                     return Check.Fail(Refusal.OutOfRange,
-                        $"Ngoài phạm vi phục vụ {o.ServiceRadiusKm} km (cách khoảng {km:0} km).");
+                        o.TravelFeePerKm > 0
+                            ? $"Xa quá phạm vi nhận việc (cách khoảng {km:0} km)."
+                            : $"Ngoài phạm vi phục vụ {o.ServiceRadiusKm} km (cách khoảng {km:0} km).");
             }
         }
 
@@ -279,7 +413,7 @@ public static class ServiceRules
                 ? TravelTime(DistanceKm(hereLat, hereLng, b.Lat, b.Lng))
                 : TimeSpan.Zero;
 
-            if (gap < BufferBetweenJobs + travel)
+            if (gap < BufferFor(o) + travel)
                 return Check.Fail(Refusal.TooTight,
                     "Quá sát một đơn khác — không đủ thời gian nghỉ và di chuyển giữa hai buổi.");
         }

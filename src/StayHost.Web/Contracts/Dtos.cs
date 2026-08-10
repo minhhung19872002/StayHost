@@ -1671,7 +1671,17 @@ public record ServiceDetailDto(
     IReadOnlyList<string> Images,
     IReadOnlyList<BusySlotDto> Busy,
     /// <summary>docs/09 §3.5 — the note this category makes mandatory, or null.</summary>
-    string? RequiredNote);
+    string? RequiredNote,
+    // docs/09 §3.3–§3.4 — the extras, what the place must have, and how far the
+    // provider will travel for a fee.
+    IReadOnlyList<ServiceAddOnDto>? AddOns = null,
+    IReadOnlyList<string>? OnSiteRequirements = null,
+    decimal TravelFeePerKm = 0,
+    int MaxTravelKm = 0,
+    int WorkingDaysMask = 127,
+    int MaxJobsPerDay = 0,
+    string? CertificateName = null,
+    DateOnly? CertificateExpiresOn = null);
 
 public record ServiceQuoteDto(
     int OfferingId,
@@ -1716,7 +1726,9 @@ public record QuoteServiceRequest(
     int Quantity,
     string? Address,
     double? Latitude,
-    double? Longitude);
+    double? Longitude,
+    IReadOnlyList<int>? AddOnIds = null,
+    bool ConditionsConfirmed = false);
 
 public record BookServiceRequest(
     DateTime StartsAt,
@@ -1726,7 +1738,47 @@ public record BookServiceRequest(
     double? Longitude,
     string? Note,
     string? PaymentMethod,
-    string? CardLast4);
+    string? CardLast4,
+    // docs/09 §3.3 — the extras ticked, and the guest's word that the place has
+    // what the job needs (MR-S-03, MR-S-07).
+    IReadOnlyList<int>? AddOnIds = null,
+    bool ConditionsConfirmed = false);
+
+/// <summary>docs/09 §3.3 (MR-S-03) — one paid extra as the provider defines it.</summary>
+public record ServiceAddOnDto(int Id, string Name, decimal Price);
+
+public record SaveServiceAddOnRequest(string? Name, decimal Price);
+
+/// <summary>docs/09 §3.2–§3.4 (MR-S-01) — a provider listing their own service.</summary>
+public record SaveServiceRequest(
+    int? Id,
+    string? Title,
+    string? Category,
+    string? City,
+    string? Summary,
+    string? Description,
+    string? Pricing,
+    decimal BasePrice,
+    int MinQuantity,
+    int MaxQuantity,
+    int DurationMinutes,
+    bool TravelsToGuest,
+    int ServiceRadiusKm,
+    double Latitude,
+    double Longitude,
+    int OpensAtHour,
+    int ClosesAtHour,
+    IReadOnlyList<string>? Images,
+    bool Publish = false,
+    decimal TravelFeePerKm = 0,
+    int MaxTravelKm = 0,
+    int WorkingDaysMask = 127,
+    int BufferMinutes = 0,
+    int MaxJobsPerDay = 0,
+    IReadOnlyList<string>? OnSiteRequirements = null,
+    IReadOnlyList<SaveServiceAddOnRequest>? AddOns = null,
+    string? CertificateName = null,
+    DateOnly? CertificateExpiresOn = null);
 
 /* ---- docs/09 §4 (MR-C-02): cross-sell from a stay ------------------------ */
 

@@ -416,12 +416,21 @@ public static class Pricing
         public required int Quantity { get; init; }
         public required DateTime StartsAt { get; init; }
         public IReadOnlyCollection<TaxRule> TaxRules { get; init; } = [];
+
+        /// <summary>docs/09 §3.3 (MR-S-03) — the extras chosen, priced separately.</summary>
+        public IReadOnlyCollection<ServiceAddOn> AddOns { get; init; } = [];
+
+        /// <summary>docs/09 §3.3 (MR-S-04) — how far past the free radius, if at all.</summary>
+        public double DistanceKm { get; init; }
     }
 
     public sealed record ServiceBreakdown
     {
         public required int Quantity { get; init; }
         public required decimal Subtotal { get; init; }
+        /// <summary>docs/09 §3.3 — what the extras and the journey came to.</summary>
+        public decimal AddOnsTotal { get; init; }
+        public decimal TravelFee { get; init; }
         public required decimal GuestServiceFee { get; init; }
         public required decimal Tax { get; init; }
         public required decimal Total { get; init; }
@@ -442,9 +451,16 @@ public static class Pricing
 
         // A flat-rate visit is one price no matter how many hours or people are
         // named; everything else multiplies.
-        var subtotal = Round(o.Pricing == ServicePricing.PerSession
+        var basePrice = Round(o.Pricing == ServicePricing.PerSession
             ? o.BasePrice
             : o.BasePrice * quantity);
+
+        // docs/09 §3.3 — extras and the journey are part of what is being sold,
+        // so they sit in the subtotal: the platform's cut and the provider's
+        // share both follow them rather than being computed off the base alone.
+        var addOns = Round(req.AddOns.Where(a => a.IsActive).Sum(a => a.Price));
+        var travelFee = ServiceRules.TravelFee(o, req.DistanceKm);
+        var subtotal = basePrice + addOns + travelFee;
 
         // docs/09 §3.3 — services carry no guest service fee; the platform's cut
         // comes off the provider (15%, or the partner's negotiated commission).
@@ -462,15 +478,27 @@ public static class Pricing
                 o.Pricing == ServicePricing.PerSession
                     ? "Trọn buổi"
                     : $"{FormatVnd(o.BasePrice)} × {quantity} {ServiceRules.UnitLabel(o.Pricing)}",
-                subtotal),
-            new("service-fee", "Phí dịch vụ StayHost", guestServiceFee)
+                basePrice)
         };
+
+        // Each extra is its own line: a guest who added a set menu should see the
+        // set menu, not a subtotal that quietly grew.
+        foreach (var a in req.AddOns.Where(a => a.IsActive && a.Price > 0))
+            lines.Add(new($"add-on-{a.Id}", a.Name, a.Price));
+
+        if (travelFee > 0)
+            lines.Add(new("travel-fee",
+                $"Phí di chuyển ngoài {o.ServiceRadiusKm} km", travelFee));
+
+        lines.Add(new("service-fee", "Phí dịch vụ StayHost", guestServiceFee));
         lines.AddRange(taxLines);
 
         return new ServiceBreakdown
         {
             Quantity = quantity,
             Subtotal = subtotal,
+            AddOnsTotal = addOns,
+            TravelFee = travelFee,
             GuestServiceFee = guestServiceFee,
             Tax = tax,
             Total = total,

@@ -59,6 +59,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<ServiceOffering> ServiceOfferings => Set<ServiceOffering>();
     public DbSet<ServiceImage> ServiceImages => Set<ServiceImage>();
     public DbSet<ServiceBooking> ServiceBookings => Set<ServiceBooking>();
+    public DbSet<ServiceAddOn> ServiceAddOns => Set<ServiceAddOn>();
+    public DbSet<ServiceBookingAddOn> ServiceBookingAddOns => Set<ServiceBookingAddOn>();
     public DbSet<RoomTypeOption> RoomTypes => Set<RoomTypeOption>();
     public DbSet<PriceMatchClaim> PriceMatchClaims => Set<PriceMatchClaim>();
     public DbSet<CreditEntry> CreditEntries => Set<CreditEntry>();
@@ -775,8 +777,36 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.SearchText).HasMaxLength(4000);
             e.Property(x => x.BasePrice).HasColumnType("numeric(14,2)");
             e.Property(x => x.CommissionRate).HasColumnType("numeric(6,4)");
+            e.Property(x => x.TravelFeePerKm).HasColumnType("numeric(14,2)");
+            e.Property(x => x.OnSiteRequirements).HasMaxLength(2000);
+            e.Property(x => x.CertificateName).HasMaxLength(200);
+            e.Ignore(x => x.RequirementList);
             e.HasOne(x => x.Host).WithMany()
                 .HasForeignKey(x => x.HostId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ServiceAddOn>(e =>
+        {
+            e.ToTable("service_add_ons");
+            e.HasIndex(x => x.OfferingId);
+            e.Property(x => x.Name).HasMaxLength(160).IsRequired();
+            e.Property(x => x.Price).HasColumnType("numeric(14,2)");
+            e.HasOne(x => x.Offering).WithMany(x => x.AddOns)
+                .HasForeignKey(x => x.OfferingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ServiceBookingAddOn>(e =>
+        {
+            e.ToTable("service_booking_add_ons");
+            e.HasIndex(x => x.BookingId);
+            e.Property(x => x.Name).HasMaxLength(160).IsRequired();
+            e.Property(x => x.Price).HasColumnType("numeric(14,2)");
+            e.HasOne(x => x.Booking).WithMany(x => x.AddOns)
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+            // The extra itself may later be retired; the booking keeps its own copy
+            // of the name and price, so the receipt never changes underneath it.
+            e.HasOne(x => x.AddOn).WithMany()
+                .HasForeignKey(x => x.AddOnId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<ServiceImage>(e =>
@@ -798,7 +828,8 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.CancelReason).HasMaxLength(300);
             e.Ignore(x => x.EndsAt);
             foreach (var money in new[] { "Subtotal", "ServiceFee", "Tax", "Total",
-                                          "PlatformCut", "ProviderPayout", "RefundedAmount" })
+                                          "PlatformCut", "ProviderPayout", "RefundedAmount",
+                                          "AddOnsTotal", "TravelFee" })
                 e.Property(money).HasColumnType("numeric(14,2)");
             e.HasOne(x => x.Offering).WithMany()
                 .HasForeignKey(x => x.OfferingId).OnDelete(DeleteBehavior.Cascade);

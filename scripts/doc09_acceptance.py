@@ -290,6 +290,75 @@ def vetting():
     ok("E-03c", "Chu nha khong tu duyet trai nghiem cua minh duoc", st4 in (401, 403), f"http={st4}")
 
 
+# ------------------------------------------- MR-S-01 / S-03 / S-04 / S-07
+def service_options():
+    """A provider lists their own service, prices extras and the journey, and
+    cannot be booked until the guest confirms the place is suitable."""
+    host = login("host2@stayhost.vn")
+
+    body = {
+        "title": "Dau bep tai nha - com Viet",
+        "category": "chef", "city": "Da Nang",
+        "summary": "Nau bua toi tai nha ban.",
+        "description": "Di cho, nau, don dep sau bua an.",
+        "pricing": "PerSession", "basePrice": 1000000,
+        "minQuantity": 1, "maxQuantity": 8, "durationMinutes": 120,
+        "travelsToGuest": True, "serviceRadiusKm": 10,
+        "latitude": 16.0544, "longitude": 108.2022,
+        "opensAtHour": 8, "closesAtHour": 20,
+        "images": ["https://images.pexels.com/photos/1000/pexels-photo.jpg"],
+        "travelFeePerKm": 10000, "maxTravelKm": 20,
+        "workingDaysMask": 127, "maxJobsPerDay": 3,
+        "onSiteRequirements": ["Co bep nau duoc", "Ban cho 6 nguoi"],
+        "addOns": [{"name": "Thuc don 5 mon", "price": 300000}],
+        "certificateName": "Chung chi an toan thuc pham",
+        "certificateExpiresOn": "2027-12-31",
+        "publish": True,
+    }
+    st, res = call(host, "/api/services", body)
+    oid = (res or {}).get("id")
+    ok("S-01", "Chu nha tu dang duoc dich vu cua minh",
+       st == 200 and oid, f"http={st}, id={oid}")
+    if not oid:
+        return
+
+    # A category that needs a certificate cannot go on sale without one.
+    st2, res2 = call(host, "/api/services", body | {"id": None, "certificateName": None})
+    ok("S-02b", "Danh muc bat buoc chung chi thi thieu chung chi khong mo ban duoc",
+       st2 != 200 and "ch" in (res2 or {}).get("message", "").lower(),
+       f"tra loi: {(res2 or {}).get('message','')[:60]}")
+
+    # The extras and the journey are priced, and both land in the subtotal.
+    addon = sql(f'select "Id" from service_add_ons where "OfferingId" = {oid} limit 1;')
+    guest = login("guest@stayhost.vn")
+    when = (datetime.datetime.now(datetime.timezone.utc)
+            + datetime.timedelta(days=2)).replace(hour=3, minute=0, second=0, microsecond=0)
+
+    quote_body = {
+        "startsAt": when.isoformat().replace("+00:00", "Z"),
+        "quantity": 1,
+        "address": "12 Tran Phu, Da Nang",
+        "latitude": 16.0544 + 0.135,     # ~15 km out: 5 km past the free radius
+        "longitude": 108.2022,
+        "addOnIds": [int(addon)],
+        "conditionsConfirmed": True,
+    }
+    st3, q = call(guest, f"/api/services/{oid}/quote", quote_body)
+    keys = {l["key"] for l in (q or {}).get("lines", [])}
+    ok("S-03/04", "Tuy chon them va phi di chuyen deu len bao gia",
+       st3 == 200 and any(k.startswith("add-on-") for k in keys) and "travel-fee" in keys,
+       f"cac dong: {sorted(keys)}")
+
+    # Without the tick, the job cannot be booked at all.
+    st4, r4 = call(guest, f"/api/services/{oid}/book",
+                   quote_body | {"conditionsConfirmed": False,
+                                 "note": "Khong di ung gi",
+                                 "paymentMethod": "card", "cardLast4": "4242"})
+    ok("S-07", "Chua xac nhan dieu kien tai cho thi khong dat duoc",
+       st4 != 200 and "xác nhận" in (r4 or {}).get("message", ""),
+       f"tra loi: {(r4 or {}).get('message','')[:60]}")
+
+
 def main():
     print("docs/09 — cac kich ban bat buoc\n")
     scenario_1()
@@ -299,6 +368,7 @@ def main():
     scenario_11()
     scenario_12()
     vetting()
+    service_options()
 
     balance = sql('select coalesce(sum(case when "Direction"=1 then "Amount" else -"Amount" end),0) '
                   'from ledger_entries;')
