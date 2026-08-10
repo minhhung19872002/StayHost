@@ -56,7 +56,8 @@ function Browse() {
             <button className="card" key={x.id} onClick={() => navigate(`/experiences/${x.slug}`)}
                     style={{ textAlign: 'left', border: 0, background: 'none', padding: 0, cursor: 'pointer' }}>
               <div className="card-media">
-                <img src={x.images[0]} alt="" loading="lazy" decoding="async" />
+                {/* is-current: .card-media img is opacity:0 until shown (carousel fade). */}
+                <img className="is-current" src={x.images[0]} alt="" loading="lazy" decoding="async" />
               </div>
               <div className="card-body">
                 <div className="card-row">

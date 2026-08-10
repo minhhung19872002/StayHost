@@ -52,7 +52,7 @@ function Browse() {
           {items.map(s => (
             <button className="card" key={s.id} onClick={() => navigate(`/services/${s.slug}`)}
                     style={{ textAlign: 'left', border: 0, background: 'none', padding: 0, cursor: 'pointer' }}>
-              <div className="card-media"><img src={s.images[0]} alt="" loading="lazy" decoding="async" /></div>
+              <div className="card-media"><img className="is-current" src={s.images[0]} alt="" loading="lazy" decoding="async" /></div>
               <div className="card-body">
                 <div className="card-row">
                   <h3 className="card-title">{s.title}</h3>
