@@ -84,8 +84,8 @@ function TodayRow({ item, onDone }) {
           {longDate(item.checkIn)} → {longDate(item.checkOut)} · {item.nights} {t('đêm')} · {item.guests} {t('khách')}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-          <span className={`badge ${item.statusBadge}`}>{item.statusLabel}</span>
-          <span className="badge pending">{item.what}</span>
+          <span className={`badge ${item.statusBadge}`}>{t(item.statusLabel, 'status')}</span>
+          <span className="badge pending">{t(item.what)}</span>
         </div>
       </div>
       <div className="host-booking-actions">

@@ -138,7 +138,7 @@ export function AmenitiesModal() {
             {[...items].sort((a, b) => Number(b.available) - Number(a.available)).map(a => (
               <div className={`amenity ${a.available ? '' : 'is-missing'}`} key={a.key}
                    style={{ padding: '14px 0', borderBottom: '1px solid #f0f0f0' }}>
-                <span className="ic"><AmenityIcon name={a.key} /></span><span>{a.label}</span>
+                <span className="ic"><AmenityIcon name={a.key} /></span><span>{t(a.label)}</span>
               </div>
             ))}
           </div>
@@ -719,7 +719,7 @@ export function PriceLines({ q, className = '' }) {
     <div className={`book-lines ${className}`} style={{ marginTop: 14 }}>
       {lines.map((l, i) => (
         <div className="book-line" key={i} style={l.amount < 0 ? { color: 'var(--brand-dark)' } : undefined}>
-          <u>{l.label}</u><span>{l.amount < 0 ? `−${money(-l.amount)}` : money(l.amount)}</span>
+          <u>{t(l.label)}</u><span>{l.amount < 0 ? `−${money(-l.amount)}` : money(l.amount)}</span>
         </div>
       ))}
       <div className="book-rule" />

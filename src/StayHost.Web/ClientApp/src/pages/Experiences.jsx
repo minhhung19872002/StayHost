@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { set, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
-import { money, longDate } from '../lib/format.js';
+import { money, longDate, dateFormat, number } from '../lib/format.js';
 import { CardCarousel } from '../components/CardCarousel.jsx';
 import { PhotoMosaic } from '../components/PhotoMosaic.jsx';
 import { Avatar } from '../components/Avatar.jsx';
@@ -25,8 +25,10 @@ const XP_CRITERIA = [
 const initialsOf = name => (name || '?')
   .trim().split(/\s+/).slice(-2).map(w => w[0] ?? '').join('').toUpperCase() || '?';
 
-const TIME = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' });
-const DAY = new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
+// Dates follow the language the guest picked (see format.js LOCALE), so these
+// are asked for per render rather than frozen at import.
+const TIME = () => dateFormat({ hour: '2-digit', minute: '2-digit' });
+const DAY = () => dateFormat({ weekday: 'short', day: '2-digit', month: '2-digit' });
 
 // Exported so the trip page's cross-sell cards (docs/09 §4) read a session's
 // length exactly the way the experience cards here do.
@@ -207,8 +209,8 @@ function Detail({ slug }) {
               <button key={s.id} className={`xp-slot ${slotId === s.id ? 'is-on' : ''}`}
                       disabled={s.seatsLeft === 0}
                       onClick={() => setSlotId(s.id)}>
-                <b>{DAY.format(new Date(s.startsAt))}</b>
-                <span>{TIME.format(new Date(s.startsAt))}</span>
+                <b>{DAY().format(new Date(s.startsAt))}</b>
+                <span>{TIME().format(new Date(s.startsAt))}</span>
                 <i>{s.seatsLeft ? `${t('còn')} ${s.seatsLeft}` : t('hết chỗ')}</i>
               </button>
             )) : <p className="section-sub">{t('Chưa có suất nào mở.')}</p>}
@@ -231,7 +233,7 @@ function Detail({ slug }) {
           {quote && <>
             <div className="book-lines" style={{ marginTop: 16 }}>
               {quote.lines.map(l => (
-                <div className="book-line" key={l.key}><span>{l.label}</span><b>{money(l.amount)}</b></div>
+                <div className="book-line" key={l.key}><span>{t(l.label)}</span><b>{money(l.amount)}</b></div>
               ))}
               <div className="book-line is-total"><span>{t('Tổng')}</span><b>{money(quote.total)}</b></div>
             </div>
@@ -422,7 +424,7 @@ export function ExperienceBookings() {
     try {
       const after = await api.cancelExperienceBooking(row.id);
       toast(after.refundedAmount > 0
-        ? `${t('Đã huỷ, hoàn')} ${new Intl.NumberFormat('vi-VN').format(after.refundedAmount)}₫.`
+        ? `${t('Đã huỷ, hoàn')} ${number(after.refundedAmount)}₫.`
         : t('Đã huỷ. Huỷ sát giờ nên không hoàn tiền.'));
       load();
     } catch (err) { toast(err.message); }
@@ -440,7 +442,7 @@ export function ExperienceBookings() {
                 <div style={{ minWidth: 0 }}>
                   <h3>{r.title}</h3>
                   <div className="meta">
-                    {longDate(r.startsAt.slice(0, 10))} · {TIME.format(new Date(r.startsAt))} ·
+                    {longDate(r.startsAt.slice(0, 10))} · {TIME().format(new Date(r.startsAt))} ·
                     {' '}{r.seats} {t('chỗ')}{r.private ? ` · ${t('nhóm riêng')}` : ''} · {money(r.total)}
                   </div>
                   <div className="meta">{t('Mã')} {r.reference} · {r.city}</div>

@@ -6,11 +6,12 @@ import {
   sendOffer, withdrawOffer, bookOffer, setInboxFilter, archiveThread
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
-import { money, longDate } from '../lib/format.js';
+import { money, longDate, dateFormat } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 import { TranslateButton } from '../components/TranslateButton.jsx';
 
-const TIME = new Intl.DateTimeFormat('vi-VN', {
+// Asked for per render so it follows the chosen language (format.js LOCALE).
+const TIME = () => dateFormat({
   day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
 });
 
@@ -173,8 +174,9 @@ function Conversation({ thread, onOpenListing }) {
         ? thread.messages.map(m => (
             m.isSystem
               ? <div className="bubble is-system" key={m.id}>
-                  <p>{m.body}</p>
-                  <time>{TIME.format(new Date(m.sentAt))}</time>
+                  {/* Composed by the server, not typed by anyone — so it translates. */}
+                  <p>{t(m.body)}</p>
+                  <time>{TIME().format(new Date(m.sentAt))}</time>
                 </div>
               : <div className={`bubble ${m.mine ? 'mine' : ''}`} key={m.id}>
                   {m.body && <p>{m.body}</p>}
@@ -192,7 +194,7 @@ function Conversation({ thread, onOpenListing }) {
                   {m.contactsMasked && (
                     <span className="bubble-note">{t('Đã che thông tin liên hệ cho tới khi đơn được xác nhận.')}</span>
                   )}
-                  <time>{TIME.format(new Date(m.sentAt))}</time>
+                  <time>{TIME().format(new Date(m.sentAt))}</time>
                   {/* docs/01 AT-02 — only on what the other side sent; reporting
                       your own message is not a moderation signal. */}
                   {!m.mine && (
@@ -255,7 +257,7 @@ function BookingCard({ booking }) {
           {' '}{booking.guests} {t('khách')} · {money(booking.total)}
         </div>
       </div>
-      <span className={`badge ${booking.statusBadge}`}>{booking.statusLabel}</span>
+      <span className={`badge ${booking.statusBadge}`}>{t(booking.statusLabel)}</span>
       {booking.needsHostAnswer ? <>
         <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => answer('confirm')}>{t('Xác nhận')}</button>
         <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => answer('decline')}>{t('Từ chối')}</button>
@@ -285,7 +287,7 @@ function OfferPanel({ thread, summary }) {
             <div className="meta">
               {o.nights} {t('đêm')} · {longDate(o.checkIn)} → {longDate(o.checkOut)} · {t('tổng')} {money(o.stayTotal)}
             </div>
-            <div className="meta">{o.statusLabel}</div>
+            <div className="meta">{t(o.statusLabel)}</div>
           </div>
           {!isHost && o.isLive && (
             <button className="btn btn-primary btn-sm"

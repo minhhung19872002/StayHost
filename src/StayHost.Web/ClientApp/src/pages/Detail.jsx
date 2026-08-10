@@ -217,7 +217,9 @@ function GuestFavoriteBanner({ detail, card }) {
 function Summary({ detail, card }) {
   return (
     <div className="summary-block">
-      <div className="summary-title">{card.typeLabel} {t('tại')} {card.city} {t('do')} {detail.host.name} {t('cho thuê')}</div>
+      {/* typeLabel is the server's own wording (CatalogService.CategoryLabel), a
+          closed set — so it goes through the dictionary like the rest of the chrome. */}
+      <div className="summary-title">{t(card.typeLabel)} {t('tại')} {card.city} {t('do')} {detail.host.name} {t('cho thuê')}</div>
       <div className="summary-meta">
         {card.maxGuests} {t('khách')} · {card.bedrooms} {t('phòng ngủ')} · {card.beds} {t('giường')} · {card.bathrooms} {t('phòng tắm')}
       </div>
@@ -255,7 +257,9 @@ function Highlights({ detail, card }) {
       ic: 'selfcheckin', title: t('Tự nhận phòng'),
       sub: t('Bạn có thể tự nhận phòng bằng khoá số ở cửa.')
     },
-    { ic: 'heart', title: t('Huỷ miễn phí trước 48 giờ'), sub: detail.cancellationPolicy },
+    // docs/03 §4 — the policy sentence is composed by Cancellation.Summary, one
+    // of six fixed texts, so the dictionary carries all six.
+    { ic: 'heart', title: t('Huỷ miễn phí trước 48 giờ'), sub: t(detail.cancellationPolicy) },
     card.amenityKeys.includes('workspace') && {
       ic: 'workspace', title: t('Không gian riêng để làm việc'),
       sub: t('Phòng có bàn làm việc và wifi tốc độ cao, phù hợp làm việc từ xa.')
@@ -285,7 +289,7 @@ function Sleeping({ bedrooms }) {
         {bedrooms.map((room, i) => (
           <div className="sleep-card" key={`${room.name}-${i}`}>
             <span className="ic"><Icon name="house" size={26} /></span>
-            <b>{room.name}</b>
+            <b>{t(room.name)}</b>
             <span>{summariseBeds(room.beds)}</span>
           </div>
         ))}
@@ -294,11 +298,15 @@ function Sleeping({ bedrooms }) {
   );
 }
 
-/** "2 giường đôi, 1 giường đơn" rather than a bare list. */
+/**
+ * "2 giường đôi, 1 giường đơn" rather than a bare list. The bed kinds are the
+ * fixed set the wizard offers (ListingWizard BED_TYPES), so they translate;
+ * the lowercasing happens after t() or the English word would stay capitalised.
+ */
 function summariseBeds(beds) {
   const counts = new Map();
   for (const bed of beds) counts.set(bed, (counts.get(bed) ?? 0) + 1);
-  return [...counts].map(([bed, n]) => `${n} ${bed.toLowerCase()}`).join(', ');
+  return [...counts].map(([bed, n]) => `${n} ${t(bed).toLowerCase()}`).join(', ');
 }
 
 /**
@@ -316,7 +324,7 @@ function Amenities({ detail }) {
       <div className="amenity-grid">
         {preview.map(a => (
           <div className={`amenity ${a.available ? '' : 'is-missing'}`} key={a.key}>
-            <span className="ic"><AmenityIcon name={a.key} /></span><span>{a.label}</span>
+            <span className="ic"><AmenityIcon name={a.key} /></span><span>{t(a.label)}</span>
           </div>
         ))}
       </div>
@@ -409,7 +417,9 @@ function Reviews({ detail, card }) {
                   ? <button className="link-btn review-name"
                             onClick={() => navigate(`/users/${r.authorUserId}`)}>{r.authorName}</button>
                   : <div className="review-name">{r.authorName}</div>}
-                <div className="review-when">{r.authorLocation ? `${r.authorLocation} · ` : ''}{r.when}</div>
+                {/* `when` is Profiles.MonthLabel — "Tháng 8, 2026", a shape the
+                    dictionary reduces to a number pair. */}
+                <div className="review-when">{r.authorLocation ? `${r.authorLocation} · ` : ''}{t(r.when)}</div>
               </div>
             </div>
             <p>{r.text}</p>
@@ -543,15 +553,17 @@ function HostProfile({ detail }) {
           <div><b>{h.totalReviews}</b> {t('đánh giá')}</div>
           <div><b>★ {h.averageRating.toFixed(2)}</b> {t('điểm trung bình')}</div>
           <div><b>{h.listingCount}</b> {t('chỗ nghỉ đang cho thuê')}</div>
-          <div>{h.joinedLabel}</div>
+          <div>{t(h.joinedLabel)}</div>
         </div>
       </div>
       {h.bio && <p className="summary-desc" style={{ marginTop: 18 }}>{h.bio}</p>}
       <div style={{ display: 'grid', gap: 6, marginTop: 16, fontSize: 14, color: 'var(--ink-body)' }}>
         <div>{t('Tỉ lệ phản hồi:')} <b>{h.responseRate}</b></div>
-        <div>{t('Thời gian phản hồi:')} <b>{h.responseTime}</b></div>
-        {/* docs/01 TĐ-14 — what they speak, and who else answers for this place. */}
-        {!!h.languages?.length && <div>{t('Ngôn ngữ:')} <b>{h.languages.join(', ')}</b></div>}
+        <div>{t('Thời gian phản hồi:')} <b>{t(h.responseTime)}</b></div>
+        {/* docs/01 TĐ-14 — what they speak, and who else answers for this place.
+            The language names come from Profiles.SpokenLanguages, a closed list;
+            the co-host names are people, so they are left as written. */}
+        {!!h.languages?.length && <div>{t('Ngôn ngữ:')} <b>{h.languages.map(l => t(l)).join(', ')}</b></div>}
         {!!h.coHosts?.length && <div>{t('Đồng quản lý:')} <b>{h.coHosts.join(', ')}</b></div>}
       </div>
       {h.userId
@@ -572,17 +584,17 @@ function ThingsToKnow({ detail }) {
           <h3>{t('Nội quy nhà')}</h3>
           <ul>
             {/* docs/01 CĐ-03 — the hours the host actually set, ahead of the free-text rules. */}
-            {detail.checkInWindow && <li>{detail.checkInWindow}</li>}
-            {detail.houseRules.map(r => <li key={r}>{r}</li>)}
+            {detail.checkInWindow && <li>{t(detail.checkInWindow)}</li>}
+            {detail.houseRules.map(r => <li key={r}>{t(r)}</li>)}
           </ul>
         </div>
         <div className="know">
           <h3>{t('An toàn & chỗ ở')}</h3>
-          <ul>{detail.safetyInfo.map(r => <li key={r}>{r}</li>)}</ul>
+          <ul>{detail.safetyInfo.map(r => <li key={r}>{t(r)}</li>)}</ul>
         </div>
         <div className="know">
           <h3>{t('Chính sách huỷ')}</h3>
-          <ul><li>{detail.cancellationPolicy}</li></ul>
+          <ul><li>{t(detail.cancellationPolicy)}</li></ul>
         </div>
       </div>
 
@@ -590,7 +602,8 @@ function ThingsToKnow({ detail }) {
       {!!detail.cancellationNotes?.length && (
         <div className="cancel-notes">
           <h3>{t('Lịch sử huỷ đơn của chủ nhà')}</h3>
-          <ul>{detail.cancellationNotes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+          {/* CancellationNotes.Compose writes these three sentences, not the host. */}
+          <ul>{detail.cancellationNotes.map((n, i) => <li key={i}>{t(n)}</li>)}</ul>
         </div>
       )}
     </section>

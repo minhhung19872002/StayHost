@@ -4,6 +4,14 @@ import { state as store, toast } from '../../lib/store.js';
 import { longDate } from '../../lib/format.js';
 import { t } from '../../lib/i18n.js';
 
+/*
+ * The server sends the granted scopes as one joined line — "Lịch trống, Giá,
+ * Tin nhắn" (CoHostScopes.Describe). Each part is a dictionary entry on its own,
+ * so the line is split, translated part by part and put back together; a single
+ * value like "Chưa có quyền nào" goes through the same path unchanged.
+ */
+const scopeText = label => (label ?? '').split(', ').map(part => t(part)).join(', ');
+
 /**
  * docs/01 QL-19 — invite someone to help run a listing, choose how much they
  * may touch, and take it back. Both sides live here: the people this host
@@ -47,7 +55,7 @@ function Invites({ invites, onDone }) {
         <div className="team-row" key={i.id}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <b>{i.ownerName}</b>
-            <div className="team-sub">{i.listingTitle ?? t('Tất cả chỗ nghỉ')} · {i.scopeLabel}</div>
+            <div className="team-sub">{i.listingTitle ?? t('Tất cả chỗ nghỉ')} · {scopeText(i.scopeLabel)}</div>
           </div>
           <button className="btn btn-primary btn-sm" onClick={() => answer(i.id, 'accept')}>{t('Nhận lời')}</button>
           <button className="btn btn-outline btn-sm" onClick={() => answer(i.id, 'decline')}>{t('Từ chối')}</button>
@@ -103,7 +111,7 @@ function InviteForm({ scopes, onDone }) {
         <div className="pill-row">
           {scopes.map(s => (
             <button type="button" key={s.key} className={`pill ${picked.includes(s.key) ? 'is-on' : ''}`}
-                    onClick={() => toggle(s.key)}>{s.label}</button>
+                    onClick={() => toggle(s.key)}>{t(s.label)}</button>
           ))}
         </div>
 
@@ -132,10 +140,10 @@ function Granted({ rows, onDone }) {
           <div style={{ minWidth: 0, flex: 1 }}>
             <b>{r.name ?? r.email}</b>
             <div className="team-sub">
-              {r.listingTitle ?? t('Tất cả chỗ nghỉ')} · {r.scopeLabel} · {t('mời ngày')} {longDate(r.invitedAt)}
+              {r.listingTitle ?? t('Tất cả chỗ nghỉ')} · {scopeText(r.scopeLabel)} · {t('mời ngày')} {longDate(r.invitedAt)}
             </div>
           </div>
-          <span className={`badge ${r.status === 'active' ? 'confirmed' : 'pending'}`}>{r.statusLabel}</span>
+          <span className={`badge ${r.status === 'active' ? 'confirmed' : 'pending'}`}>{t(r.statusLabel)}</span>
           <button className="btn btn-outline btn-sm" onClick={() => revoke(r)}>{t('Thu hồi')}</button>
         </div>
       )) : <p className="section-sub">{t('Chưa mời ai.')}</p>}

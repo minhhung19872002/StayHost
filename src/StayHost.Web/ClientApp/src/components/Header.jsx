@@ -544,7 +544,7 @@ function QuickBar() {
           {chips.map(a => (
             <button key={a.key} className={`quick-chip ${state.amenities.includes(a.key) ? 'is-on' : ''}`}
                     aria-pressed={state.amenities.includes(a.key)}
-                    onClick={() => { toggleAmenity(a.key); applySearch(); }}>{a.label}</button>
+                    onClick={() => { toggleAmenity(a.key); applySearch(); }}>{t(a.label)}</button>
           ))}
         </div>
 

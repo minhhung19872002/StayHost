@@ -134,10 +134,12 @@ export function Payout() {
                     <td>{longDate(r.dueOn)}</td>
                     <td>{money(r.amount)}</td>
                     <td>
-                      <span className={`badge ${r.status === 'Đã chuyển' ? 'confirmed' : 'pending'}`}>{r.status}</span>
+                      {/* The comparison stays on the Vietnamese the server sent; only
+                          what is shown goes through the dictionary. */}
+                      <span className={`badge ${r.status === 'Đã chuyển' ? 'confirmed' : 'pending'}`}>{t(r.status)}</span>
                       {/* docs/07 §12.4 — "báo chủ nhà lý do". */}
                       {!!r.holdReason && (
-                        <div style={{ fontSize: 12, color: 'var(--ink-muted)', marginTop: 4 }}>{r.holdReason}</div>
+                        <div style={{ fontSize: 12, color: 'var(--ink-muted)', marginTop: 4 }}>{t(r.holdReason)}</div>
                       )}
                       {!r.holdReason && r.attempts > 1 && (
                         <div style={{ fontSize: 12, color: 'var(--ink-muted)', marginTop: 4 }}>
@@ -240,10 +242,10 @@ export function SuperhostProgress() {
           <div className="cal-row" key={c.key}>
             <span className={`badge ${c.met ? 'confirmed' : 'pending'}`}>{c.met ? t('Đạt') : t('Chưa đạt')}</span>
             <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>
-              <b>{c.label}</b>
-              <span style={{ color: 'var(--ink-muted)' }}> · {t('hiện tại')} {c.current}</span>
+              <b>{t(c.label)}</b>
+              <span style={{ color: 'var(--ink-muted)' }}> · {t('hiện tại')} {t(c.current)}</span>
             </div>
-            <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>{t('mục tiêu')} {c.target}</span>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>{t('mục tiêu')} {t(c.target)}</span>
           </div>
         ))}
       </div>

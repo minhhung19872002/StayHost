@@ -76,7 +76,7 @@ export function Trips() {
                 {t('thanh toán')} {t(PAYMENT[b.paymentStatus] ?? b.paymentStatus)}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-                <span className={`badge ${b.statusBadge}`}>{b.statusLabel}</span>
+                <span className={`badge ${b.statusBadge}`}>{t(b.statusLabel, 'status')}</span>
                 {b.hasReview && <span className="badge confirmed">{t('Đã đánh giá')}</span>}
                 <Deadline booking={b} />
               </div>

@@ -64,9 +64,12 @@ export function Wallet() {
                 {w.entries.map(e => (
                   <tr key={e.id}>
                     <td>{longDate(e.createdAt.slice(0, 10))}</td>
-                    <td>{e.reasonLabel}</td>
+                    {/* CreditRules.ReasonLabel is a closed set; the memo is the
+                        server's sentence too, though the ones carrying a gift-card
+                        or booking reference fall through t() unchanged. */}
+                    <td>{t(e.reasonLabel)}</td>
                     <td>
-                      {e.memo}
+                      {t(e.memo)}
                       {e.expiresAt && (
                         <span className="meta"> · {t('dùng đến')} {longDate(e.expiresAt.slice(0, 10))}</span>
                       )}
@@ -169,7 +172,7 @@ function Buy({ wallet, onDone }) {
                   {money(g.amount)} · {t('gửi tới')} {g.recipientEmail} · {longDate(g.createdAt.slice(0, 10))}
                 </div>
               </div>
-              <span className={`badge ${g.status === 'Redeemed' ? 'confirmed' : 'pending'}`}>{g.statusLabel}</span>
+              <span className={`badge ${g.status === 'Redeemed' ? 'confirmed' : 'pending'}`}>{t(g.statusLabel)}</span>
             </div>
           ))}
         </div>
@@ -215,7 +218,7 @@ function Invite({ wallet, onDone }) {
                 <b>{r.inviteeName ?? r.inviteeEmail}</b>
                 <div className="team-sub">{t('Mã')} {r.code} · {t('mời ngày')} {longDate(r.createdAt.slice(0, 10))}</div>
               </div>
-              <span className={`badge ${r.status === 'Rewarded' ? 'confirmed' : 'pending'}`}>{r.statusLabel}</span>
+              <span className={`badge ${r.status === 'Rewarded' ? 'confirmed' : 'pending'}`}>{t(r.statusLabel)}</span>
             </div>
           ))}
         </div>

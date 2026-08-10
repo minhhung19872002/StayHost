@@ -58,7 +58,7 @@ export function Trip() {
           <p className="section-sub">{b.listingCity} · {t('mã đặt chỗ')} <b>{b.reference}</b></p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span className={`badge ${b.statusBadge}`}>{b.statusLabel}</span>
+          <span className={`badge ${b.statusBadge}`}>{t(b.statusLabel, 'status')}</span>
           <Deadline booking={b} />
         </div>
       </div>
@@ -92,7 +92,7 @@ export function Trip() {
           <section className="detail-section">
             <h2>{t('Chính sách huỷ')}</h2>
             <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.6, color: 'var(--ink-body)' }}>
-              <b>{b.cancellationTier}</b> — {b.cancellationSummary}
+              <b>{t(b.cancellationTier)}</b> — {t(b.cancellationSummary)}
             </p>
             {b.refundedAmount > 0 && (
               <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--brand-dark)' }}>
@@ -184,8 +184,10 @@ function Countdown({ booking }) {
 function arrivalHint(booking, side) {
   const label = booking.checkInGuide?.windowLabel;
   if (!label) return undefined;
+  // Each half is its own dictionary shape, so the hint reads in the chosen
+  // language rather than half-translating the line the server sent whole.
   const [arrive, leave] = label.split(' · ');
-  return side === 'in' ? arrive : leave;
+  return t(side === 'in' ? arrive : leave);
 }
 
 /**
@@ -203,10 +205,12 @@ function CheckInSection({ booking }) {
     <section className="detail-section">
       <h2>{t('Hướng dẫn nhận phòng')}</h2>
 
-      <p className="guide-window">{g.windowLabel}</p>
+      <p className="guide-window">{t(g.windowLabel)}</p>
 
       <div className="kv-grid">
-        <Kv label={t('Cách vào nhà')} value={g.methodLabel} />
+        {/* CheckInGuide.MethodLabel — five fixed ways in, so they translate.
+            The address, phone and wifi below are this listing's own data. */}
+        <Kv label={t('Cách vào nhà')} value={t(g.methodLabel)} />
         {g.addressLine && <Kv label={t('Địa chỉ')} value={g.addressLine} />}
         {g.hostPhone && <Kv label={t('Điện thoại chủ nhà')} value={g.hostPhone} />}
         {g.wifiName && <Kv label="Wifi" value={g.wifiName} hint={g.wifiPassword ? `${t('Mật khẩu:')} ${g.wifiPassword}` : undefined} />}
@@ -218,7 +222,7 @@ function CheckInSection({ booking }) {
           <span className="cap">{t('Mã cửa')}</span>
           {g.doorCode
             ? <b>{g.doorCode}</b>
-            : <span className="door-code-wait">{g.doorCodeNote}</span>}
+            : <span className="door-code-wait">{t(g.doorCodeNote)}</span>}
         </div>
       )}
 
@@ -323,9 +327,9 @@ function CrossSell({ booking }) {
                     <h3 className="card-title">{s.title}</h3>
                     <div className="card-rating">{stars(s)}</div>
                   </div>
-                  <div className="card-sub card-line">{s.city} · {s.pricingLabel}</div>
+                  <div className="card-sub card-line">{s.city} · {t(s.pricingLabel)}</div>
                   <div className="card-price">
-                    <b>{money(s.basePrice)}</b> <span>/ {s.unit}</span>
+                    <b>{money(s.basePrice)}</b> <span>/ {t(s.unit)}</span>
                   </div>
                   <div className="card-perks card-line">
                     {s.travelsToGuest
@@ -394,7 +398,7 @@ function ChangeTrip({ booking }) {
         <div>
           <p style={{ fontSize: 14.5 }}>
             {t('Đã gửi:')} {longDate(pending.newCheckIn)} → {longDate(pending.newCheckOut)} · {pending.newGuests} {t('khách')}.
-            <br />{pending.differenceLabel}
+            <br />{t(pending.differenceLabel)}
           </p>
           <button className="btn btn-outline btn-sm" style={{ marginTop: 10 }} onClick={withdraw}>{t('Rút yêu cầu')}</button>
         </div>
@@ -443,7 +447,7 @@ function ShieldPanel({ booking }) {
       {claims?.length ? (
         <>
           <p style={{ margin: '0 0 12px', fontSize: 14.5, color: 'var(--ink-body)' }}>
-            {t('Bạn đã mở hồ sơ')} {claims[0].reference} — {claims[0].statusLabel}.
+            {t('Bạn đã mở hồ sơ')} {claims[0].reference} — {t(claims[0].statusLabel)}.
           </p>
           <button className="btn btn-outline btn-sm"
                   onClick={() => navigate(`/shield/${claims[0].id}`)}>{t('Xem hồ sơ')}</button>
@@ -487,7 +491,7 @@ function Balance({ booking }) {
         <Kv label={t('Còn phải trả')} value={money(booking.balanceDue)}
             hint={booking.balanceDueOn ? `${t('Thu tự động ngày')} ${longDate(booking.balanceDueOn)}` : undefined} />
       </div>
-      <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--ink-body)' }}>{booking.balanceLabel}</p>
+      <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--ink-body)' }}>{t(booking.balanceLabel)}</p>
 
       {!settled && (
         <button className="btn btn-primary btn-sm" style={{ marginTop: 16 }} disabled={busy}
@@ -510,8 +514,10 @@ function History({ events }) {
           <div className="cal-row" key={i}>
             <span className="badge pending">{dateTime(e.at)}</span>
             <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>
-              <b>{e.fromLabel ? `${e.fromLabel} → ${e.toLabel}` : e.toLabel}</b>
-              {e.reason && <span style={{ color: 'var(--ink-muted)' }}> · {e.reason}</span>}
+              {/* Status wording and the system's own reasons are the server's;
+                  a reason a host typed themselves simply falls through t(). */}
+              <b>{e.fromLabel ? `${t(e.fromLabel)} → ${t(e.toLabel)}` : t(e.toLabel)}</b>
+              {e.reason && <span style={{ color: 'var(--ink-muted)' }}> · {t(e.reason)}</span>}
             </div>
             <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>
               {t(ACTOR[e.actor.split(':')[0]] ?? e.actor)}
@@ -555,7 +561,9 @@ function Receipt({ booking: b }) {
       <div className="book-lines" style={{ marginTop: 16 }}>
         {lines.map((l, i) => (
           <div className="book-line" key={i} style={l.amount < 0 ? { color: 'var(--brand-dark)' } : undefined}>
-            <span>{l.label}</span><span>{l.amount < 0 ? `−${money(-l.amount)}` : money(l.amount)}</span>
+            {/* Stored price-line labels come from Pricing.cs; the {} shapes in the
+                dictionary cover every amount they can carry (docs/03 §1). */}
+            <span>{t(l.label)}</span><span>{l.amount < 0 ? `−${money(-l.amount)}` : money(l.amount)}</span>
           </div>
         ))}
         <div className="book-rule" />

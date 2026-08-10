@@ -349,11 +349,24 @@ const DICT = {
 /** Any run of digits, including 1.234.567 and 12,5 — one number, one slot. */
 const NUMBERS = /\d[\d.,]*/g;
 
-export function t(s) {
+/**
+ * `context` disambiguates a Vietnamese word that means two things. "Hết hạn" is
+ * "Expires" on a card and "Expired" as a booking status; keying by the Vietnamese
+ * alone cannot hold both. A context looks up "Hết hạn|status" first and falls back
+ * to the plain key, so adding one is always safe.
+ */
+export function t(s, context) {
   const code = state.language?.code || 'vi';
   if (code === 'vi' || typeof s !== 'string' || !s) return s;
 
   const table = DICT[code];
+
+  if (context) {
+    const keyed = `${s}|${context}`;
+    const hit = table?.[keyed] ?? DICT.en?.[keyed];
+    if (hit !== undefined) return hit;
+  }
+
   const exact = table?.[s] ?? DICT.en?.[s];
   if (exact !== undefined) return exact;
 

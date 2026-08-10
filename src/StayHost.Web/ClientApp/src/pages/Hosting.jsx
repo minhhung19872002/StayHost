@@ -5,7 +5,7 @@ import {
   set, loadHosting, loadHostCalendar, respondBooking, respondChange, requireAuth, toast
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
-import { money, longDate, todayIso } from '../lib/format.js';
+import { money, longDate, todayIso, dateFormat } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 import { Icon } from '../components/Icon.jsx';
 import { Today } from './hosting/Today.jsx';
@@ -241,7 +241,7 @@ function ListingAdvice({ advice }) {
       {/* QL-09 — a price to consider; the host applies it, nothing changes on its own. */}
       <div className="meta" style={{ marginBottom: 8 }}>
         <b style={{ color: 'var(--ink)' }}>{t('Gợi ý giá:')} </b>
-        {advice.price.isFirm ? `${money(advice.price.suggestedPrice)} · ` : ''}{advice.price.rationale}
+        {advice.price.isFirm ? `${money(advice.price.suggestedPrice)} · ` : ''}{t(advice.price.rationale)}
       </div>
       {/* QL-18 — concrete improvements with a rough sense of impact. */}
       {advice.improvements.length === 0
@@ -250,8 +250,8 @@ function ListingAdvice({ advice }) {
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             {advice.improvements.map((i, idx) => (
               <li key={idx} className="meta" style={{ marginBottom: 4 }}>
-                <b style={{ color: 'var(--ink)' }}>{i.area}:</b> {i.suggestion}
-                <span style={{ color: 'var(--brand, #e5484d)' }}> — {i.estimatedImpact}</span>
+                <b style={{ color: 'var(--ink)' }}>{t(i.area)}:</b> {t(i.suggestion)}
+                <span style={{ color: 'var(--brand, #e5484d)' }}> — {t(i.estimatedImpact)}</span>
               </li>
             ))}
           </ul>
@@ -282,10 +282,11 @@ function experienceState(x) {
 }
 
 /** A session stamped the way a host reads a diary: day, month, hour, minute. */
-const SESSION_STAMP = new Intl.DateTimeFormat('vi-VN', {
+// Asked for per render so they follow the chosen language (format.js LOCALE).
+const SESSION_STAMP = () => dateFormat({
   day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
 });
-const SESSION_TIME = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' });
+const SESSION_TIME = () => dateFormat({ hour: '2-digit', minute: '2-digit' });
 
 function HostExperiences() {
   const state = useStore();
@@ -419,7 +420,7 @@ function HostServices() {
                 <div style={{ minWidth: 0 }}>
                   <h3>{s.title}</h3>
                   <div className="meta">
-                    {s.city} · {s.pricingLabel} · {money(s.basePrice)} / {s.unit} · {s.durationMinutes} {t('phút')}
+                    {s.city} · {t(s.pricingLabel)} · {money(s.basePrice)} / {t(s.unit)} · {s.durationMinutes} {t('phút')}
                   </div>
                   <div className="meta">
                     {s.travelsToGuest
@@ -516,7 +517,7 @@ function SessionRegister({ experience }) {
                 style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 14 }}>
           {slots.map(s => (
             <option key={s.id} value={s.id}>
-              {SESSION_STAMP.format(new Date(s.startsAt))} · {s.seatsTaken}/{s.capacity} {t('chỗ')}
+              {SESSION_STAMP().format(new Date(s.startsAt))} · {s.seatsTaken}/{s.capacity} {t('chỗ')}
             </option>
           ))}
         </select>
@@ -525,7 +526,7 @@ function SessionRegister({ experience }) {
 
       {!roster ? <div className="stat skeleton" style={{ height: 120, border: 0, marginTop: 12 }} /> : <>
         <div className="meta" style={{ marginTop: 10 }}>
-          {SESSION_STAMP.format(new Date(roster.startsAt))} → {SESSION_TIME.format(new Date(roster.endsAt))} ·
+          {SESSION_STAMP().format(new Date(roster.startsAt))} → {SESSION_TIME().format(new Date(roster.endsAt))} ·
           {' '}{roster.seatsTaken}/{roster.capacity} {t('chỗ đã bán')} · {roster.guests.length} {t('vé')}
         </div>
 
@@ -553,7 +554,7 @@ function SessionRegister({ experience }) {
                     {t('Mã')} {g.reference} · {g.seats} {t('chỗ')}{g.isPrivate ? ` · ${t('nhóm riêng')}` : ''}
                     {g.attended == null
                       ? ` · ${t('Chưa điểm danh')}`
-                      : ` · ${g.attended ? t('Có mặt') : t('Vắng')}${g.markedAt ? ` ${SESSION_TIME.format(new Date(g.markedAt))}` : ''}`}
+                      : ` · ${g.attended ? t('Có mặt') : t('Vắng')}${g.markedAt ? ` ${SESSION_TIME().format(new Date(g.markedAt))}` : ''}`}
                   </span>
                 </div>
                 <div className="host-booking-actions">
@@ -613,7 +614,7 @@ function BookingRow({ booking: b, navigate }) {
           {' '}{t('bạn nhận')} <b style={{ color: 'var(--brand)' }}>{money(b.hostPayout)}</b>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-          <span className={`badge ${b.statusBadge}`}>{b.statusLabel}</span>
+          <span className={`badge ${b.statusBadge}`}>{t(b.statusLabel, 'status')}</span>
           {awaitingHost && b.requestExpiresAt && <RespondDeadline at={b.requestExpiresAt} />}
         </div>
 
@@ -621,7 +622,7 @@ function BookingRow({ booking: b, navigate }) {
         {b.pendingChange && (
           <div className="notice notice-warn" style={{ marginTop: 10 }}>
             <b>{t('Yêu cầu đổi lịch:')}</b> {longDate(b.pendingChange.newCheckIn)} → {longDate(b.pendingChange.newCheckOut)} ·
-            {' '}{b.pendingChange.newGuests} {t('khách')} · {b.pendingChange.differenceLabel}
+            {' '}{b.pendingChange.newGuests} {t('khách')} · {t(b.pendingChange.differenceLabel)}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button className="btn btn-primary btn-sm" onClick={() => respondChange(b.id, b.pendingChange.id, true)}>{t('Chấp nhận đổi')}</button>
               <button className="btn btn-outline btn-sm" onClick={() => respondChange(b.id, b.pendingChange.id, false)}>{t('Từ chối')}</button>
@@ -758,7 +759,7 @@ function TaxReport() {
         </div>
       </div>
 
-      <p className="section-sub">{report.note}</p>
+      <p className="section-sub">{t(report.note)}</p>
 
       {report.stays === 0 ? (
         <p className="section-sub" style={{ marginTop: 12 }}>{t('Năm')} {report.year} {t('chưa có đơn nào hoàn tất.')}</p>
@@ -778,7 +779,7 @@ function TaxReport() {
               <tbody>
                 {rows.map(m => (
                   <tr key={m.month}>
-                    <td>{m.label}</td>
+                    <td>{t(m.label)}</td>
                     <td>{m.stays}</td>
                     <td style={{ textAlign: 'right' }}>{money(m.guestPaid)}</td>
                     <td style={{ textAlign: 'right' }}>{money(m.tax)}</td>
@@ -805,11 +806,12 @@ function TaxReport() {
                   <tr><th>{t('Loại thuế')}</th><th>{t('Số đơn')}</th><th style={{ textAlign: 'right' }}>{t('Số tiền')}</th></tr>
                 </thead>
                 <tbody>
-                  {report.taxes.map(t => (
-                    <tr key={t.name}>
-                      <td>{t.name}</td>
-                      <td>{t.stays}</td>
-                      <td style={{ textAlign: 'right' }}>{money(t.amount)}</td>
+                  {/* Not `t` — that name belongs to the translator in this file. */}
+                  {report.taxes.map(line => (
+                    <tr key={line.name}>
+                      <td>{t(line.name)}</td>
+                      <td>{line.stays}</td>
+                      <td style={{ textAlign: 'right' }}>{money(line.amount)}</td>
                     </tr>
                   ))}
                 </tbody>

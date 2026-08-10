@@ -3,12 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { set, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
-import { money, longDate } from '../lib/format.js';
+import { money, longDate, dateFormat } from '../lib/format.js';
 import { CardCarousel } from '../components/CardCarousel.jsx';
 import { PhotoMosaic } from '../components/PhotoMosaic.jsx';
 import { t } from '../lib/i18n.js';
 
-const TIME = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' });
+// Asked for per render so it follows the chosen language (format.js LOCALE).
+const TIME = () => dateFormat({ hour: '2-digit', minute: '2-digit' });
 
 const CATEGORIES = [
   ['', 'Tất cả'], ['chef', 'Đầu bếp'], ['photo', 'Chụp ảnh'], ['massage', 'Massage'],
@@ -247,7 +248,7 @@ function Detail({ slug }) {
                       className={`xp-slot ${when && +when === +at ? 'is-on' : ''}`}
                       onClick={() => setWhen(at)}>
                 <b>{at.getDate()}/{at.getMonth() + 1}</b>
-                <span>{TIME.format(at)}</span>
+                <span>{TIME().format(at)}</span>
                 <i>{taken ? t('đã kín') : t('còn trống')}</i>
               </button>
             ))}
@@ -326,7 +327,7 @@ function Detail({ slug }) {
           {quote && <>
             <div className="book-lines" style={{ marginTop: 12 }}>
               {quote.lines.map(l => (
-                <div className="book-line" key={l.key}><span>{l.label}</span><b>{money(l.amount)}</b></div>
+                <div className="book-line" key={l.key}><span>{t(l.label)}</span><b>{money(l.amount)}</b></div>
               ))}
               <div className="book-line is-total"><span>{t('Tổng')}</span><b>{money(quote.total)}</b></div>
             </div>
@@ -388,7 +389,7 @@ export function ServiceBookings() {
                 <div style={{ minWidth: 0 }}>
                   <h3>{r.title}</h3>
                   <div className="meta">
-                    {longDate(r.startsAt.slice(0, 10))} · {TIME.format(new Date(r.startsAt))} ·
+                    {longDate(r.startsAt.slice(0, 10))} · {TIME().format(new Date(r.startsAt))} ·
                     {' '}{r.quantity} {r.unit} · {money(r.total)}
                   </div>
                   <div className="meta">{t('Mã')} {r.reference}{r.address ? ` · ${r.address}` : ''}</div>

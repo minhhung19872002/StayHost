@@ -159,11 +159,11 @@ function CalendarSync({ rows }) {
               <b>{f.label}</b>
               <div className="team-sub">
                 {f.lastError
-                  ? f.lastError
+                  ? t(f.lastError)
                   : `${f.eventCount} ${t('khoảng ngày')} · ${t('lần cuối')} ${f.lastSyncedAt ? longDate(f.lastSyncedAt) : t('chưa chạy')}`}
               </div>
               {/* docs/01 QL-11 — a clash with a confirmed StayHost booking. */}
-              {f.overlapWarning && <div className="notice notice-warn" style={{ marginTop: 6 }}>{f.overlapWarning}</div>}
+              {f.overlapWarning && <div className="notice notice-warn" style={{ marginTop: 6 }}>{t(f.overlapWarning)}</div>}
             </div>
             <span className={`badge ${f.lastError ? 'cancelled' : 'confirmed'}`}>
               {f.lastError ? t('Lỗi') : t('Đang chạy')}

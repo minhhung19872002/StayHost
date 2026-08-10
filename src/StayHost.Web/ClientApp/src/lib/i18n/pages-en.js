@@ -1728,4 +1728,286 @@ export default {
   "Đi xa hơn": "Further afield",
   "tối đa thêm": "up to a further",
   "Vắng mặt": "No-show",
+  // docs/03 §1 + docs/09 §3.3 — price lines the server composes. "{}" stands
+  // in for a number: t() lifts digits out, matches the shape, puts them back.
+  "{}₫ × {} đêm": "{}₫ × {} nights",
+  "Phụ thu {} khách thêm × {} đêm": "Extra guest surcharge {} × {} nights",
+  "Phí thú cưng × {} đêm": "Pet fee × {} nights",
+  "Ưu đãi tin mới ({}%)": "New listing discount ({}%)",
+  "Giảm giá ở theo tuần ({}%)": "Weekly discount ({}%)",
+  "Giảm giá ở theo tháng ({}%)": "Monthly discount ({}%)",
+  "Giảm giá đặt sớm ({}%)": "Early-bird discount ({}%)",
+  "Giảm giá phút chót ({}%)": "Last-minute discount ({}%)",
+  "Giới hạn tổng giảm còn {}%": "Total discount capped at {}%",
+  "Thuế GTGT {}%": "VAT {}%",
+  "Thuế lưu trú": "Lodging tax",
+  "{}₫ × {} giờ": "{}₫ × {} hours",
+  "{}₫ × {} người": "{}₫ × {} people",
+  "{}₫ × {} buổi": "{}₫ × {} sessions",
+  "{}₫ × {} phần": "{}₫ × {} items",
+  "Phí di chuyển ngoài {} km": "Travel fee beyond {} km",
+
+  /* ---------------------------------------------------------------------
+   * Labels the SERVER composes for the host-facing and messaging screens.
+   * Keyed by the exact Vietnamese the C# emits, so the render site only has
+   * to wrap the field in t(). Entries with {} are shapes: the digits are
+   * lifted out and put back, so one entry covers every value sent.
+   * ------------------------------------------------------------------- */
+
+  // BookingLifecycle.Label — booking status on Hosting, Today and Messages.
+  "Chờ chủ nhà duyệt": "Awaiting host approval",
+  "Chờ thanh toán": "Awaiting payment",
+  "Đã xác nhận": "Confirmed",
+  "Đang lưu trú": "Staying now",
+  "Đã hoàn tất": "Completed",
+  "Không thành công": "Payment failed",
+  "Khách đã huỷ": "Cancelled by the guest",
+  "Chủ nhà đã huỷ": "Cancelled by the host",
+
+  // HostOperationsController.Today — what each row needs today.
+  "Nhận phòng hôm nay": "Checking in today",
+  "Nhận phòng {}/{}": "Checks in {}/{}",
+  "Trả phòng hôm nay": "Checking out today",
+  "Trả phòng {}/{}": "Checks out {}/{}",
+  "Cần trả lời trong {} giờ": "Needs an answer within {} hours",
+
+  // ChangeRequests.DiffLabel — what a date change costs.
+  "Bạn cần trả thêm {}₫.": "You need to pay {}₫ more.",
+  "Bạn được hoàn lại {}₫.": "You get {}₫ back.",
+  "Không thay đổi số tiền.": "The amount does not change.",
+
+  // HostAdvice.SuggestPrice — QL-09 price rationale.
+  "Chỉ có {} chỗ tương đương — chưa đủ để gợi ý một mức giá chắc chắn.": "Only {} comparable places — not enough to suggest a firm price.",
+  "Giá hiện tại thấp hơn phần lớn khu vực (phổ biến {}–{}₫). Cân nhắc nâng lên mức giữa {}₫.": "Your price is below most of the area (typically {}–{}₫). Consider raising it to the middle at {}₫.",
+  "Giá hiện tại cao hơn phần lớn khu vực (phổ biến {}–{}₫). Cân nhắc hạ về mức giữa {}₫ để tăng lượt đặt.": "Your price is above most of the area (typically {}–{}₫). Consider dropping to the middle at {}₫ to win more bookings.",
+  "Giá hiện tại đã nằm trong khoảng phổ biến {}–{}₫. Mức giữa của khu vực là {}₫.": "Your price already sits in the usual {}–{}₫ range. The area's middle is {}₫.",
+
+  // HostAdvice.Improvements — QL-18 checklist: area, suggestion, impact.
+  "Thêm ảnh — hiện có {}, nên có tối thiểu {} ảnh rõ nét.": "Add photos — you have {}, aim for at least {} sharp ones.",
+  "Bổ sung thêm ảnh cho đủ {}+ để khách hình dung rõ hơn.": "Add more photos to reach {}+ so guests can picture the place.",
+  "Mô tả còn ngắn — viết chi tiết hơn về không gian, tiện ích, khu vực.": "The description is short — say more about the space, the amenities and the area.",
+  "Bật Đặt ngay để khách không phải chờ duyệt.": "Turn on Instant Book so guests do not have to wait for approval.",
+  "Khai báo thêm tiện nghi — hiện có {}, khách lọc theo mục này.": "List more amenities — you have {}, and guests filter on them.",
+  "Thêm một câu điểm nổi bật để tin nổi giữa danh sách.": "Add a highlight line so the listing stands out in the list.",
+  "Giá đang cao hơn mặt bằng khu vực — xem gợi ý giá thị trường.": "Your price is above the local going rate — see the market price suggestion.",
+  "Cân nhắc chính sách huỷ linh hoạt hơn để giảm do dự khi đặt.": "Consider a more flexible cancellation policy to reduce hesitation.",
+  "Chưa có đánh giá — ưu đãi nhẹ cho vài lượt đặt đầu để có đánh giá.": "No reviews yet — a small discount on the first few bookings earns some.",
+  "Ước tính +{}–{}% lượt xem": "Roughly +{}–{}% views",
+  "Ước tính +{}% lượt xem": "Roughly +{}% views",
+  "Ước tính +{}% tỉ lệ xem→đặt": "Roughly +{}% view-to-book rate",
+  "Ước tính +{}% lượt đặt": "Roughly +{}% bookings",
+  "Tăng khả năng xuất hiện khi lọc": "Shows up more often in filters",
+  "Tăng tỉ lệ nhấp vào": "More clicks on the listing",
+  "Hạ về khoảng phổ biến giúp tăng lượt đặt": "Dropping to the usual range wins more bookings",
+  "Ước tính +{}–{}% chuyển đổi": "Roughly +{}–{}% conversion",
+  "Đánh giá đầu tiên tăng độ tin cậy": "The first reviews build trust",
+
+  // Payout row status, and Payouts.HoldLabel — docs/07 §12.4.
+  "Chuyển không thành công, sẽ thử lại": "Transfer failed, we will try again",
+  "Đơn đang có tranh chấp hoặc hồ sơ StayShield mở": "The booking has an open dispute or StayShield case",
+  "Khách đang khiếu nại giao dịch với ngân hàng": "The guest is disputing the charge with their bank",
+  "Tin đăng đang bị tạm dừng để xem xét": "The listing is suspended pending review",
+  "Tài khoản nhận tiền chưa xác minh hoặc vừa được đổi": "The payout account is unverified or was just changed",
+  "Đang khấu trừ khoản bạn còn nợ StayHost": "Deducting what you still owe StayHost",
+  "Tài khoản của bạn đang được StayHost xem xét — tiền vẫn là của bạn, chỉ tạm giữ": "StayHost is reviewing your account — the money is still yours, just held",
+
+  // Badges.SuperhostCriteria — label, current and target.
+  "Điểm đánh giá tổng ≥ {}": "Overall rating ≥ {}",
+  "Từ {} chuyến/năm (hoặc {} chuyến với ≥ {} đêm)": "At least {} stays a year (or {} stays covering ≥ {} nights)",
+  "Tỉ lệ phản hồi ≥ {}%": "Response rate ≥ {}%",
+  "Tỉ lệ tự huỷ < {}%": "Own cancellation rate < {}%",
+  "{} chuyến · {} đêm": "{} stays · {} nights",
+  "{} chuyến": "{} stays",
+
+  // CoHostScopes.Describe parts, and the co-host status labels.
+  "Nội dung tin đăng": "Listing content",
+  "Chưa có quyền nào": "No access yet",
+  "Đang chờ nhận lời": "Waiting to accept",
+  "Đang đồng quản lý": "Co-hosting",
+  "Đã từ chối": "Declined",
+  "Đã thu hồi": "Revoked",
+
+  // CalendarSyncService / CalendarConflicts — QL-10 and QL-11.
+  "Không tải được lịch ({}).": "Could not fetch the calendar ({}).",
+  "Lịch nhập về trùng đơn đã xác nhận trên StayHost: {}/{}–{}/{}. Kiểm tra để tránh nhận trùng khách.": "The imported calendar clashes with a confirmed StayHost booking: {}/{}–{}/{}. Check it so you do not take two guests at once.",
+  "Lịch nhập về trùng đơn đã xác nhận trên StayHost: {}/{}–{}/{} và {} đơn khác. Kiểm tra để tránh nhận trùng khách.": "The imported calendar clashes with confirmed StayHost bookings: {}/{}–{}/{} and {} more. Check it so you do not take two guests at once.",
+
+  // SpecialOffers.StatusLabel — the private offer card in a thread.
+  "Đã đặt theo ưu đãi này": "Booked at this offer",
+  "Chủ nhà đã thu hồi ưu đãi": "The host withdrew the offer",
+  "Ưu đãi đã hết hạn": "The offer has expired",
+  "Đang chờ bạn": "Waiting on you",
+
+  // System messages the server posts into a thread.
+  "Hôm nay là ngày trả phòng, trước {}:{}. Chúc bạn đi tiếp vui vẻ!": "Check-out is today, before {}:{}. Have a good onward trip!",
+  "Ưu đãi riêng: {}₫/đêm cho {} đêm ({}/{}–{}/{}). Hiệu lực {} giờ.": "Private offer: {}₫/night for {} nights ({}/{}–{}/{}). Valid for {} hours.",
+
+  // TaxReports — the note on the report, and the seeded tax lines.
+  "Thuế trong bảng này do khách trả và StayHost đã nộp thay cho cơ quan thuế (docs/03 §1 bước 8). Đơn được tính vào năm có ngày trả phòng.": "The tax in this table is paid by the guest and already remitted by StayHost to the tax authority (docs/03 §1, step 8). A booking counts towards the year it checks out in.",
+  "Phí môi trường Đà Lạt": "Đà Lạt environmental levy",
+  "Phí tham quan phố cổ": "Old quarter sightseeing levy",
+  "Phí hạ tầng du lịch": "Tourism infrastructure levy",
+
+  /* ---------------------------------------------------------------------------
+   * Server-composed labels on the guest pages (Detail, Trip, Trips, Wallet).
+   * These arrive from the API already written in Vietnamese, so the render site
+   * is wrapped in t() and the sentence keyed here. "{}" stands in for a number:
+   * t() lifts the digits out, matches the shape, and puts them back in order —
+   * one entry then covers every value the server can send.
+   * ------------------------------------------------------------------------ */
+
+  // Cancellation.Summary — the six policy sentences of docs/03 §4.
+  "Huỷ miễn phí đến 24 giờ trước khi nhận phòng; sau đó mất đêm đầu tiên. Phí vệ sinh luôn được hoàn 100%.":
+    "Free cancellation up to 24 hours before check-in; after that you lose the first night. The cleaning fee is always refunded in full.",
+  "Huỷ miễn phí đến 5 ngày trước khi nhận phòng; sau đó hoàn 50% tiền phòng. Phí vệ sinh luôn được hoàn 100%.":
+    "Free cancellation up to 5 days before check-in; after that 50% of the room rate is refunded. The cleaning fee is always refunded in full.",
+  "Hoàn 100% nếu huỷ trước 30 ngày, 50% nếu huỷ trước 7 ngày, sau đó không hoàn tiền phòng. Phí vệ sinh luôn được hoàn 100%.":
+    "Full refund more than 30 days ahead, 50% more than 7 days ahead, after that nothing on the room. The cleaning fee is always refunded in full.",
+  "Hoàn 50% nếu huỷ trước 7 ngày, sau đó không hoàn tiền phòng. Phí vệ sinh luôn được hoàn 100%.":
+    "50% refund more than 7 days ahead, after that nothing on the room. The cleaning fee is always refunded in full.",
+  "Không hoàn tiền phòng; đổi lại bạn được giảm 10% giá. Phí vệ sinh luôn được hoàn 100%.":
+    "No refund on the room; in exchange you get 10% off the price. The cleaning fee is always refunded in full.",
+  "Kỳ ở dài: hoàn 100% nếu huỷ trước 30 ngày, sau đó khách trả 30 đêm đầu. Phí vệ sinh luôn được hoàn 100%.":
+    "Long stay: full refund more than 30 days ahead, after that you pay for the first 30 nights. The cleaning fee is always refunded in full.",
+
+  // PartialPayment.Label — the balance line of docs/01 ĐP-06.
+  "Đã trả đủ": "Paid off",
+  "Thu lần hai chưa thành công": "The second charge has not gone through yet",
+  "Không thu được phần còn lại": "We could not collect the remainder",
+  "Đã trả toàn bộ": "Paid upfront in full",
+
+  // CheckInGuide.WindowLabel — whole, and the two halves the trip page splits out.
+  "Nhận phòng {}:{} – {}:{} · Trả phòng trước {}:{}": "Check-in {}:{} – {}:{} · Check-out before {}:{}",
+  "Nhận phòng {}:{} – {}:{}": "Check-in {}:{} – {}:{}",
+  "Trả phòng trước {}:{}": "Check-out before {}:{}",
+  // CheckInGuide.DoorCodeWaitNote — docs/01 CĐ-04, the 48-hour gate.
+  "Mã cửa hiện từ {}:{} {}/{} — {} giờ trước giờ nhận phòng.":
+    "The door code appears at {}:{} on {}/{} — {} hours before check-in.",
+
+  // Shield.StatusLabel — a StayShield case seen from the trip page.
+  "Bên kia đã đồng ý": "The other side agreed",
+  "StayHost đang xem xét": "StayHost is reviewing it",
+  "Đã xử lý xong": "Settled",
+  "Không được chấp nhận": "Not accepted",
+  "Đang xét lại": "Under review again",
+
+  // CreditRules.ReasonLabel / StatusLabel — the balance, gift card and referral rows.
+  "Bù đắp từ StayHost": "Goodwill from StayHost",
+  "Thưởng giới thiệu bạn": "Referral reward",
+  "Dùng cho đơn đặt": "Spent on a booking",
+  "Hết hạn sử dụng": "Expired",
+  "Hoàn lại số dư": "Balance returned",
+  "Đã dùng hết": "Fully redeemed",
+  "Đã huỷ": "Cancelled",
+  "Còn hiệu lực": "Still valid",
+  "Đã tạo tài khoản": "Signed up",
+  "Đã thưởng cả hai bên": "Both sides rewarded",
+  "Đã gửi lời mời": "Invitation sent",
+  // WalletService memos. The ones carrying a gift-card or booking reference are
+  // left out on purpose: a reference has digits in it, so no shape can match.
+  "Thưởng chuyến đi đầu tiên": "First-trip reward",
+  "Bạn bè bạn giới thiệu đã đi chuyến đầu tiên": "A friend you referred took their first trip",
+  "Hết hạn sử dụng {}/{}/{}": "Expired on {}/{}/{}",
+
+  // Listing defaults — house rules and safety info (Entities.Listing).
+  "Không hút thuốc trong nhà": "No smoking indoors",
+  "Không tổ chức tiệc": "No parties",
+  "Giữ yên lặng sau {}:{}": "Quiet after {}:{}",
+  "Có thiết bị báo khói": "Smoke alarm fitted",
+  "Có bình chữa cháy": "Fire extinguisher on site",
+  "Có bộ sơ cứu": "First-aid kit on site",
+
+  // Profiles.SpokenLanguages — what the host speaks (docs/01 TĐ-14).
+  "Tiếng Việt": "Vietnamese",
+  "Tiếng Anh": "English",
+  "Tiếng Trung": "Chinese",
+  "Tiếng Hàn": "Korean",
+  "Tiếng Nhật": "Japanese",
+  "Tiếng Pháp": "French",
+  "Tiếng Đức": "German",
+  "Tiếng Tây Ban Nha": "Spanish",
+  "Tiếng Nga": "Russian",
+  "Tiếng Thái": "Thai",
+  "Tiếng Khmer": "Khmer",
+  "Tiếng Lào": "Lao",
+
+  // CatalogService.BedLayout — the fallback room names of docs/01 TĐ-05.
+  "Phòng ngủ {}": "Bedroom {}",
+
+  // Profiles.JoinedLabel / MonthLabel, and the seeded host response times.
+  "Tham gia StayHost tháng {}, {}": "Joined StayHost {}/{}",
+  "Tháng {}, {}": "{}/{}",
+  "trong vòng {} giờ": "within {} hr",
+  "trong vòng vài giờ": "within a few hours",
+
+  // CancellationNotes.Compose — docs/01 ĐG-12, the public record on a listing.
+  "Chủ nhà đã huỷ một đơn đặt vào đúng ngày nhận phòng.":
+    "The host cancelled a booking on the check-in day itself.",
+  "Chủ nhà đã huỷ một đơn đặt một ngày trước khi nhận phòng.":
+    "The host cancelled a booking one day before check-in.",
+  "Chủ nhà đã huỷ một đơn đặt {} ngày trước khi nhận phòng.":
+    "The host cancelled a booking {} days before check-in.",
+
+  // BookingEvent.Reason — the append-only history of docs/00 §6.2. Only the
+  // reasons the system writes are here; one a host typed falls through t().
+  "Giữ chỗ {} phút để thanh toán": "Dates held {} minutes to pay",
+  "Chuyển thành yêu cầu đặt do chưa đủ điều kiện Đặt ngay của chủ nhà":
+    "Turned into a booking request: the host's Instant Book conditions were not met",
+  "Hết {} phút giữ chỗ mà chưa thanh toán xong.": "The {}-minute hold ran out before payment finished.",
+  "Khách rời bước thanh toán.": "The guest left the payment step.",
+  "Thanh toán thành công.": "Payment succeeded.",
+  "Đã thu nốt {}₫.": "Collected the remaining {}₫.",
+  "Đã thu nốt {}₫ theo lịch.": "Collected the remaining {}₫ on schedule.",
+  "Đã đặt cọc {}₫ trên tổng {}₫.": "Deposit of {}₫ paid out of {}₫.",
+  "Chia hoá đơn cho {} người, đã trả đủ.": "Bill split {} ways, paid in full.",
+  "Gia hạn giữ chỗ trong lúc khách xác thực với ngân hàng.":
+    "Hold extended while the guest authenticates with their bank.",
+  "Chủ nhà chấp nhận yêu cầu.": "The host accepted the request.",
+  "Chủ nhà từ chối": "The host declined",
+  "Chủ nhà không trả lời trong {} giờ.": "The host did not reply within {} hours.",
+  "Đã tới ngày nhận phòng.": "Check-in day reached.",
+  "Đã tới ngày trả phòng.": "Check-out day reached.",
+  "Tự huỷ: tài khoản chủ nhà bị khoá.": "Auto-cancelled: the host's account was locked.",
+  "Tự huỷ: tài khoản khách bị khoá.": "Auto-cancelled: the guest's account was locked.",
+  "Khách huỷ": "The guest cancelled",
+  // HostOperationsController — the note left when a host accepts a change request.
+  "Đổi lịch sang {}/{}–{}/{}, Bạn cần trả thêm {}₫.": "Moved to {}/{}–{}/{}, you need to pay {}₫ more.",
+  "Đổi lịch sang {}/{}–{}/{}, Bạn được hoàn lại {}₫.": "Moved to {}/{}–{}/{}, you get {}₫ back.",
+  "Đổi lịch sang {}/{}–{}/{}, Không thay đổi số tiền.": "Moved to {}/{}–{}/{}, the amount does not change.",
+
+  // Pricing.cs — the one stored line label the earlier batch missed.
+  "Phí thú cưng": "Pet fee",
+  "Hết hạn|status": "Expired",
+  // Amenity names and groups — a finite set the server owns (DbSeeder.cs).
+  "Hồ bơi": "Pool",
+  "Wifi tốc độ cao": "Fast wifi",
+  "Bếp đầy đủ": "Full kitchen",
+  "Chỗ đậu xe miễn phí": "Free parking",
+  "Máy lạnh": "Air conditioning",
+  "Cho mang thú nuôi": "Pets allowed",
+  "Máy giặt": "Washing machine",
+  "TV màn hình phẳng": "Flat-screen TV",
+  "Góc làm việc riêng": "Dedicated workspace",
+  "Phòng gym": "Gym",
+  "Khu BBQ ngoài trời": "Outdoor BBQ area",
+  "Bồn tắm nước nóng": "Hot tub",
+  "Lò sưởi": "Fireplace",
+  "Xe đạp miễn phí": "Free bikes",
+  "Sát biển": "Beachfront",
+  "Bữa sáng miễn phí": "Free breakfast",
+  "Nôi cho em bé": "Cot",
+  "View đẹp": "Great view",
+  "Sạc xe điện": "EV charger",
+  "Lối vào bằng phẳng": "Step-free entrance",
+  "Thang máy": "Lift",
+  "Cửa rộng cho xe lăn": "Wheelchair-wide doorway",
+  "Tay vịn trong phòng tắm": "Bathroom grab rails",
+  "Phòng tầng trệt": "Ground-floor room",
+  "Nổi bật": "Highlights",
+  "Tiện nghi": "Amenities",
+  "Ngoài trời": "Outdoors",
+  "Dịch vụ": "Services",
+  "Gia đình": "Family",
+  "Tiếp cận": "Accessibility",
+  "Bất kỳ": "Any",
 };
