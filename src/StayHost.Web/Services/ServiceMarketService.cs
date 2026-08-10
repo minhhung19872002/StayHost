@@ -71,7 +71,9 @@ public class ServiceMarketService(
             o.IsPartner, o.PartnerName, o.IsPublished,
             o.Rating, o.ReviewCount, o.Host?.Name ?? "", o.Host?.Initials ?? "",
             o.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).ToList(),
-            busy.Select(b => new BusySlotDto(b.StartsAt, b.StartsAt.AddMinutes(b.DurationMinutes))).ToList());
+            busy.Select(b => new BusySlotDto(b.StartsAt, b.StartsAt.AddMinutes(b.DurationMinutes))).ToList(),
+            ServiceRules.RequiredNote(o.Category) is var kind && kind != ServiceRules.NoteKind.None
+                ? ServiceRules.NoteLabel(kind) : null);
     }
 
     public async Task<ServiceQuoteDto?> QuoteAsync(int offeringId, QuoteServiceRequest req, CancellationToken ct)
@@ -132,6 +134,11 @@ public class ServiceMarketService(
         var check = ServiceRules.CanBook(await BuildCheckAsync(
             offering, req.StartsAt, req.Quantity, req.Address, req.Latitude, req.Longitude, ct));
         if (!check.Ok) return (null, check.Message);
+
+        // docs/09 §3.5 (scenario 10) — a chef/massage/fitness job cannot be sent
+        // without the safety note its category demands.
+        if (ServiceRules.NoteMissing(offering.Category, req.Note))
+            return (null, $"Cần điền {ServiceRules.NoteLabel(ServiceRules.RequiredNote(offering.Category))} trước khi đặt.");
 
         var price = Pricing.QuoteService(new Pricing.ServiceRequest
         {

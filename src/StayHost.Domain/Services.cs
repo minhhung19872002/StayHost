@@ -236,6 +236,35 @@ public static class ServiceRules
 
     private static double ToRadians(double degrees) => degrees * Math.PI / 180;
 
+    /// <summary>The mandatory note a category demands before a job can be booked.</summary>
+    public enum NoteKind { None = 0, FoodAllergy, HealthConditions, FitnessInjuries }
+
+    /// <summary>
+    /// docs/09 §3.5 (scenario 10) — some categories cannot be booked without a
+    /// note the provider needs for safety: a chef needs food allergies, massage
+    /// needs health conditions and areas to avoid, a trainer needs goals and past
+    /// injuries. Every other category leaves the note optional.
+    /// </summary>
+    public static NoteKind RequiredNote(string? category) => (category ?? "").Trim().ToLowerInvariant() switch
+    {
+        "chef" => NoteKind.FoodAllergy,
+        "massage" => NoteKind.HealthConditions,
+        "fitness" => NoteKind.FitnessInjuries,
+        _ => NoteKind.None
+    };
+
+    public static string NoteLabel(NoteKind kind) => kind switch
+    {
+        NoteKind.FoodAllergy => "Dị ứng thực phẩm",
+        NoteKind.HealthConditions => "Tình trạng sức khoẻ và vùng cần tránh",
+        NoteKind.FitnessInjuries => "Mục tiêu tập luyện và chấn thương cũ",
+        _ => ""
+    };
+
+    /// <summary>Whether this booking is missing a note its category makes mandatory.</summary>
+    public static bool NoteMissing(string? category, string? note) =>
+        RequiredNote(category) != NoteKind.None && string.IsNullOrWhiteSpace(note);
+
     public static decimal GuestRefund(ServiceBooking booking, DateTime now) =>
         booking.StartsAt - now >= FreeCancellation ? booking.Total : 0m;
 

@@ -1608,7 +1608,9 @@ public record ServiceDetailDto(
     string HostName,
     string HostInitials,
     IReadOnlyList<string> Images,
-    IReadOnlyList<BusySlotDto> Busy);
+    IReadOnlyList<BusySlotDto> Busy,
+    /// <summary>docs/09 §3.5 — the note this category makes mandatory, or null.</summary>
+    string? RequiredNote);
 
 public record ServiceQuoteDto(
     int OfferingId,

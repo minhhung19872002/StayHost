@@ -238,9 +238,16 @@ function Detail({ slug }) {
           )}
 
           <label className="form-field">
-            <span className="cap">{t('Ghi chú')} <span style={{ fontWeight: 400 }}>{t('(không bắt buộc)')}</span></span>
-            <input value={note} placeholder={t('Có người dị ứng hải sản…')}
+            <span className="cap">
+              {s.requiredNote
+                ? <>{t(s.requiredNote)} <span style={{ color: 'var(--danger, #c0392b)' }}>*</span></>
+                : <>{t('Ghi chú')} <span style={{ fontWeight: 400 }}>{t('(không bắt buộc)')}</span></>}
+            </span>
+            <input value={note} placeholder={s.requiredNote ? t(s.requiredNote) : t('Có người dị ứng hải sản…')}
                    onChange={e => setNote(e.target.value)} />
+            {s.requiredNote && !note.trim() &&
+              <span className="hint" style={{ color: 'var(--ink-muted)', fontSize: 13 }}>
+                {t('Dịch vụ này bắt buộc điền thông tin trên trước khi đặt.')}</span>}
           </label>
 
           {quote && <>
@@ -254,7 +261,7 @@ function Detail({ slug }) {
             {!quote.canBook && <div className="book-alert is-error"><b>{t('Chưa đặt được')}</b><span>{quote.reason}</span></div>}
 
             <button className="btn btn-primary" style={{ width: '100%', marginTop: 12 }}
-                    disabled={busy || !quote.canBook} onClick={book}>
+                    disabled={busy || !quote.canBook || (s.requiredNote && !note.trim())} onClick={book}>
               {busy ? t('Đang xử lý…') : t('Đặt dịch vụ')}
             </button>
           </>}

@@ -156,6 +156,22 @@ public class ServiceTests
         Assert.Equal(1_500_000m, price.Total);
     }
 
+    [Fact]
+    public void A_chef_massage_or_trainer_job_needs_its_mandatory_note()
+    {
+        // docs/09 §3.5 (scenario 10) — the safety note is required for these…
+        Assert.True(ServiceRules.NoteMissing("chef", null));
+        Assert.True(ServiceRules.NoteMissing("chef", "   "));
+        Assert.True(ServiceRules.NoteMissing("massage", ""));
+        Assert.True(ServiceRules.NoteMissing("fitness", null));
+        Assert.False(ServiceRules.NoteMissing("chef", "Dị ứng hải sản"));
+
+        // …and optional for everything else.
+        Assert.False(ServiceRules.NoteMissing("photo", null));
+        Assert.False(ServiceRules.NoteMissing("transfer", null));
+        Assert.Equal(ServiceRules.NoteKind.FoodAllergy, ServiceRules.RequiredNote("chef"));
+    }
+
     /* ------------------------------------------------------------- MR-07 */
 
     [Fact]
