@@ -128,6 +128,8 @@ export function Admin() {
 
       <HelpArticlesAdmin />
 
+      <DeclineMonitor />
+
       <section style={{ marginTop: 40 }}>
         <h2 className="section-title" style={{ fontSize: 20 }}>Chỗ nghỉ mới nhất</h2>
         <div className="table-wrap">
@@ -223,6 +225,59 @@ function ModerationQueue() {
           </table>
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * docs/01 AT-12 — hosts' decline records. A decline whose reason leans on a
+ * protected characteristic is flagged for a human; the rate column shows who
+ * turns guests away unusually often.
+ */
+function DeclineMonitor() {
+  const [rows, setRows] = useState(null);
+  useEffect(() => { api.adminDeclineMonitor().then(setRows).catch(() => setRows([])); }, []);
+  if (!rows) return null;
+
+  const flaggedTotal = rows.reduce((n, r) => n + r.flagged, 0);
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>Giám sát từ chối khách</h2>
+      <p className="section-sub">
+        {rows.length} chủ nhà có lượt từ chối · {flaggedTotal} lý do cần xem lại (nghi phân biệt đối xử)
+      </p>
+      {rows.length === 0
+        ? <p className="section-sub">Chưa có lượt từ chối nào.</p>
+        : (
+          <div className="table-wrap" style={{ marginTop: 16 }}>
+            <table className="admin-table">
+              <thead>
+                <tr><th>Chủ nhà</th><th>Từ chối / Đã phản hồi</th><th>Tỉ lệ</th><th>Lý do cần xem lại</th></tr>
+              </thead>
+              <tbody>
+                {rows.map(r => (
+                  <tr key={r.hostId} style={r.flagged > 0 ? { background: 'rgba(224,72,77,.06)' } : undefined}>
+                    <td><b>{r.hostName}</b></td>
+                    <td>{r.declined} / {r.responded}</td>
+                    <td>{r.declineRatePercent}%</td>
+                    <td>
+                      {r.flagged === 0 ? '—' : (
+                        <ul style={{ margin: 0, paddingLeft: 16 }}>
+                          {r.flaggedReasons.map((f, i) => (
+                            <li key={i} className="meta">
+                              <b style={{ color: 'var(--brand,#e5484d)' }}>{f.category}</b> · {f.reference}: “{f.reason}”
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
     </section>
   );
 }

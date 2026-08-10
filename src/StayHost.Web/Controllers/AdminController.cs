@@ -554,6 +554,61 @@ public class AdminController(
         return NoContent();
     }
 
+    /* ---------------------------------- docs/01 AT-12, discrimination monitor */
+
+    /// <summary>
+    /// docs/01 AT-12 — hosts' decline records, so a pattern of turning guests away
+    /// can be seen. Declines whose stated reason leans on a protected characteristic
+    /// are flagged for a human to read; the decline itself is never blocked.
+    /// Sorted so the hosts with flags, then the highest decline rates, come first.
+    /// </summary>
+    [HttpGet("admin/decline-monitor")]
+    public async Task<ActionResult<IReadOnlyList<DeclineMonitorDto>>> DeclineMonitor(CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Moderation, ct);
+        if (admin is null) return StatusCode(403, new { message = "Bạn không có quyền kiểm duyệt." });
+
+        // Everything a host actually responded to, with the host attached.
+        var responded = await db.Bookings
+            .Where(b => b.RespondedAt != null && b.Listing!.Host!.UserId != null)
+            .Select(b => new
+            {
+                HostId = b.Listing!.HostId,
+                HostName = b.Listing.Host!.Name,
+                b.Reference,
+                b.Status,
+                b.CancelledBy,
+                b.CancellationReason
+            })
+            .ToListAsync(ct);
+
+        var rows = responded
+            .GroupBy(b => new { b.HostId, b.HostName })
+            .Select(g =>
+            {
+                var declines = g.Where(x =>
+                    x.Status == BookingStatus.Declined && x.CancelledBy == CancelledBy.Host).ToList();
+                var flagged = declines
+                    .Select(d => new { d.Reference, d.CancellationReason, Cat = AntiDiscrimination.Screen(d.CancellationReason) })
+                    .Where(x => x.Cat != AntiDiscrimination.Category.None)
+                    .Select(x => new FlaggedDeclineDto(
+                        x.Reference, x.CancellationReason ?? "", AntiDiscrimination.CategoryLabel(x.Cat)))
+                    .ToList();
+
+                var total = g.Count();
+                return new DeclineMonitorDto(
+                    g.Key.HostId, g.Key.HostName, total, declines.Count,
+                    total == 0 ? 0 : (int)Math.Round(100.0 * declines.Count / total),
+                    flagged.Count, flagged);
+            })
+            .Where(r => r.Declined > 0)
+            .OrderByDescending(r => r.Flagged)
+            .ThenByDescending(r => r.DeclineRatePercent)
+            .ToList();
+
+        return Ok(rows);
+    }
+
     /* --------------------------------------- docs/01 QT-07, help articles */
 
     /// <summary>docs/01 QT-07 — every help article, for the admin editor.</summary>

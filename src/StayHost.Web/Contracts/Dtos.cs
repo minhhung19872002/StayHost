@@ -73,6 +73,13 @@ public record SaveSearchRequest(
     int Guests, IReadOnlyList<string>? Amenities, string? RoomType, int Bedrooms,
     bool SuperhostOnly, bool InstantBookOnly, IReadOnlyList<string>? HostLanguages);
 
+/// <summary>docs/01 AT-12 — one host's decline record, for the discrimination monitor.</summary>
+public record DeclineMonitorDto(
+    int HostId, string HostName, int Responded, int Declined, int DeclineRatePercent,
+    int Flagged, IReadOnlyList<FlaggedDeclineDto> FlaggedReasons);
+
+public record FlaggedDeclineDto(string Reference, string Reason, string Category);
+
 /// <summary>docs/01 QT-07 — a help article as the admin editor sees it.</summary>
 public record HelpAdminDto(
     int Id, string Slug, string Title, string Category, string Audience,

@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **190 xong · 0 làm một phần · 11 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **191 xong · 0 làm một phần · 10 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,13 +350,13 @@ cung cấp (Google Translate / DeepL / Azure) và trả tiền khoá API — đ�
 khách chứ không chờ code. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, chưa cắm
 khoá thì nút "Dịch" **không hiện** — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (11 mã)
+### 9.1 Chưa có (10 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
 | `TM-24` | Vẽ vùng tìm kiếm trên bản đồ | P2 |
 | `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
-| `AT-03` · `AT-08` · `AT-12` | Kênh hàng xóm · trợ lý tự động · chống phân biệt đối xử | P2 |
+| `AT-03` · `AT-08` | Kênh hàng xóm · trợ lý tự động | P2 |
 | `YT-06` | Bình chọn nhóm trong danh sách yêu thích chung | P2 |
 | `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
 
