@@ -4,6 +4,7 @@ import { useSlideshow } from '../lib/useSlideshow.js';
 import { useStore } from '../lib/useStore.js';
 import { state as store, toggleFavorite } from '../lib/store.js';
 import { money, shortDate } from '../lib/format.js';
+import { t } from '../lib/i18n.js';
 import { stayTotal, originalStayTotal, allInPerNight } from '../lib/pricing.js';
 import { setHoveredListing } from './Maps.jsx';
 
@@ -20,7 +21,7 @@ export function Card({ card, variant, lazy = false }) {
   const [index, setIndex] = useState(0);
 
   const images = card.images?.length ? card.images : [''];
-  const badge = card.isGuestFavorite ? 'KHÁCH YÊU THÍCH' : card.isSuperhost ? 'SIÊU CHỦ NHÀ' : null;
+  const badge = card.isGuestFavorite ? t('KHÁCH YÊU THÍCH') : card.isSuperhost ? t('SIÊU CHỦ NHÀ') : null;
 
   const slides = useSlideshow(index, setIndex, images.length);
   const { idx, frameClass } = slides;
@@ -86,10 +87,10 @@ export function Card({ card, variant, lazy = false }) {
 function RailBody({ card }) {
   const { nights, total } = stayTotal(card);
   return <>
-    <h3 className="card-title">{card.typeLabel} tại {card.city}</h3>
+    <h3 className="card-title">{card.typeLabel} {t('tại')} {card.city}</h3>
     <div className="card-sub card-inline">
-      <b>{money(total)}</b> cho {nights} đêm
-      {card.reviewCount ? ` · ★ ${card.rating.toFixed(2)}` : ' · Mới'}
+      <b>{money(total)}</b> {t('cho')} {nights} {t('đêm')}
+      {card.reviewCount ? ` · ★ ${card.rating.toFixed(2)}` : ` · ${t('Mới')}`}
     </div>
   </>;
 }
@@ -99,15 +100,15 @@ function BrowseBody({ card, showTotal }) {
   return <>
     <div className="card-row">
       <h3 className="card-title">{card.title}</h3>
-      <div className="card-rating">{card.reviewCount ? `★ ${card.rating.toFixed(2)}` : 'Mới'}</div>
+      <div className="card-rating">{card.reviewCount ? `★ ${card.rating.toFixed(2)}` : t('Mới')}</div>
     </div>
-    <div className="card-sub">{card.city} · {card.bedrooms} phòng ngủ</div>
+    <div className="card-sub">{card.city} · {card.bedrooms} {t('phòng ngủ')}</div>
     <div className="card-sub">{card.typeLabel} · {card.roomTypeLabel}</div>
     <div className="card-price">
       {/* docs/01 TM-20 — the same stay, priced the way the guest asked to see it. */}
       {showTotal
-        ? <><b>{money(allInPerNight(card))}</b> <span>/ đêm · {money(total)} tổng {nights} đêm</span></>
-        : <><b>{money(card.pricePerNight)}</b> <span>/ đêm</span></>}
+        ? <><b>{money(allInPerNight(card))}</b> <span>/ {t('đêm')} · {money(total)} {t('tổng')} {nights} {t('đêm')}</span></>
+        : <><b>{money(card.pricePerNight)}</b> <span>/ {t('đêm')}</span></>}
     </div>
   </>;
 }
@@ -120,17 +121,17 @@ function SearchBody({ card }) {
     <div className="card-row">
       <h3 className="card-title">{card.typeLabel} tại {card.city}</h3>
       <div className="card-rating">
-        {card.reviewCount ? `★ ${card.rating.toFixed(2)} (${card.reviewCount})` : '★ Mới'}
+        {card.reviewCount ? `★ ${card.rating.toFixed(2)} (${card.reviewCount})` : `★ ${t('Mới')}`}
       </div>
     </div>
     <div className="card-sub card-name">{card.title}</div>
-    <div className="card-sub">{card.bedrooms} phòng ngủ · {card.beds} giường · {card.bathrooms} phòng tắm</div>
+    <div className="card-sub">{card.bedrooms} {t('phòng ngủ')} · {card.beds} {t('giường')} · {card.bathrooms} {t('phòng tắm')}</div>
     <div className="card-price">
       {original && <><s>{money(original)}</s> </>}
-      <b>{money(total)}</b> <span>cho {nights} đêm</span>
+      <b>{money(total)}</b> <span>{t('cho')} {nights} {t('đêm')}</span>
     </div>
     <MatchedDates card={card} />
-    <div className="card-perks">Đã gồm phí · Huỷ miễn phí</div>
+    <div className="card-perks">{t('Đã gồm phí · Huỷ miễn phí')}</div>
   </>;
 }
 

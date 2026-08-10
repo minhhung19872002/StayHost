@@ -9,6 +9,7 @@ import { queryToSearch } from '../lib/urlState.js';
 import { applySearch } from '../lib/nav.js';
 import { rememberSearch } from '../lib/history.js';
 import { dateRangeLabel, money } from '../lib/format.js';
+import { t } from '../lib/i18n.js';
 import { Card, CardSkeleton } from '../components/Card.jsx';
 import { ResultsMap } from '../components/Maps.jsx';
 import { Icon } from '../components/Icon.jsx';
@@ -155,7 +156,7 @@ function Inspiration({ groups }) {
   return (
     <section className="inspiration">
       <div className="shell">
-        <h2 className="section-title">Gợi ý cho chuyến đi sắp tới</h2>
+        <h2 className="section-title">{t('Gợi ý cho chuyến đi sắp tới')}</h2>
         <div className="insp-tabs" role="tablist">
           {groups.map(g => (
             <button role="tab" key={g.tab} aria-selected={g.tab === current.tab}
@@ -182,17 +183,17 @@ function Results() {
   const { results, loading } = state;
 
   const title = state.q.trim()
-    ? `Chỗ nghỉ tại "${state.q.trim()}"`
+    ? `${t('Chỗ ở')} · ${state.q.trim()}`
     : state.category !== 'all'
-      ? `${state.meta?.categories.find(c => c.key === state.category)?.label ?? ''} được yêu thích`
-      : 'Chỗ nghỉ được yêu thích ở Việt Nam';
+      ? `${state.meta?.categories.find(c => c.key === state.category)?.label ?? ''} ${t('được yêu thích')}`
+      : t('Chỗ nghỉ được yêu thích ở Việt Nam');
 
   const body = <>
     <div className="results-head">
       <h1 className="results-title">
-        {loading ? title : `${results.total > results.pageSize ? 'Hơn ' : ''}${results.total} chỗ nghỉ`}
+        {loading ? title : `${results.total > results.pageSize ? t('Hơn ') : ''}${results.total} ${t('chỗ nghỉ')}`}
       </h1>
-      <div className="fee-note"><Icon name="star" size={15} /> Giá đã gồm mọi khoản phí</div>
+      <div className="fee-note"><Icon name="star" size={15} /> {t('Giá đã gồm mọi khoản phí')}</div>
     </div>
     <p className="results-context">
       {title} · {dateRangeLabel(state.checkIn, state.checkOut)}
@@ -227,7 +228,7 @@ function Results() {
       )}
 
     <button className="map-toggle" onClick={() => set({ hideMap: !state.hideMap })}>
-      {state.hideMap ? 'Hiện bản đồ' : 'Hiện danh sách'} <Icon name={state.hideMap ? 'map' : 'filter'} size={16} />
+      {state.hideMap ? t('Hiện bản đồ') : t('Hiện danh sách')} <Icon name={state.hideMap ? 'map' : 'filter'} size={16} />
     </button>
   </>;
 }

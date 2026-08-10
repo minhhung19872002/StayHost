@@ -9,6 +9,7 @@ import {
 import { api } from '../../lib/api.js';
 import { applySearch } from '../../lib/nav.js';
 import { money, longDate, nightsBetween } from '../../lib/format.js';
+import { t } from '../../lib/i18n.js';
 import { Icon, AmenityIcon, CATEGORY_ICON } from '../Icon.jsx';
 import { Calendar } from '../Calendar.jsx';
 import { Modal, CountRow } from './Modal.jsx';
@@ -356,12 +357,12 @@ export function GuestsModal() {
 export function LanguageModal() {
   const state = useStore();
   const meta = state.meta;
-  if (!meta) return <Modal title="Ngôn ngữ"><p>Đang tải…</p></Modal>;
+  if (!meta) return <Modal title={t('Ngôn ngữ')}><p>{t('Đang tải…')}</p></Modal>;
 
   return (
-    <Modal title="Ngôn ngữ & tiền tệ">
+    <Modal title={t('Ngôn ngữ & tiền tệ')}>
       <section className="modal-section">
-        <h3>Ngôn ngữ đề xuất</h3>
+        <h3>{t('Ngôn ngữ đề xuất')}</h3>
         <div className="lang-grid" style={{ marginTop: 14 }}>
           {meta.languages.map(l => (
             <button key={l.code} className={`lang ${state.language.code === l.code ? 'is-on' : ''}`}
@@ -372,7 +373,7 @@ export function LanguageModal() {
         </div>
       </section>
       <section className="modal-section">
-        <h3>Chọn loại tiền tệ</h3>
+        <h3>{t('Chọn loại tiền tệ')}</h3>
         <div className="lang-grid" style={{ marginTop: 14 }}>
           {meta.currencies.map(c => (
             <button key={c.code} className={`lang ${state.currency.code === c.code ? 'is-on' : ''}`}
