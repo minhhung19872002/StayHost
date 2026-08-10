@@ -230,6 +230,15 @@ public static class ExperienceRules
         && slot.SeatsTaken < experience.MinGuests;
 
     /// <summary>
+    /// docs/09 §2.5 (scenario 4) — two sessions of the same experience clash when
+    /// their windows touch. Every session runs the same length, so two starts
+    /// closer together than that duration overlap. An exact repeat of an existing
+    /// start is the same session, not a clash, so the caller screens those first.
+    /// </summary>
+    public static bool Overlaps(DateTime a, DateTime b, int durationMinutes) =>
+        (a - b).Duration() < TimeSpan.FromMinutes(durationMinutes);
+
+    /// <summary>
     /// docs/09 §2.8 — a guest cancelling their own ticket, on the tiered ladder:
     /// ≥7 days 100%, 24h–7 days 50%, &lt;24h nothing; and the 24-hour grace after
     /// booking (while the session is still ≥48h away) returns everything.

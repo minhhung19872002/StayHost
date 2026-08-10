@@ -178,6 +178,19 @@ public class ExperienceTests
         Assert.False(ExperienceRules.ShouldCallOff(Make(min: 6), Slot(taken: 8, hoursAhead: 12, priv: true), Now));
     }
 
+    [Fact]
+    public void Sessions_closer_together_than_their_duration_clash()
+    {
+        var nine = new DateTime(2026, 9, 1, 9, 0, 0, DateTimeKind.Utc);
+
+        // A two-hour experience: another session an hour later overlaps…
+        Assert.True(ExperienceRules.Overlaps(nine, nine.AddHours(1), 120));
+        // …one exactly two hours later just clears it…
+        Assert.False(ExperienceRules.Overlaps(nine, nine.AddHours(2), 120));
+        // …three hours later is plainly fine, and order does not matter.
+        Assert.False(ExperienceRules.Overlaps(nine.AddHours(3), nine, 120));
+    }
+
     /* --------------------------------------------------------- refunds */
 
     [Fact]

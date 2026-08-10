@@ -263,12 +263,29 @@ public class ExperienceService(
             .Select(s => s.StartsAt)
             .ToListAsync(ct);
 
-        foreach (var at in starts.Where(s => !existing.Contains(s)))
+        // docs/09 §2.5 (scenario 4) — a session that overlaps one already on the
+        // calendar (or another in this same batch) is blocked, so the host cannot
+        // promise to be in two places at once. An exact repeat is idempotent.
+        var duration = experience.DurationMinutes;
+        var accepted = new List<DateTime>();
+        foreach (var at in starts)
+        {
+            var utc = DateTime.SpecifyKind(at, DateTimeKind.Utc);
+            if (existing.Contains(utc)) continue;
+
+            if (existing.Any(e => ExperienceRules.Overlaps(utc, e, duration))
+                || accepted.Any(a => ExperienceRules.Overlaps(utc, a, duration)))
+                return $"Suất {utc:HH:mm dd/MM} chồng giờ với một suất khác (mỗi buổi kéo dài {duration} phút).";
+
+            accepted.Add(utc);
+        }
+
+        foreach (var utc in accepted)
         {
             db.ExperienceSlots.Add(new ExperienceSlot
             {
                 ExperienceId = experienceId,
-                StartsAt = DateTime.SpecifyKind(at, DateTimeKind.Utc),
+                StartsAt = utc,
                 Capacity = req.Capacity is > 0 ? Math.Min(req.Capacity.Value, experience.MaxGroup) : experience.MaxGroup
             });
         }
