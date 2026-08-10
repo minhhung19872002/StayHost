@@ -123,6 +123,15 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 - **Giữ chỗ rồi thì lúc thanh toán đừng kiểm tra như người lạ.** `CanBook` thấy ghế đã bị
   trừ sẽ từ chối chính đơn mà lượt giữ chỗ sinh ra để bảo vệ — phải cộng lại phần mình
   đang giữ trước khi kiểm tra.
+- **Dịch giao diện (`lib/i18n.js`): từ điển khoá bằng chính chuỗi tiếng Việt.** `t(s, ctx?)`
+  tra theo thứ tự `"s|ctx"` → khớp đúng → **mẫu số `{}`** → trả nguyên bản. Chữ **do
+  server sinh** cũng dịch được bằng cách bọc `t(field)` ở chỗ render rồi thêm cặp vào từ
+  điển. Bản dịch **phải giữ đúng số lượng và thứ tự `{}`**, thiếu một cái là thay số sai.
+  Không hard-code `'vi-VN'` cho `Intl` — dùng `dateFormat()`/`number()` của `format.js`.
+  Nội dung **người dùng tự viết** (tên tin, mô tả, đánh giá, tiểu sử) **không vào từ
+  điển** — `TranslatedText.jsx` máy dịch tự động và ghi rõ "Đã dịch tự động".
+- **Coi chừng biến tên `t` che mất hàm dịch.** Đã gặp `const t = encodeURIComponent(...)`
+  và `map(t => …)`; khi đó `t('…')` âm thầm chạy sai chứ không báo lỗi.
 
 ---
 
