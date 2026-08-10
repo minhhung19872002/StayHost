@@ -377,6 +377,16 @@ export const api = {
   savedSearches: () => request('/api/account/saved-searches'),
   saveSearch: body => request('/api/account/saved-searches', { method: 'POST', body: JSON.stringify(body) }),
   deleteSavedSearch: id => request(`/api/account/saved-searches/${id}`, { method: 'DELETE' }),
+  // docs/01 CĐ-10, CĐ-11 — trip plans.
+  tripPlans: () => request('/api/trip-plans'),
+  tripPlan: id => request(`/api/trip-plans/${id}`),
+  createTripPlan: name => request('/api/trip-plans', { method: 'POST', body: JSON.stringify({ name }) }),
+  deleteTripPlan: id => request(`/api/trip-plans/${id}`, { method: 'DELETE' }),
+  addTripBooking: (id, bookingId) => request(`/api/trip-plans/${id}/bookings`, { method: 'POST', body: JSON.stringify({ bookingId }) }),
+  removeTripBooking: (id, bookingId) => request(`/api/trip-plans/${id}/bookings/${bookingId}`, { method: 'DELETE' }),
+  addTripMember: (id, userId) => request(`/api/trip-plans/${id}/members`, { method: 'POST', body: JSON.stringify({ userId }) }),
+  addTripItem: (id, body) => request(`/api/trip-plans/${id}/items`, { method: 'POST', body: JSON.stringify(body) }),
+  removeTripItem: (id, itemId) => request(`/api/trip-plans/${id}/items/${itemId}`, { method: 'DELETE' }),
   // docs/01 XH-01, XH-02 — friends and journeys.
   friends: () => request('/api/friends'),
   friendRequests: () => request('/api/friends/requests'),

@@ -16,6 +16,10 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<WishlistVote> WishlistVotes => Set<WishlistVote>();
     public DbSet<Friendship> Friendships => Set<Friendship>();
     public DbSet<FriendMessage> FriendMessages => Set<FriendMessage>();
+    public DbSet<TripPlan> TripPlans => Set<TripPlan>();
+    public DbSet<TripPlanBooking> TripPlanBookings => Set<TripPlanBooking>();
+    public DbSet<TripPlanMember> TripPlanMembers => Set<TripPlanMember>();
+    public DbSet<TripItineraryItem> TripItineraryItems => Set<TripItineraryItem>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<User> Users => Set<User>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
@@ -1038,6 +1042,43 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.RequesterId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Addressee).WithMany()
                 .HasForeignKey(x => x.AddresseeId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // docs/01 CĐ-10, CĐ-11 — trip plans, their bookings, companions and itinerary.
+        b.Entity<TripPlan>(e =>
+        {
+            e.ToTable("trip_plans");
+            e.HasIndex(x => x.OwnerId);
+            e.Property(x => x.Name).HasMaxLength(StayHost.Domain.TripPlans.NameMax).IsRequired();
+            e.HasOne(x => x.Owner).WithMany()
+                .HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<TripPlanBooking>(e =>
+        {
+            e.ToTable("trip_plan_bookings");
+            e.HasIndex(x => new { x.TripPlanId, x.BookingId }).IsUnique();
+            e.HasOne(x => x.TripPlan).WithMany(t => t.Bookings)
+                .HasForeignKey(x => x.TripPlanId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<TripPlanMember>(e =>
+        {
+            e.ToTable("trip_plan_members");
+            e.HasIndex(x => new { x.TripPlanId, x.UserId }).IsUnique();
+            e.HasOne(x => x.TripPlan).WithMany(t => t.Members)
+                .HasForeignKey(x => x.TripPlanId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<TripItineraryItem>(e =>
+        {
+            e.ToTable("trip_itinerary_items");
+            e.HasIndex(x => new { x.TripPlanId, x.Day, x.SortOrder });
+            e.Property(x => x.Title).HasMaxLength(StayHost.Domain.TripPlans.TitleMax).IsRequired();
+            e.Property(x => x.Note).HasMaxLength(StayHost.Domain.TripPlans.NoteMax);
+            e.HasOne(x => x.TripPlan).WithMany(t => t.Items)
+                .HasForeignKey(x => x.TripPlanId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // docs/01 XH-03 — peer messages between friends.

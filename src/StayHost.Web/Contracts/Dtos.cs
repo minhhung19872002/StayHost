@@ -73,6 +73,21 @@ public record SaveSearchRequest(
     int Guests, IReadOnlyList<string>? Amenities, string? RoomType, int Bedrooms,
     bool SuperhostOnly, bool InstantBookOnly, IReadOnlyList<string>? HostLanguages);
 
+/* ------------------------------------------- docs/01 CĐ-10, CĐ-11: trip plans */
+public record TripPlanSummaryDto(int Id, string Name, bool IsOwner, int BookingCount, int MemberCount, DateTime CreatedAt);
+public record TripPlanBookingDto(int BookingId, string Reference, string ListingTitle, string City, DateOnly CheckIn, DateOnly CheckOut);
+public record TripItineraryItemDto(int Id, DateOnly Day, string Title, string? Note, string AddedBy, int SortOrder);
+public record TripMemberDto(int UserId, string Name, string Initials, string? AvatarUrl, bool IsOwner);
+public record TripPlanDetailDto(
+    int Id, string Name, bool CanEdit, bool IsOwner,
+    IReadOnlyList<TripPlanBookingDto> Bookings,
+    IReadOnlyList<TripMemberDto> Members,
+    IReadOnlyList<TripItineraryItemDto> Items);
+public record CreateTripPlanRequest(string? Name);
+public record AddTripBookingRequest(int BookingId);
+public record AddTripMemberRequest(int UserId);
+public record AddItineraryItemRequest(DateOnly Day, string? Title, string? Note);
+
 /// <summary>docs/01 XH-01 — a friend, or a pending request, as the friends screen sees it.</summary>
 public record FriendDto(int UserId, string Name, string Initials, string? AvatarUrl);
 public record FriendRequestDto(int Id, int UserId, string Name, string Initials, string? AvatarUrl, DateTime CreatedAt);

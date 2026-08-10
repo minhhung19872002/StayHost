@@ -35,6 +35,7 @@ import { SharedWishlist } from './pages/SharedWishlist.jsx';
 import { MySanctions, AppealByToken } from './pages/Sanctions.jsx';
 import { Neighbors } from './pages/Neighbors.jsx';
 import { Friends } from './pages/Friends.jsx';
+import { TripPlans } from './pages/TripPlans.jsx';
 
 export function App() {
   const state = useStore();
@@ -146,6 +147,7 @@ export function App() {
             <Route path="/appeal" element={<AppealByToken />} />
             <Route path="/neighbors" element={<Neighbors />} />
             <Route path="/friends" element={<Friends />} />
+            <Route path="/trip-plans" element={<TripPlans />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<Browse />} />
           </Routes>

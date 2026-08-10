@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **199 xong · 0 làm một phần · 2 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **201 xong · 0 làm một phần · 0 chưa có — HẾT.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,15 +350,12 @@ cung cấp (Google Translate / DeepL / Azure) và trả tiền khoá API — đ�
 khách chứ không chờ code. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, chưa cắm
 khoá thì nút "Dịch" **không hiện** — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (2 mã)
+### 9.1 Chưa có — không còn mã nào (hoàn tất 10/08/2026)
 
-| Mã | Việc | Ưu tiên |
-|---|---|---|
-
-
+Cả 201 mã của `docs/01` đã làm xong. Mã P0 cuối (`TĐ-03`) là cơ chế dịch, bật khi
+khách cắm khoá API. Chi tiết từng mã đợt cuối ở §9.3.
 
 
-| `CĐ-10` · `CĐ-11` | Gộp chuyến & lịch trình theo ngày · mời bạn cùng lên lịch | P2 |
 
 ### 9.2 Làm một phần — **không còn mã nào** (dọn xong 10/08/2026)
 
@@ -376,6 +373,15 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`CĐ-10` (gộp chuyến + lịch trình theo ngày) + `CĐ-11` (mời bạn cùng lên lịch) làm xong
+10/08/2026 — **hai mã cuối của toàn bộ 201 mã**. `TripPlans.cs` (thuần, có test): quyền
+`CanEdit` (chủ + bạn được mời), `IsOwner` (quản lý thành viên/đơn), validate mục. Entity
+`TripPlan` + `TripPlanBooking` (gộp đơn) + `TripPlanMember` (bạn cùng đi) + `TripItineraryItem`
+(mục theo ngày). `TripPlansController`: tạo/xoá chuyến, thêm/bỏ đơn của mình, mời **bạn bè**
+đồng chỉnh, chủ+bạn cùng thêm/xoá mục lịch trình; người ngoài bị chặn xem/sửa. UI trang
+`/trip-plans`. Xác minh sống: tạo→gộp đơn→chủ thêm mục→mời bạn→bạn thêm mục→người lạ 403 cả
+xem lẫn sửa; chi tiết đúng 1 đơn, 2 thành viên, 2 mục qua 2 ngày.
 
 `XH-03` (nhắn bạn hỏi về nơi họ từng ở) làm xong 10/08/2026. Entity `FriendMessage` (DM ngang
 hàng, gắn `ListingId` nơi được hỏi), endpoint `GET/POST /api/friends/{id}/messages` — chỉ giữa
