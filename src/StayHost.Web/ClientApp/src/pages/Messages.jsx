@@ -7,6 +7,7 @@ import {
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate } from '../lib/format.js';
+import { TranslateButton } from '../components/TranslateButton.jsx';
 
 const TIME = new Intl.DateTimeFormat('vi-VN', {
   day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
@@ -177,6 +178,8 @@ function Conversation({ thread, onOpenListing }) {
                 </div>
               : <div className={`bubble ${m.mine ? 'mine' : ''}`} key={m.id}>
                   {m.body && <p>{m.body}</p>}
+                  {/* docs/01 TN-06 — dịch tin của người kia, chỉ hiện khi bật. */}
+                  {!m.mine && m.body && <TranslateButton text={m.body} />}
                   {!!m.attachments?.length && (
                     <div className="bubble-photos">
                       {m.attachments.map((url, i) => (

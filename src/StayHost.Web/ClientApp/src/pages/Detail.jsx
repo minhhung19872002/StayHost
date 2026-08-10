@@ -12,6 +12,7 @@ import { Card } from '../components/Card.jsx';
 import { Calendar } from '../components/Calendar.jsx';
 import { DetailMap } from '../components/Maps.jsx';
 import { Icon, AmenityIcon } from '../components/Icon.jsx';
+import { TranslateButton } from '../components/TranslateButton.jsx';
 import { PriceLines } from '../components/modals/ListingModals.jsx';
 
 const RATING_LABELS = {
@@ -220,6 +221,8 @@ function Summary({ detail, card }) {
         {card.maxGuests} khách · {card.bedrooms} phòng ngủ · {card.beds} giường · {card.bathrooms} phòng tắm
       </div>
       <p className="summary-desc">{detail.description}</p>
+      {/* docs/01 TĐ-03 — dịch mô tả tin đăng, chỉ hiện khi dịch được bật. */}
+      <TranslateButton text={detail.description} />
       {card.highlight && (
         <p className="summary-desc" style={{ marginTop: 10 }}><b>Điểm nổi bật:</b> {card.highlight}</p>
       )}

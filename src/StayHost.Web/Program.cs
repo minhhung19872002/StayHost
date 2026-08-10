@@ -24,6 +24,28 @@ if (credits is not null) CreditSettings.Current = credits;
 var moderation = builder.Configuration.GetSection("Moderation").Get<ModerationSettings>();
 if (moderation is not null) ModerationSettings.Current = moderation;
 
+// docs/01 TĐ-03, TN-06 — machine translation. Off unless a provider is named:
+// with none, the "Dịch" button never shows, like the social-login buttons. The
+// customer picks the provider and pays for the key; the key arrives from the
+// environment as Translation__ApiKey, never appsettings.json.
+var translation = builder.Configuration.GetSection("Translation").Get<TranslationSettings>() ?? new();
+TranslationSettings.Current = translation;
+var translationKey = builder.Configuration["Translation:ApiKey"];
+builder.Services.AddHttpClient("translation");
+if (translation.IsConfigured)
+{
+    if (string.Equals(translation.Provider, "google", StringComparison.OrdinalIgnoreCase)
+        && !string.IsNullOrWhiteSpace(translationKey))
+        builder.Services.AddScoped<ITranslator>(sp => new GoogleTranslator(
+            sp.GetRequiredService<IHttpClientFactory>(), translationKey!,
+            sp.GetRequiredService<ILogger<GoogleTranslator>>()));
+    else
+        builder.Services.AddScoped<ITranslator, StubTranslator>();
+}
+// Factory so ITranslator can be absent (feature off) without DI failing to build.
+builder.Services.AddScoped(sp => new TranslationService(
+    sp.GetRequiredService<StayHostDbContext>(), sp.GetService<ITranslator>()));
+
 // docs/01 TK-02 — the provider client ids live in configuration so one build can
 // run against a test project on a laptop and the real one on the server. Nothing
 // here is a secret except the Facebook app secret, which comes from the

@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **187 xong · 0 làm một phần · 14 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **189 xong · 0 làm một phần · 12 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -329,7 +329,7 @@ bản §13 vẫn xanh vì nó kiểm tra **màn hình xem trước**, không ki�
 Đã sửa hết trong ngày, và kịch bản 3 giờ bấm khoá thật rồi đọc lại cơ sở dữ liệu.
 Khi thêm việc mới, viết nghiệm thu theo **kết quả**, đừng theo màn hình.
 
-### 9.0 P0 — còn **một** mã, và nó chờ khách quyết chứ không chờ code
+### 9.0 P0 — **đã đủ**; mã cuối chỉ chờ khách cắm khoá API
 
 Tám trong chín mã P0 của lần soát 07/08/2026 đã làm xong trong cùng ngày:
 
@@ -343,19 +343,18 @@ Tám trong chín mã P0 của lần soát 07/08/2026 đã làm xong trong cùng 
 | `CN-08` | Gợi ý tiêu đề & mô tả | `ListingCopy.cs` — dựng từ chính dữ liệu host đã nhập |
 | `CN-10` | Giá thị trường khu vực | phân vị 25/50/75 của chỗ tương đương cùng thành phố |
 | `QL-13` | Cảnh báo hậu quả trước khi huỷ | tiền hoàn + hồ sơ StayShield + tỉ lệ tự huỷ sau khi huỷ |
-| `TĐ-03` | Dịch mô tả tin đăng | **chưa làm** — cần nhà cung cấp dịch thuật, xem `§9.1` |
+| `TĐ-03` | Dịch mô tả tin đăng | **cơ chế xong 10/08/2026** — bật khi có khoá API, xem `§9.3` |
 
-`TĐ-03` là mã P0 duy nhất còn lại và nó chờ một quyết định của khách chứ không
-chờ code: chọn nhà cung cấp dịch (Google Translate / DeepL / Azure) và trả tiền
-khoá API. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, nút nào chưa có
-mã thì không hiện — thà thiếu nút còn hơn nút bấm vào không chạy.
+`TĐ-03` (và `TN-06` dịch tin nhắn) giờ đã có đủ cơ chế; chỉ còn chờ khách chọn nhà
+cung cấp (Google Translate / DeepL / Azure) và trả tiền khoá API — đúng quyết định của
+khách chứ không chờ code. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, chưa cắm
+khoá thì nút "Dịch" **không hiện** — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (14 mã)
+### 9.1 Chưa có (12 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
 | `TM-24` | Vẽ vùng tìm kiếm trên bản đồ | P2 |
-| `TĐ-03` · `TN-06` | Dịch mô tả tin đăng (**P0**) · dịch tin nhắn (P1) — cần nhà cung cấp dịch thuật | P0/P1 |
 | `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
 | `AT-03` · `AT-08` · `AT-12` | Kênh hàng xóm · trợ lý tự động · chống phân biệt đối xử | P2 |
 | `YT-06` · `YT-07` | Bình chọn nhóm · so sánh 2–5 chỗ | P2 |
@@ -377,6 +376,16 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`TĐ-03` · `TN-06` (dịch mô tả tin đăng · dịch tin nhắn) — **cơ chế xong 10/08/2026**, tắt
+mặc định theo tiền lệ TC-07/đăng nhập MXH. `Translation.cs` (thuần, có test): settings tắt
+khi chưa có `Provider`, tập ngôn ngữ đích, khoá cache SHA-256 theo (nguồn, đích), stub tất
+định để test. `TranslationService` dịch qua `ITranslator` (`StubTranslator` cho dev/test,
+`GoogleTranslator` cho thật — khoá đọc từ `Translation__ApiKey`, không vào appsettings) và
+**cache DB** để mỗi (văn bản, ngôn ngữ) chỉ gọi API trả phí một lần. `GET /api/translate/config`
+cho FE biết có bật không → nút "Dịch" chỉ hiện khi bật (trang chi tiết TĐ-03, bong bóng tin
+nhắn TN-06). Xác minh sống: `Provider=stub` → config bật, dịch ra "[en] …", gọi lần hai trúng
+cache (1 row); mặc định (không provider) → config tắt, endpoint trả 400, nút ẩn.
 
 `YT-08` (báo khi chỗ đã lưu giảm giá) làm xong 10/08/2026. Khi host lưu tin với giá thấp
 hơn giá cũ (bắt ngay trong `HostController.Update`, so `oldPrice` trước `ApplyAsync`) và tin

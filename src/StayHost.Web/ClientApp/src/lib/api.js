@@ -350,6 +350,10 @@ export const api = {
   confirmWorkEmail: code =>
     request('/api/account/work-email/confirm', { method: 'POST', body: JSON.stringify({ kind: 'workemail', code }) }),
   removeWorkEmail: () => request('/api/account/work-email', { method: 'DELETE' }),
+  // docs/01 TĐ-03, TN-06 — machine translation.
+  translateConfig: () => request('/api/translate/config'),
+  translate: (text, targetLang) =>
+    request('/api/translate', { method: 'POST', body: JSON.stringify({ text, targetLang }) }),
   // docs/01 TM-23 — saved searches.
   savedSearches: () => request('/api/account/saved-searches'),
   saveSearch: body => request('/api/account/saved-searches', { method: 'POST', body: JSON.stringify(body) }),

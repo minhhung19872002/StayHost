@@ -23,6 +23,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
     public DbSet<SavedSearch> SavedSearches => Set<SavedSearch>();
     public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
+    public DbSet<TranslationCache> TranslationCaches => Set<TranslationCache>();
     public DbSet<CalendarBlock> CalendarBlocks => Set<CalendarBlock>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AbuseReport> AbuseReports => Set<AbuseReport>();
@@ -355,6 +356,16 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.MaxPrice).HasPrecision(12, 2);
             e.HasOne(x => x.User).WithMany()
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/01 TĐ-03 — cached machine translations, one per (source, target).
+        b.Entity<TranslationCache>(e =>
+        {
+            e.ToTable("translation_caches");
+            e.HasIndex(x => new { x.SourceHash, x.TargetLang }).IsUnique();
+            e.Property(x => x.SourceHash).HasMaxLength(64).IsRequired();
+            e.Property(x => x.TargetLang).HasMaxLength(8).IsRequired();
+            e.Property(x => x.Provider).HasMaxLength(20);
         });
 
         // docs/01 QT-08 — feature flags with percentage rollout.
