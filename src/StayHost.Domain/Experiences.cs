@@ -197,6 +197,47 @@ public class ExperienceBooking
     public PayoutStatus PayoutStatus { get; set; } = PayoutStatus.Scheduled;
     public DateTime? PaidOutAt { get; set; }
     public string? PayoutReference { get; set; }
+
+    /// <summary>
+    /// docs/09 §2.9 (MR-E-09) — whether they turned up. Null until the host takes
+    /// the register; false is a no-show, which is not refunded and goes on the
+    /// guest's record.
+    /// </summary>
+    public bool? Attended { get; set; }
+    public DateTime? AttendanceMarkedAt { get; set; }
+}
+
+/// <summary>
+/// docs/09 §2.10 (MR-E-11) — an experience is judged on four things, and they are
+/// not the stay's six: no cleanliness, no check-in, no location. Only somebody who
+/// was actually there may write one.
+/// </summary>
+public class ExperienceReview
+{
+    public int Id { get; set; }
+
+    public int BookingId { get; set; }
+    public ExperienceBooking? Booking { get; set; }
+
+    public int ExperienceId { get; set; }
+    public Experience? Experience { get; set; }
+
+    public int AuthorUserId { get; set; }
+    public User? AuthorUser { get; set; }
+
+    /// <summary>Người dẫn — the host who ran it.</summary>
+    public int HostScore { get; set; }
+    /// <summary>Đúng như mô tả.</summary>
+    public int AsDescribedScore { get; set; }
+    /// <summary>Tổ chức và an toàn.</summary>
+    public int SafetyScore { get; set; }
+    /// <summary>Đáng giá tiền.</summary>
+    public int ValueScore { get; set; }
+
+    public string Comment { get; set; } = "";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public double Average => ExperienceReviews.Average(HostScore, AsDescribedScore, SafetyScore, ValueScore);
 }
 
 /// <summary>
@@ -398,4 +439,60 @@ public static class ExperienceRules
         ExperienceBookingStatus.Completed => "confirmed",
         _ => "cancelled"
     };
+}
+
+/// <summary>
+/// docs/09 §2.9 (MR-E-09) — the register on the day, and what a no-show costs.
+/// </summary>
+public static class ExperienceAttendance
+{
+    /// <summary>docs/09 §2.9 (TN-F) — how late a guest may be before the host starts without them.</summary>
+    public static readonly TimeSpan LateAllowance = TimeSpan.FromMinutes(15);
+
+    /// <summary>
+    /// The register may only be taken once the session is under way — marking
+    /// somebody absent from a session that has not started is a guess, not a fact.
+    /// </summary>
+    public static bool CanMark(DateTime startsAt, DateTime now) => now >= startsAt;
+
+    /// <summary>
+    /// docs/09 §2.9 — a guest who never came is not refunded, and it goes on their
+    /// record. This is deliberately not the cancellation ladder: they did not cancel.
+    /// </summary>
+    public static decimal NoShowRefund() => 0m;
+
+    /// <summary>Past this point the host is entitled to begin without them.</summary>
+    public static bool MayStartWithout(DateTime startsAt, DateTime now) =>
+        now - startsAt > LateAllowance;
+}
+
+/// <summary>
+/// docs/09 §2.10 (MR-E-11) — the four criteria an experience is judged on, kept
+/// apart from the stay's six so neither drifts into the other.
+/// </summary>
+public static class ExperienceReviews
+{
+    /// <summary>The four headings, in the order the spec lists them.</summary>
+    public static readonly IReadOnlyList<(string Key, string Label)> Criteria =
+    [
+        ("host", "Người dẫn"),
+        ("asDescribed", "Đúng như mô tả"),
+        ("safety", "Tổ chức và an toàn"),
+        ("value", "Đáng giá tiền")
+    ];
+
+    public static bool ScoreInRange(int score) => score is >= 1 and <= 5;
+
+    public static double Average(int host, int asDescribed, int safety, int value) =>
+        Math.Round((host + asDescribed + safety + value) / 4.0, 2);
+
+    /// <summary>
+    /// docs/09 §2.10 — "Chỉ người có mặt mới đánh giá được." Not the ticket
+    /// holder, not the person who paid: the person the host marked present, and
+    /// only once the session is over.
+    /// </summary>
+    public static bool CanReview(ExperienceBooking booking, DateTime endsAt, DateTime now) =>
+        booking.Attended == true
+        && now >= endsAt
+        && booking.Status is ExperienceBookingStatus.Confirmed or ExperienceBookingStatus.Completed;
 }

@@ -1572,6 +1572,29 @@ public record PendingExperienceDto(
 /// <summary>The reviewer's answer: approve · changes · reject, with a reason.</summary>
 public record ReviewExperienceRequest(string? Decision, string? Note);
 
+/// <summary>docs/09 §2.9 (MR-E-09) — one guest on the host's register.</summary>
+public record SessionGuestDto(
+    int BookingId, string Reference, string GuestName, int GuestUserId,
+    int Seats, bool IsPrivate, bool? Attended, DateTime? MarkedAt);
+
+/// <summary>The whole register for one session, with whether it may be taken yet.</summary>
+public record SessionRosterDto(
+    int SlotId, string Title, DateTime StartsAt, DateTime EndsAt,
+    int Capacity, int SeatsTaken, bool CanMark, int LateAllowanceMinutes,
+    IReadOnlyList<SessionGuestDto> Guests);
+
+/// <summary>docs/09 §2.9 — present or absent.</summary>
+public record MarkAttendanceRequest(bool Attended);
+
+/// <summary>docs/09 §2.10 (MR-E-11) — the four criteria, each 1–5.</summary>
+public record SubmitExperienceReviewRequest(
+    int Host, int AsDescribed, int Safety, int Value, string? Comment);
+
+public record ExperienceReviewDto(
+    int Id, string AuthorName, string? AuthorAvatarUrl,
+    int Host, int AsDescribed, int Safety, int Value,
+    string Comment, DateTime CreatedAt);
+
 public record AddSlotsRequest(IReadOnlyList<DateTime>? StartsAt, int? Capacity);
 
 /* ---- docs/01 MR-05 → MR-07: services ------------------------------------ */
@@ -1688,6 +1711,22 @@ public record BookServiceRequest(
     string? Note,
     string? PaymentMethod,
     string? CardLast4);
+
+/* ---- docs/09 §4 (MR-C-02): cross-sell from a stay ------------------------ */
+
+/// <summary>
+/// docs/09 §4 — what a guest who already has a stay could do while they are
+/// there: experiences and services in that city, inside those dates. Both lists
+/// are the very cards the browse pages use, so the trip page shows them with
+/// the components already written instead of a second kind of card.
+/// </summary>
+public record StaySuggestionsDto(
+    string City,
+    /// <summary>The window relevance was decided on — the nights of the stay.</summary>
+    DateOnly From,
+    DateOnly To,
+    IReadOnlyList<ExperienceCardDto> Experiences,
+    IReadOnlyList<ServiceCardDto> Services);
 
 /* ---- gift cards, balance and referrals ---------------------------------- */
 

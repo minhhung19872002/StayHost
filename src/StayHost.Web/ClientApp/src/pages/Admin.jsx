@@ -7,6 +7,7 @@ import { money, longDate, dateTime } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 import { FinancePanel, ReconciliationPanel, TransactionsPanel, ChargebackPanel } from './admin/Finance.jsx';
 import { UserAdminPanel, AppealsPanel, OversightPanel, DataRequestsPanel } from './admin/Users.jsx';
+import { ExperienceReviewPanel } from './admin/Experiences.jsx';
 
 const REPORT_STATUS = {
   Open: ['pending', 'Mới'],
@@ -124,6 +125,8 @@ export function Admin() {
       <SupportQueue />
 
       <ModerationQueue />
+
+      <ExperienceReviewPanel />
 
       <FeatureFlags />
 

@@ -11,7 +11,9 @@ import { t } from '../lib/i18n.js';
 const TIME = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' });
 const DAY = new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
 
-const duration = minutes =>
+// Exported so the trip page's cross-sell cards (docs/09 §4) read a session's
+// length exactly the way the experience cards here do.
+export const duration = minutes =>
   minutes >= 60
     ? `${Math.floor(minutes / 60)} ${t('giờ')}${minutes % 60 ? ` ${minutes % 60} ${t('phút')}` : ''}`
     : `${minutes} ${t('phút')}`;

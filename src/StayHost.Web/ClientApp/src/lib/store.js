@@ -159,6 +159,8 @@ export const state = {
   // hosting
   hostingTab: 'today',
   editingListing: null,
+  // docs/09 §2.1 MR-E-01 — the experience open in the host's editor, if any.
+  editingExperience: null,
   // docs/01 QL-13 — the warning shown before a host cancels a guest's stay.
   hostCancel: null,
   uploading: false,

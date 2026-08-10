@@ -105,6 +105,10 @@ export const api = {
 
   booking: id => request(`/api/bookings/${id}`),
 
+  /* docs/09 §4 MR-C-02 — experiences and services in the city of this stay,
+     during the days of it. */
+  tripSuggestions: id => request(`/api/bookings/${id}/suggestions`),
+
   refundPreview: id => request(`/api/bookings/${id}/refund-preview`),
 
   cancelBooking: id => request(`/api/bookings/${id}/cancel`, { method: 'POST' }),
@@ -350,6 +354,13 @@ export const api = {
   experienceBookings: () => request('/api/experiences/bookings'),
   cancelExperienceBooking: id =>
     request(`/api/experiences/bookings/${id}/cancel`, { method: 'POST' }),
+  /* docs/09 §2.1–§2.3 MR-E-01 — the host's own experiences and the vetting form. */
+  myExperiences: () => request('/api/experiences/mine'),
+  saveExperience: body => request('/api/experiences', { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/09 §2.2 MR-E-03 — the reviewer's queue, and their one answer per item. */
+  experienceReviewQueue: () => request('/api/experiences/review-queue'),
+  reviewExperience: (id, decision, note) =>
+    request(`/api/experiences/${id}/review`, { method: 'POST', body: JSON.stringify({ decision, note }) }),
 
   /* docs/01 TK-01 và TK-02 — xác thực bằng mã và đăng nhập qua nhà cung cấp. */
   verification: () => request('/api/account/verification'),

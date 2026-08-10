@@ -15,6 +15,7 @@ import { Team } from './hosting/Team.jsx';
 
 const TABS = [
   ['today', 'Hôm nay'], ['overview', 'Tổng quan'], ['listings', 'Chỗ nghỉ'],
+  ['experiences', 'Trải nghiệm'],
   ['calendar', 'Lịch'], ['bookings', 'Đơn đặt'], ['earnings', 'Doanh thu'],
   ['payout', 'Nhận tiền'], ['team', 'Đồng quản lý']
 ];
@@ -115,6 +116,7 @@ export function Hosting() {
           {d.listings.map(l => <ListingCard key={l.id} listing={l} navigate={navigate} />)}
         </div>
       )}
+      {tab === 'experiences' && <HostExperiences />}
       {tab === 'calendar' && <MultiCalendar />}
       {tab === 'bookings' && <Bookings d={d} navigate={navigate} />}
       {tab === 'earnings' && <Earnings d={d} />}
@@ -251,6 +253,64 @@ function ListingAdvice({ advice }) {
               </li>
             ))}
           </ul>
+        )}
+    </div>
+  );
+}
+
+/**
+ * docs/09 §2.1–§2.3 (MR-E-01) — the host's own experiences. Submitting one sends
+ * it to a reviewer rather than putting it on sale, so the list says which state
+ * each is in instead of a bare published/draft.
+ */
+function HostExperiences() {
+  const state = useStore();
+  const [rows, setRows] = useState(null);
+
+  const load = () => api.myExperiences().then(setRows).catch(err => toast(err.message));
+  // Reload when the editor closes, so a just-submitted experience shows up.
+  useEffect(() => { if (!state.overlay) load(); }, [state.overlay]);
+
+  const open = x => set({ editingExperience: x ?? null, overlay: 'experience-editor' });
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div className="page-head" style={{ marginBottom: 0 }}>
+        <div>
+          <h2 className="section-title" style={{ fontSize: 20 }}>{t('Trải nghiệm của bạn')}</h2>
+          <p className="section-sub">
+            {t('Hoạt động bán theo vé. Gửi duyệt xong, StayHost xem trong 5 ngày làm việc rồi mới mở bán.')}
+          </p>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={() => open(null)}>{t('+ Đăng trải nghiệm')}</button>
+      </div>
+
+      {!rows ? <div className="stat skeleton" style={{ height: 160, border: 0, marginTop: 16 }} />
+        : rows.length ? (
+          <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+            {rows.map(x => (
+              <article className="host-booking" key={x.id}>
+                <div style={{ minWidth: 0 }}>
+                  <h3>{x.title}</h3>
+                  <div className="meta">{x.city} · {money(x.pricePerPerson)} / {t('người')} · {t('tối đa')} {x.maxGroup} {t('người')}</div>
+                  <div className="meta">{x.meetingPoint || t('Chưa có điểm hẹn')}</div>
+                  <span className={`badge ${x.isPublished ? 'confirmed' : 'pending'}`} style={{ marginTop: 8 }}>
+                    {x.isPublished ? t('Đang bán vé') : t('Chưa mở bán')}
+                  </span>
+                </div>
+                <div className="host-booking-actions">
+                  <button className="btn btn-outline btn-sm" onClick={() => open(x)}>{t('Chỉnh sửa')}</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state" style={{ marginTop: 20 }}>
+            <h3>{t('Chưa có trải nghiệm nào')}</h3>
+            <p>{t('Kể một hoạt động bạn dẫn được và bán theo vé cho khách.')}</p>
+            <button className="btn btn-primary" style={{ marginTop: 18 }}
+                    onClick={() => open(null)}>{t('+ Đăng trải nghiệm')}</button>
+          </div>
         )}
     </div>
   );

@@ -55,6 +55,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<ExperienceImage> ExperienceImages => Set<ExperienceImage>();
     public DbSet<ExperienceSlot> ExperienceSlots => Set<ExperienceSlot>();
     public DbSet<ExperienceBooking> ExperienceBookings => Set<ExperienceBooking>();
+    public DbSet<ExperienceReview> ExperienceReviews => Set<ExperienceReview>();
     public DbSet<ServiceOffering> ServiceOfferings => Set<ServiceOffering>();
     public DbSet<ServiceImage> ServiceImages => Set<ServiceImage>();
     public DbSet<ServiceBooking> ServiceBookings => Set<ServiceBooking>();
@@ -508,6 +509,22 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.SlotId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.GuestUser).WithMany()
                 .HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ExperienceReview>(e =>
+        {
+            e.ToTable("experience_reviews");
+            // docs/09 §2.10 — one review per ticket, so a seat cannot be scored twice.
+            e.HasIndex(x => x.BookingId).IsUnique();
+            e.HasIndex(x => x.ExperienceId);
+            e.Property(x => x.Comment).HasMaxLength(2000);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Experience).WithMany()
+                .HasForeignKey(x => x.ExperienceId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.AuthorUser).WithMany()
+                .HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.Cascade);
+            e.Ignore(x => x.Average);
         });
 
         b.Entity<ExternalLogin>(e =>

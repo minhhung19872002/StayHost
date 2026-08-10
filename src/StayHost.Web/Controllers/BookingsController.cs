@@ -14,7 +14,7 @@ public class BookingsController(
     StayHostDbContext db, AuthService auth, NotificationService notifications,
     CatalogService catalog, BookingService rules, ReviewService reviews, ThreadMessenger messenger,
     PaymentGateway gateway, RiskWatch risk, WalletService wallet, PaymentCompletion completion,
-    CouponService coupons)
+    CouponService coupons, ExperienceService experiences, ServiceMarketService market)
     : ControllerBase
 {
     /// <summary>
@@ -1081,6 +1081,48 @@ public class BookingsController(
     {
         var booking = await FindOwnedAsync(id, ct, includeListing: true);
         return booking is null ? NotFound() : Ok(ToDto(booking));
+    }
+
+    /// <summary>docs/09 §4 — how many of each the trip page is given. Six fills two
+    /// rows of cards in the trip column without turning the page into a catalogue.</summary>
+    private const int CrossSellCount = 6;
+
+    /// <summary>
+    /// docs/09 §4 (MR-C-02) — cross-sell: what a guest could do in the city of a
+    /// stay they already hold, on the days they are there. §4 calls this the main
+    /// revenue channel for both lines, so it hangs off the trip the guest is
+    /// already looking at rather than waiting to be searched for.
+    ///
+    /// It sits on the booking, not on a new /api/trips route, because the trip page
+    /// IS this booking (GET api/bookings/{id}) and the answer is derived from the
+    /// booking's own city and dates — which means it has to pass through the same
+    /// ownership check, <see cref="FindOwnedAsync"/>, and nothing weaker.
+    /// </summary>
+    [HttpGet("{id:int}/suggestions")]
+    public async Task<ActionResult<StaySuggestionsDto>> Suggestions(int id, CancellationToken ct)
+    {
+        var booking = await FindOwnedAsync(id, ct, includeListing: true);
+        if (booking is null) return NotFound();
+
+        var city = booking.Listing?.City ?? "";
+        var empty = new StaySuggestionsDto(city, booking.CheckIn, booking.CheckOut, [], []);
+
+        // Only a stay that is going to happen sells anything: a cancelled, declined
+        // or still-unpaid booking is not somebody who will be in that city.
+        if (booking.Status is not (BookingStatus.Confirmed or BookingStatus.InProgress))
+            return Ok(empty);
+
+        // "Đúng khoảng ngày họ ở" — the nights of the stay. Check-out day is left
+        // out on purpose: they hand the keys back around midday, so an afternoon
+        // session that day is a suggestion they could not take.
+        var from = booking.CheckIn.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var to = booking.CheckOut.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+
+        return Ok(empty with
+        {
+            Experiences = await experiences.SuggestForStayAsync(city, from, to, CrossSellCount, ct),
+            Services = await market.SuggestForStayAsync(city, CrossSellCount, ct)
+        });
     }
 
     /// <summary>

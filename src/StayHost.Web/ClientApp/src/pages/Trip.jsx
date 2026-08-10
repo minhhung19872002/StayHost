@@ -5,7 +5,9 @@ import { loadTrip, set, requireAuth, toast, payBalance } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate, dateTime } from '../lib/format.js';
 import { Icon } from '../components/Icon.jsx';
+import { CardCarousel } from '../components/CardCarousel.jsx';
 import { Deadline, previewCancel, openReview } from './Trips.jsx';
+import { duration } from './Experiences.jsx';
 import { t } from '../lib/i18n.js';
 
 const PAYMENT = {
@@ -84,6 +86,8 @@ export function Trip() {
           </section>
 
           <CheckInSection booking={b} />
+
+          <CrossSell booking={b} />
 
           <section className="detail-section">
             <h2>{t('Chính sách huỷ')}</h2>
@@ -234,6 +238,108 @@ function CheckInSection({ booking }) {
         </ul>
       </>}
     </section>
+  );
+}
+
+/** A card that is really a link, the way the browse grids build theirs. */
+const CARD_BUTTON = { textAlign: 'left', border: 0, background: 'none', padding: 0, cursor: 'pointer' };
+
+const stars = x => (x.reviewCount ? `★ ${x.rating.toFixed(2)} (${x.reviewCount})` : `★ ${t('Mới')}`);
+
+/**
+ * docs/09 §4 (MR-C-02) — the cross-sell, which §4 calls the main revenue channel
+ * for experiences and services: somebody who has already booked a stay is told
+ * what is on in that city on the days they are there.
+ *
+ * Which ones are relevant is the server's decision (city, dates, seats left,
+ * moderation) — this renders what it is handed and shows nothing at all when the
+ * answer is empty, rather than an apologetic box on every trip page.
+ */
+function CrossSell({ booking }) {
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    let live = true;
+    setData(null);
+    api.tripSuggestions(booking.id)
+      .then(r => { if (live) setData(r); })
+      // A failed suggestion is not worth a toast on somebody's trip page.
+      .catch(() => { if (live) setData(null); });
+    return () => { live = false; };
+  }, [booking.id]);
+
+  const experiences = data?.experiences ?? [];
+  const services = data?.services ?? [];
+  if (!experiences.length && !services.length) return null;
+
+  return (
+    <>
+      {!!experiences.length && (
+        <section className="detail-section">
+          <h2>{t('Trải nghiệm quanh chỗ bạn ở')}</h2>
+          <p className="section-sub">
+            {t('Còn chỗ đúng những ngày bạn ở')} {booking.listingCity}.
+          </p>
+          <div className="card-grid" style={{ marginTop: 18 }}>
+            {experiences.map(x => (
+              <button className="card" key={x.id} style={CARD_BUTTON}
+                      onClick={() => navigate(`/experiences/${x.slug}`)}>
+                <CardCarousel images={x.images} alt={x.title} />
+                <div className="card-body">
+                  <div className="card-row">
+                    <h3 className="card-title">{x.title}</h3>
+                    <div className="card-rating">{stars(x)}</div>
+                  </div>
+                  <div className="card-sub card-line">{x.city} · {duration(x.durationMinutes)}</div>
+                  <div className="card-price">
+                    <b>{money(x.pricePerPerson)}</b> <span>/ {t('người')}</span>
+                  </div>
+                  <div className="card-perks card-line">
+                    {x.openSlots
+                      ? `${t('Còn')} ${x.openSlots} ${t('suất')} ${t('trong chuyến của bạn')}`
+                      : t('Tạm hết suất')}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!!services.length && (
+        <section className="detail-section">
+          <h2>{t('Dịch vụ tới tận chỗ bạn ở')}</h2>
+          <p className="section-sub">
+            {t('Đầu bếp, chụp ảnh, massage — chọn khung giờ trong những ngày bạn ở đây.')}
+          </p>
+          <div className="card-grid" style={{ marginTop: 18 }}>
+            {services.map(s => (
+              <button className="card" key={s.id} style={CARD_BUTTON}
+                      onClick={() => navigate(`/services/${s.slug}`)}>
+                <CardCarousel images={s.images} alt={s.title} />
+                <div className="card-body">
+                  <div className="card-row">
+                    <h3 className="card-title">{s.title}</h3>
+                    <div className="card-rating">{stars(s)}</div>
+                  </div>
+                  <div className="card-sub card-line">{s.city} · {s.pricingLabel}</div>
+                  <div className="card-price">
+                    <b>{money(s.basePrice)}</b> <span>/ {s.unit}</span>
+                  </div>
+                  <div className="card-perks card-line">
+                    {s.travelsToGuest
+                      ? `${t('Tới tận nơi trong')} ${s.serviceRadiusKm} km`
+                      : t('Khách tới chỗ cung cấp')}
+                    {s.isPartner ? ` · ${t('qua')} ${s.partnerName}` : ''}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+    </>
   );
 }
 

@@ -17,6 +17,48 @@ namespace StayHost.Web.Controllers;
 public class ExperiencesController(
     StayHostDbContext db, AuthService auth, ExperienceService experiences, AdminAudit audit) : ControllerBase
 {
+    /* ---------------------------------------------- MR-E-09, the day itself */
+
+    /// <summary>docs/09 §2.9 — the host's register for one session.</summary>
+    [HttpGet("slots/{slotId:int}/roster")]
+    public async Task<ActionResult<SessionRosterDto>> Roster(int slotId, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var (roster, error) = await experiences.RosterAsync(user, slotId, ct);
+        return roster is null ? BadRequest(new { message = error }) : Ok(roster);
+    }
+
+    /// <summary>docs/09 §2.9 — mark one guest present or absent.</summary>
+    [HttpPost("bookings/{id:int}/attendance")]
+    public async Task<IActionResult> MarkAttendance(
+        int id, [FromBody] MarkAttendanceRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var error = await experiences.MarkAttendanceAsync(user, id, req.Attended, ct);
+        return error is null ? Ok(new { ok = true }) : BadRequest(new { message = error });
+    }
+
+    /* -------------------------------------------------- MR-E-11, the review */
+
+    [HttpPost("bookings/{id:int}/review")]
+    public async Task<IActionResult> WriteReview(
+        int id, [FromBody] SubmitExperienceReviewRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var error = await experiences.WriteReviewAsync(user, id, req, ct);
+        return error is null ? Ok(new { ok = true }) : BadRequest(new { message = error });
+    }
+
+    [HttpGet("{id:int}/reviews")]
+    public async Task<ActionResult<IReadOnlyList<ExperienceReviewDto>>> Reviews(int id, CancellationToken ct) =>
+        Ok(await experiences.ReviewsAsync(id, ct));
+
     /* ------------------------------------------------- MR-E-03, moderation */
 
     /// <summary>docs/09 §2.2 — what is waiting for a reviewer, oldest first.</summary>

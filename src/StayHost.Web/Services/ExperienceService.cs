@@ -65,6 +65,56 @@ public class ExperienceService(
                 .ToList());
     }
 
+    /* ------------------------------------------- docs/09 §4 (MR-C-02) */
+
+    /// <summary>
+    /// docs/09 §4 — the cross-sell from a booked stay: experiences in that city
+    /// with a session the guest could actually sit in, which means one inside the
+    /// nights they are there and with a seat still going.
+    ///
+    /// Both gates of docs/09 §2.2 are asked for rather than <see cref="Experience.IsPublished"/>
+    /// alone: a suggestion is the platform putting an activity in front of someone
+    /// who did not go looking for it, so an experience that a person never approved
+    /// must not travel that way even if a flag were left on by some other path.
+    /// A private session is skipped — it belongs to whoever took it.
+    /// </summary>
+    public async Task<IReadOnlyList<ExperienceCardDto>> SuggestForStayAsync(
+        string city, DateTime from, DateTime to, int take, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(city) || to <= from) return [];
+
+        // A session that has already begun is no use to anybody, so the window
+        // starts at whichever comes later: the check-in or right now.
+        var opens = from > DateTime.UtcNow ? from : DateTime.UtcNow;
+        if (to <= opens) return [];
+
+        return await db.Experiences
+            .Where(x => x.IsPublished
+                        && x.ModerationStatus == ExperienceModeration.Approved
+                        && x.City == city
+                        && x.Slots.Any(s => s.Status == SlotStatus.Open
+                                            && !s.IsPrivate
+                                            && s.SeatsTaken < s.Capacity
+                                            && s.StartsAt >= opens
+                                            && s.StartsAt < to))
+            .OrderByDescending(x => x.Rating).ThenBy(x => x.Id)
+            .Take(take)
+            .Select(x => new ExperienceCardDto(
+                x.Id, x.Slug, x.Title, x.City, x.Summary,
+                x.DurationMinutes, x.MaxGroup, x.PricePerPerson,
+                x.Rating, x.ReviewCount,
+                x.Host!.Name,
+                x.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).ToList(),
+                // "Còn 3 suất" here means three during their stay, not three ever —
+                // the count answers the question the card is being shown for.
+                x.Slots.Count(s => s.Status == SlotStatus.Open
+                                   && !s.IsPrivate
+                                   && s.SeatsTaken < s.Capacity
+                                   && s.StartsAt >= opens
+                                   && s.StartsAt < to)))
+            .ToListAsync(ct);
+    }
+
     /* ------------------------------------------------------------ pricing */
 
     public async Task<ExperienceQuoteDto?> QuoteAsync(int slotId, int seats, bool wantsPrivate, CancellationToken ct)
@@ -318,6 +368,148 @@ public class ExperienceService(
     }
 
     private static string? Trimmed(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /* --------------------------------------------- MR-E-09, the day itself */
+
+    /// <summary>
+    /// docs/09 §2.9 — who the host should expect: names, how many seats each
+    /// booked, and any note they left. This is the sheet they take the register
+    /// from, so it carries the attendance mark too.
+    /// </summary>
+    public async Task<(SessionRosterDto? Roster, string? Error)> RosterAsync(
+        User user, int slotId, CancellationToken ct)
+    {
+        var slot = await db.ExperienceSlots
+            .Include(s => s.Experience)
+            .FirstOrDefaultAsync(s => s.Id == slotId, ct);
+        if (slot?.Experience is null) return (null, "Không tìm thấy suất này.");
+
+        if (await OwnedAsync(user, slot.ExperienceId, ct) is null)
+            return (null, "Bạn không có quyền với trải nghiệm này.");
+
+        var rows = await db.ExperienceBookings
+            .Where(b => b.SlotId == slotId
+                        && b.Status != ExperienceBookingStatus.CancelledByGuest
+                        && b.Status != ExperienceBookingStatus.CancelledWithSlot)
+            .OrderBy(b => b.CreatedAt)
+            .Select(b => new SessionGuestDto(
+                b.Id, b.Reference,
+                b.GuestUser!.DisplayName ?? b.GuestUser.FullName,
+                b.GuestUserId, b.Seats, b.IsPrivate, b.Attended, b.AttendanceMarkedAt))
+            .ToListAsync(ct);
+
+        var ends = slot.StartsAt.AddMinutes(slot.Experience.DurationMinutes);
+
+        return (new SessionRosterDto(
+            slot.Id, slot.Experience.Title, slot.StartsAt, ends,
+            slot.Capacity, slot.SeatsTaken,
+            ExperienceAttendance.CanMark(slot.StartsAt, DateTime.UtcNow),
+            (int)ExperienceAttendance.LateAllowance.TotalMinutes,
+            rows), null);
+    }
+
+    /// <summary>
+    /// docs/09 §2.9 — the host marks who came. A no-show keeps their money with
+    /// the host: they did not cancel, they simply did not turn up.
+    /// </summary>
+    public async Task<string?> MarkAttendanceAsync(
+        User user, int bookingId, bool attended, CancellationToken ct)
+    {
+        var booking = await db.ExperienceBookings
+            .Include(b => b.Slot!).ThenInclude(s => s.Experience)
+            .FirstOrDefaultAsync(b => b.Id == bookingId, ct);
+        if (booking?.Slot?.Experience is null) return "Không tìm thấy vé này.";
+
+        if (await OwnedAsync(user, booking.Slot.ExperienceId, ct) is null)
+            return "Bạn không có quyền với trải nghiệm này.";
+
+        if (booking.Status is ExperienceBookingStatus.CancelledByGuest
+            or ExperienceBookingStatus.CancelledWithSlot)
+            return "Vé này đã huỷ nên không điểm danh được.";
+
+        if (!ExperienceAttendance.CanMark(booking.Slot.StartsAt, DateTime.UtcNow))
+            return "Chưa tới giờ bắt đầu nên chưa điểm danh được.";
+
+        booking.Attended = attended;
+        booking.AttendanceMarkedAt = DateTime.UtcNow;
+
+        // Once the register is taken the ticket is spent, either way.
+        booking.Status = ExperienceBookingStatus.Completed;
+
+        await db.SaveChangesAsync(ct);
+        return null;
+    }
+
+    /* ------------------------------------------------- MR-E-11, the review */
+
+    /// <summary>
+    /// docs/09 §2.10 — four criteria of its own, and only from somebody the host
+    /// marked present. The experience's headline rating is recomputed from the
+    /// reviews themselves rather than nudged, so it always matches what is shown.
+    /// </summary>
+    public async Task<string?> WriteReviewAsync(
+        User user, int bookingId, SubmitExperienceReviewRequest req, CancellationToken ct)
+    {
+        var booking = await db.ExperienceBookings
+            .Include(b => b.Slot!).ThenInclude(s => s.Experience)
+            .FirstOrDefaultAsync(b => b.Id == bookingId && b.GuestUserId == user.Id, ct);
+        if (booking?.Slot?.Experience is null) return "Không tìm thấy vé này.";
+
+        var ends = booking.Slot.StartsAt.AddMinutes(booking.Slot.Experience.DurationMinutes);
+        if (!ExperienceReviews.CanReview(booking, ends, DateTime.UtcNow))
+            return booking.Attended == true
+                ? "Buổi này chưa kết thúc nên chưa đánh giá được."
+                : "Chỉ người có mặt trong buổi mới đánh giá được.";
+
+        int[] scores = [req.Host, req.AsDescribed, req.Safety, req.Value];
+        if (scores.Any(s => !ExperienceReviews.ScoreInRange(s)))
+            return "Mỗi tiêu chí chấm từ 1 đến 5 sao.";
+
+        if (await db.ExperienceReviews.AnyAsync(r => r.BookingId == bookingId, ct))
+            return "Bạn đã đánh giá buổi này rồi.";
+
+        db.ExperienceReviews.Add(new ExperienceReview
+        {
+            BookingId = booking.Id,
+            ExperienceId = booking.Slot.ExperienceId,
+            AuthorUserId = user.Id,
+            HostScore = req.Host,
+            AsDescribedScore = req.AsDescribed,
+            SafetyScore = req.Safety,
+            ValueScore = req.Value,
+            Comment = (req.Comment ?? "").Trim()
+        });
+        await db.SaveChangesAsync(ct);
+
+        var all = await db.ExperienceReviews
+            .Where(r => r.ExperienceId == booking.Slot.ExperienceId)
+            .Select(r => new { r.HostScore, r.AsDescribedScore, r.SafetyScore, r.ValueScore })
+            .ToListAsync(ct);
+
+        var experience = booking.Slot.Experience;
+        experience.ReviewCount = all.Count;
+        experience.Rating = all.Count == 0
+            ? 0
+            : Math.Round(all.Average(r =>
+                ExperienceReviews.Average(r.HostScore, r.AsDescribedScore, r.SafetyScore, r.ValueScore)), 2);
+
+        await db.SaveChangesAsync(ct);
+        return null;
+    }
+
+    /// <summary>The reviews shown on an experience, newest first.</summary>
+    public async Task<IReadOnlyList<ExperienceReviewDto>> ReviewsAsync(int experienceId, CancellationToken ct) =>
+        await db.ExperienceReviews
+            .Where(r => r.ExperienceId == experienceId)
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(50)
+            .Select(r => new ExperienceReviewDto(
+                r.Id,
+                r.AuthorUser!.DisplayName ?? r.AuthorUser.FullName,
+                r.AuthorUser.AvatarUrl,
+                r.HostScore, r.AsDescribedScore, r.SafetyScore, r.ValueScore,
+                r.Comment, r.CreatedAt))
+            .ToListAsync(ct);
 
     /* ------------------------------------------------- MR-E-03, moderation */
 

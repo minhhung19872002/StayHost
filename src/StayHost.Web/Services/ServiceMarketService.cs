@@ -41,6 +41,24 @@ public class ServiceMarketService(
             .ToListAsync(ct);
     }
 
+    /// <summary>
+    /// docs/09 §4 (MR-C-02) — the cross-sell from a booked stay. A service has no
+    /// fixed sessions the way an experience does: docs/09 §3.4 gives a provider
+    /// working hours and a diary, so any published provider covering that city can
+    /// be asked for a slot during the stay. City is therefore the whole test, and
+    /// the dates are settled later on the service's own booking form, which is
+    /// where the buffer and travel-time rules of §3.4 live.
+    ///
+    /// Shaped by <see cref="BrowseAsync"/> on purpose: one projection of a service
+    /// card, so a change to what a card says lands on the browse page and on the
+    /// trip page together.
+    /// </summary>
+    public async Task<IReadOnlyList<ServiceCardDto>> SuggestForStayAsync(
+        string city, int take, CancellationToken ct) =>
+        string.IsNullOrWhiteSpace(city)
+            ? []
+            : (await BrowseAsync(null, null, city, ct)).Take(take).ToList();
+
     public async Task<ServiceDetailDto?> DetailAsync(string idOrSlug, CancellationToken ct)
     {
         var query = db.ServiceOfferings.Include(o => o.Host).Include(o => o.Images);

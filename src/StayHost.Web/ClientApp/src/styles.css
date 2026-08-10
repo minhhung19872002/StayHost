@@ -1124,6 +1124,10 @@ a.opt { color: inherit; text-decoration: none; display: block; }
 .badge.pending { background: #fff7e6; color: #96690a; }
 .badge.confirmed { background: #e8f7ee; color: #12734a; }
 .badge.cancelled { background: #f3f3f3; color: #777; }
+/* Something that has to stop a reviewer: a high-risk band, an expired paper, a
+   deadline already gone. Amber (pending) already means "waiting", so this is its
+   own colour rather than a louder version of one in use. */
+.badge.danger { background: #fdecec; color: #b42318; }
 
 /* A line the reader has to act on, not decoration: same amber as a pending
    badge, given room to be read. */

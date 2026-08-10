@@ -272,6 +272,61 @@ public class ExperienceTests
         Assert.False(ExperienceRules.Overlaps(nine.AddHours(3), nine, 120));
     }
 
+    /* ------------------------------------------- §2.9 register, §2.10 reviews */
+
+    [Fact]
+    public void The_register_can_only_be_taken_once_the_session_is_under_way()
+    {
+        var start = new DateTime(2026, 9, 1, 9, 0, 0, DateTimeKind.Utc);
+
+        Assert.False(ExperienceAttendance.CanMark(start, start.AddMinutes(-1)));
+        Assert.True(ExperienceAttendance.CanMark(start, start));
+
+        // docs/09 §2.9 (TN-F) — a quarter of an hour, then the host may begin.
+        Assert.False(ExperienceAttendance.MayStartWithout(start, start.AddMinutes(15)));
+        Assert.True(ExperienceAttendance.MayStartWithout(start, start.AddMinutes(16)));
+
+        // A no-show is not a cancellation, and gets nothing back.
+        Assert.Equal(0m, ExperienceAttendance.NoShowRefund());
+    }
+
+    [Fact]
+    public void Only_somebody_who_was_there_can_review_an_experience()
+    {
+        var start = new DateTime(2026, 9, 1, 9, 0, 0, DateTimeKind.Utc);
+        var ends = start.AddHours(2);
+
+        var attended = new ExperienceBooking { Attended = true, Status = ExperienceBookingStatus.Completed };
+
+        Assert.True(ExperienceReviews.CanReview(attended, ends, ends));
+        // Not before the session is over, even for somebody marked present.
+        Assert.False(ExperienceReviews.CanReview(attended, ends, ends.AddMinutes(-1)));
+
+        // docs/09 §2.10 — "chỉ người có mặt": a no-show and an unmarked ticket
+        // both fail, however much they paid.
+        Assert.False(ExperienceReviews.CanReview(
+            new ExperienceBooking { Attended = false }, ends, ends.AddDays(1)));
+        Assert.False(ExperienceReviews.CanReview(
+            new ExperienceBooking { Attended = null }, ends, ends.AddDays(1)));
+    }
+
+    [Fact]
+    public void An_experience_is_judged_on_its_own_four_criteria()
+    {
+        // docs/09 §2.10 — four, and not the stay's six: no cleanliness, no
+        // check-in, no location.
+        Assert.Equal(4, ExperienceReviews.Criteria.Count);
+        Assert.Equal(["host", "asDescribed", "safety", "value"],
+            ExperienceReviews.Criteria.Select(c => c.Key).ToArray());
+        Assert.DoesNotContain(ExperienceReviews.Criteria, c => c.Label.Contains("sạch"));
+
+        Assert.Equal(4.5, ExperienceReviews.Average(5, 4, 5, 4));
+        Assert.True(ExperienceReviews.ScoreInRange(1));
+        Assert.True(ExperienceReviews.ScoreInRange(5));
+        Assert.False(ExperienceReviews.ScoreInRange(0));
+        Assert.False(ExperienceReviews.ScoreInRange(6));
+    }
+
     /* --------------------------------------------------------- refunds */
 
     [Fact]
