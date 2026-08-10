@@ -6,6 +6,7 @@ import { api } from '../lib/api.js';
 import { money, longDate } from '../lib/format.js';
 import { CardCarousel } from '../components/CardCarousel.jsx';
 import { PhotoMosaic } from '../components/PhotoMosaic.jsx';
+import { t } from '../lib/i18n.js';
 
 const TIME = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
@@ -33,13 +34,13 @@ function Browse() {
 
   return (
     <div className="shell" style={{ paddingBlock: '30px 90px' }}>
-      <h1 className="section-title">Dịch vụ</h1>
-      <p className="section-sub">Đầu bếp, chụp ảnh, đưa đón — đặt theo khung giờ, làm tại chỗ bạn ở.</p>
+      <h1 className="section-title">{t('Dịch vụ')}</h1>
+      <p className="section-sub">{t('Đầu bếp, chụp ảnh, đưa đón — đặt theo khung giờ, làm tại chỗ bạn ở.')}</p>
 
       <div className="seg-tabs" style={{ marginTop: 16 }}>
         {CATEGORIES.map(([key, label]) => (
           <button key={key || 'all'} className={`seg-tab ${category === key ? 'is-active' : ''}`}
-                  onClick={() => setCategory(key)}>{label}</button>
+                  onClick={() => setCategory(key)}>{t(label)}</button>
         ))}
       </div>
 
@@ -59,7 +60,7 @@ function Browse() {
                 <div className="card-row">
                   <h3 className="card-title">{s.title}</h3>
                   <div className="card-rating">
-                    {s.reviewCount ? `★ ${s.rating.toFixed(2)} (${s.reviewCount})` : '★ Mới'}
+                    {s.reviewCount ? `★ ${s.rating.toFixed(2)} (${s.reviewCount})` : `★ ${t('Mới')}`}
                   </div>
                 </div>
                 <div className="card-sub card-line">{s.city} · {s.pricingLabel}</div>
@@ -67,15 +68,15 @@ function Browse() {
                   <b>{money(s.basePrice)}</b> <span>/ {s.unit}</span>
                 </div>
                 <div className="card-perks card-line">
-                  {s.travelsToGuest ? `Tới tận nơi trong ${s.serviceRadiusKm} km` : 'Khách tới chỗ cung cấp'}
-                  {s.isPartner ? ` · qua ${s.partnerName}` : ''}
+                  {s.travelsToGuest ? `${t('Tới tận nơi trong')} ${s.serviceRadiusKm} km` : t('Khách tới chỗ cung cấp')}
+                  {s.isPartner ? ` · ${t('qua')} ${s.partnerName}` : ''}
                 </div>
               </div>
             </button>
           ))}
         </div>
       ) : (
-        <div className="empty-state" style={{ marginTop: 28 }}><h3>Chưa có dịch vụ nào ở nhóm này</h3></div>
+        <div className="empty-state" style={{ marginTop: 28 }}><h3>{t('Chưa có dịch vụ nào ở nhóm này')}</h3></div>
       )}
     </div>
   );
@@ -137,9 +138,9 @@ function Detail({ slug }) {
 
   if (missing) {
     return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
-      <div className="empty-state"><h3>Không tìm thấy dịch vụ này</h3>
+      <div className="empty-state"><h3>{t('Không tìm thấy dịch vụ này')}</h3>
         <button className="btn btn-primary" style={{ marginTop: 18 }}
-                onClick={() => navigate('/services')}>Xem tất cả</button></div></div>;
+                onClick={() => navigate('/services')}>{t('Xem tất cả')}</button></div></div>;
   }
 
   if (!s) return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
@@ -159,7 +160,7 @@ function Detail({ slug }) {
         paymentMethod: 'card',
         cardLast4: '4242'
       });
-      toast(`Đã đặt — mã ${b.reference}`);
+      toast(`${t('Đã đặt — mã')} ${b.reference}`);
       navigate('/services/bookings');
     } catch (err) { toast(err.message); } finally { setBusy(false); }
   };
@@ -168,12 +169,12 @@ function Detail({ slug }) {
 
   return (
     <div className="shell" style={{ paddingBlock: '26px 90px' }}>
-      <button className="back-link" onClick={() => navigate('/services')}>← Dịch vụ</button>
+      <button className="back-link" onClick={() => navigate('/services')}>← {t('Dịch vụ')}</button>
 
       <h1 className="section-title" style={{ marginTop: 10 }}>{s.title}</h1>
       <p className="section-sub">
-        {s.city} · {s.pricingLabel} · {s.durationMinutes} phút
-        {s.isPartner ? ` · do ${s.partnerName} thực hiện` : ''}
+        {s.city} · {s.pricingLabel} · {s.durationMinutes} {t('phút')}
+        {s.isPartner ? ` · ${t('do')} ${s.partnerName} ${t('thực hiện')}` : ''}
       </p>
 
       {!!s.images.length && <PhotoMosaic images={s.images} alt={s.title} />}
@@ -181,21 +182,21 @@ function Detail({ slug }) {
       <div className="trip-layout" style={{ marginTop: 24 }}>
         <div style={{ minWidth: 0 }}>
           <section className="detail-section" style={{ paddingTop: 0 }}>
-            <h2>Dịch vụ này gồm gì</h2>
+            <h2>{t('Dịch vụ này gồm gì')}</h2>
             <p style={{ fontSize: 15.5, lineHeight: 1.75, color: 'var(--ink-body)' }}>{s.description}</p>
           </section>
 
           <section className="detail-section">
-            <h2>Cần biết</h2>
+            <h2>{t('Cần biết')}</h2>
             <div className="kv-grid">
-              <Kv label="Phạm vi phục vụ"
-                  value={s.travelsToGuest ? `Tới tận nơi trong ${s.serviceRadiusKm} km` : 'Khách tới chỗ cung cấp'} />
-              <Kv label="Giờ nhận" value={`${s.opensAtHour}:00 – ${s.closesAtHour}:00`} />
-              <Kv label="Nhận từ" value={`${s.minQuantity} đến ${s.maxQuantity} ${s.unit}`} />
-              <Kv label="Đặt trước" value="Ít nhất 4 giờ" />
+              <Kv label={t('Phạm vi phục vụ')}
+                  value={s.travelsToGuest ? `${t('Tới tận nơi trong')} ${s.serviceRadiusKm} km` : t('Khách tới chỗ cung cấp')} />
+              <Kv label={t('Giờ nhận')} value={`${s.opensAtHour}:00 – ${s.closesAtHour}:00`} />
+              <Kv label={t('Nhận từ')} value={`${s.minQuantity} ${t('đến')} ${s.maxQuantity} ${s.unit}`} />
+              <Kv label={t('Đặt trước')} value={t('Ít nhất 4 giờ')} />
             </div>
             <p style={{ fontSize: 13.5, color: 'var(--ink-muted)', marginTop: 14, lineHeight: 1.6 }}>
-              Huỷ trước 24 giờ được hoàn toàn bộ. Sau đó thì không hoàn.
+              {t('Huỷ trước 24 giờ được hoàn toàn bộ. Sau đó thì không hoàn.')}
             </p>
           </section>
         </div>
@@ -206,7 +207,7 @@ function Detail({ slug }) {
             <span className="per">/ {s.unit}</span>
           </div>
 
-          <p className="cap" style={{ margin: '14px 0 8px' }}>Chọn khung giờ</p>
+          <p className="cap" style={{ margin: '14px 0 8px' }}>{t('Chọn khung giờ')}</p>
           <div className="xp-slots">
             {slots.slice(0, 14).map(({ at, taken }) => (
               <button key={at.toISOString()} disabled={taken}
@@ -214,14 +215,14 @@ function Detail({ slug }) {
                       onClick={() => setWhen(at)}>
                 <b>{at.getDate()}/{at.getMonth() + 1}</b>
                 <span>{TIME.format(at)}</span>
-                <i>{taken ? 'đã kín' : 'còn trống'}</i>
+                <i>{taken ? t('đã kín') : t('còn trống')}</i>
               </button>
             ))}
           </div>
 
           {s.pricing !== 'PerSession' && (
             <label className="form-field" style={{ marginTop: 14 }}>
-              <span className="cap">Số {s.unit}</span>
+              <span className="cap">{t('Số')} {s.unit}</span>
               <input type="number" min={s.minQuantity} max={s.maxQuantity} value={quantity}
                      onChange={e => setQuantity(Math.max(s.minQuantity,
                        Math.min(s.maxQuantity, Number(e.target.value) || s.minQuantity)))} />
@@ -230,15 +231,15 @@ function Detail({ slug }) {
 
           {s.travelsToGuest && (
             <label className="form-field">
-              <span className="cap">Địa chỉ thực hiện</span>
-              <input value={address} placeholder="Số nhà, đường, phường"
+              <span className="cap">{t('Địa chỉ thực hiện')}</span>
+              <input value={address} placeholder={t('Số nhà, đường, phường')}
                      onChange={e => setAddress(e.target.value)} />
             </label>
           )}
 
           <label className="form-field">
-            <span className="cap">Ghi chú <span style={{ fontWeight: 400 }}>(không bắt buộc)</span></span>
-            <input value={note} placeholder="Có người dị ứng hải sản…"
+            <span className="cap">{t('Ghi chú')} <span style={{ fontWeight: 400 }}>{t('(không bắt buộc)')}</span></span>
+            <input value={note} placeholder={t('Có người dị ứng hải sản…')}
                    onChange={e => setNote(e.target.value)} />
           </label>
 
@@ -247,18 +248,18 @@ function Detail({ slug }) {
               {quote.lines.map(l => (
                 <div className="book-line" key={l.key}><span>{l.label}</span><b>{money(l.amount)}</b></div>
               ))}
-              <div className="book-line is-total"><span>Tổng</span><b>{money(quote.total)}</b></div>
+              <div className="book-line is-total"><span>{t('Tổng')}</span><b>{money(quote.total)}</b></div>
             </div>
 
-            {!quote.canBook && <div className="book-alert is-error"><b>Chưa đặt được</b><span>{quote.reason}</span></div>}
+            {!quote.canBook && <div className="book-alert is-error"><b>{t('Chưa đặt được')}</b><span>{quote.reason}</span></div>}
 
             <button className="btn btn-primary" style={{ width: '100%', marginTop: 12 }}
                     disabled={busy || !quote.canBook} onClick={book}>
-              {busy ? 'Đang xử lý…' : 'Đặt dịch vụ'}
+              {busy ? t('Đang xử lý…') : t('Đặt dịch vụ')}
             </button>
           </>}
 
-          {!when && <p className="section-sub" style={{ marginTop: 12 }}>Chọn một khung giờ để xem giá.</p>}
+          {!when && <p className="section-sub" style={{ marginTop: 12 }}>{t('Chọn một khung giờ để xem giá.')}</p>}
         </aside>
       </div>
     </div>
@@ -279,24 +280,24 @@ export function ServiceBookings() {
 
   if (!state.user) {
     return <div className="shell" style={{ paddingBlock: '60px 90px' }}>
-      <div className="empty-state"><h3>Đăng nhập để xem dịch vụ đã đặt</h3>
+      <div className="empty-state"><h3>{t('Đăng nhập để xem dịch vụ đã đặt')}</h3>
         <button className="btn btn-primary" style={{ marginTop: 18 }}
-                onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>Đăng nhập</button>
+                onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>{t('Đăng nhập')}</button>
       </div></div>;
   }
 
   const cancel = async row => {
-    if (!confirm(`Huỷ đơn ${row.reference}?`)) return;
+    if (!confirm(`${t('Huỷ đơn')} ${row.reference}?`)) return;
     try {
       const after = await api.cancelServiceBooking(row.id);
-      toast(after.refundedAmount > 0 ? 'Đã huỷ và hoàn tiền.' : 'Đã huỷ. Huỷ sát giờ nên không hoàn tiền.');
+      toast(after.refundedAmount > 0 ? t('Đã huỷ và hoàn tiền.') : t('Đã huỷ. Huỷ sát giờ nên không hoàn tiền.'));
       load();
     } catch (err) { toast(err.message); }
   };
 
   return (
     <div className="shell" style={{ paddingBlock: '30px 90px' }}>
-      <h1 className="section-title">Dịch vụ đã đặt</h1>
+      <h1 className="section-title">{t('Dịch vụ đã đặt')}</h1>
 
       {!rows ? <div className="stat skeleton" style={{ height: 200, border: 0, marginTop: 24 }} />
         : rows.length ? (
@@ -309,26 +310,26 @@ export function ServiceBookings() {
                     {longDate(r.startsAt.slice(0, 10))} · {TIME.format(new Date(r.startsAt))} ·
                     {' '}{r.quantity} {r.unit} · {money(r.total)}
                   </div>
-                  <div className="meta">Mã {r.reference}{r.address ? ` · ${r.address}` : ''}</div>
-                  {r.note && <div className="meta">Ghi chú: {r.note}</div>}
+                  <div className="meta">{t('Mã')} {r.reference}{r.address ? ` · ${r.address}` : ''}</div>
+                  {r.note && <div className="meta">{t('Ghi chú')}: {r.note}</div>}
                   {r.cancelReason && <div className="meta">{r.cancelReason}</div>}
-                  {r.refundedAmount > 0 && <div className="meta">Đã hoàn {money(r.refundedAmount)}</div>}
+                  {r.refundedAmount > 0 && <div className="meta">{t('Đã hoàn')} {money(r.refundedAmount)}</div>}
                   <span className={`badge ${r.statusBadge}`} style={{ marginTop: 8 }}>{r.statusLabel}</span>
                 </div>
                 <div className="host-booking-actions">
                   <button className="btn btn-outline btn-sm"
-                          onClick={() => navigate(`/services/${r.slug}`)}>Xem dịch vụ</button>
+                          onClick={() => navigate(`/services/${r.slug}`)}>{t('Xem dịch vụ')}</button>
                   {(r.status === 'Confirmed' || r.status === 'Requested') &&
-                    <button className="btn btn-outline btn-sm" onClick={() => cancel(r)}>Huỷ</button>}
+                    <button className="btn btn-outline btn-sm" onClick={() => cancel(r)}>{t('Huỷ')}</button>}
                 </div>
               </article>
             ))}
           </div>
         ) : (
           <div className="empty-state" style={{ marginTop: 24 }}>
-            <h3>Chưa đặt dịch vụ nào</h3>
+            <h3>{t('Chưa đặt dịch vụ nào')}</h3>
             <button className="btn btn-primary" style={{ marginTop: 18 }}
-                    onClick={() => navigate('/services')}>Xem dịch vụ</button>
+                    onClick={() => navigate('/services')}>{t('Xem dịch vụ')}</button>
           </div>
         )}
     </div>

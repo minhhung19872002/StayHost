@@ -14,6 +14,7 @@ import { DetailMap } from '../components/Maps.jsx';
 import { Icon, AmenityIcon } from '../components/Icon.jsx';
 import { TranslateButton } from '../components/TranslateButton.jsx';
 import { PriceLines } from '../components/modals/ListingModals.jsx';
+import { t } from '../lib/i18n.js';
 
 const RATING_LABELS = {
   cleanliness: 'Mức độ sạch sẽ',
@@ -63,7 +64,7 @@ export function Detail() {
 
   return <>
     <div className="shell" style={{ paddingBlock: '20px 110px' }}>
-      <button className="back-link" onClick={() => navigate('/')}>← Tất cả chỗ nghỉ</button>
+      <button className="back-link" onClick={() => navigate('/')}>← {t('Tất cả chỗ nghỉ')}</button>
 
       <div className="detail-head">
         <div style={{ minWidth: 0 }}>
@@ -71,16 +72,16 @@ export function Detail() {
           <div className="detail-sub">
             <span>★ {c.rating.toFixed(2)}</span>
             <span className="dot">·</span>
-            <u onClick={() => openOverlay('reviews')}>{d.reviews.length} đánh giá</u>
-            {c.isSuperhost && <><span className="dot">·</span><span>Siêu chủ nhà</span></>}
+            <u onClick={() => openOverlay('reviews')}>{d.reviews.length} {t('đánh giá')}</u>
+            {c.isSuperhost && <><span className="dot">·</span><span>{t('Siêu chủ nhà')}</span></>}
             <span className="dot">·</span>
             <u onClick={() => scrollTo('section-location')}>{c.city}, {c.country}</u>
           </div>
         </div>
         <div className="detail-actions">
-          <button className="text-btn" onClick={share}>⤴ Chia sẻ</button>
+          <button className="text-btn" onClick={share}>⤴ {t('Chia sẻ')}</button>
           <button className={`text-btn ${c.isFavorite ? 'is-on' : ''}`} onClick={() => toggleFavorite(c.id)}>
-            ♥ {c.isFavorite ? 'Đã lưu' : 'Lưu chỗ nghỉ'}
+            ♥ {c.isFavorite ? t('Đã lưu') : t('Lưu chỗ nghỉ')}
           </button>
         </div>
       </div>
@@ -108,8 +109,8 @@ export function Detail() {
 
       {!!d.similar.length && (
         <section style={{ marginTop: 44, borderTop: '1px solid var(--divider)', paddingTop: 32 }}>
-          <h2 className="section-title" style={{ fontSize: 22 }}>Chỗ nghỉ tương tự</h2>
-          <p className="section-sub">Cùng khu vực hoặc cùng loại hình với {c.title}</p>
+          <h2 className="section-title" style={{ fontSize: 22 }}>{t('Chỗ nghỉ tương tự')}</h2>
+          <p className="section-sub">{t('Cùng khu vực hoặc cùng loại hình với')} {c.title}</p>
           <div className="card-grid">{d.similar.map(s => <Card key={s.id} card={s} lazy />)}</div>
         </section>
       )}
@@ -133,7 +134,7 @@ function DetailSkeleton() {
   const tile = { borderRadius: 12 };
 
   return (
-    <div className="shell" style={{ paddingBlock: '20px 110px' }} aria-busy="true" aria-label="Đang tải chỗ nghỉ">
+    <div className="shell" style={{ paddingBlock: '20px 110px' }} aria-busy="true" aria-label={t('Đang tải chỗ nghỉ')}>
       <div className="skeleton" style={{ width: 150, height: 30, borderRadius: 8 }} />
 
       <div style={{ marginTop: 8, height: 61 }}>
@@ -173,11 +174,11 @@ function Gallery({ card }) {
       {imgs.map((src, i) => (
         <figure className="gallery-tile" key={i} onClick={() => openAt(i)}
                 style={{ margin: 0, ...(i === 0 ? { gridRow: 'span 2' } : {}) }}>
-          <img src={src} alt={`${card.title} — ảnh ${i + 1}`} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
+          <img src={src} alt={`${card.title} — ${t('ảnh')} ${i + 1}`} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
         </figure>
       ))}
       <button className="gallery-all"
-              onClick={() => { set({ photoIndex: null }); openOverlay('photos'); }}>⊞ Hiện tất cả ảnh</button>
+              onClick={() => { set({ photoIndex: null }); openOverlay('photos'); }}>⊞ {t('Hiện tất cả ảnh')}</button>
     </div>
   );
 }
@@ -185,11 +186,11 @@ function Gallery({ card }) {
 /** Sticky in-page nav, mirroring airbnb.com's NAV_DEFAULT section. */
 function SubNav() {
   const links = [
-    ['section-photos', 'Ảnh'], ['section-amenities', 'Tiện nghi'],
-    ['section-reviews', 'Đánh giá'], ['section-location', 'Vị trí']
+    ['section-photos', t('Ảnh')], ['section-amenities', t('Tiện nghi')],
+    ['section-reviews', t('Đánh giá')], ['section-location', t('Vị trí')]
   ];
   return (
-    <nav className="detail-nav" aria-label="Mục trong trang">
+    <nav className="detail-nav" aria-label={t('Mục trong trang')}>
       {links.map(([target, label]) => <button key={target} onClick={() => scrollTo(target)}>{label}</button>)}
     </nav>
   );
@@ -203,12 +204,12 @@ function GuestFavoriteBanner({ detail, card }) {
       <div className="gf-title">
         <span className="gf-laurel"><Icon name="star" size={30} filled weight={0} /></span>
         <div>
-          <b>Khách yêu thích</b>
-          <span>Một trong những chỗ nghỉ được yêu thích nhất trên StayHost</span>
+          <b>{t('Khách yêu thích')}</b>
+          <span>{t('Một trong những chỗ nghỉ được yêu thích nhất trên StayHost')}</span>
         </div>
       </div>
       <div className="gf-metric"><b>{card.rating.toFixed(2)}</b><span>★★★★★</span></div>
-      <div className="gf-metric"><b>{detail.reviews.length}</b><span>đánh giá</span></div>
+      <div className="gf-metric"><b>{detail.reviews.length}</b><span>{t('đánh giá')}</span></div>
     </div>
   );
 }
@@ -216,15 +217,15 @@ function GuestFavoriteBanner({ detail, card }) {
 function Summary({ detail, card }) {
   return (
     <div className="summary-block">
-      <div className="summary-title">{card.typeLabel} tại {card.city} do {detail.host.name} cho thuê</div>
+      <div className="summary-title">{card.typeLabel} {t('tại')} {card.city} {t('do')} {detail.host.name} {t('cho thuê')}</div>
       <div className="summary-meta">
-        {card.maxGuests} khách · {card.bedrooms} phòng ngủ · {card.beds} giường · {card.bathrooms} phòng tắm
+        {card.maxGuests} {t('khách')} · {card.bedrooms} {t('phòng ngủ')} · {card.beds} {t('giường')} · {card.bathrooms} {t('phòng tắm')}
       </div>
       <p className="summary-desc">{detail.description}</p>
       {/* docs/01 TĐ-03 — dịch mô tả tin đăng, chỉ hiện khi dịch được bật. */}
       <TranslateButton text={detail.description} />
       {card.highlight && (
-        <p className="summary-desc" style={{ marginTop: 10 }}><b>Điểm nổi bật:</b> {card.highlight}</p>
+        <p className="summary-desc" style={{ marginTop: 10 }}><b>{t('Điểm nổi bật:')}</b> {card.highlight}</p>
       )}
     </div>
   );
@@ -235,9 +236,9 @@ function HostRow({ host }) {
     <div className="host-row">
       <Avatar url={host.avatarUrl} initials={host.initials} className="host-avatar" />
       <div>
-        <div className="host-name">Chủ nhà: {host.name}</div>
+        <div className="host-name">{t('Chủ nhà:')} {host.name}</div>
         <div className="host-meta">
-          {host.isSuperhost ? 'Siêu chủ nhà · ' : ''}{host.yearsHosting} năm kinh nghiệm đón khách
+          {host.isSuperhost ? `${t('Siêu chủ nhà')} · ` : ''}{host.yearsHosting} {t('năm kinh nghiệm đón khách')}
         </div>
       </div>
     </div>
@@ -247,17 +248,17 @@ function HostRow({ host }) {
 function Highlights({ detail, card }) {
   const items = [
     card.isSuperhost && {
-      ic: 'star', title: `${detail.host.name} là Siêu chủ nhà`,
-      sub: 'Siêu chủ nhà là những chủ nhà giàu kinh nghiệm, được đánh giá cao.'
+      ic: 'star', title: `${detail.host.name} ${t('là Siêu chủ nhà')}`,
+      sub: t('Siêu chủ nhà là những chủ nhà giàu kinh nghiệm, được đánh giá cao.')
     },
     card.amenityKeys.includes('selfcheckin') && {
-      ic: 'selfcheckin', title: 'Tự nhận phòng',
-      sub: 'Bạn có thể tự nhận phòng bằng khoá số ở cửa.'
+      ic: 'selfcheckin', title: t('Tự nhận phòng'),
+      sub: t('Bạn có thể tự nhận phòng bằng khoá số ở cửa.')
     },
-    { ic: 'heart', title: 'Huỷ miễn phí trước 48 giờ', sub: detail.cancellationPolicy },
+    { ic: 'heart', title: t('Huỷ miễn phí trước 48 giờ'), sub: detail.cancellationPolicy },
     card.amenityKeys.includes('workspace') && {
-      ic: 'workspace', title: 'Không gian riêng để làm việc',
-      sub: 'Phòng có bàn làm việc và wifi tốc độ cao, phù hợp làm việc từ xa.'
+      ic: 'workspace', title: t('Không gian riêng để làm việc'),
+      sub: t('Phòng có bàn làm việc và wifi tốc độ cao, phù hợp làm việc từ xa.')
     }
   ].filter(Boolean);
 
@@ -279,7 +280,7 @@ function Sleeping({ bedrooms }) {
 
   return (
     <section className="detail-section" id="section-sleeping">
-      <h2>Nơi bạn sẽ ngủ</h2>
+      <h2>{t('Nơi bạn sẽ ngủ')}</h2>
       <div className="sleep-grid">
         {bedrooms.map((room, i) => (
           <div className="sleep-card" key={`${room.name}-${i}`}>
@@ -311,7 +312,7 @@ function Amenities({ detail }) {
 
   return (
     <section className="detail-section" id="section-amenities">
-      <h2>Tiện nghi tại đây</h2>
+      <h2>{t('Tiện nghi tại đây')}</h2>
       <div className="amenity-grid">
         {preview.map(a => (
           <div className={`amenity ${a.available ? '' : 'is-missing'}`} key={a.key}>
@@ -321,7 +322,7 @@ function Amenities({ detail }) {
       </div>
       {detail.allAmenities.length > preview.length && (
         <button className="btn btn-outline btn-sm" style={{ marginTop: 18 }} onClick={() => openOverlay('amenities')}>
-          Hiện tất cả {detail.allAmenities.length} tiện nghi
+          {t('Hiện tất cả')} {detail.allAmenities.length} {t('tiện nghi')}
         </button>
       )}
     </section>
@@ -333,13 +334,13 @@ function CalendarSection({ nights, city }) {
 
   return (
     <section className="detail-section" id="section-calendar">
-      <h2>{nights} đêm tại {city}</h2>
+      <h2>{nights} {t('đêm')} {t('tại')} {city}</h2>
       <p style={{ margin: '-8px 0 18px', fontSize: 14, color: 'var(--ink-muted)' }}>
         {longDate(state.checkIn)} – {longDate(state.checkOut)}
       </p>
       <Calendar months={4} />
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
-        <button className="text-btn" onClick={clearDates}>Xoá ngày</button>
+        <button className="text-btn" onClick={clearDates}>{t('Xoá ngày')}</button>
       </div>
     </section>
   );
@@ -375,8 +376,8 @@ function Reviews({ detail, card }) {
     <section className="detail-section" id="section-reviews">
       <div className="rating-summary">
         <span className="rating-big">★ {card.rating.toFixed(2)}</span>
-        <span style={{ fontSize: 15, color: 'var(--ink-muted)' }}>· {detail.reviews.length} đánh giá</span>
-        {card.isGuestFavorite && <span className="badge confirmed" style={{ marginLeft: 6 }}>Khách yêu thích</span>}
+        <span style={{ fontSize: 15, color: 'var(--ink-muted)' }}>· {detail.reviews.length} {t('đánh giá')}</span>
+        {card.isGuestFavorite && <span className="badge confirmed" style={{ marginLeft: 6 }}>{t('Khách yêu thích')}</span>}
       </div>
 
       <StarDistribution counts={rb.starCounts} total={detail.reviews.length} />
@@ -384,7 +385,7 @@ function Reviews({ detail, card }) {
       <div className="rating-bars">
         {Object.entries(RATING_LABELS).map(([key, label]) => (
           <div className="rating-bar" key={key}>
-            <span>{label}</span>
+            <span>{t(label)}</span>
             <span className="track"><span className="fill" style={{ width: `${(rb[key] / 5) * 100}%` }} /></span>
             <span className="val">{rb[key].toFixed(1)}</span>
           </div>
@@ -393,7 +394,7 @@ function Reviews({ detail, card }) {
 
       {!!topics.length && (
         <div className="topic-row">
-          {topics.map(t => <span className="topic-chip" key={t.label}>{t.label} <b>{t.n}</b></span>)}
+          {topics.map(topic => <span className="topic-chip" key={topic.label}>{t(topic.label)} <b>{topic.n}</b></span>)}
         </div>
       )}
 
@@ -418,7 +419,7 @@ function Reviews({ detail, card }) {
             {r.id && (
               <button className="text-btn" style={{ marginTop: 8, fontSize: 12.5 }}
                       onClick={() => openReport('review', r.id, `Đánh giá của ${r.authorName}`)}>
-                ⚑ Báo cáo đánh giá
+                ⚑ {t('Báo cáo đánh giá')}
               </button>
             )}
           </article>
@@ -427,7 +428,7 @@ function Reviews({ detail, card }) {
 
       {detail.reviews.length > shown.length && (
         <button className="btn btn-outline btn-sm" style={{ marginTop: 20 }} onClick={() => openOverlay('reviews')}>
-          Hiện tất cả {detail.reviews.length} đánh giá
+          {t('Hiện tất cả')} {detail.reviews.length} {t('đánh giá')}
         </button>
       )}
     </section>
@@ -442,7 +443,7 @@ export function StarDistribution({ counts, total }) {
     <div className="star-dist">
       {counts.map((n, i) => (
         <div className="star-dist-row" key={i}>
-          <span>{5 - i} sao</span>
+          <span>{5 - i} {t('sao')}</span>
           <span className="track"><span className="fill" style={{ width: `${(n / total) * 100}%` }} /></span>
           <span>{n}</span>
         </div>
@@ -457,7 +458,7 @@ export function HostReply({ review }) {
 
   return (
     <div className="review-reply">
-      <b>Phản hồi của chủ nhà{review.hostRepliedAt ? ` · ${longDate(review.hostRepliedAt.slice(0, 10))}` : ''}</b>
+      <b>{t('Phản hồi của chủ nhà')}{review.hostRepliedAt ? ` · ${longDate(review.hostRepliedAt.slice(0, 10))}` : ''}</b>
       <p>{review.hostReply}</p>
     </div>
   );
@@ -466,18 +467,18 @@ export function HostReply({ review }) {
 /** Neighbourhood context derived from what the listing actually offers. */
 function neighbourhoodHighlights(c) {
   const out = [];
-  if (c.amenityKeys.includes('beach')) out.push(['beach', 'Sát biển', 'Đi bộ vài phút là xuống tới bãi tắm.']);
-  if (c.amenityKeys.includes('bike')) out.push(['bike', 'Dễ đi lại', 'Có xe đạp miễn phí để khám phá quanh khu.']);
-  if (c.amenityKeys.includes('view')) out.push(['view', 'Tầm nhìn đẹp', 'Khung cảnh mở, ít bị che chắn.']);
-  if (c.amenityKeys.includes('parking')) out.push(['parking', 'Đỗ xe thuận tiện', 'Có chỗ đậu xe ngay tại chỗ nghỉ.']);
-  if (out.length < 2) out.push(['house', `Trung tâm ${c.city}`, 'Gần quán ăn, cà phê và điểm tham quan chính.']);
+  if (c.amenityKeys.includes('beach')) out.push(['beach', t('Sát biển'), t('Đi bộ vài phút là xuống tới bãi tắm.')]);
+  if (c.amenityKeys.includes('bike')) out.push(['bike', t('Dễ đi lại'), t('Có xe đạp miễn phí để khám phá quanh khu.')]);
+  if (c.amenityKeys.includes('view')) out.push(['view', t('Tầm nhìn đẹp'), t('Khung cảnh mở, ít bị che chắn.')]);
+  if (c.amenityKeys.includes('parking')) out.push(['parking', t('Đỗ xe thuận tiện'), t('Có chỗ đậu xe ngay tại chỗ nghỉ.')]);
+  if (out.length < 2) out.push(['house', `${t('Trung tâm')} ${c.city}`, t('Gần quán ăn, cà phê và điểm tham quan chính.')]);
   return out.slice(0, 3);
 }
 
 function Location({ card, landmarks }) {
   return (
     <section className="detail-section" id="section-location">
-      <h2>Vị trí chỗ nghỉ</h2>
+      <h2>{t('Vị trí chỗ nghỉ')}</h2>
       <p style={{ margin: '-8px 0 16px', fontSize: 14.5, color: 'var(--ink-muted)' }}>{card.city}, {card.country}</p>
       <DetailMap latitude={card.latitude} longitude={card.longitude} />
 
@@ -490,7 +491,7 @@ function Location({ card, landmarks }) {
         </ul>
       )}
 
-      <h3 style={{ margin: '22px 0 12px', fontSize: 15, fontWeight: 700 }}>Điểm nổi bật của khu vực</h3>
+      <h3 style={{ margin: '22px 0 12px', fontSize: 15, fontWeight: 700 }}>{t('Điểm nổi bật của khu vực')}</h3>
       <div className="hood-grid">
         {neighbourhoodHighlights(card).map(([ic, title, text]) => (
           <div className="hood" key={title}>
@@ -501,7 +502,7 @@ function Location({ card, landmarks }) {
       </div>
 
       <p style={{ margin: '16px 0 0', fontSize: 13.5, color: 'var(--ink-muted)' }}>
-        Vị trí chính xác được cung cấp sau khi đặt chỗ thành công.
+        {t('Vị trí chính xác được cung cấp sau khi đặt chỗ thành công.')}
       </p>
     </section>
   );
@@ -525,7 +526,7 @@ function HostProfile({ detail }) {
 
   return (
     <section className="detail-section" id="section-host">
-      <h2>Gặp gỡ chủ nhà</h2>
+      <h2>{t('Gặp gỡ chủ nhà')}</h2>
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 220 }}>
           <Avatar url={h.avatarUrl} initials={h.initials} className="host-avatar" size={64} />
@@ -535,28 +536,28 @@ function HostProfile({ detail }) {
               ? <button className="link-btn" style={{ fontSize: 20, fontWeight: 800 }}
                         onClick={() => navigate(`/users/${h.userId}`)}>{h.name}</button>
               : <div style={{ fontSize: 20, fontWeight: 800 }}>{h.name}</div>}
-            <div className="host-meta">{h.isSuperhost ? 'Siêu chủ nhà' : 'Chủ nhà'}</div>
+            <div className="host-meta">{h.isSuperhost ? t('Siêu chủ nhà') : t('Chủ nhà')}</div>
           </div>
         </div>
         <div style={{ display: 'grid', gap: 8, fontSize: 14, color: 'var(--ink-body)', minWidth: 200 }}>
-          <div><b>{h.totalReviews}</b> đánh giá</div>
-          <div><b>★ {h.averageRating.toFixed(2)}</b> điểm trung bình</div>
-          <div><b>{h.listingCount}</b> chỗ nghỉ đang cho thuê</div>
+          <div><b>{h.totalReviews}</b> {t('đánh giá')}</div>
+          <div><b>★ {h.averageRating.toFixed(2)}</b> {t('điểm trung bình')}</div>
+          <div><b>{h.listingCount}</b> {t('chỗ nghỉ đang cho thuê')}</div>
           <div>{h.joinedLabel}</div>
         </div>
       </div>
       {h.bio && <p className="summary-desc" style={{ marginTop: 18 }}>{h.bio}</p>}
       <div style={{ display: 'grid', gap: 6, marginTop: 16, fontSize: 14, color: 'var(--ink-body)' }}>
-        <div>Tỉ lệ phản hồi: <b>{h.responseRate}</b></div>
-        <div>Thời gian phản hồi: <b>{h.responseTime}</b></div>
+        <div>{t('Tỉ lệ phản hồi:')} <b>{h.responseRate}</b></div>
+        <div>{t('Thời gian phản hồi:')} <b>{h.responseTime}</b></div>
         {/* docs/01 TĐ-14 — what they speak, and who else answers for this place. */}
-        {!!h.languages?.length && <div>Ngôn ngữ: <b>{h.languages.join(', ')}</b></div>}
-        {!!h.coHosts?.length && <div>Đồng quản lý: <b>{h.coHosts.join(', ')}</b></div>}
+        {!!h.languages?.length && <div>{t('Ngôn ngữ:')} <b>{h.languages.join(', ')}</b></div>}
+        {!!h.coHosts?.length && <div>{t('Đồng quản lý:')} <b>{h.coHosts.join(', ')}</b></div>}
       </div>
       {h.userId
-        ? <button className="btn btn-outline btn-sm" style={{ marginTop: 18 }} onClick={message}>Nhắn tin cho {h.name}</button>
+        ? <button className="btn btn-outline btn-sm" style={{ marginTop: 18 }} onClick={message}>{t('Nhắn tin cho')} {h.name}</button>
         : <button className="btn btn-outline btn-sm" style={{ marginTop: 18 }} onClick={() => openOverlay('contact-host')}>
-            Nhắn tin cho chủ nhà
+            {t('Nhắn tin cho chủ nhà')}
           </button>}
     </section>
   );
@@ -565,10 +566,10 @@ function HostProfile({ detail }) {
 function ThingsToKnow({ detail }) {
   return (
     <section className="detail-section" id="section-know">
-      <h2>Những điều cần biết</h2>
+      <h2>{t('Những điều cần biết')}</h2>
       <div className="know-grid">
         <div className="know">
-          <h3>Nội quy nhà</h3>
+          <h3>{t('Nội quy nhà')}</h3>
           <ul>
             {/* docs/01 CĐ-03 — the hours the host actually set, ahead of the free-text rules. */}
             {detail.checkInWindow && <li>{detail.checkInWindow}</li>}
@@ -576,11 +577,11 @@ function ThingsToKnow({ detail }) {
           </ul>
         </div>
         <div className="know">
-          <h3>An toàn &amp; chỗ ở</h3>
+          <h3>{t('An toàn & chỗ ở')}</h3>
           <ul>{detail.safetyInfo.map(r => <li key={r}>{r}</li>)}</ul>
         </div>
         <div className="know">
-          <h3>Chính sách huỷ</h3>
+          <h3>{t('Chính sách huỷ')}</h3>
           <ul><li>{detail.cancellationPolicy}</li></ul>
         </div>
       </div>
@@ -588,7 +589,7 @@ function ThingsToKnow({ detail }) {
       {/* docs/01 ĐG-12 — public record of the host pulling out of confirmed stays. */}
       {!!detail.cancellationNotes?.length && (
         <div className="cancel-notes">
-          <h3>Lịch sử huỷ đơn của chủ nhà</h3>
+          <h3>{t('Lịch sử huỷ đơn của chủ nhà')}</h3>
           <ul>{detail.cancellationNotes.map((n, i) => <li key={i}>{n}</li>)}</ul>
         </div>
       )}
@@ -616,16 +617,16 @@ function RoomPicker({ rooms }) {
 
   return (
     <div className="room-picker">
-      <p className="cap" style={{ margin: '14px 0 8px' }}>Chọn loại phòng</p>
+      <p className="cap" style={{ margin: '14px 0 8px' }}>{t('Chọn loại phòng')}</p>
       {rooms.map(r => (
         <button key={r.id} className={`room-option ${state.roomTypeId === r.id ? 'is-on' : ''}`}
                 disabled={r.available === 0} onClick={() => setRoom(r.id)}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <b>{r.name}</b>
             <span>{r.summary}</span>
-            <i>{r.available > 0 ? `Còn ${r.available}/${r.inventory} phòng` : 'Hết phòng cho ngày này'}</i>
+            <i>{r.available > 0 ? `${t('Còn')} ${r.available}/${r.inventory} ${t('phòng')}` : t('Hết phòng cho ngày này')}</i>
           </div>
-          <div className="room-price">{money(r.pricePerNight)}<span>/ đêm</span></div>
+          <div className="room-price">{money(r.pricePerNight)}<span>/ {t('đêm')}</span></div>
         </button>
       ))}
     </div>
@@ -647,7 +648,7 @@ function BookPanel({ detail, card }) {
     <aside className="book-panel">
       <div className="book-price">
         <span className="amount">{money(card.pricePerNight)}</span>
-        <span className="per">/ đêm{rooms ? ' · phòng rẻ nhất' : ''}</span>
+        <span className="per">/ {t('đêm')}{rooms ? ` · ${t('phòng rẻ nhất')}` : ''}</span>
         {card.isGuestFavorite && <span className="per" style={{ marginLeft: 'auto' }}>★ {card.rating.toFixed(2)}</span>}
       </div>
 
@@ -656,54 +657,54 @@ function BookPanel({ detail, card }) {
       <div className="book-fields">
         <div className="book-dates">
           <button className="book-field" onClick={() => openOverlay('dates')}>
-            <span className="cap">NHẬN PHÒNG</span>
+            <span className="cap">{t('NHẬN PHÒNG')}</span>
             <span className="val">{longDate(state.checkIn)}</span>
           </button>
           <button className="book-field" onClick={() => openOverlay('dates')}>
-            <span className="cap">TRẢ PHÒNG</span>
+            <span className="cap">{t('TRẢ PHÒNG')}</span>
             <span className="val">{longDate(state.checkOut)}</span>
           </button>
         </div>
         <div className="book-guests">
           <button className="book-guests-open" onClick={() => openOverlay('guests')}>
-            <span className="cap">KHÁCH</span>
+            <span className="cap">{t('KHÁCH')}</span>
             <span className="val">{guestLabel()}</span>
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button className="round-btn lg" aria-label="Giảm số khách"
+            <button className="round-btn lg" aria-label={t('Giảm số khách')}
                     disabled={totalGuests() <= 1} onClick={() => bumpTotalGuests(-1)}>−</button>
-            <button className="round-btn lg" aria-label="Tăng số khách"
+            <button className="round-btn lg" aria-label={t('Tăng số khách')}
                     disabled={totalGuests() >= card.maxGuests} onClick={() => bumpTotalGuests(1)}>+</button>
           </div>
         </div>
       </div>
 
-      <button className="btn btn-primary btn-block" style={{ marginTop: 16 }} onClick={checkout}>Đặt chỗ ngay</button>
-      <p className="book-note">Bạn chưa bị trừ tiền ở bước này</p>
+      <button className="btn btn-primary btn-block" style={{ marginTop: 16 }} onClick={checkout}>{t('Đặt chỗ ngay')}</button>
+      <p className="book-note">{t('Bạn chưa bị trừ tiền ở bước này')}</p>
 
       {q ? <>
         <PriceLines q={q} />
         {q.guestsExceeded && (
           <div className="book-alert is-error">
-            <b>Vượt quá sức chứa</b>
-            <span>Chỗ nghỉ này nhận tối đa {q.maxGuests} khách.</span>
+            <b>{t('Vượt quá sức chứa')}</b>
+            <span>{t('Chỗ nghỉ này nhận tối đa')} {q.maxGuests} {t('khách')}.</span>
           </div>
         )}
-      </> : <div className="book-lines"><div className="book-line"><span>Đang tính giá…</span></div></div>}
+      </> : <div className="book-lines"><div className="book-line"><span>{t('Đang tính giá…')}</span></div></div>}
 
       {result && (
         <div className="book-alert">
-          <b>Đã giữ chỗ cho bạn · {result.reference}</b>
-          <span>{result.nights} đêm · {result.guests} khách · {money(result.total)}. Chủ nhà sẽ xác nhận trong 12 giờ.</span>
+          <b>{t('Đã giữ chỗ cho bạn')} · {result.reference}</b>
+          <span>{result.nights} {t('đêm')} · {result.guests} {t('khách')} · {money(result.total)}. {t('Chủ nhà sẽ xác nhận trong 12 giờ.')}</span>
         </div>
       )}
 
       {state.bookingError && (
-        <div className="book-alert is-error"><b>Không đặt được</b><span>{state.bookingError}</span></div>
+        <div className="book-alert is-error"><b>{t('Không đặt được')}</b><span>{state.bookingError}</span></div>
       )}
 
       <button className="text-btn" style={{ marginTop: 14, justifyContent: 'center' }}
-              onClick={() => openReport('listing', card.id, card.title)}>⚑ Báo cáo chỗ nghỉ này</button>
+              onClick={() => openReport('listing', card.id, card.title)}>⚑ {t('Báo cáo chỗ nghỉ này')}</button>
     </aside>
   );
 }
@@ -721,9 +722,9 @@ function MobileBar({ nights, card }) {
     <div className="mobile-bar">
       <div style={{ minWidth: 0 }}>
         <div className="amount">{money(q ? q.total : card.pricePerNight)}</div>
-        <div className="meta">{nights} đêm · {totalGuests()} khách</div>
+        <div className="meta">{nights} {t('đêm')} · {totalGuests()} {t('khách')}</div>
       </div>
-      <button className="btn btn-primary" onClick={checkout}>Đặt chỗ ngay</button>
+      <button className="btn btn-primary" onClick={checkout}>{t('Đặt chỗ ngay')}</button>
     </div>
   );
 }
