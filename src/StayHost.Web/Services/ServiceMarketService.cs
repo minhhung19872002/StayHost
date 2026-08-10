@@ -97,7 +97,7 @@ public class ServiceMarketService(
                 .Select(a => new ServiceAddOnDto(a.Id, a.Name, a.Price)).ToList(),
             o.RequirementList,
             o.TravelFeePerKm, o.MaxTravelKm, o.WorkingDaysMask, o.MaxJobsPerDay,
-            o.CertificateName, o.CertificateExpiresOn);
+            o.CertificateName, o.CertificateExpiresOn, o.BufferMinutes);
     }
 
     public async Task<ServiceQuoteDto?> QuoteAsync(int offeringId, QuoteServiceRequest req, CancellationToken ct)

@@ -1538,13 +1538,25 @@ public record ExperienceBookingDto(
     string StatusLabel,
     string StatusBadge,
     string? CancelReason,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    // docs/09 §2.9–§2.10 — whether the host marked them present, and whether they
+    // have already written their review, so a ticket never offers a form the
+    // server is only going to refuse.
+    bool? Attended = null,
+    bool HasReview = false);
 
 public record BookExperienceRequest(
     int Seats,
     bool Private = false,
     string? PaymentMethod = null,
-    string? CardLast4 = null);
+    string? CardLast4 = null,
+    /// <summary>docs/09 §2.7 (MR-E-06) — the ten-minute hold these seats came from.</summary>
+    int? HoldId = null);
+
+/// <summary>docs/09 §2.7 — seats taken off a session while the guest pays.</summary>
+public record HoldSeatsRequest(int Seats, bool Private = false);
+
+public record ExperienceHoldDto(int HoldId, int SlotId, int Seats, bool Private, DateTime ExpiresAt);
 
 public record SaveExperienceRequest(
     int? Id,
@@ -1692,7 +1704,9 @@ public record ServiceDetailDto(
     int WorkingDaysMask = 127,
     int MaxJobsPerDay = 0,
     string? CertificateName = null,
-    DateOnly? CertificateExpiresOn = null);
+    DateOnly? CertificateExpiresOn = null,
+    /// <summary>0 means the platform's own 30-minute gap between jobs.</summary>
+    int BufferMinutes = 0);
 
 public record ServiceQuoteDto(
     int OfferingId,

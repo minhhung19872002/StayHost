@@ -28,7 +28,7 @@ public class ExperienceService(
             ? await query.FirstOrDefaultAsync(x => x.Id == id, ct)
             : await query.FirstOrDefaultAsync(x => x.Slug == idOrSlug, ct);
 
-        return experience is null ? null : ToDetail(experience);
+        return experience is null ? null : ToDetail(experience, HostView: false);
     }
 
     public async Task<IReadOnlyList<ExperienceDetailDto>> MineAsync(int userId, CancellationToken ct)
@@ -42,12 +42,21 @@ public class ExperienceService(
             .AsSplitQuery()
             .ToListAsync(ct);
 
-        return mine.Select(ToDetail).ToList();
+        return mine.Select(x => ToDetail(x, HostView: true)).ToList();
     }
 
-    private static ExperienceDetailDto ToDetail(Experience x)
+    /// <summary>
+    /// docs/09 §2.9 — a guest is shown sessions they could still sit in, so a
+    /// finished one drops off almost at once. A host takes the register after the
+    /// session, not always the same hour, so their own list keeps a fortnight of
+    /// finished sessions reachable.
+    /// </summary>
+    private static ExperienceDetailDto ToDetail(Experience x, bool HostView)
     {
         var now = DateTime.UtcNow;
+        var since = HostView
+            ? now.AddDays(-14)
+            : now.AddHours(-x.DurationMinutes / 60.0 - 1);
 
         return new ExperienceDetailDto(
             x.Id, x.Slug, x.Title, x.City, x.Country, x.Summary, x.Description,
@@ -57,7 +66,7 @@ public class ExperienceService(
             x.Rating, x.ReviewCount, x.Host?.Name ?? "", x.Host?.Initials ?? "",
             x.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).ToList(),
             x.Slots
-                .Where(s => s.StartsAt > now.AddHours(-x.DurationMinutes / 60.0 - 1))
+                .Where(s => s.StartsAt > since)
                 .OrderBy(s => s.StartsAt)
                 .Select(s => new ExperienceSlotDto(
                     s.Id, s.StartsAt, s.Capacity, s.SeatsTaken, s.SeatsLeft,
@@ -148,6 +157,112 @@ public class ExperienceService(
 
     /* ------------------------------------------------------------ booking */
 
+    /* ------------------------------------------------- MR-E-06, the ten minutes */
+
+    /// <summary>
+    /// docs/09 §2.7 — takes the seats off the session while the guest is paying,
+    /// for ten minutes. Uses the same conditional UPDATE the booking path does, so
+    /// two guests reaching for the last seats still cannot both succeed; the
+    /// difference is only that these seats are given back on a timer as well as
+    /// on a refused card.
+    /// </summary>
+    public async Task<(ExperienceHold? Hold, string? Error)> HoldAsync(
+        User user, int slotId, int seats, bool wantsPrivate, CancellationToken ct)
+    {
+        var slot = await db.ExperienceSlots
+            .Include(s => s.Experience)
+            .FirstOrDefaultAsync(s => s.Id == slotId, ct);
+        if (slot?.Experience is null) return (null, "Không tìm thấy suất này.");
+
+        seats = Math.Max(1, seats);
+        var check = ExperienceRules.CanBook(slot.Experience, slot, seats, wantsPrivate, DateTime.UtcNow);
+        if (!check.Ok) return (null, check.Message);
+
+        var (claimed, left) = await ClaimSeatsAsync(slotId, seats, wantsPrivate, ct);
+        if (!claimed)
+            return (null, left > 0
+                ? $"Vừa có người đặt trước bạn — chỉ còn {left} chỗ cho suất này."
+                : "Vừa có người đặt hết chỗ của suất này.");
+
+        var hold = new ExperienceHold
+        {
+            SlotId = slotId,
+            UserId = user.Id,
+            Seats = seats,
+            IsPrivate = wantsPrivate,
+            ExpiresAt = DateTime.UtcNow + ExperienceRules.HoldWindow
+        };
+        db.ExperienceHolds.Add(hold);
+        await db.SaveChangesAsync(ct);
+
+        return (hold, null);
+    }
+
+    /// <summary>
+    /// docs/09 §2.7 — hands the seats back when the guest walks away from
+    /// checkout. Runs on the lifecycle tick alongside the other sweeps.
+    /// </summary>
+    public async Task<int> ReleaseExpiredHoldsAsync(CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var stale = await db.ExperienceHolds
+            .Where(h => h.ClaimedAt == null && h.ExpiresAt <= now)
+            .Take(200)
+            .ToListAsync(ct);
+        if (stale.Count == 0) return 0;
+
+        foreach (var hold in stale)
+        {
+            await ReleaseSeatsAsync(hold.SlotId, hold.Seats, hold.IsPrivate, ct);
+            db.ExperienceHolds.Remove(hold);
+        }
+
+        await db.SaveChangesAsync(ct);
+        log.LogInformation("Trả lại {Count} lượt giữ chỗ trải nghiệm đã hết hạn.", stale.Count);
+        return stale.Count;
+    }
+
+    /// <summary>
+    /// The one place seats are taken. The WHERE carries the arithmetic, so the
+    /// database decides who wins a race rather than the application guessing.
+    /// </summary>
+    private async Task<(bool Claimed, int Left)> ClaimSeatsAsync(
+        int slotId, int seats, bool wantsPrivate, CancellationToken ct)
+    {
+        var rows = wantsPrivate
+            ? await db.ExperienceSlots
+                .Where(s => s.Id == slotId && !s.IsPrivate && s.SeatsTaken == 0)
+                .ExecuteUpdateAsync(set => set
+                    .SetProperty(s => s.SeatsTaken, s => s.Capacity)
+                    .SetProperty(s => s.IsPrivate, true), ct)
+            : await db.ExperienceSlots
+                .Where(s => s.Id == slotId && !s.IsPrivate && s.SeatsTaken + seats <= s.Capacity)
+                .ExecuteUpdateAsync(set => set
+                    .SetProperty(s => s.SeatsTaken, s => s.SeatsTaken + seats), ct);
+
+        if (rows > 0) return (true, 0);
+
+        var left = await db.ExperienceSlots.AsNoTracking()
+            .Where(s => s.Id == slotId)
+            .Select(s => s.Capacity - s.SeatsTaken)
+            .FirstOrDefaultAsync(ct);
+
+        return (false, left);
+    }
+
+    private async Task ReleaseSeatsAsync(int slotId, int seats, bool wasPrivate, CancellationToken ct)
+    {
+        if (wasPrivate)
+            await db.ExperienceSlots.Where(s => s.Id == slotId)
+                .ExecuteUpdateAsync(set => set
+                    .SetProperty(s => s.SeatsTaken, 0)
+                    .SetProperty(s => s.IsPrivate, false), ct);
+        else
+            await db.ExperienceSlots.Where(s => s.Id == slotId)
+                .ExecuteUpdateAsync(set => set
+                    .SetProperty(s => s.SeatsTaken, s => s.SeatsTaken - seats), ct);
+    }
+
     public async Task<(ExperienceBooking? Booking, string? Error)> BookAsync(
         User user, int slotId, BookExperienceRequest req, CancellationToken ct)
     {
@@ -157,7 +272,29 @@ public class ExperienceService(
         if (slot?.Experience is null) return (null, "Không tìm thấy suất này.");
 
         var seats = Math.Max(1, req.Seats);
-        var check = ExperienceRules.CanBook(slot.Experience, slot, seats, req.Private, DateTime.UtcNow);
+
+        // docs/09 §2.7 (MR-E-06) — a guest paying against their own hold already
+        // has these seats off the count. Checking as if they were somebody else's
+        // would refuse the very booking the hold exists to protect, so the held
+        // seats are put back for the check only.
+        var hold = req.HoldId is { } holdId
+            ? await db.ExperienceHolds.FirstOrDefaultAsync(
+                h => h.Id == holdId && h.UserId == user.Id && h.SlotId == slotId, ct)
+            : null;
+
+        var heldAlready = hold is not null && hold.IsLive(DateTime.UtcNow) && hold.Seats == seats;
+
+        var asIfFree = heldAlready
+            ? new ExperienceSlot
+            {
+                Id = slot.Id, ExperienceId = slot.ExperienceId, StartsAt = slot.StartsAt,
+                Capacity = slot.Capacity, Status = slot.Status,
+                SeatsTaken = slot.SeatsTaken - (hold!.IsPrivate ? slot.Capacity : hold.Seats),
+                IsPrivate = hold.IsPrivate ? false : slot.IsPrivate
+            }
+            : slot;
+
+        var check = ExperienceRules.CanBook(slot.Experience, asIfFree, seats, req.Private, DateTime.UtcNow);
         if (!check.Ok) return (null, check.Message);
 
         var price = Pricing.QuoteExperience(new Pricing.ExperienceRequest
@@ -169,54 +306,39 @@ public class ExperienceService(
             TaxRules = await catalog.ActiveTaxRulesAsync(ct)
         });
 
-        // docs/09 §2.7 (scenario 2) — the seats are claimed BEFORE the card is
-        // charged, and claimed with one conditional UPDATE so the database itself
-        // decides the race: two guests going for the last two seats both pass
-        // CanBook above, but only one UPDATE finds the seats still free. The loser
-        // is turned away having never been charged.
+        // docs/09 §2.7 (scenario 2, MR-E-06) — the seats leave the count BEFORE the
+        // card is charged, so two guests going for the last two both pass CanBook
+        // above but only one claim succeeds. A guest who came through a hold has
+        // already taken theirs; claiming again would charge them for seats twice
+        // over. Either way a refused card gives them straight back.
         var taken = req.Private ? slot.Capacity : seats;
 
-        var claimed = req.Private
-            ? await db.ExperienceSlots
-                .Where(s => s.Id == slotId && !s.IsPrivate && s.SeatsTaken == 0)
-                .ExecuteUpdateAsync(set => set
-                    .SetProperty(s => s.SeatsTaken, s => s.Capacity)
-                    .SetProperty(s => s.IsPrivate, true), ct)
-            : await db.ExperienceSlots
-                .Where(s => s.Id == slotId && !s.IsPrivate && s.SeatsTaken + taken <= s.Capacity)
-                .ExecuteUpdateAsync(set => set
-                    .SetProperty(s => s.SeatsTaken, s => s.SeatsTaken + taken), ct);
-
-        if (claimed == 0)
+        if (!heldAlready)
         {
-            // Somebody else got there between the check and the claim. Answer with
-            // what is actually left rather than a stale number.
-            var left = await db.ExperienceSlots.AsNoTracking()
-                .Where(s => s.Id == slotId)
-                .Select(s => s.Capacity - s.SeatsTaken)
-                .FirstOrDefaultAsync(ct);
+            // A hold that lapsed between checkout and payment is gone; the guest
+            // has to win the seats again like anybody else.
+            if (hold is not null) db.ExperienceHolds.Remove(hold);
 
-            return (null, left > 0
-                ? $"Vừa có người đặt trước bạn — chỉ còn {left} chỗ cho suất này."
-                : "Vừa có người đặt hết chỗ của suất này.");
+            var (claimed, left) = await ClaimSeatsAsync(slotId, seats, req.Private, ct);
+            if (!claimed)
+                return (null, left > 0
+                    ? $"Vừa có người đặt trước bạn — chỉ còn {left} chỗ cho suất này."
+                    : "Vừa có người đặt hết chỗ của suất này.");
         }
 
         var attempt = gateway.Charge(price.Total, req.PaymentMethod ?? "card", req.CardLast4);
         if (!attempt.Ok)
         {
             // Give the seats straight back; a refused card must not hold a seat.
-            if (req.Private)
-                await db.ExperienceSlots.Where(s => s.Id == slotId)
-                    .ExecuteUpdateAsync(set => set
-                        .SetProperty(s => s.SeatsTaken, 0)
-                        .SetProperty(s => s.IsPrivate, false), ct);
-            else
-                await db.ExperienceSlots.Where(s => s.Id == slotId)
-                    .ExecuteUpdateAsync(set => set
-                        .SetProperty(s => s.SeatsTaken, s => s.SeatsTaken - taken), ct);
+            await ReleaseSeatsAsync(slotId, taken, req.Private, ct);
+            if (heldAlready && hold is not null) db.ExperienceHolds.Remove(hold);
+            await db.SaveChangesAsync(ct);
 
             return (null, attempt.Reason);
         }
+
+        // The hold has done its job; the booking now owns the seats.
+        if (heldAlready && hold is not null) db.ExperienceHolds.Remove(hold);
 
         var booking = new ExperienceBooking
         {
@@ -788,7 +910,9 @@ public class ExperienceService(
                 b.Status.ToString(),
                 ExperienceRules.StatusLabel(b.Status),
                 ExperienceRules.StatusBadge(b.Status),
-                b.CancelReason, b.CreatedAt))
+                b.CancelReason, b.CreatedAt,
+                b.Attended,
+                db.ExperienceReviews.Any(r => r.BookingId == b.Id)))
             .ToListAsync(ct);
 
     private static string Slugify(string title)

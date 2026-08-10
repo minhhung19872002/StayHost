@@ -82,6 +82,16 @@ function Browse() {
   );
 }
 
+/**
+ * docs/09 §3.4 (MR-S-05) — the provider's working week, read the way
+ * ServiceRules.WorksOn reads it: Monday is bit 0 and Sunday bit 6.
+ */
+function worksOn(detail, date) {
+  const mask = detail.workingDaysMask ?? 127;
+  const day = date.getDay();
+  return (mask & (1 << (day === 0 ? 6 : day - 1))) !== 0;
+}
+
 /** Two-hour steps inside the provider's working day, for the next fortnight. */
 function slotsFor(detail) {
   const out = [];
@@ -93,6 +103,8 @@ function slotsFor(detail) {
       at.setDate(at.getDate() + day);
       at.setHours(hour, 0, 0, 0);
       if (at <= now) continue;
+      // A day the provider does not work at all never becomes a slot to click.
+      if (!worksOn(detail, at)) continue;
 
       const ends = new Date(at.getTime() + detail.durationMinutes * 60000);
       if (ends.getHours() > detail.closesAtHour && ends.getHours() !== 0) continue;
@@ -113,6 +125,12 @@ function Detail({ slug }) {
   const [quantity, setQuantity] = useState(1);
   const [address, setAddress] = useState('');
   const [note, setNote] = useState('');
+  // docs/09 §3.3 — the paid extras ticked (MR-S-03) and the guest's word that the
+  // place has what the job needs (MR-S-07). Both travel with the quote as well as
+  // the booking: an extra changes the price, and an unconfirmed condition is the
+  // very thing that makes the job unbookable.
+  const [addOnIds, setAddOnIds] = useState([]);
+  const [conditionsOk, setConditionsOk] = useState(false);
   const [quote, setQuote] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -132,9 +150,11 @@ function Detail({ slug }) {
       quantity,
       address: address.trim() || null,
       latitude: s.latitude + 0.01,
-      longitude: s.longitude + 0.01
+      longitude: s.longitude + 0.01,
+      addOnIds,
+      conditionsConfirmed: conditionsOk
     }).then(setQuote).catch(e => toast(e.message));
-  }, [s, when, quantity, address]);
+  }, [s, when, quantity, address, addOnIds, conditionsOk]);
 
   if (missing) {
     return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
@@ -158,7 +178,9 @@ function Detail({ slug }) {
         longitude: s.longitude + 0.01,
         note: note.trim() || null,
         paymentMethod: 'card',
-        cardLast4: '4242'
+        cardLast4: '4242',
+        addOnIds,
+        conditionsConfirmed: conditionsOk
       });
       toast(`${t('Đã đặt — mã')} ${b.reference}`);
       navigate('/services/bookings');
@@ -166,6 +188,12 @@ function Detail({ slug }) {
   };
 
   const slots = slotsFor(s);
+  const addOns = s.addOns ?? [];
+  // docs/09 §3.3 (MR-S-07) — a service with conditions cannot be booked until the
+  // guest has said the place meets them; that answer is what makes §3.6's "khai
+  // sai điều kiện" rule fair, so it is a tick of its own, not fine print.
+  const requirements = s.onSiteRequirements ?? [];
+  const conditionsPending = requirements.length > 0 && !conditionsOk;
 
   return (
     <div className="shell" style={{ paddingBlock: '26px 90px' }}>
@@ -191,6 +219,11 @@ function Detail({ slug }) {
             <div className="kv-grid">
               <Kv label={t('Phạm vi phục vụ')}
                   value={s.travelsToGuest ? `${t('Tới tận nơi trong')} ${s.serviceRadiusKm} km` : t('Khách tới chỗ cung cấp')} />
+              {/* docs/09 §3.3 (MR-S-04) — past the free radius they still come, for a fee. */}
+              {s.travelsToGuest && s.travelFeePerKm > 0 && (
+                <Kv label={t('Đi xa hơn')}
+                    value={`${t('Thêm')} ${money(s.travelFeePerKm)}/km, ${t('tối đa thêm')} ${s.maxTravelKm} km`} />
+              )}
               <Kv label={t('Giờ nhận')} value={`${s.opensAtHour}:00 – ${s.closesAtHour}:00`} />
               <Kv label={t('Nhận từ')} value={`${s.minQuantity} ${t('đến')} ${s.maxQuantity} ${s.unit}`} />
               <Kv label={t('Đặt trước')} value={t('Ít nhất 4 giờ')} />
@@ -229,12 +262,52 @@ function Detail({ slug }) {
             </label>
           )}
 
+          {/* docs/09 §3.3 (MR-S-03) — each extra is priced on its own and shows up
+              as its own line on the quote, so nothing grows quietly. */}
+          {!!addOns.length && (
+            <div style={{ marginTop: 14 }}>
+              <span className="cap">{t('Tuỳ chọn thêm')}</span>
+              <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+                {addOns.map(a => (
+                  <label className="check-row" key={a.id}>
+                    <input type="checkbox" checked={addOnIds.includes(a.id)}
+                           onChange={e => setAddOnIds(ids => e.target.checked
+                             ? [...ids, a.id]
+                             : ids.filter(x => x !== a.id))} />
+                    <span style={{ flex: '1 1 auto' }}>{a.name}</span>
+                    <b>+{money(a.price)}</b>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           {s.travelsToGuest && (
             <label className="form-field">
               <span className="cap">{t('Địa chỉ thực hiện')}</span>
               <input value={address} placeholder={t('Số nhà, đường, phường')}
                      onChange={e => setAddress(e.target.value)} />
             </label>
+          )}
+
+          {/* docs/09 §3.3 (MR-S-07) — the provider turns up expecting these. */}
+          {!!requirements.length && (
+            <div className="book-alert" style={{ marginTop: 14 }}>
+              <b>{t('Nơi thực hiện cần có')}</b>
+              <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 13, lineHeight: 1.7, color: '#5c5c5c' }}>
+                {requirements.map(r => <li key={r}>{r}</li>)}
+              </ul>
+              <label className="check-row" style={{ marginTop: 10, alignItems: 'flex-start' }}>
+                <input type="checkbox" checked={conditionsOk}
+                       onChange={e => setConditionsOk(e.target.checked)} />
+                <span style={{ fontSize: 13, lineHeight: 1.5 }}>
+                  {t('Tôi xác nhận nơi thực hiện có đủ những điều kiện trên.')}
+                </span>
+              </label>
+              <span style={{ fontSize: 12.5, marginTop: 6, display: 'block', color: '#5c5c5c', lineHeight: 1.5 }}>
+                {t('Khai sai điều kiện thì nhà cung cấp vẫn được nhận 50% giá trị đơn.')}
+              </span>
+            </div>
           )}
 
           <label className="form-field">
@@ -261,7 +334,8 @@ function Detail({ slug }) {
             {!quote.canBook && <div className="book-alert is-error"><b>{t('Chưa đặt được')}</b><span>{quote.reason}</span></div>}
 
             <button className="btn btn-primary" style={{ width: '100%', marginTop: 12 }}
-                    disabled={busy || !quote.canBook || (s.requiredNote && !note.trim())} onClick={book}>
+                    disabled={busy || !quote.canBook || conditionsPending || (s.requiredNote && !note.trim())}
+                    onClick={book}>
               {busy ? t('Đang xử lý…') : t('Đặt dịch vụ')}
             </button>
           </>}

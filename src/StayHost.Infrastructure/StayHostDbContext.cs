@@ -56,6 +56,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<ExperienceSlot> ExperienceSlots => Set<ExperienceSlot>();
     public DbSet<ExperienceBooking> ExperienceBookings => Set<ExperienceBooking>();
     public DbSet<ExperienceReview> ExperienceReviews => Set<ExperienceReview>();
+    public DbSet<ExperienceHold> ExperienceHolds => Set<ExperienceHold>();
     public DbSet<ServiceOffering> ServiceOfferings => Set<ServiceOffering>();
     public DbSet<ServiceImage> ServiceImages => Set<ServiceImage>();
     public DbSet<ServiceBooking> ServiceBookings => Set<ServiceBooking>();
@@ -511,6 +512,18 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.SlotId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.GuestUser).WithMany()
                 .HasForeignKey(x => x.GuestUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ExperienceHold>(e =>
+        {
+            e.ToTable("experience_holds");
+            // The sweeper looks these up by expiry, the booking path by user.
+            e.HasIndex(x => x.ExpiresAt);
+            e.HasIndex(x => new { x.SlotId, x.UserId });
+            e.HasOne(x => x.Slot).WithMany()
+                .HasForeignKey(x => x.SlotId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<ExperienceReview>(e =>

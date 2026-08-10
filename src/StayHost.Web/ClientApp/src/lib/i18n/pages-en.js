@@ -1547,4 +1547,185 @@ export default {
   "ngày làm việc. Chỉ khi được duyệt thì mới bán vé được.":
     "working days. Only once it is approved can tickets be sold.",
   "Cần chỉnh lại": "Changes needed",
+
+  // docs/09 §2.9 (MR-E-09) — the host's register on the day
+  "Điểm danh": "Take the register",
+  "Đóng điểm danh": "Close the register",
+  "Trải nghiệm này chưa có suất nào để điểm danh. Thêm suất trước đã.":
+    "This experience has no session to take a register for yet. Add one first.",
+  "Suất": "Session",
+  "vé": "tickets",
+  "chỗ đã bán": "seats sold",
+  "Chỉ hiện suất sắp tới và suất vừa diễn ra.":
+    "Only upcoming sessions and ones that have just run are listed.",
+  "Chưa tới giờ bắt đầu nên chưa điểm danh được.":
+    "The session has not started, so the register cannot be taken yet.",
+  "Danh sách dưới đây để bạn xem trước; điểm danh mở ngay khi suất bắt đầu.":
+    "The list below is for you to read beforehand; the register opens the moment the session starts.",
+  "Khách tới muộn quá": "A guest more than",
+  "phút thì bạn có quyền bắt đầu mà không cần chờ; khách đó không được hoàn tiền.":
+    "minutes late may be left behind — you can begin without waiting, and they are not refunded.",
+  "Suất này chưa có ai đặt.": "Nobody has booked this session.",
+  "Chưa điểm danh": "Not marked yet",
+  "Có mặt": "Present",
+  "Vắng": "Absent",
+
+  // docs/09 §2.10 (MR-E-11) — the experience's own four criteria
+  "Người dẫn": "The host",
+  "Đúng như mô tả": "As described",
+  "Tổ chức và an toàn": "Organisation and safety",
+  "Đáng giá tiền": "Worth the money",
+  "Buổi này chưa có đánh giá nào. Chỉ người có mặt mới viết được.":
+    "No reviews yet. Only somebody who was there can write one.",
+  "Buổi này thế nào?": "How was the session?",
+  "Đánh giá buổi này": "Review this session",
+  "Người dẫn kể chuyện thế nào? Bạn có thấy an toàn không?":
+    "How was the host? Did you feel safe?",
+  "Đã gửi đánh giá. Cảm ơn bạn.": "Review sent. Thank you.",
+
+  /* -------- docs/09 §3 (MR-S-01, MR-S-03, MR-S-04, MR-S-07): services -------- */
+  // Provider console
+  "Dịch vụ của bạn": "Your services",
+  "Việc bán theo khung giờ, làm tại chỗ khách ở. Chứng chỉ hành nghề hết hạn thì dịch vụ tự ẩn khỏi tìm kiếm.":
+    "Work sold by the slot and done where the guest is staying. When a practising certificate lapses the service hides itself from search.",
+  "+ Đăng dịch vụ": "+ List a service",
+  "Đang bán": "On sale",
+  "Chứng chỉ hết hạn — đã ẩn": "Certificate lapsed — hidden",
+  "Chứng chỉ còn": "Certificate expires in",
+  "ngày là hết hạn — gia hạn trước khi dịch vụ tự ẩn.":
+    "days — renew it before the service hides itself.",
+  "ngày là hết hạn. Đến ngày đó dịch vụ tự ẩn khỏi tìm kiếm.":
+    "days. On that day the service hides itself from search.",
+  "đơn/ngày": "jobs/day",
+  "tuỳ chọn thêm": "paid extras",
+  "Chưa có dịch vụ nào": "No services yet",
+  "Nhận nấu ăn, chụp ảnh, đưa đón — bán theo khung giờ cho khách đang ở gần bạn.":
+    "Cook, shoot, drive — sold by the slot to guests staying near you.",
+
+  // Service editor: the job itself
+  "Đăng dịch vụ mới": "List a new service",
+  "Chỉnh sửa dịch vụ": "Edit service",
+  "Mở bán": "Put on sale",
+  "Lưu & tiếp tục bán": "Save & keep selling",
+  "Đã mở bán dịch vụ. Khách tìm thấy ngay từ bây giờ.":
+    "The service is on sale. Guests can find it from now on.",
+  "Tên dịch vụ *": "Service name *",
+  "Danh mục *": "Category *",
+  "— Chọn danh mục —": "— Choose a category —",
+  "Một câu khách đọc trên thẻ dịch vụ.": "One line a guest reads on the service card.",
+  "Mô tả công việc": "What the job involves",
+  "Bạn làm những gì, mang theo gì, khách cần chuẩn bị gì.":
+    "What you do, what you bring, what the guest needs to have ready.",
+  "Danh mục này bắt buộc khách điền trước khi đặt:":
+    "This category makes the guest fill in this before booking:",
+  "Tên dịch vụ ít nhất 4 ký tự": "A service name of at least 4 characters",
+  "Giá lớn hơn 0": "A price above 0",
+  "Ảnh thật của dịch vụ": "A real photo of the service",
+
+  // Categories (docs/09 §3.1)
+  "Đầu bếp tại nhà": "Private chef",
+  "Đồ ăn nấu sẵn": "Prepared meals",
+  "Tiệc và catering": "Parties & catering",
+  "Massage và spa": "Massage & spa",
+  "Huấn luyện thể chất": "Personal training",
+  "Làm tóc": "Hair",
+  "Trang điểm": "Make-up",
+  "Làm móng": "Nails",
+  "Dọn dẹp theo giờ": "Cleaning by the hour",
+  "Thuê xe có tài": "Car with a driver",
+  "Phiên dịch": "Interpreting",
+  "Trông trẻ": "Childcare",
+
+  // Mandatory notes the category demands (docs/09 §3.5)
+  "Dị ứng thực phẩm": "Food allergies",
+  "Tình trạng sức khoẻ và vùng cần tránh": "Health conditions and areas to avoid",
+  "Mục tiêu tập luyện và chấn thương cũ": "Training goals and past injuries",
+
+  // Pricing model (docs/09 §3.3)
+  "Giá tính thế nào": "How the price works",
+  "Đầu bếp thường tính theo người, chụp ảnh theo buổi, huấn luyện theo giờ. Chọn đúng thì khách hiểu ngay con số họ thấy.":
+    "A chef usually charges per person, a photographer per session, a trainer per hour. Pick the right one and the guest reads your number correctly.",
+  "Mô hình giá *": "Price model *",
+  "Trọn buổi": "Flat rate per visit",
+  "Tính theo giờ": "Per hour",
+  "Tính theo người": "Per person",
+  "Tính theo phần": "Per item",
+  "buổi": "session",
+  "phần": "item",
+  "Giá gốc (₫) *": "Base price (₫) *",
+  "Nhận ít nhất": "Smallest job",
+  "Nhận nhiều nhất": "Largest job",
+  "Thời lượng một buổi (phút)": "Length of one visit (minutes)",
+  "Trọn buổi thì số lượng không nhân giá — mọi mô hình khác thì có.":
+    "A flat rate is not multiplied by the quantity — every other model is.",
+
+  // Paid extras (MR-S-03)
+  "Tuỳ chọn thêm có giá riêng": "Paid extras",
+  "Thực đơn nâng cấp, thêm giờ, thêm ảnh chỉnh sửa. Khách tích chọn lúc đặt và mỗi mục hiện thành một dòng giá riêng.":
+    "An upgraded menu, an extra hour, more edited photos. The guest ticks them when booking and each one shows as its own price line.",
+  "Tên tuỳ chọn": "Extra",
+  "Giá cộng thêm (₫)": "Added price (₫)",
+  "Xoá tuỳ chọn": "Remove extra",
+  "+ Thêm tuỳ chọn": "+ Add an extra",
+  "Chưa có tuỳ chọn nào — không bắt buộc phải có.": "No extras yet — they are optional.",
+
+  // Travel and its price (MR-S-04)
+  "Bạn tới tận nơi hay khách tới chỗ bạn": "Do you travel, or does the guest come to you",
+  "Tôi tới tận nơi khách ở": "I travel to where the guest is",
+  "Bán kính phục vụ (km)": "Service radius (km)",
+  "Phí di chuyển mỗi km ngoài bán kính (₫)": "Travel fee per km beyond the radius (₫)",
+  "Đi thêm tối đa (km)": "Furthest extra distance (km)",
+  "Để phí mỗi km bằng 0 nghĩa là ngoài bán kính thì không nhận. Có phí thì khách ở xa vẫn đặt được, phần vượt bán kính hiện thành một dòng riêng khi tính giá.":
+    "A per-km fee of 0 means you take nothing beyond the radius. Set one and guests further out can still book — the distance beyond the radius shows as its own line on the price.",
+  "Vĩ độ nơi bạn xuất phát": "Latitude you set out from",
+  "Kinh độ nơi bạn xuất phát": "Longitude you set out from",
+  "Bán kính phục vụ đo từ điểm này.": "The service radius is measured from this point.",
+
+  // The working week (MR-S-05)
+  "Lịch làm việc": "Working diary",
+  "Ngày nhận việc": "Days you take work",
+  "Bỏ chọn hết thì hệ thống hiểu là nhận cả tuần.": "Untick them all and the system reads it as every day.",
+  "Mở nhận từ giờ": "Open from",
+  "Nhận đến giờ": "Closed at",
+  "Nghỉ giữa hai đơn (phút)": "Break between two jobs (minutes)",
+  "Số đơn tối đa mỗi ngày": "Most jobs in a day",
+  "Để 0 phút nghỉ là dùng mức mặc định 30 phút, và 0 đơn mỗi ngày là không giới hạn. Hệ thống còn cộng thêm thời gian di chuyển giữa hai địa chỉ, nên hai đơn quá xa nhau sẽ bị chặn.":
+    "A 0-minute break uses the 30-minute default, and 0 jobs a day means no cap. The system also adds the travel time between two addresses, so two jobs too far apart are blocked.",
+
+  // On-site conditions (MR-S-07)
+  "Yêu cầu tại chỗ": "On-site requirements",
+  "Mỗi dòng một điều kiện. Khách phải tích xác nhận có đủ trước khi đặt được — đó là căn cứ để bạn vẫn nhận 50% nếu tới nơi mới biết khai sai.":
+    "One condition per line. The guest has to tick that the place meets them before they can book — which is what entitles you to 50% if you arrive and find otherwise.",
+  "Nơi thực hiện cần có — mỗi dòng một mục": "What the place must have — one per line",
+  "Nơi thực hiện cần có": "What the place must have",
+  "Tôi xác nhận nơi thực hiện có đủ những điều kiện trên.":
+    "I confirm the place meets the conditions above.",
+  "Khai sai điều kiện thì nhà cung cấp vẫn được nhận 50% giá trị đơn.":
+    "If the conditions were declared wrongly, the provider still receives 50% of the booking.",
+
+  // The practising certificate (MR-S-02)
+  "Chứng chỉ hành nghề": "Practising certificate",
+  "Chứng chỉ hành nghề còn hạn": "An in-date practising certificate",
+  "Danh mục này bắt buộc có chứng chỉ hành nghề còn hạn. Thiếu hoặc đã hết hạn thì không mở bán được.":
+    "This category requires an in-date practising certificate. Missing or lapsed, it cannot go on sale.",
+  "Danh mục này không bắt buộc, nhưng có chứng chỉ thì khách yên tâm hơn.":
+    "Not required for this category, but a certificate reassures guests.",
+  "Tên chứng chỉ *": "Certificate name *",
+  "Tên chứng chỉ": "Certificate name",
+  "Chứng chỉ hết hạn ngày": "Certificate expires on",
+  "Chứng chỉ đã hết hạn. Dịch vụ tự ẩn khỏi tìm kiếm cho tới khi bạn gia hạn.":
+    "The certificate has lapsed. The service stays hidden from search until you renew it.",
+
+  // Photos and the final gate
+  "Ảnh dịch vụ": "Service photos",
+  "Ít nhất một ảnh thật của chính công việc bạn làm. Ảnh đầu tiên là ảnh bìa.":
+    "At least one real photo of your own work. The first one is the cover.",
+  "Trước khi mở bán": "Before you go on sale",
+  "Đã đủ điều kiện. Bạn mở bán được ngay.": "Everything is in place. You can go on sale now.",
+
+  // Guest booking panel
+  "Tuỳ chọn thêm": "Extras",
+  "Đi xa hơn": "Further afield",
+  "tối đa thêm": "up to a further",
+  "Vắng mặt": "No-show",
 };

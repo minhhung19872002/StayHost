@@ -208,6 +208,34 @@ public class ExperienceBooking
 }
 
 /// <summary>
+/// docs/09 §2.7 (MR-E-06) — seats taken off a session while a guest is paying.
+/// The seats leave the count the moment checkout starts, so nobody else can buy
+/// them from under them; if the guest walks away the hold lapses and the seats
+/// come back. Ten minutes, the same shape as a stay's date hold.
+/// </summary>
+public class ExperienceHold
+{
+    public int Id { get; set; }
+
+    public int SlotId { get; set; }
+    public ExperienceSlot? Slot { get; set; }
+
+    public int UserId { get; set; }
+    public User? User { get; set; }
+
+    public int Seats { get; set; }
+    public bool IsPrivate { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime ExpiresAt { get; set; }
+
+    /// <summary>Set when the hold became a booking, so the sweeper leaves it alone.</summary>
+    public DateTime? ClaimedAt { get; set; }
+
+    public bool IsLive(DateTime now) => ClaimedAt is null && now < ExpiresAt;
+}
+
+/// <summary>
 /// docs/09 §2.10 (MR-E-11) — an experience is judged on four things, and they are
 /// not the stay's six: no cleanliness, no check-in, no location. Only somebody who
 /// was actually there may write one.
@@ -393,6 +421,12 @@ public static class ExperienceRules
     /// </summary>
     public static bool CanPublish(Experience x, DateOnly today) =>
         x.ModerationStatus == ExperienceModeration.Approved && PublishBlockers(x, today).Count == 0;
+
+    /// <summary>
+    /// docs/09 §2.7 (MR-E-06) — how long seats stay off the count while a guest
+    /// is at checkout before they go back on sale.
+    /// </summary>
+    public static readonly TimeSpan HoldWindow = TimeSpan.FromMinutes(10);
 
     /// <summary>
     /// docs/09 §2.5 (scenario 4) — two sessions of the same experience clash when

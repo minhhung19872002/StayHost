@@ -5,7 +5,7 @@ import {
   set, loadHosting, loadHostCalendar, respondBooking, respondChange, requireAuth, toast
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
-import { money, longDate } from '../lib/format.js';
+import { money, longDate, todayIso } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 import { Icon } from '../components/Icon.jsx';
 import { Today } from './hosting/Today.jsx';
@@ -16,6 +16,7 @@ import { Team } from './hosting/Team.jsx';
 const TABS = [
   ['today', 'Hôm nay'], ['overview', 'Tổng quan'], ['listings', 'Chỗ nghỉ'],
   ['experiences', 'Trải nghiệm'],
+  ['services', 'Dịch vụ'],
   ['calendar', 'Lịch'], ['bookings', 'Đơn đặt'], ['earnings', 'Doanh thu'],
   ['payout', 'Nhận tiền'], ['team', 'Đồng quản lý']
 ];
@@ -117,6 +118,7 @@ export function Hosting() {
         </div>
       )}
       {tab === 'experiences' && <HostExperiences />}
+      {tab === 'services' && <HostServices />}
       {tab === 'calendar' && <MultiCalendar />}
       {tab === 'bookings' && <Bookings d={d} navigate={navigate} />}
       {tab === 'earnings' && <Earnings d={d} />}
@@ -279,9 +281,18 @@ function experienceState(x) {
   }
 }
 
+/** A session stamped the way a host reads a diary: day, month, hour, minute. */
+const SESSION_STAMP = new Intl.DateTimeFormat('vi-VN', {
+  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+});
+const SESSION_TIME = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
 function HostExperiences() {
   const state = useStore();
   const [rows, setRows] = useState(null);
+  // Which experience has its register open. One at a time: the register is a
+  // list of names to read down, not something to compare side by side.
+  const [registerFor, setRegisterFor] = useState(null);
 
   const load = () => api.myExperiences().then(setRows).catch(err => toast(err.message));
   // Reload when the editor closes, so a just-submitted experience shows up.
@@ -322,7 +333,18 @@ function HostExperiences() {
                 </div>
                 <div className="host-booking-actions">
                   <button className="btn btn-outline btn-sm" onClick={() => open(x)}>{t('Chỉnh sửa')}</button>
+                  {/* docs/09 §2.9 (MR-E-09) — the day itself: who turned up. */}
+                  <button className="btn btn-outline btn-sm"
+                          onClick={() => setRegisterFor(id => id === x.id ? null : x.id)}>
+                    {registerFor === x.id ? t('Đóng điểm danh') : t('Điểm danh')}
+                  </button>
                 </div>
+                {/* Full width of the card: the register is a list, not a column. */}
+                {registerFor === x.id && (
+                  <div style={{ flexBasis: '100%', minWidth: 0 }}>
+                    <SessionRegister experience={x} />
+                  </div>
+                )}
               </article>
             ))}
           </div>
@@ -334,6 +356,219 @@ function HostExperiences() {
                     onClick={() => open(null)}>{t('+ Đăng trải nghiệm')}</button>
           </div>
         )}
+    </div>
+  );
+}
+
+/**
+ * docs/09 §3.2 (MR-S-02) — where a service stands. Unlike an experience there is
+ * no reviewer queue: it is on sale or it is not, and the one thing that takes it
+ * off sale by itself is a practising certificate that ran out.
+ */
+function serviceState(s, today) {
+  const lapsed = s.certificateExpiresOn && s.certificateExpiresOn < today;
+  if (lapsed) return { label: 'Chứng chỉ hết hạn — đã ẩn', tone: 'cancelled' };
+  return s.isPublished
+    ? { label: 'Đang bán', tone: 'confirmed' }
+    : { label: 'Bản nháp', tone: 'pending' };
+}
+
+/** docs/09 §3.2 — the provider is warned thirty days before the certificate lapses. */
+const CERTIFICATE_REMINDER_DAYS = 30;
+
+function certificateWarning(s, today) {
+  if (!s.certificateExpiresOn || s.certificateExpiresOn < today) return null;
+  const days = Math.round(
+    (new Date(`${s.certificateExpiresOn}T00:00:00`) - new Date(`${today}T00:00:00`)) / 86400000);
+  return days <= CERTIFICATE_REMINDER_DAYS ? days : null;
+}
+
+/**
+ * docs/09 §3.2–§3.4 (MR-S-01) — the provider's own services. Sold by the slot at
+ * the guest's address, so the row says how far they travel and which days they
+ * work rather than a bed count.
+ */
+function HostServices() {
+  const state = useStore();
+  const [rows, setRows] = useState(null);
+  const today = todayIso();
+
+  const load = () => api.myServices().then(setRows).catch(err => toast(err.message));
+  // Reload when the editor closes, so a just-saved service shows up.
+  useEffect(() => { if (!state.overlay) load(); }, [state.overlay]);
+
+  const open = s => set({ editingService: s ?? null, overlay: 'service-editor' });
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div className="page-head" style={{ marginBottom: 0 }}>
+        <div>
+          <h2 className="section-title" style={{ fontSize: 20 }}>{t('Dịch vụ của bạn')}</h2>
+          <p className="section-sub">
+            {t('Việc bán theo khung giờ, làm tại chỗ khách ở. Chứng chỉ hành nghề hết hạn thì dịch vụ tự ẩn khỏi tìm kiếm.')}
+          </p>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={() => open(null)}>{t('+ Đăng dịch vụ')}</button>
+      </div>
+
+      {!rows ? <div className="stat skeleton" style={{ height: 160, border: 0, marginTop: 16 }} />
+        : rows.length ? (
+          <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+            {rows.map(s => (
+              <article className="host-booking" key={s.id}>
+                <div style={{ minWidth: 0 }}>
+                  <h3>{s.title}</h3>
+                  <div className="meta">
+                    {s.city} · {s.pricingLabel} · {money(s.basePrice)} / {s.unit} · {s.durationMinutes} {t('phút')}
+                  </div>
+                  <div className="meta">
+                    {s.travelsToGuest
+                      ? `${t('Tới tận nơi trong')} ${s.serviceRadiusKm} km`
+                      : t('Khách tới chỗ cung cấp')}
+                    {' · '}{s.opensAtHour}:00–{s.closesAtHour}:00
+                    {s.maxJobsPerDay > 0 ? ` · ${t('tối đa')} ${s.maxJobsPerDay} ${t('đơn/ngày')}` : ''}
+                  </div>
+                  {!!(s.addOns ?? []).length && (
+                    <div className="meta">{(s.addOns ?? []).length} {t('tuỳ chọn thêm')}</div>
+                  )}
+                  <span className={`badge ${serviceState(s, today).tone}`} style={{ marginTop: 8 }}>
+                    {t(serviceState(s, today).label)}
+                  </span>
+                  {/* docs/09 §3.2 — the thirty-day warning, said where they will see it. */}
+                  {certificateWarning(s, today) !== null && (
+                    <div className="meta" style={{ marginTop: 6 }}>
+                      {t('Chứng chỉ còn')} {certificateWarning(s, today)}{' '}
+                      {t('ngày là hết hạn — gia hạn trước khi dịch vụ tự ẩn.')}
+                    </div>
+                  )}
+                </div>
+                <div className="host-booking-actions">
+                  <button className="btn btn-outline btn-sm" onClick={() => open(s)}>{t('Chỉnh sửa')}</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state" style={{ marginTop: 20 }}>
+            <h3>{t('Chưa có dịch vụ nào')}</h3>
+            <p>{t('Nhận nấu ăn, chụp ảnh, đưa đón — bán theo khung giờ cho khách đang ở gần bạn.')}</p>
+            <button className="btn btn-primary" style={{ marginTop: 18 }}
+                    onClick={() => open(null)}>{t('+ Đăng dịch vụ')}</button>
+          </div>
+        )}
+    </div>
+  );
+}
+
+/**
+ * docs/09 §2.9 (MR-E-09) — the register for one session. Whether it may be taken
+ * at all is the server's answer (`canMark`), not a reading of this machine's
+ * clock: marking somebody absent from a session that has not started is a guess.
+ * So before the start time the names are shown and the two buttons are off,
+ * with the reason written out rather than left to a failed click.
+ */
+function SessionRegister({ experience }) {
+  const slots = experience.slots.filter(s => s.status !== 'Cancelled');
+  // Open on the session being run right now — the latest one already under way —
+  // and fall back to the next one so the host can read the names beforehand.
+  const [slotId, setSlotId] = useState(() => {
+    const now = Date.now();
+    const started = slots.filter(s => new Date(s.startsAt).getTime() <= now);
+    return (started.length ? started[started.length - 1] : slots[0])?.id ?? null;
+  });
+  const [roster, setRoster] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  useEffect(() => {
+    if (!slotId) { setRoster(null); return; }
+    let live = true;
+    setRoster(null);
+    api.experienceRoster(slotId)
+      .then(r => { if (live) setRoster(r); })
+      .catch(err => toast(err.message));
+    return () => { live = false; };
+  }, [slotId]);
+
+  if (!slots.length) {
+    return (
+      <div className="notice notice-warn">
+        {t('Trải nghiệm này chưa có suất nào để điểm danh. Thêm suất trước đã.')}
+      </div>
+    );
+  }
+
+  /* A mark also closes the ticket on the server, so the register is read back
+     instead of being patched here — the screen then says what the data says. */
+  const mark = async (bookingId, attended) => {
+    setBusyId(bookingId);
+    try {
+      await api.markExperienceAttendance(bookingId, attended);
+      setRoster(await api.experienceRoster(slotId));
+    } catch (err) { toast(err.message); }
+    finally { setBusyId(null); }
+  };
+
+  return (
+    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--divider)' }}>
+      <label className="form-field" style={{ maxWidth: 360, marginBottom: 4 }}>
+        <span className="cap">{t('Suất')}</span>
+        <select value={slotId ?? ''} onChange={e => setSlotId(Number(e.target.value))}
+                style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 14 }}>
+          {slots.map(s => (
+            <option key={s.id} value={s.id}>
+              {SESSION_STAMP.format(new Date(s.startsAt))} · {s.seatsTaken}/{s.capacity} {t('chỗ')}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="meta">{t('Chỉ hiện suất sắp tới và suất vừa diễn ra.')}</p>
+
+      {!roster ? <div className="stat skeleton" style={{ height: 120, border: 0, marginTop: 12 }} /> : <>
+        <div className="meta" style={{ marginTop: 10 }}>
+          {SESSION_STAMP.format(new Date(roster.startsAt))} → {SESSION_TIME.format(new Date(roster.endsAt))} ·
+          {' '}{roster.seatsTaken}/{roster.capacity} {t('chỗ đã bán')} · {roster.guests.length} {t('vé')}
+        </div>
+
+        {/* Not yet: say so instead of letting the host click into an error. */}
+        {!roster.canMark ? (
+          <div className="notice notice-warn">
+            <b>{t('Chưa tới giờ bắt đầu nên chưa điểm danh được.')}</b>{' '}
+            {t('Danh sách dưới đây để bạn xem trước; điểm danh mở ngay khi suất bắt đầu.')}
+          </div>
+        ) : (
+          <div className="notice notice-ok">
+            {t('Khách tới muộn quá')} {roster.lateAllowanceMinutes} {t('phút thì bạn có quyền bắt đầu mà không cần chờ; khách đó không được hoàn tiền.')}
+          </div>
+        )}
+
+        {roster.guests.length === 0 ? (
+          <p className="meta" style={{ marginTop: 12 }}>{t('Suất này chưa có ai đặt.')}</p>
+        ) : (
+          <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+            {roster.guests.map(g => (
+              <div className="count-row" key={g.bookingId} style={{ gap: 12 }}>
+                <div className="tx" style={{ minWidth: 0 }}>
+                  <b>{g.guestName}</b>
+                  <span>
+                    {t('Mã')} {g.reference} · {g.seats} {t('chỗ')}{g.isPrivate ? ` · ${t('nhóm riêng')}` : ''}
+                    {g.attended == null
+                      ? ` · ${t('Chưa điểm danh')}`
+                      : ` · ${g.attended ? t('Có mặt') : t('Vắng')}${g.markedAt ? ` ${SESSION_TIME.format(new Date(g.markedAt))}` : ''}`}
+                  </span>
+                </div>
+                <div className="host-booking-actions">
+                  <button className={`btn btn-sm ${g.attended === true ? 'btn-primary' : 'btn-outline'}`}
+                          disabled={!roster.canMark || busyId === g.bookingId}
+                          onClick={() => mark(g.bookingId, true)}>{t('Có mặt')}</button>
+                  <button className={`btn btn-sm ${g.attended === false ? 'btn-primary' : 'btn-outline'}`}
+                          disabled={!roster.canMark || busyId === g.bookingId}
+                          onClick={() => mark(g.bookingId, false)}>{t('Vắng')}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </>}
     </div>
   );
 }

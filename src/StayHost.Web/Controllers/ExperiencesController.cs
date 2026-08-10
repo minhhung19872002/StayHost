@@ -17,6 +17,23 @@ namespace StayHost.Web.Controllers;
 public class ExperiencesController(
     StayHostDbContext db, AuthService auth, ExperienceService experiences, AdminAudit audit) : ControllerBase
 {
+    /// <summary>
+    /// docs/09 §2.7 (MR-E-06) — takes the seats off the session for ten minutes
+    /// while the guest pays, so nobody buys them from under them.
+    /// </summary>
+    [HttpPost("slots/{slotId:int}/hold")]
+    public async Task<ActionResult<ExperienceHoldDto>> Hold(
+        int slotId, [FromBody] HoldSeatsRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var (hold, error) = await experiences.HoldAsync(user, slotId, req.Seats, req.Private, ct);
+        return hold is null
+            ? BadRequest(new { message = error })
+            : Ok(new ExperienceHoldDto(hold.Id, hold.SlotId, hold.Seats, hold.IsPrivate, hold.ExpiresAt));
+    }
+
     /* ---------------------------------------------- MR-E-09, the day itself */
 
     /// <summary>docs/09 §2.9 — the host's register for one session.</summary>

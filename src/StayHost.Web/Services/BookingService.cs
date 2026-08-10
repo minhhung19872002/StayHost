@@ -397,6 +397,10 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
 
                 // docs/01 MR-04 — sessions that never reached their minimum.
                 var experiences = scope.ServiceProvider.GetRequiredService<ExperienceService>();
+                // docs/09 §2.7 — seats held for a checkout nobody finished.
+                var lapsedHolds = await experiences.ReleaseExpiredHoldsAsync(stoppingToken);
+                if (lapsedHolds > 0) log.LogInformation("Giữ chỗ trải nghiệm hết hạn: {Count}.", lapsedHolds);
+
                 var calledOff = await experiences.SweepAsync(stoppingToken);
                 if (calledOff > 0) log.LogInformation("Đã huỷ {Count} suất trải nghiệm thiếu người.", calledOff);
 

@@ -8,6 +8,7 @@ import { PhotosModal, AmenitiesModal, ReviewsModal, CheckoutModal } from './List
 import { HostCalendarModal, GuestReviewModal, HostCancelModal } from './HostModals.jsx';
 import { ListingWizard } from './ListingWizard.jsx';
 import { ExperienceEditor } from './ExperienceEditor.jsx';
+import { ServiceEditor } from './ServiceEditor.jsx';
 import { ShieldModal } from './ShieldModal.jsx';
 
 const REGISTRY = {
@@ -29,6 +30,7 @@ const REGISTRY = {
   checkout: CheckoutModal,
   'listing-editor': ListingWizard,
   'experience-editor': ExperienceEditor,
+  'service-editor': ServiceEditor,
   'host-block': HostCalendarModal,
   'guest-review': GuestReviewModal,
   'host-cancel': HostCancelModal,

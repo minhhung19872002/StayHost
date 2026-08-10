@@ -359,6 +359,51 @@ def service_options():
        f"tra loi: {(r4 or {}).get('message','')[:60]}")
 
 
+# ------------------------------------------------------------- MR-E-06
+def seat_hold():
+    """Seats leave the count the moment checkout starts, and come back if the
+    guest walks away (§2.7, ten minutes)."""
+    _, slot = a_session_with(4)
+    a, b = login("guest@stayhost.vn"), login("host1@stayhost.vn")
+
+    st, hold = call(a, f"/api/experiences/slots/{slot}/hold", {"seats": 3})
+    held = seats_taken(slot)
+
+    # While A holds three of four seats, B cannot take two.
+    st2, r2 = call(b, f"/api/experiences/slots/{slot}/book",
+                   {"seats": 2, "paymentMethod": "card", "cardLast4": "4242"})
+
+    ok("E-06", "Giu cho 10 phut: cho roi khoi suat ngay khi bat dau thanh toan",
+       st == 200 and held == 3 and st2 != 200,
+       f"taken={held}, nguoi khac dat 2 cho -> http={st2}")
+
+    # A finishes paying against that hold: still three seats, not six.
+    st3, _ = call(a, f"/api/experiences/slots/{slot}/book",
+                  {"seats": 3, "holdId": (hold or {}).get("holdId"),
+                   "paymentMethod": "card", "cardLast4": "4242"})
+    after = seats_taken(slot)
+
+    ok("E-06b", "Thanh toan tu luot giu cho khong tru cho hai lan",
+       st3 == 200 and after == 3, f"taken sau khi dat={after} (phai la 3)")
+
+    # An expired hold hands the seats back.
+    _, slot2 = a_session_with(4)
+    st4, hold2 = call(a, f"/api/experiences/slots/{slot2}/hold", {"seats": 4})
+    hid = (hold2 or {}).get("holdId")
+    sql(f"""update experience_holds set "ExpiresAt" = now() - interval '1 minute' where "Id" = {hid};""")
+
+    import time
+    freed = seats_taken(slot2)
+    for _ in range(35):
+        time.sleep(2)
+        freed = seats_taken(slot2)
+        if freed == 0:
+            break
+
+    ok("E-06c", "Giu cho het han thi cho tu tra ve suat",
+       st4 == 200 and freed == 0, f"taken sau khi het han={freed}")
+
+
 def main():
     print("docs/09 — cac kich ban bat buoc\n")
     scenario_1()
@@ -368,6 +413,7 @@ def main():
     scenario_11()
     scenario_12()
     vetting()
+    seat_hold()
     service_options()
 
     balance = sql('select coalesce(sum(case when "Direction"=1 then "Amount" else -"Amount" end),0) '

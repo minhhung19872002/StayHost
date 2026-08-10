@@ -6,7 +6,24 @@ import { api } from '../lib/api.js';
 import { money, longDate } from '../lib/format.js';
 import { CardCarousel } from '../components/CardCarousel.jsx';
 import { PhotoMosaic } from '../components/PhotoMosaic.jsx';
+import { Avatar } from '../components/Avatar.jsx';
 import { t } from '../lib/i18n.js';
+
+/**
+ * docs/09 §2.10 (MR-E-11) — an experience is judged on four things of its own.
+ * Deliberately not the stay's six: there is no cleanliness, no check-in and no
+ * location here, and the order is the one the spec writes.
+ */
+const XP_CRITERIA = [
+  ['host', 'Người dẫn'],
+  ['asDescribed', 'Đúng như mô tả'],
+  ['safety', 'Tổ chức và an toàn'],
+  ['value', 'Đáng giá tiền']
+];
+
+/** Two letters for somebody with no photo, the way the server builds them. */
+const initialsOf = name => (name || '?')
+  .trim().split(/\s+/).slice(-2).map(w => w[0] ?? '').join('').toUpperCase() || '?';
 
 const TIME = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' });
 const DAY = new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
@@ -174,6 +191,8 @@ function Detail({ slug }) {
               {t('Suất không đủ')} {x.minGuests} {t('người trước 48 giờ sẽ bị huỷ và hoàn tiền toàn bộ. Bạn huỷ trước 24 giờ cũng được hoàn đủ.')}
             </p>
           </section>
+
+          <ExperienceReviews experience={x} />
         </div>
 
         <aside className="book-panel">
@@ -234,11 +253,158 @@ function Kv({ label, value }) {
   return <div className="kv"><span className="kv-label">{label}</span><b>{value}</b></div>;
 }
 
+/**
+ * docs/09 §2.10 (MR-E-11) — what people who were actually there wrote. Laid out
+ * like the stay's review block so the page reads as one site, but scored on the
+ * four headings an experience has rather than the six a stay has.
+ */
+function ExperienceReviews({ experience }) {
+  const [rows, setRows] = useState(null);
+
+  useEffect(() => {
+    api.experienceReviews(experience.id).then(setRows).catch(err => toast(err.message));
+  }, [experience.id]);
+
+  if (!rows) return null;
+
+  if (!rows.length) {
+    return (
+      <section className="detail-section">
+        <h2>{t('Đánh giá')}</h2>
+        <p className="section-sub">{t('Buổi này chưa có đánh giá nào. Chỉ người có mặt mới viết được.')}</p>
+      </section>
+    );
+  }
+
+  const average = key => rows.reduce((sum, r) => sum + r[key], 0) / rows.length;
+
+  return (
+    <section className="detail-section">
+      <h2>{t('Đánh giá')}</h2>
+
+      <div className="rating-summary">
+        <span className="rating-big">★ {experience.rating.toFixed(2)}</span>
+        <span style={{ fontSize: 15, color: 'var(--ink-muted)' }}>
+          · {experience.reviewCount} {t('đánh giá')}
+        </span>
+      </div>
+
+      <div className="rating-bars">
+        {XP_CRITERIA.map(([key, label]) => (
+          <div className="rating-bar" key={key}>
+            <span>{t(label)}</span>
+            <span className="track"><span className="fill" style={{ width: `${(average(key) / 5) * 100}%` }} /></span>
+            <span className="val">{average(key).toFixed(1)}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="review-grid">
+        {rows.map(r => (
+          <article className="review" key={r.id}>
+            <div className="review-head">
+              <Avatar url={r.authorAvatarUrl} initials={initialsOf(r.authorName)} />
+              <div style={{ minWidth: 0 }}>
+                <div className="review-name">{r.authorName}</div>
+                <div className="review-when">{longDate(r.createdAt.slice(0, 10))}</div>
+              </div>
+            </div>
+            <div className="topic-row" style={{ margin: '4px 0 0' }}>
+              {XP_CRITERIA.map(([key, label]) => (
+                <span className="topic-chip" key={key}>{t(label)} <b>★ {r[key]}</b></span>
+              ))}
+            </div>
+            {!!r.comment && <p>{r.comment}</p>}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * docs/09 §2.9 — a session is over once it has started and run its length. The
+ * server has the last word on who may review (only somebody the host marked
+ * present), so this is only about not offering a form that cannot possibly work.
+ */
+const sessionEnded = r =>
+  new Date(r.startsAt).getTime() + r.durationMinutes * 60000 <= Date.now();
+
+/**
+ * docs/09 §2.10 — "chỉ người có mặt mới đánh giá được". The ticket now carries
+ * the host's mark and whether a review already exists, so a no-show is never
+ * offered a form the server would only refuse, and nobody is asked twice.
+ */
+const canReviewTicket = r =>
+  sessionEnded(r) && r.attended === true && !r.hasReview
+  && (r.status === 'Confirmed' || r.status === 'Completed');
+
+/**
+ * docs/09 §2.10 (MR-E-11) — four criteria of the experience's own and an
+ * optional word. Nothing from the stay's form belongs here.
+ */
+function TicketReview({ booking, onDone }) {
+  const [scores, setScores] = useState({ host: 5, asDescribed: 5, safety: 5, value: 5 });
+  const [busy, setBusy] = useState(false);
+
+  const stars = key => (
+    <div className="star-row" data-field={key}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <button type="button" key={n} aria-label={`${n} ${t('sao')}`}
+                className={`star sm ${n <= scores[key] ? 'is-on' : ''}`}
+                onClick={() => setScores(s => ({ ...s, [key]: n }))}>★</button>
+      ))}
+    </div>
+  );
+
+  const submit = async e => {
+    e.preventDefault();
+    const comment = e.currentTarget.comment.value.trim();
+    setBusy(true);
+    try {
+      await api.reviewExperienceBooking(booking.id, { ...scores, comment });
+      toast(t('Đã gửi đánh giá. Cảm ơn bạn.'));
+      onDone();
+    } catch (err) {
+      // "Chỉ người có mặt trong buổi mới đánh giá được", "Bạn đã đánh giá buổi
+      // này rồi" — the server's sentence, said as it is.
+      toast(err.message);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <form onSubmit={submit}
+          style={{ flexBasis: '100%', minWidth: 0, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--divider)' }}>
+      <b style={{ fontSize: 15 }}>{t('Buổi này thế nào?')}</b>
+      {XP_CRITERIA.map(([key, label]) => (
+        <div className="count-row" key={key}>
+          <div className="tx"><b>{t(label)}</b></div>
+          {stars(key)}
+        </div>
+      ))}
+
+      <label className="form-field" style={{ marginTop: 14 }}>
+        <span className="cap">{t('Nhận xét')} <span style={{ fontWeight: 400 }}>{t('(không bắt buộc)')}</span></span>
+        <textarea name="comment" rows={4}
+                  placeholder={t('Người dẫn kể chuyện thế nào? Bạn có thấy an toàn không?')}
+                  style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
+      </label>
+
+      <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
+        {busy ? t('Đang gửi…') : t('Gửi đánh giá')}
+      </button>
+    </form>
+  );
+}
+
 /** The tickets someone holds, with the one action they have: giving one back. */
 export function ExperienceBookings() {
   const state = useStore();
   const navigate = useNavigate();
   const [rows, setRows] = useState(null);
+  // Which ticket has its review form open, and which ones this visit has sent.
+  const [reviewing, setReviewing] = useState(null);
+  const [sent, setSent] = useState([]);
 
   const load = () => api.experienceBookings().then(setRows).catch(e => toast(e.message));
   useEffect(() => { if (state.user) load(); }, [state.user]);
@@ -287,7 +453,25 @@ export function ExperienceBookings() {
                           onClick={() => navigate(`/experiences/${r.slug}`)}>{t('Xem trải nghiệm')}</button>
                   {r.status === 'Confirmed' &&
                     <button className="btn btn-outline btn-sm" onClick={() => cancel(r)}>{t('Huỷ vé')}</button>}
+                  {/* docs/09 §2.10 — only somebody the host marked present, and
+                      only once. Both facts come off the ticket now. */}
+                  {r.hasReview || sent.includes(r.id)
+                    ? (sessionEnded(r) && <span className="badge confirmed">{t('Đã đánh giá')}</span>)
+                    : canReviewTicket(r) && (
+                        <button className="btn btn-outline btn-sm"
+                                onClick={() => setReviewing(id => id === r.id ? null : r.id)}>
+                          {reviewing === r.id ? t('Đóng') : t('Đánh giá buổi này')}
+                        </button>
+                      )}
+                  {/* A no-show is told why rather than left wondering. */}
+                  {sessionEnded(r) && r.attended === false && (
+                    <span className="badge cancelled">{t('Vắng mặt')}</span>
+                  )}
                 </div>
+                {reviewing === r.id && !sent.includes(r.id) && (
+                  <TicketReview booking={r}
+                                onDone={() => { setSent(ids => [...ids, r.id]); setReviewing(null); load(); }} />
+                )}
               </article>
             ))}
           </div>

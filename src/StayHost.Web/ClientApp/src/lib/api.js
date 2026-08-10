@@ -357,6 +357,16 @@ export const api = {
   /* docs/09 §2.1–§2.3 MR-E-01 — the host's own experiences and the vetting form. */
   myExperiences: () => request('/api/experiences/mine'),
   saveExperience: body => request('/api/experiences', { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/09 §2.9 MR-E-09 — the host's register for one session, and one mark on it. */
+  experienceRoster: slotId => request(`/api/experiences/slots/${slotId}/roster`),
+  markExperienceAttendance: (bookingId, attended) =>
+    request(`/api/experiences/bookings/${bookingId}/attendance`, {
+      method: 'POST', body: JSON.stringify({ attended }),
+    }),
+  /* docs/09 §2.10 MR-E-11 — the experience's own four criteria, written and read. */
+  reviewExperienceBooking: (bookingId, body) =>
+    request(`/api/experiences/bookings/${bookingId}/review`, { method: 'POST', body: JSON.stringify(body) }),
+  experienceReviews: id => request(`/api/experiences/${id}/reviews`),
   /* docs/09 §2.2 MR-E-03 — the reviewer's queue, and their one answer per item. */
   experienceReviewQueue: () => request('/api/experiences/review-queue'),
   reviewExperience: (id, decision, note) =>
@@ -462,6 +472,9 @@ export const api = {
     request(`/api/services/${id}/book`, { method: 'POST', body: JSON.stringify(body) }),
   serviceBookings: () => request('/api/services/bookings'),
   cancelServiceBooking: id => request(`/api/services/bookings/${id}/cancel`, { method: 'POST' }),
+  /* docs/09 §3.2–§3.4 MR-S-01 — the provider's own services and the listing form. */
+  myServices: () => request('/api/services/mine'),
+  saveService: body => request('/api/services', { method: 'POST', body: JSON.stringify(body) }),
 
   /* docs/01 ĐP-07 — one booking, up to sixteen payers. */
   openSplit: (id, emails) =>
