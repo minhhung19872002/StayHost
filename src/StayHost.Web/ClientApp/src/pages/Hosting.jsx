@@ -263,6 +263,22 @@ function ListingAdvice({ advice }) {
  * it to a reviewer rather than putting it on sale, so the list says which state
  * each is in instead of a bare published/draft.
  */
+/**
+ * docs/09 §2.2 — where an experience stands with the reviewer. "Not on sale"
+ * covers four different situations and the host needs to tell them apart: still
+ * a draft, waiting in the queue, sent back to fix, or refused.
+ */
+function experienceState(x) {
+  if (x.isPublished) return { label: 'Đang bán vé', tone: 'confirmed' };
+
+  switch (x.moderationStatus) {
+    case 'PendingReview': return { label: 'Đang chờ duyệt', tone: 'pending' };
+    case 'ChangesRequested': return { label: 'Cần chỉnh lại', tone: 'pending' };
+    case 'Rejected': return { label: 'Bị từ chối', tone: 'cancelled' };
+    default: return { label: 'Bản nháp', tone: 'pending' };
+  }
+}
+
 function HostExperiences() {
   const state = useStore();
   const [rows, setRows] = useState(null);
@@ -294,9 +310,15 @@ function HostExperiences() {
                   <h3>{x.title}</h3>
                   <div className="meta">{x.city} · {money(x.pricePerPerson)} / {t('người')} · {t('tối đa')} {x.maxGroup} {t('người')}</div>
                   <div className="meta">{x.meetingPoint || t('Chưa có điểm hẹn')}</div>
-                  <span className={`badge ${x.isPublished ? 'confirmed' : 'pending'}`} style={{ marginTop: 8 }}>
-                    {x.isPublished ? t('Đang bán vé') : t('Chưa mở bán')}
+                  {/* docs/09 §2.2 — a submission waiting on a reviewer must not
+                      look like one that was turned down, so the badge reads the
+                      moderation state rather than the published flag alone. */}
+                  <span className={`badge ${experienceState(x).tone}`} style={{ marginTop: 8 }}>
+                    {t(experienceState(x).label)}
                   </span>
+                  {x.reviewerNote && !x.isPublished && (
+                    <div className="meta" style={{ marginTop: 6 }}>{x.reviewerNote}</div>
+                  )}
                 </div>
                 <div className="host-booking-actions">
                   <button className="btn btn-outline btn-sm" onClick={() => open(x)}>{t('Chỉnh sửa')}</button>

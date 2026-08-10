@@ -62,7 +62,12 @@ public class ExperienceService(
                 .Select(s => new ExperienceSlotDto(
                     s.Id, s.StartsAt, s.Capacity, s.SeatsTaken, s.SeatsLeft,
                     s.IsPrivate, s.Status.ToString(), s.CancelReason))
-                .ToList());
+                .ToList(),
+            x.Category, x.AllowsChildren,
+            x.LicenceName, x.LicenceExpiresOn,
+            x.InsurancePolicy, x.InsuranceExpiresOn,
+            x.SafetyPlan, x.EmergencyPhone,
+            x.ModerationStatus.ToString(), x.ReviewerNote, x.SubmittedForReviewAt);
     }
 
     /* ------------------------------------------- docs/09 §4 (MR-C-02) */

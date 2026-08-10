@@ -1486,7 +1486,23 @@ public record ExperienceDetailDto(
     string HostName,
     string HostInitials,
     IReadOnlyList<string> Images,
-    IReadOnlyList<ExperienceSlotDto> Slots);
+    IReadOnlyList<ExperienceSlotDto> Slots,
+    // docs/09 §2.1–§2.3 — what the activity is and the papers its band demands,
+    // so the host's editor prefills from the server rather than from a local
+    // cache that a different browser would not have.
+    string Category = "",
+    bool AllowsChildren = false,
+    string? LicenceName = null,
+    DateOnly? LicenceExpiresOn = null,
+    string? InsurancePolicy = null,
+    DateOnly? InsuranceExpiresOn = null,
+    string? SafetyPlan = null,
+    string? EmergencyPhone = null,
+    // docs/09 §2.2 — where it stands with the reviewer, so a submission waiting
+    // in the queue does not look the same as one that was turned down.
+    string ModerationStatus = "Draft",
+    string? ReviewerNote = null,
+    DateTime? SubmittedForReviewAt = null);
 
 public record ExperienceQuoteDto(
     int SlotId,

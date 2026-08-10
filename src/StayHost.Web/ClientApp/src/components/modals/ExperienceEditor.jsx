@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useStore } from '../../lib/useStore.js';
 import { set, closeOverlay, toast } from '../../lib/store.js';
 import { api } from '../../lib/api.js';
@@ -114,38 +114,20 @@ const BLANK = {
 };
 
 /**
- * /api/experiences/mine does not read the vetting block back, so on this device
- * we keep what the host typed rather than make them retype it every edit. Keyed
- * by experience id; 0 is the not-yet-saved one.
+ * The vetting block comes back from /api/experiences/mine like every other
+ * field, so it is read from the server rather than remembered on this device —
+ * a licence typed on a laptop has to be there on the phone too.
  */
-const VETTING_KEY = 'sh_experience_vetting';
-const VETTING_FIELDS = [
-  'category', 'allowsChildren', 'licenceName', 'licenceExpiresOn',
-  'insurancePolicy', 'insuranceExpiresOn', 'safetyPlan', 'emergencyPhone'
-];
-
-function readVetting(id) {
-  try {
-    const all = JSON.parse(localStorage.getItem(VETTING_KEY) ?? '{}');
-    return all[String(id ?? 0)] ?? {};
-  } catch { return {}; /* a corrupt draft is not worth a crash */ }
-}
-
-function writeVetting(id, form) {
-  try {
-    const all = JSON.parse(localStorage.getItem(VETTING_KEY) ?? '{}');
-    all[String(id ?? 0)] = Object.fromEntries(VETTING_FIELDS.map(k => [k, form[k]]));
-    localStorage.setItem(VETTING_KEY, JSON.stringify(all));
-  } catch { /* full storage must not block the form */ }
-}
-
-function clearVetting(id) {
-  try {
-    const all = JSON.parse(localStorage.getItem(VETTING_KEY) ?? '{}');
-    delete all[String(id ?? 0)];
-    localStorage.setItem(VETTING_KEY, JSON.stringify(all));
-  } catch { /* nothing to clear */ }
-}
+const vettingOf = x => ({
+  category: x.category ?? '',
+  allowsChildren: x.allowsChildren ?? false,
+  licenceName: x.licenceName ?? '',
+  licenceExpiresOn: x.licenceExpiresOn ?? '',
+  insurancePolicy: x.insurancePolicy ?? '',
+  insuranceExpiresOn: x.insuranceExpiresOn ?? '',
+  safetyPlan: x.safetyPlan ?? '',
+  emergencyPhone: x.emergencyPhone ?? ''
+});
 
 /** docs/09 TN-A — how long the reviewer has once it is submitted. */
 const REVIEW_WORKING_DAYS = 5;
@@ -155,7 +137,7 @@ export function ExperienceEditor() {
   const editing = state.editingExperience;
 
   const [form, setForm] = useState(() => {
-    if (!editing) return { ...BLANK, ...readVetting(0) };
+    if (!editing) return { ...BLANK };
     return {
       ...BLANK,
       id: editing.id,
@@ -175,16 +157,12 @@ export function ExperienceEditor() {
       pricePerPerson: editing.pricePerPerson ?? 0,
       privateGroupPrice: editing.privateGroupPrice ?? '',
       images: editing.images ?? [],
-      ...readVetting(editing.id)
+      ...vettingOf(editing)
     };
   });
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-
-  // The vetting answers are what the server does not hand back, so they are the
-  // part worth remembering between edits.
-  useEffect(() => { writeVetting(form.id, form); }, [form]);
 
   const field = (key, value) => setForm(f => ({ ...f, [key]: value }));
   const num = (key, value) => field(key, Number(value) || 0);
@@ -230,10 +208,6 @@ export function ExperienceEditor() {
 
     try {
       const saved = await api.saveExperience(body);
-      writeVetting(saved.id, form);
-      // The draft now belongs to a real row, so the "not yet saved" slot must go
-      // — otherwise the next new experience opens holding this one's papers.
-      if (!form.id) clearVetting(0);
       setForm(f => ({ ...f, id: saved.id }));
       return saved;
     } catch (err) {

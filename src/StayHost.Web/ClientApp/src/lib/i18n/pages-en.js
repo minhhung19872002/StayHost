@@ -1546,4 +1546,5 @@ export default {
     "Submitting is not going on sale. The experience joins a queue for a person at StayHost to read, usually within",
   "ngày làm việc. Chỉ khi được duyệt thì mới bán vé được.":
     "working days. Only once it is approved can tickets be sold.",
+  "Cần chỉnh lại": "Changes needed",
 };
