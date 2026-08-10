@@ -302,6 +302,8 @@ export const api = {
     }),
   adminResolveReport: (id, status, resolution) =>
     request(`/api/admin/reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ status, resolution }) }),
+  // docs/01 ĐG-11 — review fraud (secondary accounts).
+  adminReviewFraud: () => request('/api/admin/review-fraud'),
   // docs/01 AT-12 — host decline / anti-discrimination monitor.
   adminDeclineMonitor: () => request('/api/admin/decline-monitor'),
   // docs/01 QT-07 — help article management.

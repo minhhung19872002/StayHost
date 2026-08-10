@@ -132,6 +132,8 @@ export function Admin() {
 
       <NeighborReportsPanel />
 
+      <ReviewFraudPanel navigate={navigate} />
+
       <section style={{ marginTop: 40 }}>
         <h2 className="section-title" style={{ fontSize: 20 }}>Chỗ nghỉ mới nhất</h2>
         <div className="table-wrap">
@@ -227,6 +229,47 @@ function ModerationQueue() {
           </table>
         </div>
       )}
+    </section>
+  );
+}
+
+/** docs/01 ĐG-11 — reviews flagged as possible secondary-account fraud. */
+function ReviewFraudPanel({ navigate }) {
+  const [rows, setRows] = useState(null);
+  useEffect(() => { api.adminReviewFraud().then(setRows).catch(() => setRows([])); }, []);
+  if (!rows) return null;
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>Đánh giá nghi gian lận</h2>
+      <p className="section-sub">{rows.length} đánh giá cần xem lại (tài khoản phụ / tự đánh giá)</p>
+      {rows.length === 0
+        ? <p className="section-sub">Không có đánh giá nào đáng ngờ.</p>
+        : (
+          <div className="table-wrap" style={{ marginTop: 16 }}>
+            <table className="admin-table">
+              <thead>
+                <tr><th>Chỗ nghỉ</th><th>Người đánh giá</th><th>Điểm</th><th>Nguy cơ</th><th>Dấu hiệu</th><th /></tr>
+              </thead>
+              <tbody>
+                {rows.map(r => (
+                  <tr key={r.reviewId} style={r.risk === 'Nguy cơ cao' ? { background: 'rgba(224,72,77,.06)' } : undefined}>
+                    <td><b>{r.listingTitle}</b><span>{r.hostName}</span></td>
+                    <td>{r.reviewerName}</td>
+                    <td>★ {r.rating.toFixed(1)}</td>
+                    <td><span className={`badge ${r.risk === 'Nguy cơ cao' ? 'pending' : 'cancelled'}`}>{r.risk}</span></td>
+                    <td style={{ maxWidth: 300, whiteSpace: 'normal' }}>
+                      <ul style={{ margin: 0, paddingLeft: 16 }}>
+                        {r.reasons.map((x, i) => <li key={i} className="meta">{x}</li>)}
+                      </ul>
+                    </td>
+                    <td><button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${r.listingId}`)}>Xem</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
     </section>
   );
 }

@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **193 xong · 0 làm một phần · 8 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **194 xong · 0 làm một phần · 7 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,12 +350,12 @@ cung cấp (Google Translate / DeepL / Azure) và trả tiền khoá API — đ�
 khách chứ không chờ code. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, chưa cắm
 khoá thì nút "Dịch" **không hiện** — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (8 mã)
+### 9.1 Chưa có (7 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
 | `TM-24` | Vẽ vùng tìm kiếm trên bản đồ | P2 |
-| `ĐG-11` | Phát hiện đánh giá gian lận qua tài khoản phụ | P2 |
+
 
 | `YT-06` | Bình chọn nhóm trong danh sách yêu thích chung | P2 |
 | `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
@@ -376,6 +376,14 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`ĐG-11` (phát hiện đánh giá gian lận qua tài khoản phụ) làm xong 10/08/2026. Đánh giá luôn
+gắn đơn thật, nên gian lận là chủ nhà tự đặt chỗ mình qua tài khoản phụ rồi tự cho 5 sao —
+`ReviewFraud.cs` (thuần, có test) chấm các tín hiệu: người đánh giá chính là chủ nhà, tạo
+cùng session với chủ nhà, tài khoản mới chỉ từng ở đúng chủ nhà này rồi cho điểm cao. Admin
+`GET /api/admin/review-fraud` gom tín hiệu (join review→đơn→khách→chủ) và trả các review bị
+gắn cờ (mức + lý do), panel hiển thị. Xác minh sống: chèn self-review → "Nguy cơ cao: Người
+đánh giá chính là chủ nhà", quyền chặn 403.
 
 `AT-08` (trợ lý hỗ trợ tự động) làm xong 10/08/2026. `SupportAssistant.cs` (thuần, có test)
 là luật trên sự kiện: nhận trạng thái đơn hiện tại (sắp nhận phòng, còn số dư, yêu cầu chờ

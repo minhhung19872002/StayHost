@@ -73,6 +73,11 @@ public record SaveSearchRequest(
     int Guests, IReadOnlyList<string>? Amenities, string? RoomType, int Bedrooms,
     bool SuperhostOnly, bool InstantBookOnly, IReadOnlyList<string>? HostLanguages);
 
+/// <summary>docs/01 ĐG-11 — a review flagged as possible secondary-account fraud.</summary>
+public record ReviewFraudDto(
+    int ReviewId, int ListingId, string ListingTitle, string HostName, string ReviewerName,
+    double Rating, string Risk, IReadOnlyList<string> Reasons, DateTime CreatedAt);
+
 /// <summary>docs/01 AT-03 — the neighbour report form and its admin view.</summary>
 public record NeighborConcernDto(string Value, string Label);
 public record NeighborReportRequest(string? Location, string? Category, string? Detail, string? Contact);

@@ -554,6 +554,78 @@ public class AdminController(
         return NoContent();
     }
 
+    /* -------------------------------------- docs/01 ĐG-11, review fraud */
+
+    /// <summary>
+    /// docs/01 ĐG-11 — reviews that look planted through a secondary account. Every
+    /// review sits on a real booking, so the tell is the shape around it: the
+    /// reviewer being the host, sharing a creation session, or a fresh account that
+    /// only ever stayed with this one host. Flags are for a human, never automatic.
+    /// </summary>
+    [HttpGet("admin/review-fraud")]
+    public async Task<ActionResult<IReadOnlyList<ReviewFraudDto>>> ReviewFraudReport(CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Moderation, ct);
+        if (admin is null) return StatusCode(403, new { message = "Bạn không có quyền kiểm duyệt." });
+
+        // Candidate reviews: written by a real account, on a listing whose host has one.
+        var reviews = await db.Reviews
+            .Where(r => r.AuthorUserId != null && r.PublishedAt != null && r.Listing!.Host!.UserId != null)
+            .Select(r => new
+            {
+                r.Id, r.ListingId, ListingTitle = r.Listing!.Title, r.Rating, r.CreatedAt,
+                ReviewerId = r.AuthorUserId!.Value,
+                ReviewerName = r.AuthorName,
+                ReviewerCreatedAt = r.AuthorUser!.CreatedAt,
+                ReviewerSession = r.AuthorUser.AdoptedSessionId,
+                HostUserId = r.Listing.Host!.UserId!.Value,
+                HostName = r.Listing.Host.Name,
+                HostSession = r.Listing.Host.User!.AdoptedSessionId,
+                HostId = r.Listing.HostId
+            })
+            .ToListAsync(ct);
+
+        if (reviews.Count == 0) return Ok(Array.Empty<ReviewFraudDto>());
+
+        // For each reviewer: which hosts they have booked, and how many stays.
+        var reviewerIds = reviews.Select(r => r.ReviewerId).Distinct().ToList();
+        var bookings = await db.Bookings
+            .Where(b => b.GuestUserId != null && reviewerIds.Contains(b.GuestUserId.Value))
+            .Select(b => new { GuestId = b.GuestUserId!.Value, b.Listing!.HostId })
+            .ToListAsync(ct);
+        var byReviewer = bookings
+            .GroupBy(b => b.GuestId)
+            .ToDictionary(g => g.Key, g => new { Hosts = g.Select(x => x.HostId).Distinct().ToList(), Count = g.Count() });
+
+        var flagged = new List<ReviewFraudDto>();
+        foreach (var r in reviews)
+        {
+            byReviewer.TryGetValue(r.ReviewerId, out var b);
+            var onlyThisHost = b is not null && b.Hosts.Count == 1 && b.Hosts[0] == r.HostId;
+
+            var signals = new ReviewFraud.Signals(
+                SameAccountAsHost: r.ReviewerId == r.HostUserId,
+                SharedSessionWithHost: !string.IsNullOrEmpty(r.ReviewerSession)
+                    && r.ReviewerSession == r.HostSession,
+                ReviewerAccountAgeDays: Math.Max(0, (int)(r.CreatedAt - r.ReviewerCreatedAt).TotalDays),
+                ReviewerOnlyBookedThisHost: onlyThisHost,
+                ReviewerStayCount: b?.Count ?? 0,
+                Rating: r.Rating);
+
+            var assessment = ReviewFraud.Assess(signals);
+            if (!assessment.Flagged) continue;
+
+            flagged.Add(new ReviewFraudDto(
+                r.Id, r.ListingId, r.ListingTitle, r.HostName, r.ReviewerName, r.Rating,
+                ReviewFraud.RiskLabel(assessment.Level), assessment.Reasons, r.CreatedAt));
+        }
+
+        return Ok(flagged
+            .OrderByDescending(f => f.Risk == ReviewFraud.RiskLabel(ReviewFraud.Risk.High))
+            .ThenByDescending(f => f.CreatedAt)
+            .ToList());
+    }
+
     /* ------------------------------------------ docs/01 AT-03, neighbour reports */
 
     /// <summary>docs/01 AT-03 — neighbour reports waiting to be looked at.</summary>
