@@ -157,8 +157,20 @@ public static class ServiceRules
         QuantityOutOfRange,
         AlreadyBooked,
         NoAddress,
-        DoesNotTravel
+        DoesNotTravel,
+        TooTight
     }
+
+    /// <summary>A job already on the provider's diary, with where it happens.</summary>
+    public sealed record BusyJob(DateTime From, DateTime To, double Lat, double Lng);
+
+    /// <summary>docs/09 §3.4 — the mandatory rest/clean-up gap between two jobs.</summary>
+    public static readonly TimeSpan BufferBetweenJobs = TimeSpan.FromMinutes(30);
+
+    /// <summary>A conservative city travel speed, used to turn distance into time.</summary>
+    public const double TravelKmPerHour = 25;
+
+    public static TimeSpan TravelTime(double km) => TimeSpan.FromHours(km / TravelKmPerHour);
 
     public readonly record struct Check(bool Ok, Refusal Reason, string Message)
     {
@@ -175,8 +187,8 @@ public static class ServiceRules
         public string? Address { get; init; }
         public double? Latitude { get; init; }
         public double? Longitude { get; init; }
-        /// <summary>Bookings already on this provider's diary, as (start, end).</summary>
-        public IReadOnlyCollection<(DateTime From, DateTime To)> Busy { get; init; } = [];
+        /// <summary>Jobs already on this provider's diary, with their locations.</summary>
+        public IReadOnlyCollection<BusyJob> Busy { get; init; } = [];
     }
 
     public static Check CanBook(Request req)
@@ -213,8 +225,29 @@ public static class ServiceRules
 
         var from = req.StartsAt;
         var to = req.StartsAt.AddMinutes(o.DurationMinutes);
-        if (req.Busy.Any(b => from < b.To && b.From < to))
-            return Check.Fail(Refusal.AlreadyBooked, "Khung giờ này đã có người đặt.");
+
+        // Where the provider is for this job: at the guest's address if they travel,
+        // otherwise at their own premises.
+        var hereLat = o.TravelsToGuest && req.Latitude is { } jlat ? jlat : o.Latitude;
+        var hereLng = o.TravelsToGuest && req.Longitude is { } jlng ? jlng : o.Longitude;
+
+        foreach (var b in req.Busy)
+        {
+            if (from < b.To && b.From < to)
+                return Check.Fail(Refusal.AlreadyBooked, "Khung giờ này đã có người đặt.");
+
+            // docs/09 §3.4 (scenario 8) — between two jobs the provider needs a
+            // buffer plus the time to travel between the two places. A job 30
+            // minutes but 20 km away is too tight to reach.
+            var gap = from >= b.To ? from - b.To : b.From - to;
+            var travel = (b.Lat != 0 || b.Lng != 0) && (hereLat != 0 || hereLng != 0)
+                ? TravelTime(DistanceKm(hereLat, hereLng, b.Lat, b.Lng))
+                : TimeSpan.Zero;
+
+            if (gap < BufferBetweenJobs + travel)
+                return Check.Fail(Refusal.TooTight,
+                    "Quá sát một đơn khác — không đủ thời gian nghỉ và di chuyển giữa hai buổi.");
+        }
 
         return Check.Pass;
     }

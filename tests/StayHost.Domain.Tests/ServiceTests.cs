@@ -32,7 +32,9 @@ public class ServiceTests
             Address = address,
             Latitude = lat,
             Longitude = lng,
-            Busy = busy
+            // The diary jobs sit at the same place as this one unless a test says
+            // otherwise, so only the buffer (not travel) shapes these cases.
+            Busy = busy.Select(b => new ServiceRules.BusyJob(b.From, b.To, lat, lng)).ToArray()
         };
 
     /* ------------------------------------------------------------- MR-06 */
@@ -70,16 +72,47 @@ public class ServiceTests
     }
 
     [Fact]
-    public void Two_jobs_cannot_overlap_on_one_provider()
+    public void Two_jobs_need_a_buffer_between_them()
     {
         var start = Now.AddHours(24);
 
+        // Overlapping is refused outright.
         Assert.Equal(
             ServiceRules.Refusal.AlreadyBooked,
             ServiceRules.CanBook(Ask(Make(), busy: (start.AddMinutes(60), start.AddMinutes(180)))).Reason);
 
-        // Back to back is fine: the second starts as the first ends.
-        Assert.True(ServiceRules.CanBook(Ask(Make(), busy: (start.AddMinutes(120), start.AddMinutes(240)))).Ok);
+        // docs/09 §3.4 — butting straight up against the next job (this one ends at
+        // +120, the next starts at +120) leaves no rest/clean-up buffer.
+        Assert.Equal(
+            ServiceRules.Refusal.TooTight,
+            ServiceRules.CanBook(Ask(Make(), busy: (start.AddMinutes(120), start.AddMinutes(240)))).Reason);
+
+        // A comfortable gap at the same place is fine: the 30-minute buffer is met
+        // and there is no travel between two jobs at one address.
+        Assert.True(ServiceRules.CanBook(Ask(Make(), busy: (start.AddMinutes(180), start.AddMinutes(300)))).Ok);
+    }
+
+    [Fact]
+    public void A_job_too_far_to_reach_in_the_gap_is_blocked()   // scenario 8
+    {
+        var start = Now.AddHours(24);
+
+        // A job 30 minutes after this one ends, but ~20 km away (0.18° of latitude).
+        // At 25 km/h that is ~48 minutes of travel — plus the buffer, far more than
+        // the 30-minute gap, so the chef cannot make it.
+        var farBusy = new ServiceRules.BusyJob(start.AddMinutes(150), start.AddMinutes(270), 16.06 + 0.18, 108.21);
+        var req = new ServiceRules.Request
+        {
+            Offering = Make(), StartsAt = start, Now = Now, Quantity = 1,
+            Address = "12 Trần Phú, Đà Nẵng", Latitude = 16.06, Longitude = 108.21,
+            Busy = [farBusy]
+        };
+
+        Assert.Equal(ServiceRules.Refusal.TooTight, ServiceRules.CanBook(req).Reason);
+
+        // The same job right next door (same coordinates) clears with only the buffer.
+        var nearBusy = new ServiceRules.BusyJob(start.AddMinutes(150), start.AddMinutes(270), 16.06, 108.21);
+        Assert.True(ServiceRules.CanBook(req with { Busy = [nearBusy] }).Ok);
     }
 
     /* ------------------------------------------------------------- MR-05 */

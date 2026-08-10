@@ -109,7 +109,7 @@ public class ServiceMarketService(
                         && b.Status != ServiceBookingStatus.CancelledByGuest
                         && b.Status != ServiceBookingStatus.CancelledByProvider
                         && b.StartsAt >= day.AddDays(-1) && b.StartsAt < day.AddDays(2))
-            .Select(b => new { b.StartsAt, b.DurationMinutes })
+            .Select(b => new { b.StartsAt, b.DurationMinutes, b.Latitude, b.Longitude })
             .ToListAsync(ct);
 
         return new ServiceRules.Request
@@ -121,7 +121,8 @@ public class ServiceMarketService(
             Address = address,
             Latitude = lat,
             Longitude = lng,
-            Busy = busy.Select(b => (b.StartsAt, b.StartsAt.AddMinutes(b.DurationMinutes))).ToList()
+            Busy = busy.Select(b => new ServiceRules.BusyJob(
+                b.StartsAt, b.StartsAt.AddMinutes(b.DurationMinutes), b.Latitude, b.Longitude)).ToList()
         };
     }
 
