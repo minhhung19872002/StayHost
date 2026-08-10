@@ -86,6 +86,11 @@ export const api = {
   // docs/01 YT-05 — share a wishlist by link.
   shareWishlist: (id, on) => request(`/api/wishlists/${id}/share?on=${on}`, { method: 'POST' }),
   sharedWishlist: token => request(`/api/shared-wishlists/${encodeURIComponent(token)}`),
+  // docs/01 YT-06 — group vote on a place in a shared wishlist.
+  voteSharedWishlist: (token, listingId, up) =>
+    request(`/api/shared-wishlists/${encodeURIComponent(token)}/vote`, {
+      method: 'POST', body: JSON.stringify({ listingId, up }),
+    }),
 
   bookings: () => request('/api/bookings'),
 

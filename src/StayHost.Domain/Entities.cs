@@ -459,6 +459,23 @@ public class Wishlist
     public List<Favorite> Items { get; set; } = [];
 }
 
+/// <summary>
+/// docs/01 YT-06 — a thumbs up/down from one member of a shared wishlist on one
+/// place in it. The voter is a session (or an account), so people sharing a link
+/// each get one vote per place; changing your mind updates the same row.
+/// </summary>
+public class WishlistVote
+{
+    public int Id { get; set; }
+    public int WishlistId { get; set; }
+    public Wishlist? Wishlist { get; set; }
+    public int ListingId { get; set; }
+    /// <summary>Session id, or "u{userId}" once signed in. One vote per voter per place.</summary>
+    public string VoterKey { get; set; } = "";
+    public bool Up { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
 /// <summary>Wishlist entry keyed by an anonymous browser session id.</summary>
 public class Favorite
 {

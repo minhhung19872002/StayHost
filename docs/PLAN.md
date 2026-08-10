@@ -309,7 +309,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **195 xong · 0 làm một phần · 6 chưa có.** Con số 105 mã "không thấy
+Kết quả (cập nhật 10/08/2026): **196 xong · 0 làm một phần · 5 chưa có.** Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -350,14 +350,14 @@ cung cấp (Google Translate / DeepL / Azure) và trả tiền khoá API — đ�
 khách chứ không chờ code. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, chưa cắm
 khoá thì nút "Dịch" **không hiện** — thà thiếu nút còn hơn nút bấm vào không chạy.
 
-### 9.1 Chưa có (6 mã)
+### 9.1 Chưa có (5 mã)
 
 | Mã | Việc | Ưu tiên |
 |---|---|---|
 
 
 
-| `YT-06` | Bình chọn nhóm trong danh sách yêu thích chung | P2 |
+
 | `CĐ-10` · `CĐ-11` · `XH-01`→`XH-03` | Gộp chuyến & lịch trình · mời bạn cùng đi · kết bạn, bản đồ hành trình | P2 |
 
 ### 9.2 Làm một phần — **không còn mã nào** (dọn xong 10/08/2026)
@@ -376,6 +376,13 @@ comment hay không. Ví dụ `CĐ-05`, `CĐ-07`, `ĐG-01`, `YT-02`, `TĐ-02`, `T
 các thao tác mở/nộp bằng chứng/phân xử ở `FinanceController`, kế toán thất thoát, `RiskWatch`,
 và panel admin `ChargebackPanel` — nhưng nằm trong danh sách "chưa có". Xác minh sống bằng
 endpoint (10/08/2026) rồi đánh dấu xong.
+
+`YT-06` (bình chọn thích/không thích trong nhóm) làm xong 10/08/2026. Entity `WishlistVote`
+(một phiếu mỗi voter mỗi chỗ, voter = session hoặc `u{id}`), endpoint `POST
+/api/shared-wishlists/{token}/vote` (bấm cùng chiều để bỏ, chiều khác để lật); Shared GET trả
+kèm số 👍/👎 và phiếu của người xem. UI nút 👍/👎 trên từng thẻ ở trang danh sách chia sẻ.
+Xác minh sống: 2 session bầu đếm riêng (1→2), lật phiếu, bấm lại để bỏ, tallies bền, chặn tin
+ngoài danh sách.
 
 `TM-24` (vẽ vùng tìm kiếm trên bản đồ) làm xong 10/08/2026. `GeoPolygon.cs` (thuần, có test)
 làm point-in-polygon (ray-casting, chịu cả đa giác lõm) + bounding box + parse. Search nhận

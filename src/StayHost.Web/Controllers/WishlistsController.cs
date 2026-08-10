@@ -117,15 +117,72 @@ public class WishlistsController(StayHostDbContext db, AuthService auth) : Contr
 
         if (list is null) return NotFound();
 
+        // docs/01 YT-06 — group votes on this shared list, and which way the viewer voted.
+        var (userId, sid) = await ScopeAsync(ct);
+        var voterKey = userId is { } uid ? $"u{uid}" : sid;
+        var votes = await db.WishlistVotes.Where(v => v.WishlistId == list.Id).ToListAsync(ct);
+        var byListing = votes.GroupBy(v => v.ListingId).ToDictionary(g => g.Key, g => g.ToList());
+
         var favIds = list.Items.Select(i => i.ListingId).ToHashSet();
         var entries = list.Items
             .Where(i => i.Listing is not null)
             .OrderByDescending(i => i.CreatedAt)
-            // The viewer is not the owner, so the private note is left out.
-            .Select(i => new WishlistEntryDto(CatalogService.ToCard(i.Listing!, favIds), null))
+            .Select(i =>
+            {
+                byListing.TryGetValue(i.ListingId, out var vs);
+                var up = vs?.Count(v => v.Up) ?? 0;
+                var down = vs?.Count(v => !v.Up) ?? 0;
+                bool? mine = vs?.FirstOrDefault(v => v.VoterKey == voterKey)?.Up;
+                // The viewer is not the owner, so the private note is left out.
+                return new WishlistEntryDto(CatalogService.ToCard(i.Listing!, favIds), null, up, down, mine);
+            })
             .ToList();
 
         return Ok(new WishlistDetailDto(ToSummary(list), entries));
+    }
+
+    /// <summary>
+    /// docs/01 YT-06 — one member of a shared list votes a place up or down. Voting
+    /// the same way again clears the vote; the other way flips it. The link is the
+    /// permission, exactly like viewing.
+    /// </summary>
+    [HttpPost("/api/shared-wishlists/{token}/vote")]
+    public async Task<IActionResult> Vote(string token, [FromBody] WishlistVoteRequest req, CancellationToken ct)
+    {
+        var list = await db.Wishlists.FirstOrDefaultAsync(w => w.ShareToken == token, ct);
+        if (list is null) return NotFound();
+
+        var inList = await db.Favorites.AnyAsync(f => f.WishlistId == list.Id && f.ListingId == req.ListingId, ct);
+        if (!inList) return BadRequest(new { message = "Chỗ nghỉ này không có trong danh sách." });
+
+        var (userId, sid) = await ScopeAsync(ct);
+        var voterKey = userId is { } uid ? $"u{uid}" : sid;
+
+        var existing = await db.WishlistVotes.FirstOrDefaultAsync(
+            v => v.WishlistId == list.Id && v.ListingId == req.ListingId && v.VoterKey == voterKey, ct);
+
+        if (existing is null)
+            db.WishlistVotes.Add(new WishlistVote
+            {
+                WishlistId = list.Id, ListingId = req.ListingId, VoterKey = voterKey, Up = req.Up
+            });
+        else if (existing.Up == req.Up)
+            db.WishlistVotes.Remove(existing);   // same vote again → clear it
+        else
+            existing.Up = req.Up;                // flip
+
+        await db.SaveChangesAsync(ct);
+
+        var votes = await db.WishlistVotes
+            .Where(v => v.WishlistId == list.Id && v.ListingId == req.ListingId).ToListAsync(ct);
+        var mineNow = votes.FirstOrDefault(v => v.VoterKey == voterKey);
+        return Ok(new
+        {
+            listingId = req.ListingId,
+            up = votes.Count(v => v.Up),
+            down = votes.Count(v => !v.Up),
+            myVote = (bool?)(mineNow?.Up)
+        });
     }
 
     /// <summary>docs/01 YT-03 — the guest's private note on one saved place.</summary>

@@ -668,7 +668,13 @@ public record WishlistDto(
 public record WishlistDetailDto(WishlistDto List, IReadOnlyList<WishlistEntryDto> Items);
 
 /// <summary>docs/01 YT-03 — a saved place plus the guest's private note on it.</summary>
-public record WishlistEntryDto(ListingCardDto Card, string? Note);
+public record WishlistEntryDto(
+    ListingCardDto Card, string? Note,
+    // docs/01 YT-06 — group votes; null outside a shared list.
+    int Up = 0, int Down = 0, bool? MyVote = null);
+
+/// <summary>docs/01 YT-06 — a group vote on a place in a shared wishlist.</summary>
+public record WishlistVoteRequest(int ListingId, bool Up);
 
 public record SaveWishlistRequest(string Name);
 

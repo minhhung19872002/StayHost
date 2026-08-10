@@ -13,6 +13,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Favorite> Favorites => Set<Favorite>();
     public DbSet<Wishlist> Wishlists => Set<Wishlist>();
+    public DbSet<WishlistVote> WishlistVotes => Set<WishlistVote>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<User> Users => Set<User>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
@@ -1023,6 +1024,17 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.User).WithMany()
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/01 YT-06 — group votes on a shared wishlist. One vote per voter per place.
+        b.Entity<WishlistVote>(e =>
+        {
+            e.ToTable("wishlist_votes");
+            e.HasIndex(x => new { x.WishlistId, x.ListingId, x.VoterKey }).IsUnique();
+            e.HasIndex(x => new { x.WishlistId, x.ListingId });
+            e.Property(x => x.VoterKey).HasMaxLength(64).IsRequired();
+            e.HasOne(x => x.Wishlist).WithMany()
+                .HasForeignKey(x => x.WishlistId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<Booking>(e =>

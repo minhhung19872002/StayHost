@@ -42,11 +42,40 @@ export function SharedWishlist() {
 
       {detail.items.length ? (
         <div className="card-grid" style={{ marginTop: 20 }}>
-          {detail.items.map(e => <Card key={e.card.id} card={e.card} lazy />)}
+          {detail.items.map(e => (
+            <div key={e.card.id}>
+              <Card card={e.card} lazy />
+              <GroupVote token={token} entry={e} />
+            </div>
+          ))}
         </div>
       ) : (
         <p className="section-sub" style={{ marginTop: 24 }}>Danh sách này chưa có chỗ nghỉ nào.</p>
       )}
+    </div>
+  );
+}
+
+/** docs/01 YT-06 — thumbs up/down for the group, one vote per viewer. */
+function GroupVote({ token, entry }) {
+  const [v, setV] = useState({ up: entry.up, down: entry.down, mine: entry.myVote });
+  const [busy, setBusy] = useState(false);
+
+  const vote = async up => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.voteSharedWishlist(token, entry.card.id, up);
+      setV({ up: r.up, down: r.down, mine: r.myVote });
+    } catch { /* ignore */ } finally { setBusy(false); }
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+      <button className={`btn btn-sm ${v.mine === true ? 'btn-primary' : 'btn-outline'}`}
+              disabled={busy} onClick={() => vote(true)} aria-pressed={v.mine === true}>👍 {v.up}</button>
+      <button className={`btn btn-sm ${v.mine === false ? 'btn-primary' : 'btn-outline'}`}
+              disabled={busy} onClick={() => vote(false)} aria-pressed={v.mine === false}>👎 {v.down}</button>
     </div>
   );
 }
