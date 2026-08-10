@@ -60,12 +60,11 @@ function Browse() {
                     {s.reviewCount ? `★ ${s.rating.toFixed(2)} (${s.reviewCount})` : '★ Mới'}
                   </div>
                 </div>
-                <div className="card-sub">{s.city} · {s.pricingLabel}</div>
-                <div className="card-sub">{s.summary}</div>
+                <div className="card-sub card-line">{s.city} · {s.pricingLabel}</div>
                 <div className="card-price">
                   <b>{money(s.basePrice)}</b> <span>/ {s.unit}</span>
                 </div>
-                <div className="card-perks">
+                <div className="card-perks card-line">
                   {s.travelsToGuest ? `Tới tận nơi trong ${s.serviceRadiusKm} km` : 'Khách tới chỗ cung cấp'}
                   {s.isPartner ? ` · qua ${s.partnerName}` : ''}
                 </div>

@@ -66,12 +66,11 @@ function Browse() {
                     {x.reviewCount ? `★ ${x.rating.toFixed(2)} (${x.reviewCount})` : '★ Mới'}
                   </div>
                 </div>
-                <div className="card-sub">{x.city} · {duration(x.durationMinutes)} · tối đa {x.maxGroup} người</div>
-                <div className="card-sub">{x.summary}</div>
+                <div className="card-sub card-line">{x.city} · {duration(x.durationMinutes)} · tối đa {x.maxGroup} người</div>
                 <div className="card-price">
                   <b>{money(x.pricePerPerson)}</b> <span>/ người</span>
                 </div>
-                <div className="card-perks">
+                <div className="card-perks card-line">
                   {x.openSlots ? `Còn ${x.openSlots} suất` : 'Tạm hết suất'} · {x.hostName}
                 </div>
               </div>

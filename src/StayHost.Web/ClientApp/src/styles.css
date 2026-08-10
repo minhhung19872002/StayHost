@@ -595,6 +595,18 @@ select.field { width: 100%; padding: 10px 12px; }
 .card-search .card-price b { text-decoration: underline; text-underline-offset: 2px; }
 .card-perks { margin-top: 4px; font-size: 12.5px; color: var(--ink-muted); }
 
+/* Experience/service cards: keep every meta line to one row so the grid stays
+   even, and give the button-cards a quiet hover lift + image zoom. Scoped to
+   button.card so the listing carousel cards (article.card) are untouched. */
+.card-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+button.card { transition: transform .18s ease; }
+button.card:hover { transform: translateY(-2px); }
+button.card:hover .card-media img.is-current { transform: scale(1.04); }
+@media (prefers-reduced-motion: reduce) {
+  button.card, button.card:hover { transform: none; }
+  button.card:hover .card-media img.is-current { transform: none; }
+}
+
 .empty-state {
   padding: 60px 20px; text-align: center; border: 1px dashed var(--line); border-radius: 16px;
 }
