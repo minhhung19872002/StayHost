@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { set, loadFavorites, loadWishlists, openWishlist, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
+import { money } from '../lib/format.js';
 import { Card } from '../components/Card.jsx';
 import { Icon } from '../components/Icon.jsx';
 
@@ -134,11 +135,69 @@ function Index() {
   );
 }
 
+/** docs/01 YT-07 — a side-by-side comparison of 2–5 listings. */
+function CompareTable({ cards, onClose, navigate }) {
+  const rows = [
+    ['Giá / đêm', c => money(c.pricePerNight)],
+    ['Đánh giá', c => c.reviewCount ? `★ ${c.rating.toFixed(2)} (${c.reviewCount})` : 'Chưa có'],
+    ['Thành phố', c => c.city],
+    ['Loại', c => c.roomTypeLabel],
+    ['Khách tối đa', c => `${c.maxGuests}`],
+    ['Phòng ngủ', c => `${c.bedrooms}`],
+    ['Giường', c => `${c.beds}`],
+    ['Phòng tắm', c => `${c.bathrooms}`],
+    ['Đặt ngay', c => c.instantBook ? '✓' : '—'],
+    ['Siêu chủ nhà', c => c.isSuperhost ? '✓' : '—'],
+    ['Phí dọn dẹp', c => money(c.cleaningFee)]
+  ];
+
+  return (
+    <section style={{ marginTop: 20, marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <h2 className="section-title" style={{ fontSize: 18 }}>So sánh {cards.length} chỗ</h2>
+        <button className="text-btn" onClick={onClose}>Đóng</button>
+      </div>
+      <div className="table-wrap">
+        <table className="admin-table compare-table">
+          <thead>
+            <tr>
+              <th />
+              {cards.map(c => (
+                <th key={c.id} style={{ minWidth: 150 }}>
+                  <button className="text-btn" style={{ fontWeight: 700, textAlign: 'left' }}
+                          onClick={() => navigate(`/rooms/${c.slug}`)}>{c.title}</button>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([label, fn]) => (
+              <tr key={label}>
+                <td style={{ fontWeight: 600, color: 'var(--ink-muted)' }}>{label}</td>
+                {cards.map(c => <td key={c.id}>{fn(c)}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function One() {
   const state = useStore();
   const navigate = useNavigate();
   const detail = state.activeWishlist;
   const list = detail.list;
+  const [compare, setCompare] = useState(null);   // docs/01 YT-07
+
+  // docs/01 YT-07 — compare up to five saved places side by side.
+  const openCompare = async () => {
+    const ids = detail.items.slice(0, 5).map(e => e.card.id);
+    if (ids.length < 2) { toast('Cần ít nhất 2 chỗ để so sánh.'); return; }
+    try { setCompare(await api.compareListings(ids)); }
+    catch (err) { toast(err.message); }
+  };
 
   const rename = async () => {
     const name = prompt('Tên danh sách', list.name);
@@ -170,10 +229,15 @@ function One() {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn btn-outline btn-sm" onClick={rename}>Đổi tên</button>
+          {detail.items.length >= 2 && (
+            <button className="btn btn-outline btn-sm" onClick={openCompare}>So sánh</button>
+          )}
           <ShareWishlist list={list} onChanged={() => openWishlist(list.id)} />
           {!list.isDefault && <button className="btn btn-outline btn-sm" onClick={remove}>Xoá danh sách</button>}
         </div>
       </div>
+
+      {compare && <CompareTable cards={compare} onClose={() => setCompare(null)} navigate={navigate} />}
 
       {detail.items.length ? (
         <div className="card-grid" style={{ marginTop: 20 }}>

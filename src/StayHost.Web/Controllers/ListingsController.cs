@@ -181,6 +181,19 @@ public class ListingsController(
         };
     }
 
+    /// <summary>docs/01 YT-07 — cards for 2–5 listings the guest wants side by side.</summary>
+    [HttpGet("listings/compare")]
+    public async Task<ActionResult<IReadOnlyList<ListingCardDto>>> Compare(
+        [FromQuery] string? ids, CancellationToken ct = default)
+    {
+        var wanted = (ids ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => int.TryParse(s, out var n) ? n : 0)
+            .Where(n => n > 0)
+            .ToList();
+        return Ok(await catalog.CompareAsync(wanted, HttpContext.SessionId(), ct));
+    }
+
     [HttpGet("listings/{idOrSlug}")]
     public async Task<ActionResult<ListingDetailDto>> Detail(
         string idOrSlug,

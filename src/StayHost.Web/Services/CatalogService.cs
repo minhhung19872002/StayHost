@@ -421,6 +421,29 @@ public class CatalogService(StayHostDbContext db)
     public Task<int> CountAsync(SearchQuery q, CancellationToken ct) => BaseQuery(q).CountAsync(ct);
 
     /// <summary>
+    /// docs/01 YT-07 — the cards for a handful of listings the guest picked to
+    /// compare side by side. Capped at five, returned in the order asked for, and
+    /// only places the public can actually see.
+    /// </summary>
+    public async Task<IReadOnlyList<ListingCardDto>> CompareAsync(
+        IReadOnlyList<int> ids, string sessionId, CancellationToken ct)
+    {
+        var wanted = ids.Distinct().Take(5).ToList();
+        if (wanted.Count == 0) return [];
+
+        var listings = await db.Listings
+            .Where(l => wanted.Contains(l.Id)
+                        && l.IsPublished && l.ReviewStatus == ListingReviewStatus.Approved)
+            .Include(l => l.Images)
+            .Include(l => l.Amenities).ThenInclude(a => a.Amenity)
+            .ToListAsync(ct);
+
+        var favIds = await FavoriteIdsAsync(sessionId, ct);
+        var byId = listings.ToDictionary(l => l.Id);
+        return wanted.Where(byId.ContainsKey).Select(id => ToCard(byId[id], favIds)).ToList();
+    }
+
+    /// <summary>
     /// docs/01 TM-23 — listings that match a saved search and were created after a
     /// high-water mark, so the alert sweep only ever sees genuinely new places.
     /// Dates are ignored: a new listing's calendar is open and the alert is about

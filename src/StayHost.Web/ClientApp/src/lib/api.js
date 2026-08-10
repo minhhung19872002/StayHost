@@ -350,6 +350,8 @@ export const api = {
   confirmWorkEmail: code =>
     request('/api/account/work-email/confirm', { method: 'POST', body: JSON.stringify({ kind: 'workemail', code }) }),
   removeWorkEmail: () => request('/api/account/work-email', { method: 'DELETE' }),
+  // docs/01 YT-07 — compare 2–5 listings side by side.
+  compareListings: ids => request(`/api/listings/compare?ids=${ids.join(',')}`),
   // docs/01 TĐ-03, TN-06 — machine translation.
   translateConfig: () => request('/api/translate/config'),
   translate: (text, targetLang) =>
