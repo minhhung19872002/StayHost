@@ -100,6 +100,8 @@ function Index() {
                placeholder="Bạn cần giúp gì? Ví dụ: huy dat cho, phi dich vu…" />
       </div>
 
+      <Assistant navigate={navigate} />
+
       <div className="seg-tabs" style={{ marginTop: 16 }}>
         {AUDIENCES.map(([key, label]) => (
           <button key={key} className={`seg-tab ${audience === key ? 'is-active' : ''}`}
@@ -192,5 +194,30 @@ function Article({ slug }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * docs/01 AT-08 — the automated assistant: reads the caller's situation and offers
+ * the next useful action, each a button. Renders nothing until it has something.
+ */
+function Assistant({ navigate }) {
+  const [rows, setRows] = useState(null);
+  useEffect(() => { api.supportAssistant().then(r => setRows(r.suggestions)).catch(() => setRows([])); }, []);
+  if (!rows || rows.length === 0) return null;
+
+  return (
+    <section className="assistant-card" style={{ marginTop: 20, padding: 16, background: 'var(--surface-2,#f6f6f6)', borderRadius: 14 }}>
+      <h2 className="section-title" style={{ fontSize: 16, marginBottom: 4 }}>Trợ lý StayHost</h2>
+      <p className="section-sub" style={{ marginTop: 0 }}>Gợi ý theo tình huống hiện tại của bạn:</p>
+      <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+        {rows.map((s, i) => (
+          <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <span className="meta" style={{ flex: 1, minWidth: 180 }}>{s.text}</span>
+            <button className="btn btn-outline btn-sm" onClick={() => navigate(s.actionLink)}>{s.actionLabel}</button>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

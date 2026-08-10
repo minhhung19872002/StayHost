@@ -23,6 +23,54 @@ public class SupportController(
     public ActionResult<object> Topics() =>
         Ok(SupportTickets.Topics.Select(t => new { key = t.Key, label = t.Label }));
 
+    /// <summary>
+    /// docs/01 AT-08 — the automated assistant. Reads the caller's live situation
+    /// and returns the actions that actually apply, each with a link. Anonymous
+    /// callers get the login/help fallback rather than an error.
+    /// </summary>
+    [HttpGet("assistant")]
+    public async Task<ActionResult<object>> Assistant(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        SupportAssistant.Context context;
+
+        if (user is null)
+        {
+            context = new SupportAssistant.Context(false, false, false, false, false, false, false, false);
+        }
+        else
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var soon = today.AddDays(2);
+
+            var mine = db.Bookings.Where(b => b.GuestUserId == user.Id);
+
+            var arrivalSoon = await mine.AnyAsync(b =>
+                b.Status == BookingStatus.Confirmed && b.CheckIn >= today && b.CheckIn <= soon, ct);
+            var balanceDue = await mine.AnyAsync(b =>
+                b.BalanceStatus == BalanceStatus.Scheduled && b.BalanceDue > 0, ct);
+            var pending = await mine.AnyAsync(b => b.Status == BookingStatus.PendingHostApproval, ct);
+            var unreviewed = await mine.AnyAsync(b =>
+                b.Status == BookingStatus.Completed
+                && !db.Reviews.Any(r => r.BookingId == b.Id && r.AuthorUserId == user.Id), ct);
+            var dispute = await db.ResolutionCases.AnyAsync(c =>
+                c.OpenedByUserId == user.Id
+                && (c.Status == ResolutionStatus.AwaitingResponse || c.Status == ResolutionStatus.Disputed), ct);
+
+            var host = await db.Hosts.FirstOrDefaultAsync(h => h.UserId == user.Id, ct);
+            var hostReqs = host is not null && await db.Bookings.AnyAsync(b =>
+                b.Listing!.HostId == host.Id && b.Status == BookingStatus.PendingHostApproval, ct);
+
+            context = new SupportAssistant.Context(
+                true, arrivalSoon, balanceDue, pending, unreviewed, dispute, host is not null, hostReqs);
+        }
+
+        var suggestions = SupportAssistant.Suggest(context)
+            .Select(s => new { text = s.Text, actionLabel = s.ActionLabel, actionLink = s.ActionLink })
+            .ToList();
+        return Ok(new { suggestions });
+    }
+
     [HttpPost("tickets")]
     public async Task<ActionResult<object>> Create([FromBody] CreateSupportTicketRequest req, CancellationToken ct)
     {

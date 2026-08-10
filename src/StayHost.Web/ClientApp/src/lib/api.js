@@ -43,6 +43,8 @@ export const api = {
   // docs/01 TM-26 — a city landing page.
   city: key => request(`/api/cities/${encodeURIComponent(key)}`),
 
+  // docs/01 AT-08 — the contextual support assistant.
+  supportAssistant: () => request('/api/support/assistant'),
   // docs/01 AT-09 — reach a human support agent.
   supportTopics: () => request('/api/support/topics'),
   createSupportTicket: body => request('/api/support/tickets', { method: 'POST', body: JSON.stringify(body) }),
