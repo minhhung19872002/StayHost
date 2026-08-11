@@ -41,15 +41,15 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**934 test nghiệp vụ** xanh. **10/10 kịch bản quản trị** của `docs/08 §13`
-(`scripts/admin_acceptance.py`) và **19/19 kịch bản của `docs/09`**
+**Toàn bộ xanh (11/08/2026).** 934 test nghiệp vụ · **10/10** kịch bản của `docs/04`
+(`scripts/acceptance.py`) · **10/10** kịch bản quản trị của `docs/08 §13`
+(`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
 (`scripts/doc09_acceptance.py`, gồm cả 12 tình huống bắt buộc của `docs/09 §9`).
+Sổ sách lệch 0. Cả 201 mã của `docs/01` đã làm xong (`docs/PLAN.md §9`).
 
-> **Việc dở, làm tiếp trước tiên (11/08/2026).** `scripts/acceptance.py` đang ra **8/10
-> trên máy local** — **không phải lỗi code**, đã truy đến gốc: DB local tích luỹ dữ liệu
-> sau rất nhiều lần chạy, nên bước lùi ngày một đơn về quá khứ bị ràng buộc GiST
-> `bookings_no_overlap` chặn. Cách chữa: **reset DB** theo §5 rồi chạy lại (kỳ vọng 10/10).
-> Chưa reset vì sẽ xoá dữ liệu local đang xem — hỏi khách trước.
+> **`acceptance.py` cần DB sạch.** Nó ra 8/10 trên DB đã chạy nhiều lần — **không phải
+> lỗi code**: dữ liệu tích luỹ làm bước lùi ngày một đơn về quá khứ đụng ràng buộc GiST
+> `bookings_no_overlap`. Reset DB theo §5 rồi chạy lại là 10/10 (đã xác nhận 11/08/2026).
 > Trong lúc truy đã sửa **hai lỗi thật của chính script**: `bookable()` gọi dry-run rồi
 > **bỏ qua kết quả** (nên hứa những tin đã bị đặt), và chỉ thử **một khung ngày**. Giờ nó
 > đọc kết quả dry-run (đạt là **201**, không phải 200) và thử tám khung ngày.
@@ -236,12 +236,12 @@ docker exec stayhost-db psql -U stayhost -d stayhost -t \
 - Số dư khách cũng là sổ chỉ-thêm: số dư là tổng các dòng, không phải một cột bị ghi đè.
 - **StayShield không bao giờ được gọi là bảo hiểm** (`docs/06 §11`). Mọi chữ hiển thị
   là "chính sách hỗ trợ". Có `Shield.ReadsAsInsurance` và test chặn từ ngữ này.
-- **`docs/PLAN.md §9` đã soát đủ cả 201 mã: 145 xong · 5 một phần · 51 chưa có**
-  (soát 07/08/2026, sửa lại 09/08/2026). Còn **đúng một mã P0** — `TĐ-03` dịch mô
-  tả tin đăng — và nó chờ khách chọn nhà cung cấp dịch chứ không chờ code. Thứ tự
-  làm phần còn lại nằm ở **§9.4**. Plan đã ba lần đếm lệch (hai lần bỏ sót việc
-  thật, một lần kê tám mã đã xong vào bảng "làm một phần"), nên làm xong mã nào thì
-  sửa §9.1/§9.2 ngay lúc đó.
+- **`docs/PLAN.md §9` đã soát đủ cả 201 mã: 201 xong · 0 một phần · 0 chưa có**
+  (soát 07/08/2026, dọn nốt 10/08/2026). Việc còn lại **chờ khách quyết, không chờ
+  code**: `TĐ-03`/`TN-06` cần khoá API dịch thuật, `TC-07` cần chốt thời hạn số dư
+  ở `docs/07 §16`. Plan đã ba lần đếm lệch (hai lần bỏ sót việc thật, một lần kê
+  tám mã đã xong vào bảng "làm một phần"), nên thêm mã mới thì sửa §9.1/§9.2 ngay
+  lúc đó.
 - Kiểm chứng bằng app đang chạy thật, không chỉ đọc code.
 - Commit theo từng mốc có nghĩa, push lên `origin main`.
 
