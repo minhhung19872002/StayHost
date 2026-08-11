@@ -12,7 +12,23 @@ public static class ExperienceSeeder
     private record Seed(
         string Title, string City, string Summary, string Description, int Minutes,
         int MaxGroup, int MinGuests, string Meeting, double Lat, double Lng,
-        decimal Price, decimal? Private, string[] Included, string[] Images);
+        decimal Price, decimal? Private, string[] Included, string[] Images,
+        (string Title, string Body)[] Steps);
+
+    /// <summary>
+    /// docs/01 MR-01 — the running order of one session. The photographs come from
+    /// the experience's own gallery rather than a second set of URLs: a demo host
+    /// has the pictures they have, and cycling them is what a real one short of
+    /// photos would end up doing anyway.
+    /// </summary>
+    private static List<ExperienceStep> StepsFor(Seed s) =>
+        s.Steps.Select((step, i) => new ExperienceStep
+        {
+            Title = step.Title,
+            Description = step.Body,
+            ImageUrl = s.Images.Length > 0 ? Pexels(s.Images[i % s.Images.Length]) : null,
+            SortOrder = i
+        }).ToList();
 
     /// <summary>
     /// Pexels serves the bare photo URL at full resolution (~1MB); the compressed
@@ -60,6 +76,30 @@ public static class ExperienceSeeder
                     added = true;
                 }
             if (added) await db.SaveChangesAsync(ct);
+        }
+
+        // docs/01 MR-01 — the running order arrived after these rows were seeded,
+        // so give it to any seeded experience that still has none. Only ever adds:
+        // a host who wrote their own itinerary keeps it.
+        var withoutSteps = await db.Experiences
+            .Where(x => x.Itinerary.Count == 0)
+            .Select(x => new { x.Id, x.Title })
+            .ToListAsync(ct);
+        if (withoutSteps.Count > 0)
+        {
+            var seedByTitle = Seeds.ToDictionary(s => s.Title);
+            var wrote = false;
+            foreach (var x in withoutSteps)
+                if (seedByTitle.TryGetValue(x.Title, out var seed))
+                {
+                    foreach (var step in StepsFor(seed))
+                    {
+                        step.ExperienceId = x.Id;
+                        db.ExperienceSteps.Add(step);
+                    }
+                    wrote = true;
+                }
+            if (wrote) await db.SaveChangesAsync(ct);
         }
 
         // docs/09 §2.2 (MR-E-03) — moderation arrived after these rows did. Anything
@@ -115,7 +155,8 @@ public static class ExperienceSeeder
                 ReviewedAt = DateTime.UtcNow,
                 Rating = 4.8 + (i % 3) * 0.05,
                 ReviewCount = 18 + i * 7,
-                Images = s.Images.Select((u, j) => new ExperienceImage { Url = Pexels(u), SortOrder = j }).ToList()
+                Images = s.Images.Select((u, j) => new ExperienceImage { Url = Pexels(u), SortOrder = j }).ToList(),
+                Itinerary = StepsFor(s)
             };
 
             // Three weeks of sessions, one a day, at a sensible hour.
@@ -147,7 +188,13 @@ public static class ExperienceSeeder
             ["https://images.pexels.com/photos/2544829/pexels-photo-2544829.jpeg",
              "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg",
              "https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg",
-             "https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg"]),
+             "https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg"],
+            [
+             ("Gặp nhau ở cổng chợ", "6 giờ sáng, khi hàng rau vừa dọn ra."),
+             ("Chọn nguyên liệu", "Đi một vòng chợ Bà Lê, chọn rau và thịt cùng nhau."),
+             ("Về bếp nhà", "Sơ chế và học cách pha nước dùng cao lầu."),
+             ("Nấu bốn món", "Cao lầu, mì Quảng, nem lụi và chè bắp."),
+             ("Ăn ngay tại chỗ", "Ngồi xuống ăn, phần thừa gói mang về.")]),
 
         new("Chèo SUP bình minh trên sông Hoài", "Hội An",
             "Hai tiếng trên nước trước khi phố thức dậy",
@@ -158,7 +205,12 @@ public static class ExperienceSeeder
             ["Ván SUP và áo phao", "Hướng dẫn viên cứu hộ", "Cà phê sau buổi chèo"],
             ["https://images.pexels.com/photos/1223649/pexels-photo-1223649.jpeg",
              "https://images.pexels.com/photos/1008155/pexels-photo-1008155.jpeg",
-             "https://images.pexels.com/photos/1918291/pexels-photo-1918291.jpeg"]),
+             "https://images.pexels.com/photos/1918291/pexels-photo-1918291.jpeg"],
+            [
+             ("Nhận ván và áo phao", "5 giờ sáng ở bến An Hội, trời còn chưa sáng hẳn."),
+             ("Học 15 phút trên bờ", "Người mới được hướng dẫn riêng trước khi xuống nước."),
+             ("Chèo dọc rừng dừa", "Mặt nước phẳng nhất trong ngày, đúng lúc mặt trời lên."),
+             ("Cà phê bờ sông", "Kết thúc bằng một ly cà phê nhìn ra sông Hoài.")]),
 
         new("Đi bộ nhiếp ảnh phố cổ Hà Nội", "Hà Nội",
             "Ba tiếng chụp phố, từ hàng nước tới ban công cũ",
@@ -169,7 +221,13 @@ public static class ExperienceSeeder
             ["Hướng dẫn viên là nhiếp ảnh gia", "Cà phê giữa buổi", "Chỉnh ảnh cuối buổi"],
             ["https://images.pexels.com/photos/1076429/pexels-photo-1076429.jpeg",
              "https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg",
-             "https://images.pexels.com/photos/2506988/pexels-photo-2506988.jpeg"]),
+             "https://images.pexels.com/photos/2506988/pexels-photo-2506988.jpeg"],
+            [
+             ("Hàng nước đầu phố", "Bắt đầu ở số 1 Hàng Bạc với một ly trà đá."),
+             ("Sáu con phố ít khách", "Chụp người và nhịp sống buổi sáng."),
+             ("Xin phép trước khi chụp", "Cách hỏi, và cách nhận lời từ chối."),
+             ("Cà phê giữa buổi", "Nghỉ chân, xem lại ảnh vừa chụp."),
+             ("Chọn và chỉnh ảnh", "Ngồi lại cuối buổi, chỉnh nhanh vài tấm ưng nhất.")]),
 
         new("Tour cà phê Đà Lạt: từ vườn tới tách", "Đà Lạt",
             "Hái, phơi, rang và pha trong một buổi chiều",
@@ -180,7 +238,13 @@ public static class ExperienceSeeder
             ["Xe đưa đón từ trung tâm", "200g cà phê mang về", "Bánh và cà phê thử"],
             ["https://images.pexels.com/photos/4820817/pexels-photo-4820817.jpeg",
              "https://images.pexels.com/photos/1264210/pexels-photo-1264210.jpeg",
-             "https://images.pexels.com/photos/1008155/pexels-photo-1008155.jpeg"]),
+             "https://images.pexels.com/photos/1008155/pexels-photo-1008155.jpeg"],
+            [
+             ("Xe đón ở trung tâm", "Chạy lên đồi Cầu Đất, khoảng 40 phút."),
+             ("Hái quả chín", "Ra vườn arabica, hái vài cân quả chín đỏ."),
+             ("Xem mẻ đang phơi", "Hiểu vì sao phơi lâu lại ngọt hơn."),
+             ("Tự rang một mẻ", "Mỗi người rang 200 gram của riêng mình."),
+             ("Pha ba kiểu", "Phin, pour-over và espresso, so vị cạnh nhau.")]),
 
         new("Chợ đêm và ăn vặt Sài Gòn bằng xe máy", "TP. Hồ Chí Minh",
             "Bảy món ở năm quận, ngồi sau xe người địa phương",
@@ -191,7 +255,13 @@ public static class ExperienceSeeder
             ["Xe máy và tài xế riêng", "Bảy món ăn", "Nước uống", "Mũ bảo hiểm"],
             ["https://images.pexels.com/photos/2233729/pexels-photo-2233729.jpeg",
              "https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg",
-             "https://images.pexels.com/photos/136739/pexels-photo-136739.jpeg"])
+             "https://images.pexels.com/photos/136739/pexels-photo-136739.jpeg"],
+            [
+             ("Nhận mũ và áo mưa", "Gặp tài xế riêng ở công viên bến Bạch Đằng."),
+             ("Ốc quận 4", "Món đầu tiên, ăn ngay vỉa hè bên sông."),
+             ("Hủ tiếu hồ quận 5", "Chạy qua Chợ Lớn, ăn món của người Tiều."),
+             ("Quán chè từ 1975", "Chủ quán đời thứ hai, công thức không đổi."),
+             ("Về lại quận 1", "Kết thúc ở chỗ xuất phát, khoảng 10 giờ đêm.")])
     ];
 
     private static string Slugify(string title, int n)

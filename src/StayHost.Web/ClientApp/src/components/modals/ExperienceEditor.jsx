@@ -104,7 +104,7 @@ const BLANK = {
   id: 0, title: '', city: '', summary: '', description: '',
   durationMinutes: 120, maxGroup: 10, minGuests: 2,
   languages: 'vi', minAge: 0, meetingPoint: '',
-  latitude: null, longitude: null, included: '',
+  latitude: null, longitude: null, included: '', itinerary: [],
   pricePerPerson: 500000, privateGroupPrice: '', images: [],
   // docs/09 §2.1–§2.3 — the vetting block.
   category: '', allowsChildren: false,
@@ -154,6 +154,7 @@ export function ExperienceEditor() {
       latitude: editing.latitude ?? null,
       longitude: editing.longitude ?? null,
       included: (editing.included ?? []).join('\n'),
+      itinerary: (editing.itinerary ?? []).map(step => ({ ...step })),
       pricePerPerson: editing.pricePerPerson ?? 0,
       privateGroupPrice: editing.privateGroupPrice ?? '',
       images: editing.images ?? [],
@@ -166,6 +167,20 @@ export function ExperienceEditor() {
 
   const field = (key, value) => setForm(f => ({ ...f, [key]: value }));
   const num = (key, value) => field(key, Number(value) || 0);
+
+  const setSteps = next => setForm(f => ({ ...f, itinerary: next }));
+  const addStep = () => setSteps([...form.itinerary, { title: '', description: '', imageUrl: '' }]);
+  const removeStep = i => setSteps(form.itinerary.filter((_, k) => k !== i));
+  const editStep = (i, patch) =>
+    setSteps(form.itinerary.map((step, k) => (k === i ? { ...step, ...patch } : step)));
+  // Reordering is the ordinary edit here: a host writes the stops down as they
+  // remember them, then puts them in the order they happen.
+  const moveStep = (i, by) => {
+    const next = [...form.itinerary];
+    const [step] = next.splice(i, 1);
+    next.splice(i + by, 0, step);
+    setSteps(next);
+  };
 
   const risk = riskOf(form.category, form.allowsChildren);
   const missing = publishBlockers(form, todayIso());
@@ -189,6 +204,15 @@ export function ExperienceEditor() {
       latitude: Number(form.latitude) || 0,
       longitude: Number(form.longitude) || 0,
       included: form.included.split('\n').map(s => s.trim()).filter(Boolean),
+      // docs/01 MR-01 — a stop with no title is a row the host started and
+      // abandoned, so it is dropped rather than saved half-written.
+      itinerary: form.itinerary
+        .filter(step => step.title.trim())
+        .map(step => ({
+          title: step.title.trim(),
+          description: (step.description ?? '').trim(),
+          imageUrl: (step.imageUrl ?? '').trim() || null
+        })),
       pricePerPerson: Number(form.pricePerPerson) || 0,
       privateGroupPrice: form.privateGroupPrice === '' || form.privateGroupPrice == null
         ? null : Number(form.privateGroupPrice),
@@ -277,6 +301,44 @@ export function ExperienceEditor() {
                     placeholder={'Thuyền và áo phao\nHướng dẫn viên nói tiếng Anh\nNước uống'}
                     style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
         </label>
+
+        {/*
+          * docs/01 MR-01 — the running order. A list of stops rather than one more
+          * textarea because each stop carries three things, and somebody deciding
+          * whether to give up a day reads the order before they read the prose.
+          * Leaving it empty is fine — the page then has no itinerary section.
+          */}
+        <div className="form-field">
+          <span className="cap">{t('Hành trình')}</span>
+          <div className="xp-step-editor">
+            {form.itinerary.map((step, i) => (
+              <div className="xp-step-row" key={i}>
+                <span className="xp-step-no">{i + 1}</span>
+                <div className="xp-step-fields">
+                  <input value={step.title} maxLength={120}
+                         placeholder={t('Ví dụ: Xuống địa đạo')}
+                         onChange={e => editStep(i, { title: e.target.value })} />
+                  <input value={step.description ?? ''} maxLength={400}
+                         placeholder={t('Một câu về mốc này')}
+                         onChange={e => editStep(i, { description: e.target.value })} />
+                  <input value={step.imageUrl ?? ''} maxLength={600}
+                         placeholder={t('Đường dẫn ảnh (không bắt buộc)')}
+                         onChange={e => editStep(i, { imageUrl: e.target.value })} />
+                </div>
+                <div className="xp-step-tools">
+                  <button type="button" className="text-btn" disabled={i === 0}
+                          onClick={() => moveStep(i, -1)} aria-label={t('Lên trên')}>↑</button>
+                  <button type="button" className="text-btn" disabled={i === form.itinerary.length - 1}
+                          onClick={() => moveStep(i, 1)} aria-label={t('Xuống dưới')}>↓</button>
+                  <button type="button" className="text-btn" onClick={() => removeStep(i)}>{t('Bỏ')}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="btn btn-outline btn-sm" style={{ marginTop: 10 }}
+                  onClick={addStep}>{t('+ Thêm mốc')}</button>
+        </div>
+
       </section>
 
       {/* docs/09 §2.1 (MR-E-01) — the activity, and with it the risk band. */}

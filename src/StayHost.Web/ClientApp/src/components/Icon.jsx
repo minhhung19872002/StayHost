@@ -41,7 +41,13 @@ const P = {
   selfcheckin: <><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /><circle cx="12" cy="15.5" r="1.3" /></>,
   crib: <><path d="M4 6v14M20 6v14M4 20h16M4 9h16" /><path d="M8 9v6M12 9v6M16 9v6" /></>,
   view: <><path d="M3 20h18" /><path d="m4 20 6-11 4 6 2-3 4 8" /><circle cx="17" cy="6" r="2" /></>,
-  ev: <><rect x="3" y="8" width="12" height="10" rx="2" /><path d="M15 11h2.5a2 2 0 0 1 2 2v3a1.5 1.5 0 0 0 3 0v-5l-2-2" /><path d="m9.2 10.5-1.8 3h2.6l-1.6 3" /></>
+  ev: <><rect x="3" y="8" width="12" height="10" rx="2" /><path d="M15 11h2.5a2 2 0 0 1 2 2v3a1.5 1.5 0 0 0 3 0v-5l-2-2" /><path d="m9.2 10.5-1.8 3h2.6l-1.6 3" /></>,
+  // The experience page asks four questions a stay never does: where do we meet,
+  // who can come, how many of us, and by when can I change my mind.
+  pin: <><path d="M12 21s7-5.7 7-11a7 7 0 1 0-14 0c0 5.3 7 11 7 11Z" /><circle cx="12" cy="10" r="2.6" /></>,
+  user: <><circle cx="12" cy="8" r="3.6" /><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0" /></>,
+  users: <><circle cx="9" cy="8" r="3.2" /><path d="M2.8 19.5a6.2 6.2 0 0 1 12.4 0" /><path d="M16.2 5.2a3.2 3.2 0 0 1 0 5.9" /><path d="M17.6 14.4a6.2 6.2 0 0 1 3.6 5.1" /></>,
+  calendar: <><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3.5V6M16 3.5V6" /></>
 };
 
 export function Icon({ name, size = 24, filled = false, weight = 1.6 }) {

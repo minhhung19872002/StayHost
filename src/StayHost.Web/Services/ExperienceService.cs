@@ -22,6 +22,7 @@ public class ExperienceService(
             .Include(x => x.Host)
             .Include(x => x.Images)
             .Include(x => x.Slots)
+            .Include(x => x.Itinerary)
             .AsSplitQuery();
 
         var experience = int.TryParse(idOrSlug, out var id)
@@ -38,7 +39,7 @@ public class ExperienceService(
 
         var mine = await db.Experiences
             .Where(x => x.HostId == profile.Id)
-            .Include(x => x.Host).Include(x => x.Images).Include(x => x.Slots)
+            .Include(x => x.Host).Include(x => x.Images).Include(x => x.Slots).Include(x => x.Itinerary)
             .AsSplitQuery()
             .ToListAsync(ct);
 
@@ -76,7 +77,10 @@ public class ExperienceService(
             x.LicenceName, x.LicenceExpiresOn,
             x.InsurancePolicy, x.InsuranceExpiresOn,
             x.SafetyPlan, x.EmergencyPhone,
-            x.ModerationStatus.ToString(), x.ReviewerNote, x.SubmittedForReviewAt);
+            x.ModerationStatus.ToString(), x.ReviewerNote, x.SubmittedForReviewAt,
+            x.Itinerary.OrderBy(i => i.SortOrder)
+                .Select(i => new ExperienceStepDto(i.Title, i.Description, i.ImageUrl))
+                .ToList());
     }
 
     /* ------------------------------------------- docs/09 §4 (MR-C-02) */
@@ -413,7 +417,8 @@ public class ExperienceService(
         if (profile is null) return (null, "Bạn cần có hồ sơ chủ nhà trước.");
 
         var experience = req.Id is { } id
-            ? await db.Experiences.Include(x => x.Images).FirstOrDefaultAsync(x => x.Id == id && x.HostId == profile.Id, ct)
+            ? await db.Experiences.Include(x => x.Images).Include(x => x.Itinerary)
+                .FirstOrDefaultAsync(x => x.Id == id && x.HostId == profile.Id, ct)
             : new Experience { HostId = profile.Id };
         if (experience is null) return (null, "Không tìm thấy trải nghiệm này.");
 
@@ -461,6 +466,26 @@ public class ExperienceService(
             db.ExperienceImages.RemoveRange(experience.Images);
             experience.Images = req.Images
                 .Select((url, i) => new ExperienceImage { Url = url, SortOrder = i })
+                .ToList();
+        }
+
+        // docs/01 MR-01 — the running order. Replaced wholesale rather than merged:
+        // the editor sends the list it has, and reordering a step is the ordinary
+        // case, which a merge by id would turn into the hardest one. Null means the
+        // caller is not editing the itinerary at all, so what is there stays; an
+        // empty list means the host cleared it.
+        if (req.Itinerary is not null)
+        {
+            db.ExperienceSteps.RemoveRange(experience.Itinerary);
+            experience.Itinerary = req.Itinerary
+                .Where(step => !string.IsNullOrWhiteSpace(step.Title))
+                .Select((step, i) => new ExperienceStep
+                {
+                    Title = step.Title.Trim(),
+                    Description = (step.Description ?? "").Trim(),
+                    ImageUrl = Trimmed(step.ImageUrl),
+                    SortOrder = i
+                })
                 .ToList();
         }
 

@@ -7,6 +7,8 @@ import { money, longDate, dateFormat, number } from '../lib/format.js';
 import { CardCarousel } from '../components/CardCarousel.jsx';
 import { PhotoMosaic } from '../components/PhotoMosaic.jsx';
 import { Avatar } from '../components/Avatar.jsx';
+import { Icon } from '../components/Icon.jsx';
+import { DetailMap } from '../components/Maps.jsx';
 import { t } from '../lib/i18n.js';
 import { TranslatedText } from '../components/TranslatedText.jsx';
 
@@ -160,15 +162,48 @@ function Detail({ slug }) {
     <div className="shell" style={{ paddingBlock: '26px 90px' }}>
       <button className="back-link" onClick={() => navigate('/experiences')}>← {t('Trải nghiệm')}</button>
 
-      <h1 className="section-title" style={{ marginTop: 10 }}>
-        <TranslatedText as="span" text={x.title} />
-      </h1>
-      <p className="section-sub">
-        {x.city} · {duration(x.durationMinutes)} · {t('tối đa')} {x.maxGroup} {t('người')}
-        {x.reviewCount ? ` · ★ ${x.rating.toFixed(2)} (${x.reviewCount})` : ''}
-      </p>
+      {/*
+        * Photographs beside the facts rather than above them. A session is sold on
+        * what it looks like and what it costs, and stacking those meant a screen of
+        * pictures before the first number — the reader had to scroll to learn the
+        * price of the thing they were looking at.
+        */}
+      <div className="xp-hero">
+        <div className="xp-hero-photos">
+          {!!x.images.length && <PhotoMosaic images={x.images} alt={x.title} />}
+        </div>
 
-      {!!x.images.length && <PhotoMosaic images={x.images} alt={x.title} />}
+        <div className="xp-hero-info">
+          <h1><TranslatedText as="span" text={x.title} /></h1>
+          <p className="xp-hero-sub"><TranslatedText as="span" text={x.summary} notice={false} /></p>
+
+          <p className="xp-hero-meta">
+            {x.reviewCount ? <><b>★ {x.rating.toFixed(2)}</b> · {x.reviewCount} {t('đánh giá')} · </> : null}
+            {x.city} · {duration(x.durationMinutes)}
+          </p>
+
+          <div className="xp-hero-facts">
+            <div className="xp-fact">
+              <Avatar initials={x.hostInitials} />
+              {/* Name first, role under it. "Do X dẫn" is a Vietnamese sentence
+                  frame, and splitting it into two keys around the name gives
+                  "By X led" in English — a label and a proper noun survive
+                  every language, a half-sentence does not. */}
+              <div>
+                <b>{x.hostName}</b>
+                <span>{t('Người dẫn')} · {t('tối đa')} {x.maxGroup} {t('người')}</span>
+              </div>
+            </div>
+            <div className="xp-fact">
+              <span className="xp-fact-ic"><Icon name="pin" size={18} /></span>
+              <div>
+                <b>{t('Điểm hẹn')}</b>
+                <span><TranslatedText as="span" text={x.meetingPoint} notice={false} /></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="trip-layout" style={{ marginTop: 24 }}>
         <div style={{ minWidth: 0 }}>
@@ -176,6 +211,31 @@ function Detail({ slug }) {
             <h2>{t('Buổi này có gì')}</h2>
             <TranslatedText as="p" style={{ fontSize: 15.5, lineHeight: 1.75, color: 'var(--ink-body)' }} text={x.description} />
           </section>
+
+          {/* docs/01 MR-01 — what actually happens, in order. Left out entirely
+              when the host has not written one, rather than shown empty. */}
+          {!!x.itinerary?.length && (
+            <section className="detail-section">
+              <h2>{t('Hành trình')}</h2>
+              <ol className="xp-steps">
+                {x.itinerary.map((step, i) => (
+                  <li className="xp-step" key={i}>
+                    <span className="xp-step-dot" aria-hidden="true">
+                      {step.imageUrl
+                        ? <img src={step.imageUrl} alt="" loading="lazy" decoding="async" />
+                        : <i>{i + 1}</i>}
+                    </span>
+                    <div className="xp-step-body">
+                      <b><TranslatedText as="span" text={step.title} notice={false} /></b>
+                      {step.description && (
+                        <span><TranslatedText as="span" text={step.description} notice={false} /></span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
 
           <section className="detail-section">
             <h2>{t('Vé bao gồm')}</h2>
@@ -186,24 +246,32 @@ function Detail({ slug }) {
             </ul>
           </section>
 
+          <ExperienceReviews experience={x} />
+
+          {/* The meeting point is an address in prose above; here it is a place. */}
+          <section className="detail-section">
+            <h2>{t('Nơi gặp nhau')}</h2>
+            <p className="section-sub" style={{ marginBottom: 14 }}>
+              <TranslatedText as="span" text={x.meetingPoint} notice={false} /> · {x.city}
+            </p>
+            <DetailMap latitude={x.latitude} longitude={x.longitude} />
+          </section>
+
           <section className="detail-section">
             <h2>{t('Cần biết')}</h2>
-            <div className="kv-grid">
-              {/* An address the host wrote. notice={false} because a "translated
-                  automatically" line inside a two-line key/value cell wrecks the
-                  grid; the description above already says it for the page. */}
-              <Kv label={t('Điểm hẹn')}
-                  value={<TranslatedText as="span" text={x.meetingPoint} notice={false} />} />
-              <Kv label={t('Ngôn ngữ')} value={x.languages.join(', ')} />
-              <Kv label={t('Độ tuổi')} value={x.minAge ? `${t('Từ')} ${x.minAge} ${t('tuổi')}` : t('Mọi lứa tuổi')} />
-              <Kv label={t('Tối thiểu')} value={`${x.minGuests} ${t('người thì suất mới chạy')}`} />
+            <div className="xp-know">
+              <Know icon="user" title={t('Độ tuổi')}
+                    body={x.minAge ? `${t('Từ')} ${x.minAge} ${t('tuổi')}` : t('Mọi lứa tuổi')} />
+              <Know icon="globe" title={t('Ngôn ngữ')} body={x.languages.join(', ')} />
+              <Know icon="users" title={t('Số người')}
+                    body={`${x.minGuests}–${x.maxGroup} ${t('người mỗi suất')}`} />
+              <Know icon="calendar" title={t('Chính sách huỷ')}
+                    body={t('Huỷ trước 24 giờ được hoàn toàn bộ.')} />
             </div>
             <p style={{ fontSize: 13.5, color: 'var(--ink-muted)', marginTop: 14, lineHeight: 1.6 }}>
               {t('Suất không đủ')} {x.minGuests} {t('người trước 48 giờ sẽ bị huỷ và hoàn tiền toàn bộ. Bạn huỷ trước 24 giờ cũng được hoàn đủ.')}
             </p>
           </section>
-
-          <ExperienceReviews experience={x} />
         </div>
 
         <aside className="book-panel">
@@ -213,16 +281,32 @@ function Detail({ slug }) {
           </div>
 
           <p className="cap" style={{ margin: '14px 0 8px' }}>{t('Chọn suất')}</p>
+          {/*
+            * One row per session rather than a grid of chips. A chip had room for a
+            * date and a number and nothing else, so the reader could not tell a
+            * morning session from an evening one without opening it — and the seats
+            * left, which is the thing that decides whether to book now, was the
+            * smallest text on the page.
+            */}
           <div className="xp-slots">
-            {open.length ? open.slice(0, 12).map(s => (
-              <button key={s.id} className={`xp-slot ${slotId === s.id ? 'is-on' : ''}`}
-                      disabled={s.seatsLeft === 0}
-                      onClick={() => setSlotId(s.id)}>
-                <b>{DAY().format(new Date(s.startsAt))}</b>
-                <span>{TIME().format(new Date(s.startsAt))}</span>
-                <i>{s.seatsLeft ? `${t('còn')} ${s.seatsLeft}` : t('hết chỗ')}</i>
-              </button>
-            )) : <p className="section-sub">{t('Chưa có suất nào mở.')}</p>}
+            {open.length ? open.slice(0, 12).map(s => {
+              const at = new Date(s.startsAt);
+              const ends = new Date(at.getTime() + x.durationMinutes * 60000);
+              const scarce = s.seatsLeft > 0 && s.seatsLeft <= 3;
+              return (
+                <button key={s.id} className={`xp-slot ${slotId === s.id ? 'is-on' : ''}`}
+                        disabled={s.seatsLeft === 0}
+                        onClick={() => setSlotId(s.id)}>
+                  <span className="xp-slot-when">
+                    <b>{DAY().format(at)}</b>
+                    <span>{TIME().format(at)} – {TIME().format(ends)}</span>
+                  </span>
+                  <i className={scarce ? 'is-scarce' : ''}>
+                    {s.seatsLeft ? `${t('còn')} ${s.seatsLeft} ${t('chỗ')}` : t('hết chỗ')}
+                  </i>
+                </button>
+              );
+            }) : <p className="section-sub">{t('Chưa có suất nào mở.')}</p>}
           </div>
 
           <label className="form-field" style={{ marginTop: 14 }}>
@@ -260,8 +344,15 @@ function Detail({ slug }) {
   );
 }
 
-function Kv({ label, value }) {
-  return <div className="kv"><span className="kv-label">{label}</span><b>{value}</b></div>;
+/** One thing worth knowing before booking: an icon, a heading and a single line. */
+function Know({ icon, title, body }) {
+  return (
+    <div className="xp-know-item">
+      <span className="xp-know-ic"><Icon name={icon} size={22} /></span>
+      <b>{title}</b>
+      <span>{body}</span>
+    </div>
+  );
 }
 
 /**

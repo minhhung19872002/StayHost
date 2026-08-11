@@ -53,6 +53,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<BillShare> BillShares => Set<BillShare>();
     public DbSet<Experience> Experiences => Set<Experience>();
     public DbSet<ExperienceImage> ExperienceImages => Set<ExperienceImage>();
+    public DbSet<ExperienceStep> ExperienceSteps => Set<ExperienceStep>();
     public DbSet<ExperienceSlot> ExperienceSlots => Set<ExperienceSlot>();
     public DbSet<ExperienceBooking> ExperienceBookings => Set<ExperienceBooking>();
     public DbSet<ExperienceReview> ExperienceReviews => Set<ExperienceReview>();
@@ -483,6 +484,19 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Url).HasMaxLength(600).IsRequired();
             e.Property(x => x.Caption).HasMaxLength(200);
             e.HasOne(x => x.Experience).WithMany(x => x.Images)
+                .HasForeignKey(x => x.ExperienceId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ExperienceStep>(e =>
+        {
+            e.ToTable("experience_steps");
+            // Read in order every time the page is drawn, so the order is an index
+            // rather than a sort the query has to do on its own.
+            e.HasIndex(x => new { x.ExperienceId, x.SortOrder });
+            e.Property(x => x.Title).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(400).IsRequired();
+            e.Property(x => x.ImageUrl).HasMaxLength(600);
+            e.HasOne(x => x.Experience).WithMany(x => x.Itinerary)
                 .HasForeignKey(x => x.ExperienceId).OnDelete(DeleteBehavior.Cascade);
         });
 

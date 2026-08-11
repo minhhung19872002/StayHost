@@ -121,6 +121,16 @@ public class Experience
     public List<ExperienceImage> Images { get; set; } = [];
     public List<ExperienceSlot> Slots { get; set; } = [];
 
+    /// <summary>
+    /// docs/01 MR-01 — what the session actually does, in order.
+    ///
+    /// The prose description says what the thing is; this says what happens, hour
+    /// by hour, which is the question somebody deciding whether to spend a day on
+    /// it is really asking. Optional: a host who leaves it empty gets the page
+    /// without the section rather than an empty heading.
+    /// </summary>
+    public List<ExperienceStep> Itinerary { get; set; } = [];
+
     public void RefreshSearchText() =>
         SearchText = StayHost.Domain.SearchText.Normalize(
             string.Join(' ', Title, City, Country, Summary, Description, MeetingPoint));
@@ -139,6 +149,26 @@ public class ExperienceImage
     public Experience? Experience { get; set; }
     public string Url { get; set; } = "";
     public string? Caption { get; set; }
+    public int SortOrder { get; set; }
+}
+
+/// <summary>
+/// docs/01 MR-01 — one stop on the session, in the order it happens.
+///
+/// The picture is optional on purpose: a host who has a photo of every stop gets a
+/// richer page, and one who has none still gets a readable running order rather
+/// than a row of grey placeholders.
+/// </summary>
+public class ExperienceStep
+{
+    public int Id { get; set; }
+    public int ExperienceId { get; set; }
+    public Experience? Experience { get; set; }
+
+    public string Title { get; set; } = "";
+    public string Description { get; set; } = "";
+    public string? ImageUrl { get; set; }
+
     public int SortOrder { get; set; }
 }
 

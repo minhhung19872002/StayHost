@@ -1461,6 +1461,9 @@ public record ExperienceSlotDto(
     string Status,
     string? CancelReason);
 
+/// <summary>docs/01 MR-01 — one stop on the session, in the order it happens.</summary>
+public record ExperienceStepDto(string Title, string Description, string? ImageUrl);
+
 public record ExperienceDetailDto(
     int Id,
     string Slug,
@@ -1502,7 +1505,11 @@ public record ExperienceDetailDto(
     // in the queue does not look the same as one that was turned down.
     string ModerationStatus = "Draft",
     string? ReviewerNote = null,
-    DateTime? SubmittedForReviewAt = null);
+    DateTime? SubmittedForReviewAt = null,
+    // docs/01 MR-01 — what happens, in order. Empty when the host has not written
+    // one, and the page then leaves the section out rather than showing a heading
+    // with nothing under it.
+    IReadOnlyList<ExperienceStepDto>? Itinerary = null);
 
 public record ExperienceQuoteDto(
     int SlotId,
@@ -1585,7 +1592,8 @@ public record SaveExperienceRequest(
     string? InsurancePolicy = null,
     DateOnly? InsuranceExpiresOn = null,
     string? SafetyPlan = null,
-    string? EmergencyPhone = null);
+    string? EmergencyPhone = null,
+    IReadOnlyList<ExperienceStepDto>? Itinerary = null);
 
 /// <summary>docs/09 §2.2 (MR-E-03) — one row of the reviewer's queue.</summary>
 public record PendingExperienceDto(

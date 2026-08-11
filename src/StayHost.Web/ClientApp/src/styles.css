@@ -1955,17 +1955,106 @@ a.opt { color: inherit; text-decoration: none; display: block; }
 }
 @media (max-width: 740px) { .gallery-carousel { aspect-ratio: 4 / 3; } }
 
-.xp-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); gap: 8px; }
+/*
+ * One row per session, not a grid of chips. A chip fitted a date and a number and
+ * nothing else, so a morning session and an evening one looked identical until you
+ * opened them — and the seats left, the fact that decides whether to book now,
+ * was the smallest text on the page.
+ */
+.xp-slots { display: grid; gap: 8px; max-height: 340px; overflow-y: auto; }
 .xp-slot {
-  display: flex; flex-direction: column; gap: 1px; align-items: start;
-  padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: #fff;
-  font: inherit; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff;
+  font: inherit; text-align: left; cursor: pointer; transition: border-color .12s ease;
 }
-.xp-slot b { font-size: 13px; }
-.xp-slot span { font-size: 15px; font-weight: 800; }
-.xp-slot i { font-style: normal; font-size: 11.5px; color: var(--ink-muted); }
+.xp-slot:hover { border-color: var(--ink-muted); }
+.xp-slot-when { display: grid; gap: 2px; min-width: 0; }
+.xp-slot-when b { font-size: 14.5px; font-weight: 700; }
+.xp-slot-when span { font-size: 13px; color: var(--ink-muted); }
+.xp-slot i { font-style: normal; font-size: 12.5px; color: var(--ink-muted); white-space: nowrap; }
+/* Nearly gone is a reason to hurry, so it stops looking like the other rows. */
+.xp-slot i.is-scarce { color: var(--brand); font-weight: 700; }
 .xp-slot.is-on { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink) inset; }
 .xp-slot:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---- experience detail: photographs beside the facts -------------------- */
+
+.xp-hero {
+  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 32px; align-items: start; margin-top: 14px;
+}
+.xp-hero-photos { min-width: 0; }
+.xp-hero-info { min-width: 0; padding-top: 4px; }
+.xp-hero-info h1 { font-size: clamp(26px, 3vw, 36px); line-height: 1.15; letter-spacing: -.02em; }
+.xp-hero-sub { margin-top: 10px; font-size: 16px; line-height: 1.55; color: var(--ink-body); }
+.xp-hero-meta { margin-top: 14px; font-size: 14.5px; color: var(--ink-body); }
+.xp-hero-facts { margin-top: 22px; border-top: 1px solid var(--divider); display: grid; gap: 2px; }
+.xp-fact { display: flex; align-items: center; gap: 14px; padding: 16px 0 0; }
+.xp-fact b { display: block; font-size: 14.5px; }
+.xp-fact span { font-size: 13.5px; color: var(--ink-muted); }
+.xp-fact-ic {
+  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px;
+  display: grid; place-items: center; background: var(--surface, #f7f7f7); color: var(--ink);
+}
+
+/* ---- the running order (docs/01 MR-01) --------------------------------- */
+
+.xp-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.xp-step { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 18px; }
+.xp-step-dot { position: relative; display: grid; place-items: start center; }
+/*
+ * The line joining the stops is what makes this a sequence rather than a list.
+ * It is drawn from the marker down to the next one and stops at the last, so the
+ * timeline does not trail off past the final stop.
+ */
+.xp-step:not(:last-child) .xp-step-dot::after {
+  content: ''; position: absolute; top: 64px; bottom: -4px; left: 50%;
+  width: 1px; background: var(--divider);
+}
+.xp-step-dot img {
+  width: 64px; height: 64px; border-radius: 14px; object-fit: cover; display: block;
+}
+.xp-step-dot i {
+  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface, #f2f2f2); font-style: normal; font-weight: 700; font-size: 14px;
+}
+.xp-step-body { padding: 4px 0 24px; }
+.xp-step-body b { display: block; font-size: 15.5px; }
+.xp-step-body span { display: block; margin-top: 4px; font-size: 14.5px; line-height: 1.55; color: var(--ink-body); }
+
+/* ---- things worth knowing before booking ------------------------------- */
+
+/* ---- the host's side of the running order ------------------------------ */
+
+.xp-step-editor { display: grid; gap: 10px; margin-top: 8px; }
+.xp-step-row {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 12px; align-items: start;
+  padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: #fff;
+}
+.xp-step-no {
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface, #f2f2f2); font-size: 13px; font-weight: 700;
+}
+.xp-step-fields { display: grid; gap: 8px; min-width: 0; }
+.xp-step-fields input {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px;
+}
+/* The first line is the one a guest reads as the heading, so it looks like one. */
+.xp-step-fields input:first-child { font-weight: 600; }
+.xp-step-tools { display: grid; gap: 2px; justify-items: end; }
+.xp-step-tools button:disabled { opacity: .35; cursor: not-allowed; }
+
+.xp-know { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 26px 24px; }
+.xp-know-item b { display: block; margin-top: 10px; font-size: 15px; }
+.xp-know-item span { display: block; margin-top: 3px; font-size: 14px; line-height: 1.5; color: var(--ink-body); }
+.xp-know-ic { color: var(--ink); }
+
+@media (max-width: 980px) {
+  .xp-hero { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .xp-step { grid-template-columns: 48px minmax(0, 1fr); gap: 14px; }
+  .xp-step-dot img { width: 48px; height: 48px; border-radius: 12px; }
+  .xp-step:not(:last-child) .xp-step-dot::after { top: 48px; }
+}
 
 /* ---- hotel room types (docs/01 MR-08, MR-09) ---------------------------- */
 
