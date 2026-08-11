@@ -11,6 +11,8 @@ import { rememberSearch } from '../lib/history.js';
 import { dateRangeLabel, money } from '../lib/format.js';
 import { t, tt } from '../lib/i18n.js';
 import { Card, CardSkeleton } from '../components/Card.jsx';
+import { CardCarousel } from '../components/CardCarousel.jsx';
+import { duration } from './Experiences.jsx';
 import { TranslatedText } from '../components/TranslatedText.jsx';
 import { ResultsMap } from '../components/Maps.jsx';
 import { Icon } from '../components/Icon.jsx';
@@ -100,22 +102,47 @@ function OtherLines() {
   return <>
     {strip('Trải nghiệm', 'Hoạt động do người địa phương dẫn', experiences, '/experiences',
       x => (
-        <button className="opt" key={x.id} style={{ textAlign: 'left' }}
-                onClick={() => navigate(`/experiences/${x.slug}`)}>
-          <b><TranslatedText as="span" text={x.title} notice={false} /></b>
-          <span className="meta">{x.city} · {money(x.pricePerPerson)}/{t('khách')}</span>
-        </button>
+        <MediaCard key={x.id} item={x} to={`/experiences/${x.slug}`}
+                   line={`${x.city} · ${duration(x.durationMinutes)}`}
+                   price={money(x.pricePerPerson)} per={t('khách')} />
       ))}
 
     {strip('Dịch vụ', 'Đầu bếp, dọn dẹp, hướng dẫn viên tới tận nơi', services, '/services',
       x => (
-        <button className="opt" key={x.id} style={{ textAlign: 'left' }}
-                onClick={() => navigate(`/services/${x.slug}`)}>
-          <b><TranslatedText as="span" text={x.title} notice={false} /></b>
-          <span className="meta">{x.city} · {money(x.basePrice)} {t(x.pricingLabel ?? '')}</span>
-        </button>
+        <MediaCard key={x.id} item={x} to={`/services/${x.slug}`}
+                   line={`${x.city} · ${t(x.pricingLabel ?? '')}`}
+                   price={money(x.basePrice)} per={t(x.unit ?? '')} />
       ))}
   </>;
+}
+
+/**
+ * An experience or a service on the landing page, in the same shape as a stay.
+ *
+ * These two lines used to be text-only buttons sitting under three rows of
+ * photographs, which read as a footnote rather than as something else to book —
+ * and the pictures were already in the payload, just unused. The card is the one
+ * the /experiences and /services pages use, so the whole page is one thing.
+ */
+function MediaCard({ item, to, line, price, per }) {
+  const navigate = useNavigate();
+
+  return (
+    <button className="card" onClick={() => navigate(to)}
+            style={{ textAlign: 'left', border: 0, background: 'none', padding: 0, cursor: 'pointer' }}>
+      <CardCarousel images={item.images} alt={item.title} />
+      <div className="card-body">
+        <div className="card-row">
+          <h3 className="card-title"><TranslatedText as="span" text={item.title} notice={false} /></h3>
+          <div className="card-rating">
+            {item.reviewCount ? `★ ${item.rating.toFixed(2)} (${item.reviewCount})` : `★ ${t('Mới')}`}
+          </div>
+        </div>
+        <div className="card-sub card-line">{line}</div>
+        <div className="card-price"><b>{price}</b> <span>/ {per}</span></div>
+      </div>
+    </button>
+  );
 }
 
 function Rail({ section }) {
