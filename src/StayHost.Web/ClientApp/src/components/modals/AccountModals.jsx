@@ -10,7 +10,7 @@ import { api } from '../../lib/api.js';
 import { money, longDate } from '../../lib/format.js';
 import { Avatar } from '../Avatar.jsx';
 import { Modal } from './Modal.jsx';
-import { t } from '../../lib/i18n.js';
+import { t, joined } from '../../lib/i18n.js';
 
 import { externalConfig, mountGoogleButton, signInWithApple, signInWithFacebook } from '../../lib/externalLogin.js';
 
@@ -414,7 +414,7 @@ export function ProfileModal() {
         <Avatar url={u.avatarUrl} initials={u.initials} size={56} />
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 17, fontWeight: 800 }}>{u.displayName || u.fullName}</div>
-          <div style={{ fontSize: 13, color: 'var(--ink-muted)' }}>{u.email} · {u.joinedLabel}</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-muted)' }}>{u.email} · {joined(u.joinedLabel)}</div>
           <div style={{ marginTop: 6 }}>
             {/* docs/01 TK-01 — a phone-only account has no address to nag about. */}
             {!u.email
@@ -476,7 +476,7 @@ export function ProfileModal() {
           {(state.sessions ?? []).length ? state.sessions.map(s => (
             <div className="cal-row" key={s.id}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <b style={{ fontSize: 14 }}>{s.device}</b>
+                <b style={{ fontSize: 14 }}>{s.device.split(' · ').map(part => t(part)).join(' · ')}</b>
                 {s.isCurrent && <span className="badge confirmed" style={{ marginLeft: 8 }}>{t('Thiết bị này')}</span>}
                 <div style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>
                   {t('Đăng nhập')} {longDate(s.createdAt.slice(0, 10))}
@@ -618,7 +618,7 @@ function ProfileForm() {
             <button type="button" key={l.code}
                     className={`quick-chip ${languages.includes(l.code) ? 'is-on' : ''}`}
                     aria-pressed={languages.includes(l.code)}
-                    onClick={() => toggleLanguage(l.code)}>{l.label}</button>
+                    onClick={() => toggleLanguage(l.code)}>{t(l.label)}</button>
           ))}
         </div>
       </div>
@@ -1028,15 +1028,15 @@ function NotificationMatrix() {
         <thead>
           <tr>
             <th />
-            {prefs.channelLabels.map(l => <th key={l}>{l}</th>)}
+            {prefs.channelLabels.map(l => <th key={l}>{t(l)}</th>)}
           </tr>
         </thead>
         <tbody>
           {prefs.rows.map(row => (
             <tr key={row.topic}>
               <th scope="row">
-                <b>{row.label}</b>
-                <span>{row.note}</span>
+                <b>{t(row.label)}</b>
+                <span>{t(row.note)}</span>
               </th>
               {row.cells.map(cell => (
                 <td key={cell.channel}>

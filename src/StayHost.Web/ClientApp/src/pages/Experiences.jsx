@@ -449,15 +449,16 @@ export function ExperienceBookings() {
             {rows.map(r => (
               <article className="host-booking" key={r.id}>
                 <div style={{ minWidth: 0 }}>
-                  <h3>{r.title}</h3>
+                  {/* The host named the experience — machine translation, not the dictionary. */}
+                  <h3><TranslatedText as="span" text={r.title} notice={false} /></h3>
                   <div className="meta">
                     {longDate(r.startsAt.slice(0, 10))} · {TIME().format(new Date(r.startsAt))} ·
                     {' '}{r.seats} {t('chỗ')}{r.private ? ` · ${t('nhóm riêng')}` : ''} · {money(r.total)}
                   </div>
                   <div className="meta">{t('Mã')} {r.reference} · {r.city}</div>
-                  {r.cancelReason && <div className="meta">{r.cancelReason}</div>}
+                  {r.cancelReason && <div className="meta">{t(r.cancelReason)}</div>}
                   {r.refundedAmount > 0 && <div className="meta">{t('Đã hoàn')} {money(r.refundedAmount)}</div>}
-                  <span className={`badge ${r.statusBadge}`} style={{ marginTop: 8 }}>{r.statusLabel}</span>
+                  <span className={`badge ${r.statusBadge}`} style={{ marginTop: 8 }}>{t(r.statusLabel)}</span>
                 </div>
                 <div className="host-booking-actions">
                   <button className="btn btn-outline btn-sm"

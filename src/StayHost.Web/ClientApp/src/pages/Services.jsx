@@ -395,7 +395,7 @@ export function ServiceBookings() {
             {rows.map(r => (
               <article className="host-booking" key={r.id}>
                 <div style={{ minWidth: 0 }}>
-                  <h3>{r.title}</h3>
+                  <h3><TranslatedText as="span" text={r.title} notice={false} /></h3>
                   <div className="meta">
                     {longDate(r.startsAt.slice(0, 10))} · {TIME().format(new Date(r.startsAt))} ·
                     {' '}{r.quantity} {r.unit} · {money(r.total)}

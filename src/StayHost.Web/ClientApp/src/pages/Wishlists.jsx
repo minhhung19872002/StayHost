@@ -119,7 +119,7 @@ function Index() {
                   : <div className="wl-empty"><Icon name="heart" size={28} /></div>}
               </div>
               <div className="wl-body">
-                <b>{list.name}</b>
+                <b>{t(list.name)}</b>
                 <span>{list.count} {t('chỗ nghỉ')}{list.isDefault ? ` · ${t('mặc định')}` : ''}</span>
               </div>
             </article>

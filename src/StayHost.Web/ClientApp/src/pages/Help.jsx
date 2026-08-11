@@ -43,7 +43,7 @@ function ContactSupport() {
           <label className="form-field"><span className="cap">{t('Loại vấn đề')}</span>
             <select value={topic} onChange={e => setTopic(e.target.value)}
                     style={{ padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10 }}>
-              {topics.map(tp => <option key={tp.key} value={tp.key}>{tp.label}</option>)}
+              {topics.map(tp => <option key={tp.key} value={tp.key}>{t(tp.label)}</option>)}
             </select>
           </label>
           <label className="form-field"><span className="cap">{t('Tiêu đề')}</span>
@@ -117,13 +117,13 @@ function Index() {
         <div style={{ marginTop: 28, display: 'grid', gap: 34 }}>
           {groups.map(g => (
             <section key={g.name}>
-              <h2 className="section-title" style={{ fontSize: 20 }}>{g.name}</h2>
+              <h2 className="section-title" style={{ fontSize: 20 }}>{t(g.name)}</h2>
               <div className="help-grid">
                 {g.items.map(a => (
                   <button className="help-card" key={a.slug} onClick={() => navigate(`/help/${a.slug}`)}>
                     <b><TranslatedText as="span" text={a.title} /></b>
                     <span><TranslatedText as="span" text={a.summary} /></span>
-                    <i>{a.audienceLabel}</i>
+                    <i>{t(a.audienceLabel)}</i>
                   </button>
                 ))}
               </div>

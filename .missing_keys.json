@@ -1,0 +1,9 @@
+{
+ "rest": {
+  "…": [
+   "components/modals/SearchModals.jsx",
+   "lib/i18n.js"
+  ]
+ },
+ "admin": {}
+}

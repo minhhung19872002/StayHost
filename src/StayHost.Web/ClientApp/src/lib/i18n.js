@@ -1,4 +1,5 @@
 import { state } from './store.js';
+import { dateFormat } from './format.js';
 import ja from './i18n/ja.js';
 import ko from './i18n/ko.js';
 import zh from './i18n/zh.js';
@@ -403,4 +404,22 @@ export function tt(s) {
     if (s.startsWith(p)) return t(p) + s.slice(p.length);
   }
   return s;
+}
+
+/**
+ * "Tham gia StayHost tháng 8, 2026". A numeric shape cannot handle this: it would
+ * hand a translation the digits 8 and 2026 in that order, and no language that
+ * writes the year first can use them. So the sentence is taken apart — the prefix
+ * through the dictionary, the date through Intl — and put back together.
+ * Anything that does not match the pattern is left to the dictionary.
+ */
+const JOINED = /^Tham gia StayHost tháng (\d{1,2}),\s*(\d{4})$/;
+
+export function joined(s) {
+  const m = typeof s === 'string' && s.match(JOINED);
+  if (!m) return t(s);
+  if ((state.language?.code || 'vi') === 'vi') return s;
+  const when = dateFormat({ month: 'long', year: 'numeric' })
+    .format(new Date(Number(m[2]), Number(m[1]) - 1, 1));
+  return `${t('Tham gia StayHost')} ${when}`;
 }

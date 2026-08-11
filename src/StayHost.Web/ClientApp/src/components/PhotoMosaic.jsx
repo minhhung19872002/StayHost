@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSlideshow } from '../lib/useSlideshow.js';
+import { t } from '../lib/i18n.js';
 
 /**
  * docs/01 MR — the photo block on an experience/service detail page, built the
@@ -29,7 +30,7 @@ export function PhotoMosaic({ images, alt = '' }) {
             <img src={src} alt={`${alt} — ảnh ${i + 1}`} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
           </figure>
         ))}
-        <button className="gallery-all" onClick={() => setView('grid')}>⊞ Hiện tất cả ảnh</button>
+        <button className="gallery-all" onClick={() => setView('grid')}>⊞ {t('Hiện tất cả ảnh')}</button>
       </div>
 
       {view === 'grid' && (
@@ -64,7 +65,7 @@ function ContactSheet({ images, alt, onPick, onClose }) {
     <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal wide" role="dialog" aria-modal="true" aria-label={`${alt} — ${images.length} ảnh`}>
         <div className="modal-head">
-          <button className="modal-close" onClick={onClose} aria-label="Đóng">✕</button>
+          <button className="modal-close" onClick={onClose} aria-label={t('Đóng')}>✕</button>
           <h2>{alt} — {images.length} ảnh</h2>
           <span style={{ width: 32 }} />
         </div>
@@ -72,10 +73,10 @@ function ContactSheet({ images, alt, onPick, onClose }) {
           <div className="lightbox-grid">
             {images.map((src, i) => (
               <figure key={i}>
-                <button className="lightbox-open" onClick={() => onPick(i)} aria-label={`Phóng to ảnh ${i + 1}`}>
+                <button className="lightbox-open" onClick={() => onPick(i)} aria-label={`${t('Phóng to ảnh')} ${i + 1}`}>
                   <img src={src} alt={`${alt} — ảnh ${i + 1}`} loading="lazy" decoding="async" />
                 </button>
-                <figcaption>Ảnh {i + 1}</figcaption>
+                <figcaption>{t('Ảnh')} {i + 1}</figcaption>
               </figure>
             ))}
           </div>
@@ -114,14 +115,14 @@ function Viewer({ images, alt, index, onIndex, onGrid, onClose }) {
   return (
     <div className="viewer" role="dialog" aria-modal="true" aria-label={`${alt} — ảnh`}>
       <header className="viewer-bar">
-        <button className="viewer-btn" onClick={onClose}>✕ <span>Đóng</span></button>
+        <button className="viewer-btn" onClick={onClose}>✕ <span>{t('Đóng')}</span></button>
         <span className="viewer-count">{idx + 1} / {total}</span>
         <div className="viewer-actions" />
       </header>
 
       <div className="viewer-stage">
         {total > 1 && (
-          <button className="viewer-nav prev" onClick={() => slides.step(-1)} aria-label="Ảnh trước">‹</button>
+          <button className="viewer-nav prev" onClick={() => slides.step(-1)} aria-label={t('Ảnh trước')}>‹</button>
         )}
 
         {images.map((src, i) =>
@@ -132,12 +133,12 @@ function Viewer({ images, alt, index, onIndex, onGrid, onClose }) {
         )}
 
         {total > 1 && (
-          <button className="viewer-nav next" onClick={() => slides.step(1)} aria-label="Ảnh tiếp theo">›</button>
+          <button className="viewer-nav next" onClick={() => slides.step(1)} aria-label={t('Ảnh tiếp theo')}>›</button>
         )}
       </div>
 
       <footer className="viewer-foot">
-        <p className="viewer-caption">Ảnh {idx + 1}</p>
+        <p className="viewer-caption">{t('Ảnh')} {idx + 1}</p>
         <button className="viewer-grid-link" onClick={onGrid}>⊞ Xem tất cả {total} ảnh</button>
       </footer>
     </div>

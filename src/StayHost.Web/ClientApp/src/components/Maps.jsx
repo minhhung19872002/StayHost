@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useStore } from '../lib/useStore.js';
+import { t } from '../lib/i18n.js';
 import { set } from '../lib/store.js';
 import { money } from '../lib/format.js';
 
@@ -220,20 +221,20 @@ export function ResultsMap({ onSearchArea, onDrawArea }) {
   return (
     <div style={{ position: 'relative', height: '100%' }}>
       <div className="map-search-again">
-        {moved && !state.searchOnMapMove && !drawing && <button onClick={searchHere}>Tìm ở khu vực này</button>}
+        {moved && !state.searchOnMapMove && !drawing && <button onClick={searchHere}>{t('Tìm ở khu vực này')}</button>}
         {/* docs/01 TM-24 — vẽ vùng tìm kiếm trên bản đồ. */}
-        {!drawing && !state.searchPolygon && <button onClick={startDraw}>✎ Vẽ vùng</button>}
-        {!drawing && state.searchPolygon && <button onClick={clearDraw}>✕ Bỏ vùng đã vẽ</button>}
-        {drawing && <button onClick={finishDraw}>✓ Xong ({drawRef.current.points.length})</button>}
-        {drawing && <button onClick={clearDraw}>Huỷ</button>}
+        {!drawing && !state.searchPolygon && <button onClick={startDraw}>✎ {t('Vẽ vùng')}</button>}
+        {!drawing && state.searchPolygon && <button onClick={clearDraw}>✕ {t('Bỏ vùng đã vẽ')}</button>}
+        {drawing && <button onClick={finishDraw}>✓ {t('Xong')} ({drawRef.current.points.length})</button>}
+        {drawing && <button onClick={clearDraw}>{t('Huỷ')}</button>}
         {!drawing && (
           <label>
             <input type="checkbox" checked={state.searchOnMapMove}
                    onChange={e => set({ searchOnMapMove: e.target.checked })} />
-            Tìm khi di chuyển bản đồ
+            {t('Tìm khi di chuyển bản đồ')}
           </label>
         )}
-        {drawing && <span className="map-draw-hint">Chạm để thêm điểm, rồi bấm Xong</span>}
+        {drawing && <span className="map-draw-hint">{t('Chạm để thêm điểm, rồi bấm Xong')}</span>}
       </div>
       <div id="map" ref={hostRef} />
     </div>

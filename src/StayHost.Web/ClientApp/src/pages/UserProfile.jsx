@@ -7,7 +7,7 @@ import { monthLabel } from '../lib/format.js';
 import { Avatar } from '../components/Avatar.jsx';
 import { Card } from '../components/Card.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { t } from '../lib/i18n.js';
+import { t, joined } from '../lib/i18n.js';
 
 /**
  * docs/01 TK-05, docs/02 C6 — somebody's public profile. Open to anybody, so it
@@ -100,12 +100,12 @@ export function UserProfile() {
         </div>
 
         <div className="profile-about">
-          <p className="profile-joined">{t(monthLabel(p.joinedLabel))}</p>
+          <p className="profile-joined">{joined(p.joinedLabel)}</p>
 
           {/* docs/01 TK-05 — only what was actually proved is listed. */}
           {!!p.badges.length && (
             <div className="chip-wrap" style={{ marginBottom: 14 }}>
-              {p.badges.map(b => <span className="badge confirmed" key={b}>{b}</span>)}
+              {p.badges.map(b => <span className="badge confirmed" key={b}>{t(b)}</span>)}
             </div>
           )}
 

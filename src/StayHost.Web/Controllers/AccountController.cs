@@ -792,7 +792,11 @@ public class AccountController(
             : userAgent.Contains("Firefox/") ? "Firefox"
             : userAgent.Contains("Safari/") ? "Safari" : "Trình duyệt khác";
 
-        return $"{browser} trên {os}";
+        // "Chrome · Windows" rather than "Chrome trên Windows": the two names are
+        // proper nouns the dictionary passes straight through, and joining them
+        // with a word would need a phrase whose order differs per language. A
+        // separator reads the same everywhere and leaves nothing to translate.
+        return $"{browser} · {os}";
     }
 
     private async Task<CurrentUserDto> ToDtoAsync(User user, CancellationToken ct)

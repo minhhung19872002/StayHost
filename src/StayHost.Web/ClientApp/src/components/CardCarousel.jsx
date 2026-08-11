@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../lib/i18n.js';
 import { useSlideshow } from '../lib/useSlideshow.js';
 
 /**
@@ -26,9 +27,9 @@ export function CardCarousel({ images, alt = '' }) {
 
       {pics.length > 1 && <>
         <button className="carousel-nav prev" onClick={e => own(e, () => slides.step(-1))}
-                aria-label="Ảnh trước">‹</button>
+                aria-label={t('Ảnh trước')}>‹</button>
         <button className="carousel-nav next" onClick={e => own(e, () => slides.step(1))}
-                aria-label="Ảnh tiếp theo">›</button>
+                aria-label={t('Ảnh tiếp theo')}>›</button>
         <div className="carousel-dots">
           {pics.map((_, i) => (
             <button key={i} className={`bullet ${i === idx ? 'is-on' : ''}`}
