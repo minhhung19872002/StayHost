@@ -447,7 +447,17 @@ function BellMenu() {
 function AccountMenu() {
   const state = useStore();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const u = state.user;
+
+  /*
+   * The menu is sixteen entries long and said nothing about where you already
+   * were, so opening it left you to work that out from the page behind it.
+   * aria-current is the right way to say "this one" — one attribute drives both
+   * the marker and what a screen reader announces. The trailing slash matters:
+   * without it /host would claim /hosting and /trips would claim /trip-plans.
+   */
+  const here = path => (pathname === path || pathname.startsWith(`${path}/`) ? 'page' : undefined);
 
   const goTo = href => { set({ menu: null }); navigate(href); };
   const auth = mode => set({ authMode: mode, authError: null, overlay: 'login', menu: null });
@@ -458,14 +468,14 @@ function AccountMenu() {
         <button className="bold" role="menuitem" onClick={() => auth('register')}>{t('Đăng ký')}</button>
         <button className="bold" role="menuitem" onClick={() => auth('login')}>{t('Đăng nhập')}</button>
         <hr />
-        <button role="menuitem" onClick={() => goTo('/wishlists')}>{t('Danh sách yêu thích')} ({state.favCount})</button>
-        <button role="menuitem" onClick={() => goTo('/trips')}>{t('Chuyến đi của tôi')}</button>
-        <button role="menuitem" onClick={() => goTo('/trip-plans')}>{t('Lịch trình chuyến đi')}</button>
-        <button role="menuitem" onClick={() => goTo('/friends')}>{t('Bạn bè')}</button>
-        <button role="menuitem" onClick={() => goTo('/host')}>{t('Cho thuê nhà trên StayHost')}</button>
+        <button role="menuitem" aria-current={here('/wishlists')} onClick={() => goTo('/wishlists')}>{t('Danh sách yêu thích')} ({state.favCount})</button>
+        <button role="menuitem" aria-current={here('/trips')} onClick={() => goTo('/trips')}>{t('Chuyến đi của tôi')}</button>
+        <button role="menuitem" aria-current={here('/trip-plans')} onClick={() => goTo('/trip-plans')}>{t('Lịch trình chuyến đi')}</button>
+        <button role="menuitem" aria-current={here('/friends')} onClick={() => goTo('/friends')}>{t('Bạn bè')}</button>
+        <button role="menuitem" aria-current={here('/host')} onClick={() => goTo('/host')}>{t('Cho thuê nhà trên StayHost')}</button>
         <hr />
         <button role="menuitem" onClick={() => openOverlay('language')}>{t('Ngôn ngữ & tiền tệ')}</button>
-        <button role="menuitem" onClick={() => goTo('/help')}>{t('Trung tâm trợ giúp')}</button>
+        <button role="menuitem" aria-current={here('/help')} onClick={() => goTo('/help')}>{t('Trung tâm trợ giúp')}</button>
       </div>
     );
   }
@@ -487,26 +497,26 @@ function AccountMenu() {
         </div>
       </div>
       <hr />
-      <button className="bold" role="menuitem" onClick={() => goTo('/messages')}>
+      <button className="bold" role="menuitem" aria-current={here('/messages')} onClick={() => goTo('/messages')}>
         {t('Tin nhắn')} {!!u.unreadMessages && <span className="fav-count" style={{ marginLeft: 'auto' }}>{u.unreadMessages}</span>}
       </button>
-      <button role="menuitem" onClick={() => goTo('/trips')}>{t('Chuyến đi của tôi')}</button>
-      <button role="menuitem" onClick={() => goTo('/wishlists')}>{t('Danh sách yêu thích')} ({state.favCount})</button>
-      <button role="menuitem" onClick={() => goTo('/experiences/bookings')}>{t('Vé trải nghiệm')}</button>
-      <button role="menuitem" onClick={() => goTo('/services/bookings')}>{t('Dịch vụ đã đặt')}</button>
-      <button role="menuitem" onClick={() => goTo('/wallet')}>{t('Số dư & thẻ quà tặng')}</button>
-      <button role="menuitem" onClick={() => goTo('/resolutions')}>{t('Trung tâm giải quyết')}</button>
-      <button role="menuitem" onClick={() => goTo('/shield')}>StayShield</button>
+      <button role="menuitem" aria-current={here('/trips')} onClick={() => goTo('/trips')}>{t('Chuyến đi của tôi')}</button>
+      <button role="menuitem" aria-current={here('/wishlists')} onClick={() => goTo('/wishlists')}>{t('Danh sách yêu thích')} ({state.favCount})</button>
+      <button role="menuitem" aria-current={here('/experiences/bookings')} onClick={() => goTo('/experiences/bookings')}>{t('Vé trải nghiệm')}</button>
+      <button role="menuitem" aria-current={here('/services/bookings')} onClick={() => goTo('/services/bookings')}>{t('Dịch vụ đã đặt')}</button>
+      <button role="menuitem" aria-current={here('/wallet')} onClick={() => goTo('/wallet')}>{t('Số dư & thẻ quà tặng')}</button>
+      <button role="menuitem" aria-current={here('/resolutions')} onClick={() => goTo('/resolutions')}>{t('Trung tâm giải quyết')}</button>
+      <button role="menuitem" aria-current={here('/shield')} onClick={() => goTo('/shield')}>StayShield</button>
       <hr />
       {u.isHost
-        ? <button className="bold" role="menuitem" onClick={() => goTo('/hosting')}>{t('Trang chủ nhà')} ({u.listingCount})</button>
+        ? <button className="bold" role="menuitem" aria-current={here('/hosting')} onClick={() => goTo('/hosting')}>{t('Trang chủ nhà')} ({u.listingCount})</button>
         : <button className="bold" role="menuitem" onClick={startHosting}>{t('Cho thuê nhà trên StayHost')}</button>}
-      {u.role === 'Admin' && <button className="bold" role="menuitem" onClick={() => goTo('/admin')}>{t('Trang quản trị')}</button>}
+      {u.role === 'Admin' && <button className="bold" role="menuitem" aria-current={here('/admin')} onClick={() => goTo('/admin')}>{t('Trang quản trị')}</button>}
       <button role="menuitem" onClick={() => openOverlay('profile')}>{t('Tài khoản')}</button>
-      <button role="menuitem" onClick={() => goTo(`/users/${u.id}`)}>{t('Hồ sơ công khai')}</button>
+      <button role="menuitem" aria-current={here(`/users/${u.id}`)} onClick={() => goTo(`/users/${u.id}`)}>{t('Hồ sơ công khai')}</button>
       <hr />
       <button role="menuitem" onClick={() => openOverlay('language')}>{t('Ngôn ngữ & tiền tệ')}</button>
-      <button role="menuitem" onClick={() => goTo('/help')}>{t('Trung tâm trợ giúp')}</button>
+      <button role="menuitem" aria-current={here('/help')} onClick={() => goTo('/help')}>{t('Trung tâm trợ giúp')}</button>
       <button role="menuitem" onClick={async () => { set({ menu: null }); await logout(); navigate('/'); }}>{t('Đăng xuất')}</button>
     </div>
   );

@@ -1027,6 +1027,24 @@ a.opt { color: inherit; text-decoration: none; display: block; }
   background: #ededed;
   box-shadow: inset 0 0 0 2px var(--brand);
 }
+
+/*
+ * The page you are already on. A left bar rather than a background, so it cannot
+ * be mistaken for hover, and it survives hovering over something else — the point
+ * is to answer "where am I?" while you are reading down the list.
+ */
+.menu button[aria-current="page"] {
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.menu button[aria-current="page"]:focus-visible { box-shadow: inset 0 0 0 2px var(--brand); }
+/* A tick on the right says the same thing without relying on colour alone. */
+.menu button[aria-current="page"]::after {
+  content: '✓';
+  margin-left: auto;
+  color: var(--brand);
+  font-weight: 700;
+}
 .menu button.bold { font-weight: 700; }
 .menu hr { border: 0; border-top: 1px solid var(--divider); margin: 8px 0; }
 .menu-anchor { position: relative; }
