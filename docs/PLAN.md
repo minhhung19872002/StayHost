@@ -343,12 +343,36 @@ Tám trong chín mã P0 của lần soát 07/08/2026 đã làm xong trong cùng 
 | `CN-08` | Gợi ý tiêu đề & mô tả | `ListingCopy.cs` — dựng từ chính dữ liệu host đã nhập |
 | `CN-10` | Giá thị trường khu vực | phân vị 25/50/75 của chỗ tương đương cùng thành phố |
 | `QL-13` | Cảnh báo hậu quả trước khi huỷ | tiền hoàn + hồ sơ StayShield + tỉ lệ tự huỷ sau khi huỷ |
-| `TĐ-03` | Dịch mô tả tin đăng | **cơ chế xong 10/08/2026** — bật khi có khoá API, xem `§9.3` |
+| `TĐ-03` | Dịch mô tả tin đăng | **chạy thật 11/08/2026** bằng máy dịch tự host, xem dưới |
 
-`TĐ-03` (và `TN-06` dịch tin nhắn) giờ đã có đủ cơ chế; chỉ còn chờ khách chọn nhà
-cung cấp (Google Translate / DeepL / Azure) và trả tiền khoá API — đúng quyết định của
-khách chứ không chờ code. Theo tiền lệ đăng nhập mạng xã hội ở `CLAUDE.md §5`, chưa cắm
-khoá thì nút "Dịch" **không hiện** — thà thiếu nút còn hơn nút bấm vào không chạy.
+`TĐ-03` và `TN-06` **đã bật, không tốn khoá API**. Lần soát trước ghi là "chờ khách
+chọn nhà cung cấp và trả tiền", nhưng cả hai compose vốn đã kéo sẵn một container
+`libretranslate` và trỏ app vào đó — nghĩa là việc chờ ấy không tồn tại. Ngày
+11/08/2026 bật lên và kiểm chứng thật; mấy chỗ ghi "chờ khách" là tài liệu nói sai
+chứ không phải tính năng thiếu.
+
+Ba việc phải sửa lúc bật:
+
+1. **`Translations.Targets` chỉ có 6 thứ tiếng** trong khi giao diện cho chọn 8. Người
+   đổi sang tiếng Đức thì `/api/translate` từ chối, và trang **im lặng trả về bản gốc** —
+   hỏng mà không ai thấy. Đã bổ sung `de`, `es`.
+2. **`LT_LOAD_ONLY` chỉ chạy lần đầu của volume.** Thêm ngôn ngữ rồi restart thì container
+   vẫn healthy mà engine trả `"de is not supported"`. Đã bật `LT_UPDATE_MODELS` ở cả hai
+   compose để danh sách ngôn ngữ là thứ quyết định thật.
+3. **Nút "Dịch" hard-code chữ tiếng Việt** và giữ bản sao riêng của nhãn ngôn ngữ (thiếu
+   `de`/`es` nên hiện ra mã thô). Giờ chữ đi qua `t()`, nhãn lấy từ chính danh sách server trả.
+
+Chưa cấu hình gì thì nút "Dịch" **không hiện** — theo đúng tiền lệ đăng nhập mạng xã hội
+ở `CLAUDE.md §5`, thà thiếu nút còn hơn nút bấm vào không chạy. Muốn chất lượng cao hơn
+thì đổi sang `google` + khoá API, không phải sửa mã.
+
+**`TC-07` — hạn dùng số dư — chốt 11/08/2026.** `docs/07 §16` giờ có cột "Giá trị chốt":
+bù đắp / giới thiệu bạn / hoàn khi huỷ **12 tháng**, thẻ quà tặng **không hết hạn** (khách
+đã trả tiền thật cho nó). Số nằm ở `appsettings.json`, không biên dịch vào mã. Bật lên mới
+lộ ra một lỗi thật: đường **hoàn số dư khi huỷ đơn** trong `BookingsController` tự dựng
+`CreditEntry` nên không đóng dấu hạn dùng — số dư hoàn lại lẽ ra 12 tháng thì **không bao
+giờ hết hạn**. Đã gom về `CreditLedger.Grant`, một cửa duy nhất, kèm hai test. Hạn đóng dấu
+**lúc cấp**, nên đổi tham số về sau không với ngược lại số dư khách đang giữ.
 
 ### 9.1 Chưa có — không còn mã nào (hoàn tất 10/08/2026)
 
@@ -567,11 +591,10 @@ thiếu đường đọc) · `QL-11` cảnh báo iCal trùng đơn đã xác nh�
 thành phố cho tìm kiếm ngoài sàn · `AT-01` kiểm duyệt tin trước khi hiện · `AT-09`
 chuyển tiếp nhân viên hỗ trợ · `TN-05` lọc hộp thư.
 
-**Chờ khách quyết, không chờ code:** `TĐ-03` (P0) và `TN-06` cần khoá API dịch
-thuật. `TC-07` đã dựng xong máy móc hạn dùng số dư nhưng **thời hạn bao lâu thì
-chưa ai chọn** — bảng tham số `docs/07 §16`. Để trống thì không gì hết hạn, đúng
-hành vi cũ; chốt số là bật được mà không sửa mã. **Đợt cuối:** nhóm P2 còn lại — mạng xã hội `XH-01`→`XH-03`, so sánh và
-bình chọn danh sách yêu thích, gợi ý giá cho chủ nhà, trợ lý tự động.
+**Không còn mã nào chờ khách quyết (11/08/2026).** `TĐ-03`/`TN-06` đã bật bằng máy
+dịch tự host và `TC-07` đã chốt tham số ở `docs/07 §16` — chi tiết cả hai ở `§9.0`.
+Các mục còn để trống trong `docs/07 §16` (`TT-A`, `TT-B`, `TT-C`, phương án pháp lý,
+cổng thanh toán) là quyết định vận hành, chưa chặn tính năng nào.
 
 ---
 

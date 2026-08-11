@@ -41,7 +41,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (11/08/2026).** 934 test nghiệp vụ · **10/10** kịch bản của `docs/04`
+**Toàn bộ xanh (11/08/2026).** 936 test nghiệp vụ · **10/10** kịch bản của `docs/04`
 (`scripts/acceptance.py`) · **10/10** kịch bản quản trị của `docs/08 §13`
 (`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
 (`scripts/doc09_acceptance.py`, gồm cả 12 tình huống bắt buộc của `docs/09 §9`).
@@ -86,7 +86,9 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Trải nghiệm (`docs/09`) | Thẩm định có người duyệt + phân loại rủi ro theo danh mục, hàng chờ kiểm duyệt, suất lặp lại và chặn chồng giờ, **giữ chỗ 10 phút**, nhiều đơn chung một suất, thuê trọn nhóm, tự huỷ khi thiếu người + gợi ý suất khác, điểm danh, huỷ theo bậc 7 ngày/50%, đánh giá 4 tiêu chí riêng |
 | Dịch vụ (`docs/09`) | Chủ nhà tự đăng, chứng chỉ hành nghề có hạn **tự ẩn tin khi hết hạn**, tuỳ chọn thêm có giá riêng, phí di chuyển ngoài bán kính, lịch theo thứ + đệm + chặn hai đơn quá xa, ghi chú bắt buộc theo danh mục, xác nhận điều kiện tại chỗ, huỷ theo bậc 72 giờ |
 | Tiền hai dòng mới | **Dịch vụ có mức phí riêng 0% khách / 15% NCC**; Trải nghiệm giữ 14%/3% như chỗ ở (khách chốt). Trả tiền người cung cấp **sau khi buổi kết thúc 24 giờ**, không phải từ lúc bắt đầu |
-| Đa ngôn ngữ | 8 thứ tiếng (vi/en/ja/ko/zh/fr/de/es), **1965 khoá mỗi thứ, không thiếu khoá nào**. Dịch cả **chữ do server sinh** (trạng thái, dòng hoá đơn, tiện nghi, lời khuyên chủ nhà) nhờ từ điển khoá bằng chính chuỗi tiếng Việt. Ngày/giờ/số theo ngôn ngữ đang chọn. Nội dung **người dùng tự viết** (tên tin, mô tả, đánh giá, tiểu sử, nội quy chủ nhà tự gõ) được **máy dịch tự động** kèm dòng "Đã dịch tự động · Xem bản gốc" |
+| Đa ngôn ngữ | 8 thứ tiếng (vi/en/ja/ko/zh/fr/de/es), **1967 khoá mỗi thứ, không thiếu khoá nào**. Dịch cả **chữ do server sinh** (trạng thái, dòng hoá đơn, tiện nghi, nhóm tiện nghi, loại chỗ ở, lời khuyên chủ nhà) nhờ từ điển khoá bằng chính chuỗi tiếng Việt. Ngày/giờ/số theo ngôn ngữ đang chọn. Nội dung **người dùng tự viết** (tên tin, mô tả, đánh giá, tiểu sử, nội quy chủ nhà tự gõ) được **máy dịch tự động** kèm dòng "Đã dịch tự động · Xem bản gốc" |
+| Máy dịch | `libretranslate` tự host trong cả hai compose — **không cần khoá API, không tính tiền theo ký tự**. Đủ 8 thứ tiếng, trùng khít danh sách giao diện. Kết quả cache trong `translation_caches`, mỗi (chuỗi × ngôn ngữ) chỉ dịch một lần |
+| Hạn dùng số dư | `docs/07 §16` đã chốt (11/08/2026): bù đắp / giới thiệu bạn / hoàn khi huỷ **12 tháng**, thẻ quà tặng **không hết hạn**. Hạn đóng dấu **lúc cấp**, nên đổi tham số về sau không với ngược lại số dư khách đang giữ |
 
 ---
 
@@ -141,6 +143,21 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   điển** — `TranslatedText.jsx` máy dịch tự động và ghi rõ "Đã dịch tự động".
 - **Coi chừng biến tên `t` che mất hàm dịch.** Đã gặp `const t = encodeURIComponent(...)`
   và `map(t => …)`; khi đó `t('…')` âm thầm chạy sai chứ không báo lỗi.
+- **Chữ do server sinh phải bọc `t()` ở *mọi* chỗ render, không chỉ chỗ hay nhìn.**
+  Khách báo hộp "Nơi này có những gì" hiện từng món bằng tiếng Nhật nhưng **tên nhóm**
+  ("Tiện nghi", "Ngoài trời") vẫn tiếng Việt: `SearchModals` viết `t(group)`, còn
+  `ListingModals` và `ListingWizard` viết thẳng `{group}`. Khoá đã có sẵn trong từ
+  điển — thiếu đúng cái bọc. Cùng lỗi ở nhãn loại chỗ ở (`Header`, `Browse`, wizard).
+  Khi thêm chỗ render dữ liệu server, hỏi "cái này có nằm trong từ điển không?"
+- **`LT_LOAD_ONLY` chỉ có tác dụng lần chạy đầu của volume.** Thêm `de,es` rồi restart
+  thì container vẫn **healthy**, `/languages` vẫn 6 thứ tiếng, và `/translate` trả
+  `"de is not supported"` — hỏng mà không có dấu hiệu nào. Đã bật `LT_UPDATE_MODELS`
+  ở cả hai compose. Danh sách này phải khớp `Translations.Targets`, khớp luôn cả danh
+  sách ngôn ngữ giao diện (`CatalogService.Languages`).
+- **Đừng tự dựng `CreditEntry` bằng tay.** `docs/01 TC-07` đóng dấu hạn dùng **lúc cấp**;
+  đường hoàn số dư khi huỷ đơn trong `BookingsController` tự `new CreditEntry` nên bỏ
+  qua bước đó, và số dư hoàn lại **không bao giờ hết hạn** dù cấu hình nói 12 tháng.
+  Giờ mọi dòng số dư đi qua `CreditLedger.Grant`, có test chặn.
 
 ---
 
@@ -166,20 +183,25 @@ docker exec stayhost-db psql -U stayhost -d stayhost -c "DROP SCHEMA public CASC
 thì API trả luôn mã trong `devCode`; đó cũng là điều kiện để
 `scripts/admin_acceptance.py` chạy được.
 
-### Bật máy dịch ở local (để thử phần dịch nội dung người dùng viết)
+### Máy dịch (`TĐ-03`, `TN-06`) — tự host, không cần khoá API
 
-Service `libretranslate` trong compose **không publish cổng**, mà Windows lại không
-gọi được thẳng IP nội bộ của container — nên chạy riêng một container có cổng:
+`docker compose up -d` đã kéo luôn `libretranslate` và trỏ app vào đó, nên bản chạy
+bằng compose **có sẵn nút "Dịch"**, không phải mua gì. Đủ **8 thứ tiếng**, đúng bằng
+danh sách giao diện cho chọn.
+
+Chạy app bằng `dotnet run` thì trỏ tay vào container (compose đã publish cổng 5555
+ở loopback):
 
 ```bash
-docker run -d --name stayhost-translate -p 5555:5000 \
-  -e LT_LOAD_ONLY="en,vi,zh,ko,ja,fr" -e LT_DISABLE_WEB_UI="true" \
-  -v stayhost_lt-models:/home/libretranslate/.local libretranslate/libretranslate:latest
+docker compose up -d libretranslate
+dotnet run --project src/StayHost.Web --urls http://localhost:5199
+# với Translation__Provider=libretranslate Translation__Url=http://localhost:5555
 ```
 
-Rồi chạy app với `Translation__Provider=libretranslate Translation__Url=http://localhost:5555`.
-Chưa cấu hình thì `/api/translate/config` trả `enabled:false` và giao diện **không đổi gì** —
-đó là mặc định đúng, không phải lỗi.
+Không cấu hình gì thì `/api/translate/config` trả `enabled:false` và giao diện **không
+đổi gì** — đó là mặc định đúng, không phải lỗi. Muốn chất lượng cao hơn thì đổi
+`Translation__Provider=google` + `Translation__ApiKey` (biến môi trường, không để trong
+`appsettings.json`).
 
 ### Thẻ thử nghiệm
 Mọi thẻ đều thành công, **trừ thẻ kết thúc `0000`** — thẻ đó luôn bị từ chối. Đó là cách
@@ -213,7 +235,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 934 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 936 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
@@ -237,8 +259,8 @@ docker exec stayhost-db psql -U stayhost -d stayhost -t \
 - **StayShield không bao giờ được gọi là bảo hiểm** (`docs/06 §11`). Mọi chữ hiển thị
   là "chính sách hỗ trợ". Có `Shield.ReadsAsInsurance` và test chặn từ ngữ này.
 - **`docs/PLAN.md §9` đã soát đủ cả 201 mã: 201 xong · 0 một phần · 0 chưa có**
-  (soát 07/08/2026, dọn nốt 10/08/2026). Việc còn lại **chờ khách quyết, không chờ
-  code**: `TĐ-03`/`TN-06` cần khoá API dịch thuật, `TC-07` cần chốt thời hạn số dư
+  (soát 07/08/2026, dọn nốt 10/08/2026). Hai việc từng "chờ khách quyết" đã xong
+  ngày 11/08/2026: `TĐ-03`/`TN-06` chạy bằng máy dịch tự host, `TC-07` chốt tham số
   ở `docs/07 §16`. Plan đã ba lần đếm lệch (hai lần bỏ sót việc thật, một lần kê
   tám mã đã xong vào bảng "làm một phần"), nên thêm mã mới thì sửa §9.1/§9.2 ngay
   lúc đó.
