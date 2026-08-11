@@ -186,7 +186,7 @@ function Results() {
   const title = state.q.trim()
     ? `${t('Chỗ ở')} · ${state.q.trim()}`
     : state.category !== 'all'
-      ? `${state.meta?.categories.find(c => c.key === state.category)?.label ?? ''} ${t('được yêu thích')}`
+      ? `${t(state.meta?.categories.find(c => c.key === state.category)?.label ?? '')} ${t('được yêu thích')}`
       : t('Chỗ nghỉ được yêu thích ở Việt Nam');
 
   const body = <>

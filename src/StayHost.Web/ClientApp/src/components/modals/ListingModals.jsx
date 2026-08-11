@@ -133,7 +133,10 @@ export function AmenitiesModal() {
     <Modal title={t('Nơi này có những gì')}>
       {Object.entries(groups).map(([group, items]) => (
         <section className="modal-section" key={group}>
-          <h3>{group}</h3>
+          {/* The group name is server data like the amenity labels beside it, so
+              it goes through the dictionary too — without this the headings stay
+              Vietnamese above a list that is not. */}
+          <h3>{t(group)}</h3>
           <div style={{ display: 'grid', gap: 2, marginTop: 12 }}>
             {[...items].sort((a, b) => Number(b.available) - Number(a.available)).map(a => (
               <div className={`amenity ${a.available ? '' : 'is-missing'}`} key={a.key}

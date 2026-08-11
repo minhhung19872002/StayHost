@@ -1946,6 +1946,8 @@ export default {
   "Kể thêm chuyện gì đã xảy ra, càng cụ thể càng dễ xử lý.": "무슨 일이 있었는지 더 알려 주세요. 구체적일수록 처리하기 쉽습니다.",
   "Gửi báo cáo": "신고 보내기",
   "Xem bản gốc": "원문 보기",
+  "Đang dịch…": "번역 중…",
+  "Dịch sang": "번역 언어",
   "Huỷ và hoàn tiền": "취소와 환불",
   "Tiền bạc": "돈 관련",
   "Vận hành": "운영",

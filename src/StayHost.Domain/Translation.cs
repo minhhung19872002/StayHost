@@ -7,12 +7,16 @@ namespace StayHost.Domain;
 /// docs/01 TĐ-03, TN-06 — machine translation of listing descriptions and chat
 /// messages.
 ///
-/// Off by default: with no provider configured the feature does not exist — the
-/// "Dịch" button never shows, exactly the rule the social-login buttons follow, so
-/// nothing offers an action that cannot run. `docs/07 §15.1`-style, the choice of
-/// provider (Google / DeepL / Azure) and paying for the key is the customer's, not
-/// a decision taken here. Filling <see cref="TranslationSettings.Provider"/> in
-/// switches it on; the machinery below already handles the rest.
+/// On wherever the app ships with its stack: both compose files run a LibreTranslate
+/// container and point the app at it, so translation costs nothing per character and
+/// needs no key from anybody. The paid providers stay available for a deployment that
+/// wants better output — Google needs Translation__ApiKey — but nothing waits on that
+/// decision.
+///
+/// Off is still a valid state, and it stays honest: with no provider configured the
+/// feature does not exist — the "Dịch" button never shows, exactly the rule the
+/// social-login buttons follow, so nothing offers an action that cannot run. A bare
+/// `dotnet run` is that state until Translation__Url points somewhere.
 /// </summary>
 public sealed record TranslationSettings
 {
@@ -45,7 +49,14 @@ public class TranslationCache
 /// <summary>docs/01 TĐ-03, TN-06 — the pure rules around translation.</summary>
 public static class Translations
 {
-    /// <summary>Target languages the UI may ask for. Codes match the spoken-language set.</summary>
+    /// <summary>
+    /// Target languages the UI may ask for. This must list every language the
+    /// interface itself offers (CatalogService.Languages): a reader who switched
+    /// the site to German and then finds descriptions untranslatable has been sold
+    /// half a feature, and the failure is silent — the endpoint refuses and the
+    /// page just shows the original. The engine's LT_LOAD_ONLY in docker-compose
+    /// carries the same list for the same reason.
+    /// </summary>
     public static readonly IReadOnlyList<(string Code, string Label)> Targets =
     [
         ("vi", "Tiếng Việt"),
@@ -53,7 +64,9 @@ public static class Translations
         ("zh", "中文"),
         ("ko", "한국어"),
         ("ja", "日本語"),
-        ("fr", "Français")
+        ("fr", "Français"),
+        ("de", "Deutsch"),
+        ("es", "Español")
     ];
 
     public static bool IsSupported(string? code) =>

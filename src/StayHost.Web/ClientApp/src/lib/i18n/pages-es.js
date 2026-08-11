@@ -1946,6 +1946,8 @@ export default {
   "Kể thêm chuyện gì đã xảy ra, càng cụ thể càng dễ xử lý.": "Cuéntanos más sobre lo que pasó: cuanto más concreto, más fácil será actuar.",
   "Gửi báo cáo": "Enviar la denuncia",
   "Xem bản gốc": "Ver el original",
+  "Đang dịch…": "Traduciendo…",
+  "Dịch sang": "Traducir al",
   "Huỷ và hoàn tiền": "Cancelaciones y reembolsos",
   "Tiền bạc": "Dinero",
   "Vận hành": "Operaciones",

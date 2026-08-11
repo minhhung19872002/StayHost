@@ -244,7 +244,7 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
     : state.q.trim()
       ? `${t('Chỗ ở')} · ${state.q.trim()}`
       : state.category !== 'all'
-        ? state.meta?.categories.find(c => c.key === state.category)?.label ?? t('Chỗ ở')
+        ? t(state.meta?.categories.find(c => c.key === state.category)?.label ?? 'Chỗ ở')
         : t('Mọi nơi');
 
   // The per-segment class carries the widths, so it belongs on both bars. Hanging

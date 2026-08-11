@@ -33,7 +33,11 @@ services:
     image: libretranslate/libretranslate:latest
     container_name: stayhost-translate
     environment:
-      LT_LOAD_ONLY: ${TRANSLATE_LANGS:-en,vi,zh,ko,ja,fr}
+      LT_LOAD_ONLY: ${TRANSLATE_LANGS:-en,vi,zh,ko,ja,fr,de,es}
+      # Models install on the volume's first run only, so without this a later
+      # change to TRANSLATE_LANGS is silently ignored — the engine stays healthy
+      # and answers "de is not supported".
+      LT_UPDATE_MODELS: "true"
       LT_DISABLE_WEB_UI: "true"
     volumes:
       - lt-models:/home/libretranslate/.local

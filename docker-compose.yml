@@ -21,13 +21,25 @@ services:
   # docs/01 TĐ-03, TN-06 — self-hosted translation. Free and unlimited: no API key,
   # no per-character cost. First start downloads the language models (a few minutes),
   # kept in a volume so later starts are fast. LT_LOAD_ONLY limits models to the
-  # languages the app offers, which keeps memory and startup down.
+  # languages the app offers, which keeps memory and startup down — it must stay in
+  # step with Translations.Targets, or a reader picks a language the engine cannot
+  # produce and silently gets the original back.
   libretranslate:
     image: libretranslate/libretranslate:latest
     container_name: stayhost-translate
     environment:
-      LT_LOAD_ONLY: "en,vi,zh,ko,ja,fr"
+      LT_LOAD_ONLY: "en,vi,zh,ko,ja,fr,de,es"
+      # Without this the models are installed on the volume's first run only, so
+      # adding a language to LT_LOAD_ONLY later changes nothing and the engine
+      # answers "de is not supported" while everything else looks healthy.
+      LT_UPDATE_MODELS: "true"
       LT_DISABLE_WEB_UI: "true"
+    # Published on loopback so `dotnet run` on the host can reach it too: Windows
+    # cannot route to a container IP, so without this the engine is reachable only
+    # from inside the compose network and local development has to run a second
+    # copy by hand. Run the app with Translation__Url=http://localhost:5555.
+    ports:
+      - "127.0.0.1:5555:5000"
     volumes:
       - lt-models:/home/libretranslate/.local
     healthcheck:

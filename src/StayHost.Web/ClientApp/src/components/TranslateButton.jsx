@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../lib/useStore.js';
 import { api } from '../lib/api.js';
+import { t } from '../lib/i18n.js';
 
 // docs/01 TĐ-03, TN-06 — the config is the same for everyone, so fetch it once
 // per page load and share it. Null while unknown; {enabled} once loaded.
@@ -21,21 +22,24 @@ export const translationEnabled = () => loadConfig().then(c => !!c.enabled);
  */
 export function TranslateButton({ text, className = 'translate-btn', style }) {
   const state = useStore();
-  const [enabled, setEnabled] = useState(false);
+  const [config, setConfig] = useState(null);
   const [shown, setShown] = useState(false);
   const [translated, setTranslated] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { loadConfig().then(c => setEnabled(!!c.enabled)); }, []);
+  useEffect(() => { loadConfig().then(setConfig); }, []);
 
-  if (!enabled || !text?.trim()) return null;
+  if (!config?.enabled || !text?.trim()) return null;
 
   // Translate into the viewer's language. When the interface is Vietnamese the
   // content usually is too, so a vi→vi call would show nothing — fall back to
   // English there so a tap always produces a visible result.
   const ui = state.language?.code || 'vi';
   const target = ui === 'vi' ? 'en' : ui;
-  const targetLabel = { en: 'English', zh: '中文', ko: '한국어', ja: '日本語', fr: 'Français' }[target] || target;
+  // The label comes from the server's own list rather than a copy kept here: a
+  // second list is a second thing to forget, and forgetting it shows the reader
+  // a raw language code.
+  const targetLabel = config.targets?.find(x => x.code === target)?.label || target;
 
   const toggle = async () => {
     if (shown) { setShown(false); return; }
@@ -53,7 +57,8 @@ export function TranslateButton({ text, className = 'translate-btn', style }) {
     <>
       <button type="button" className={className} style={style} onClick={toggle} disabled={busy}>
         <span aria-hidden="true">🌐</span>
-        {busy ? ' Đang dịch…' : shown ? ' Xem bản gốc' : ` Dịch sang ${targetLabel}`}
+        {' '}
+        {busy ? t('Đang dịch…') : shown ? t('Xem bản gốc') : `${t('Dịch sang')} ${targetLabel}`}
       </button>
       {shown && translated && (
         <div className="translated-text" style={{ marginTop: 6, whiteSpace: 'pre-wrap' }}>{translated}</div>

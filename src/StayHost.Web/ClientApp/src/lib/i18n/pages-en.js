@@ -2123,6 +2123,8 @@ export default {
     "Tell us more about what happened — the more specific, the easier to act on.",
   "Gửi báo cáo": "Send report",
   "Xem bản gốc": "Show original",
+  "Đang dịch…": "Translating…",
+  "Dịch sang": "Translate to",
   // Help centre categories, urgent topics and assistant actions.
   "Huỷ và hoàn tiền": "Cancellations & refunds",
   "Tiền bạc": "Money",

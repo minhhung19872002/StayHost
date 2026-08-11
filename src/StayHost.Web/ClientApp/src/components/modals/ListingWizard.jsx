@@ -264,7 +264,7 @@ function StepType({ form, field, meta }) {
       <div className="pill-row" style={{ marginTop: 14 }}>
         {(meta?.categories ?? []).filter(c => c.key !== 'all').map(c => (
           <button key={c.key} className={`pill ${form.typeKey === c.key ? 'is-on' : ''}`}
-                  onClick={() => field('typeKey', c.key)}>{c.label}</button>
+                  onClick={() => field('typeKey', c.key)}>{t(c.label)}</button>
         ))}
       </div>
     </section>
@@ -512,7 +512,7 @@ function StepAmenities({ form, setForm, meta }) {
   return <>
     {Object.entries(groups).map(([group, items]) => (
       <section className="modal-section" key={group}>
-        <h3>{group}</h3>
+        <h3>{t(group)}</h3>
         <div className="pill-row" style={{ marginTop: 14 }}>
           {items.map(a => (
             <button key={a.key} className={`pill ${form.amenityKeys.includes(a.key) ? 'is-on' : ''}`}
