@@ -143,6 +143,12 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   điển** — `TranslatedText.jsx` máy dịch tự động và ghi rõ "Đã dịch tự động".
 - **Coi chừng biến tên `t` che mất hàm dịch.** Đã gặp `const t = encodeURIComponent(...)`
   và `map(t => …)`; khi đó `t('…')` âm thầm chạy sai chứ không báo lỗi.
+- **Thiếu khoá dịch không báo lỗi ở đâu cả** — `t()` trả nguyên bản, console sạch,
+  test xanh, build xanh. Đó là lý do khách phải tự mắt tìm ra **năm đợt** liên tiếp.
+  Chạy `python scripts/i18n_audit.py` (phải ra **0**). Nó chỉ soát được literal;
+  `t(giá_trị_server)` thì phải mở trang bằng ngôn ngữ khác rồi tìm chữ còn dấu tiếng
+  Việt trong DOM. **Có component chưa từng import `t`** — `PhotoMosaic`,
+  `CardCarousel`, `Maps` đứng ngoài toàn bộ hệ dịch mà không ai biết.
 - **Chữ do server sinh phải bọc `t()` ở *mọi* chỗ render, không chỉ chỗ hay nhìn.**
   Khách báo hộp "Nơi này có những gì" hiện từng món bằng tiếng Nhật nhưng **tên nhóm**
   ("Tiện nghi", "Ngoài trời") vẫn tiếng Việt: `SearchModals` viết `t(group)`, còn
@@ -239,6 +245,7 @@ dotnet test tests/StayHost.Domain.Tests            # 936 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
+python scripts/i18n_audit.py                       # khoá dịch còn thiếu (phải ra 0)
 cd src/StayHost.Web/ClientApp && npm run build && npx oxlint src
 
 # Sổ sách phải luôn cân bằng: kết quả duy nhất chấp nhận được là 0
