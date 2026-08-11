@@ -829,6 +829,17 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
 
 .detail-map { height: 320px; border-radius: 16px; overflow: hidden; background: #e8e8e8; }
 
+/*
+ * Leaflet numbers its own layers high — panes at 400, controls at 1000 — and those
+ * numbers land in the root stacking context unless the map is given one of its own.
+ * The booking modal sits at 100, so without this the map paints straight over it and
+ * a guest pressing "Đặt chỗ ngay" gets a dialog with a map across the middle of it.
+ * `isolation` confines every descendant, the search-here buttons included, while
+ * leaving their order relative to each other alone.
+ */
+.detail-map,
+.split .split-map { isolation: isolate; z-index: 0; }
+
 /* --------------------------------------------------------- booking panel */
 .book-panel {
   display: flex; flex-direction: column; position: sticky; top: calc(var(--header-h) + 16px);

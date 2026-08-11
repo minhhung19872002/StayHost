@@ -92,7 +92,7 @@ export function Split() {
           </p>
           <div className="field-grid">
             <label className="form-field"><span className="cap">{t('Tên của bạn')}</span>
-              <input value={name} placeholder="Nguyễn Văn A" onChange={e => setName(e.target.value)} /></label>
+              <input value={name} placeholder={t('Nguyễn Văn A')} onChange={e => setName(e.target.value)} /></label>
             <label className="form-field"><span className="cap">{t('Số thẻ')}</span>
               <input id="split-card" inputMode="numeric" defaultValue="4242 4242 4242 4242" /></label>
           </div>

@@ -390,11 +390,11 @@ function StepTrip({ q }) {
       <h3>{t('Thông tin liên hệ')}</h3>
       <div style={{ marginTop: 14 }}>
         <label className="form-field"><span className="cap">{t('Họ tên')}</span>
-          <input type="text" placeholder="Nguyễn Văn A"
+          <input type="text" placeholder={t('Nguyễn Văn A')}
                  value={state.checkoutName || state.user?.fullName || ''}
                  onChange={e => set({ checkoutName: e.target.value })} /></label>
         <label className="form-field"><span className="cap">{t('Email')}</span>
-          <input type="email" placeholder="ban@email.com"
+          <input type="email" placeholder={t('ban@email.com')}
                  value={state.checkoutEmail || state.user?.email || ''}
                  onChange={e => set({ checkoutEmail: e.target.value })} /></label>
         <label className="form-field">
@@ -442,7 +442,7 @@ function CouponField({ q }) {
       <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
         <input id="coupon-code" value={code} disabled={busy}
                onChange={e => setCode(e.target.value.toUpperCase())}
-               placeholder="VD: CHAOMUNG10"
+               placeholder={t('VD: CHAOMUNG10')}
                style={{ flex: 1, padding: '11px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
         {q.couponApplied
           ? <button type="button" className="btn btn-outline btn-sm" onClick={clear}>{t('Bỏ mã')}</button>
@@ -546,7 +546,7 @@ function SplitChoice({ q }) {
       {state.splitBill && <div style={{ marginTop: 12 }}>
         <label className="form-field">
           <span className="cap">{t('Email những người cùng trả (cách nhau bằng dấu phẩy)')}</span>
-          <input value={emails} placeholder="an@vidu.vn, binh@vidu.vn"
+          <input value={emails} placeholder={t('an@vidu.vn, binh@vidu.vn')}
                  onChange={e => { setEmails(e.target.value); set({ splitEmails: e.target.value }); }} />
         </label>
         <p style={{ fontSize: 13, color: 'var(--ink-muted)', margin: 0, lineHeight: 1.6 }}>

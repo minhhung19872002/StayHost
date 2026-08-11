@@ -180,14 +180,20 @@ function Detail({ slug }) {
           <section className="detail-section">
             <h2>{t('Vé bao gồm')}</h2>
             <ul style={{ margin: 0, paddingLeft: 22, lineHeight: 1.9, color: 'var(--ink-body)' }}>
-              {x.included.map((i, k) => <li key={k}>{i}</li>)}
+              {/* What the host typed, not something the platform ships — so it goes
+                  the machine-translation way, like the house rules on a stay. */}
+              {x.included.map((i, k) => <li key={k}><TranslatedText as="span" text={i} /></li>)}
             </ul>
           </section>
 
           <section className="detail-section">
             <h2>{t('Cần biết')}</h2>
             <div className="kv-grid">
-              <Kv label={t('Điểm hẹn')} value={x.meetingPoint} />
+              {/* An address the host wrote. notice={false} because a "translated
+                  automatically" line inside a two-line key/value cell wrecks the
+                  grid; the description above already says it for the page. */}
+              <Kv label={t('Điểm hẹn')}
+                  value={<TranslatedText as="span" text={x.meetingPoint} notice={false} />} />
               <Kv label={t('Ngôn ngữ')} value={x.languages.join(', ')} />
               <Kv label={t('Độ tuổi')} value={x.minAge ? `${t('Từ')} ${x.minAge} ${t('tuổi')}` : t('Mọi lứa tuổi')} />
               <Kv label={t('Tối thiểu')} value={`${x.minGuests} ${t('người thì suất mới chạy')}`} />

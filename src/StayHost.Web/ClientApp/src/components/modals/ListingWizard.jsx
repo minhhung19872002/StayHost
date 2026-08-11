@@ -328,7 +328,7 @@ function CityPicker({ form, field, meta }) {
         <label className="form-field">
           <span className="cap">{t('Tên thành phố')}</span>
           <input value={form.city} onChange={e => field('city', e.target.value)}
-                 placeholder="Ví dụ: Buôn Ma Thuột" required />
+                 placeholder={t('Ví dụ: Buôn Ma Thuột')} required />
         </label>
       )}
     </section>
@@ -455,7 +455,11 @@ function StepBeds({ form, setForm }) {
           <div key={i} style={{ border: '1px solid var(--divider)', borderRadius: 12, padding: 14 }}>
             <label className="form-field" style={{ marginBottom: 10 }}>
               <span className="cap">{t('Tên phòng')}</span>
-              <input value={room.name}
+              {/* The default name is stored in Vietnamese on purpose — that is what
+                  lets every guest see it in their own language — so it is translated
+                  for display here rather than at the point it is generated. Typing
+                  over it replaces it with whatever the host actually calls the room. */}
+              <input value={t(room.name)}
                      onChange={e => update(rooms.map((r, x) => (x === i ? { ...r, name: e.target.value } : r)))} />
             </label>
 
@@ -517,7 +521,7 @@ function StepAmenities({ form, setForm, meta }) {
           {items.map(a => (
             <button key={a.key} className={`pill ${form.amenityKeys.includes(a.key) ? 'is-on' : ''}`}
                     onClick={() => toggle(a.key)}>
-              <AmenityIcon name={a.key} size={16} /> {a.label}
+              <AmenityIcon name={a.key} size={16} /> {t(a.label)}
             </button>
           ))}
         </div>
@@ -680,7 +684,7 @@ function StepWords({ form, field }) {
       <label className="form-field">
         <span className="cap">{t('Tiêu đề *')} <span style={{ fontWeight: 400 }}>({form.title.length}/60)</span></span>
         <input value={form.title} maxLength={60} onChange={e => field('title', e.target.value)}
-               placeholder="Villa hồ bơi riêng gần biển Mỹ Khê" required />
+               placeholder={t('Villa hồ bơi riêng gần biển Mỹ Khê')} required />
       </label>
     </section>
 
@@ -935,11 +939,13 @@ function StepCheckIn({ form, arrival }) {
 
       {needsCode && (
         <label className="form-field"><span className="cap">{t('Mã cửa / mã hộp khoá')}</span>
-          <input value={c.doorCode ?? ''} maxLength={40} placeholder="Ví dụ: 4207#"
+          <input value={c.doorCode ?? ''} maxLength={40} placeholder={t('Ví dụ: 4207#')}
                  onChange={e => arrival('doorCode', e.target.value)} /></label>
       )}
 
       <label className="form-field"><span className="cap">{t('Địa chỉ đầy đủ')}</span>
+        {/* A sample Vietnamese address, and the property is in Vietnam whoever the
+            host is — nothing here is language, so nothing here is translated. */}
         <input value={c.addressLine ?? ''} placeholder="123 Nguyễn Văn Linh, Hải Châu, Đà Nẵng"
                onChange={e => arrival('addressLine', e.target.value)} /></label>
 
@@ -957,7 +963,7 @@ function StepCheckIn({ form, arrival }) {
 
       <label className="form-field"><span className="cap">{t('Chỉ đường')}</span>
         <textarea rows={3} value={c.directions ?? ''}
-                  placeholder="Từ sân bay đi taxi khoảng 20 phút. Toà nhà ngay góc ngã tư, cổng sơn xanh."
+                  placeholder={t('Từ sân bay đi taxi khoảng 20 phút. Toà nhà ngay góc ngã tư, cổng sơn xanh.')}
                   onChange={e => arrival('directions', e.target.value)}
                   style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
       </label>
@@ -983,7 +989,7 @@ function StepLegal({ form, legal }) {
 
       <label className="form-field" style={{ marginTop: 14 }}>
         <span className="cap">{t('Số giấy phép kinh doanh lưu trú')} <span style={{ fontWeight: 400 }}>{t('(nếu khu vực yêu cầu)')}</span></span>
-        <input value={form.legal.licenseNumber ?? ''} placeholder="Ví dụ: 0312345678"
+        <input value={form.legal.licenseNumber ?? ''} placeholder={t('Ví dụ: 0312345678')}
                onChange={e => legal('licenseNumber', e.target.value)} />
       </label>
 
@@ -1002,7 +1008,7 @@ function StepLegal({ form, legal }) {
         <label className="form-field">
           <span className="cap">{t('Đặt ở đâu, ghi gì')}</span>
           <textarea rows={3} value={form.legal.securityCameraNote ?? ''}
-                    placeholder="Một camera ngoài cổng, chỉ quay lối vào, không có trong nhà."
+                    placeholder={t('Một camera ngoài cổng, chỉ quay lối vào, không có trong nhà.')}
                     onChange={e => legal('securityCameraNote', e.target.value)}
                     style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
         </label>

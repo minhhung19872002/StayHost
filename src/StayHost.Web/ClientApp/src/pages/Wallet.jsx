@@ -204,7 +204,7 @@ function Invite({ wallet, onDone }) {
       </p>
 
       <form onSubmit={invite} style={{ display: 'flex', gap: 10, maxWidth: 460, marginTop: 12, flexWrap: 'wrap' }}>
-        <input type="email" required value={email} placeholder="ban@vidu.vn"
+        <input type="email" required value={email} placeholder={t('ban@vidu.vn')}
                onChange={e => setEmail(e.target.value)}
                style={{ flex: 1, minWidth: 200, padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12 }} />
         <button className="btn btn-primary btn-sm" disabled={busy}>{t('Gửi lời mời')}</button>

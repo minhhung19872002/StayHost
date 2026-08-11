@@ -97,7 +97,7 @@ function InviteForm({ scopes, onDone }) {
       <form onSubmit={send} style={{ maxWidth: 560, marginTop: 16 }}>
         <div className="field-grid">
           <label className="form-field"><span className="cap">{t('Email người được mời')}</span>
-            <input type="email" required value={email} placeholder="ban@vidu.vn"
+            <input type="email" required value={email} placeholder={t('ban@vidu.vn')}
                    onChange={e => setEmail(e.target.value)} /></label>
           <label className="form-field"><span className="cap">{t('Áp dụng cho')}</span>
             <select value={listingId} onChange={e => setListingId(e.target.value)}>

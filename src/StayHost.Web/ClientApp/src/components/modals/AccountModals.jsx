@@ -61,13 +61,13 @@ export function AuthModal() {
         {isRegister && (
           <label className="form-field">
             <span className="cap">{t('Họ và tên')}</span>
-            <input type="text" name="fullName" autoComplete="name" placeholder="Nguyễn Văn A" required />
+            <input type="text" name="fullName" autoComplete="name" placeholder={t('Nguyễn Văn A')} required />
           </label>
         )}
         <label className="form-field">
           <span className="cap">{t('Email hoặc số điện thoại')}</span>
           <input type="text" name="identifier" autoComplete="username"
-                 placeholder="ban@email.com hoặc 0912 345 678" required />
+                 placeholder={t('ban@email.com hoặc 0912 345 678')} required />
         </label>
         <label className="form-field">
           <span className="cap">{t('Mật khẩu')}</span>
@@ -160,7 +160,7 @@ function ForgotModal() {
       <form onSubmit={submit}>
         <label className="form-field">
           <span className="cap">{t('Email')}</span>
-          <input type="email" name="email" autoComplete="email" placeholder="ban@email.com" required />
+          <input type="email" name="email" autoComplete="email" placeholder={t('ban@email.com')} required />
         </label>
         {state.authError && <div className="form-error">{state.authError}</div>}
         {state.resetLink ? <>
@@ -609,7 +609,7 @@ function ProfileForm() {
 
       <label className="form-field"><span className="cap">{t('Nghề nghiệp')}</span>
         <input type="text" name="occupation" defaultValue={u.occupation ?? ''}
-               placeholder="Kiến trúc sư" maxLength={80} /></label>
+               placeholder={t('Kiến trúc sư')} maxLength={80} /></label>
 
       <div className="form-field">
         <span className="cap">{t('Ngôn ngữ nói được')}</span>
@@ -657,7 +657,7 @@ function ProfileForm() {
       <div className="field-grid">
         <label className="form-field"><span className="cap">{t('Tên người liên hệ')}</span>
           <input type="text" name="emergencyContactName" defaultValue={u.emergencyContactName ?? ''}
-                 maxLength={80} placeholder="Nguyễn Văn A" /></label>
+                 maxLength={80} placeholder={t('Nguyễn Văn A')} /></label>
         <label className="form-field"><span className="cap">{t('Số điện thoại')}</span>
           <input type="tel" name="emergencyContactPhone" defaultValue={u.emergencyContactPhone ?? ''}
                  maxLength={80} placeholder="09xx xxx xxx" /></label>
@@ -1313,7 +1313,7 @@ function WorkEmailPanel({ codeLength }) {
   return (
     <div className="verify-row" style={{ flexWrap: 'wrap', gap: 8 }}>
       <input className="form-field" style={{ flex: 1, minWidth: 180 }} type="email"
-             placeholder="ban@congty.com.vn" value={email}
+             placeholder={t('ban@congty.com.vn')} value={email}
              onChange={e => setEmail(e.target.value)} />
       {stage === 'code' && (
         <input className="verify-code" inputMode="numeric" maxLength={codeLength}

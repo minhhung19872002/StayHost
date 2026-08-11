@@ -78,7 +78,7 @@ export function HostCalendarModal() {
         <form onSubmit={addRule} style={{ marginTop: 14 }}>
           <div className="field-grid">
             <label className="form-field" style={{ gridColumn: '1/-1' }}><span className="cap">{t('Tên đợt')}</span>
-              <input name="name" placeholder="Tết Nguyên đán" required /></label>
+              <input name="name" placeholder={t('Tết Nguyên đán')} required /></label>
             <label className="form-field"><span className="cap">{t('Từ ngày')}</span><input type="date" name="from" required /></label>
             <label className="form-field"><span className="cap">{t('Đến ngày')}</span><input type="date" name="to" required /></label>
             <label className="form-field"><span className="cap">{t('Giá mỗi đêm (₫)')}</span>

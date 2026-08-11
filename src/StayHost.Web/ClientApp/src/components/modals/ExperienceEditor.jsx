@@ -251,14 +251,14 @@ export function ExperienceEditor() {
         <label className="form-field">
           <span className="cap">{t('Tên trải nghiệm *')}</span>
           <input value={form.title} maxLength={80} onChange={e => field('title', e.target.value)}
-                 placeholder="Chèo kayak rừng dừa Bảy Mẫu lúc bình minh" required />
+                 placeholder={t('Chèo kayak rừng dừa Bảy Mẫu lúc bình minh')} required />
         </label>
         <div className="grid-2">
           <label className="form-field"><span className="cap">{t('Thành phố *')}</span>
             <input value={form.city} onChange={e => field('city', e.target.value)} placeholder="Hội An" required /></label>
           <label className="form-field"><span className="cap">{t('Điểm hẹn *')}</span>
             <input value={form.meetingPoint} onChange={e => field('meetingPoint', e.target.value)}
-                   placeholder="Bến thuyền Cẩm Thanh, cổng số 2" /></label>
+                   placeholder={t('Bến thuyền Cẩm Thanh, cổng số 2')} /></label>
         </div>
         <label className="form-field">
           <span className="cap">{t('Giới thiệu ngắn')}</span>
@@ -349,7 +349,7 @@ export function ExperienceEditor() {
             <div className="grid-2">
               <label className="form-field"><span className="cap">{t('Bảo hiểm trách nhiệm *')}</span>
                 <input value={form.insurancePolicy} onChange={e => field('insurancePolicy', e.target.value)}
-                       placeholder="Bảo Việt — hợp đồng TNDS 2026/0912" /></label>
+                       placeholder={t('Bảo Việt — hợp đồng TNDS 2026/0912')} /></label>
               <label className="form-field"><span className="cap">{t('Bảo hiểm hết hạn ngày')}</span>
                 <input type="date" value={form.insuranceExpiresOn}
                        onChange={e => field('insuranceExpiresOn', e.target.value)} /></label>

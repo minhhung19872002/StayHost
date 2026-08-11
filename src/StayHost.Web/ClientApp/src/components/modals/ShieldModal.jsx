@@ -169,7 +169,7 @@ export function ShieldModal() {
           </div>
           <div className="field-grid">
             <label className="form-field"><span className="cap">{t('Tên bên bị thiệt hại')}</span>
-              <input value={thirdParty.name} placeholder="Chị Lan, căn 704"
+              <input value={thirdParty.name} placeholder={t('Chị Lan, căn 704')}
                      onChange={e => setThirdParty(tp => ({ ...tp, name: e.target.value }))} /></label>
             <label className="form-field"><span className="cap">{t('Liên hệ')}</span>
               <input value={thirdParty.contact} placeholder={t('Số điện thoại hoặc email')}

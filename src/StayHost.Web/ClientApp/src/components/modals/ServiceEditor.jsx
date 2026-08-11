@@ -245,7 +245,7 @@ export function ServiceEditor() {
         <label className="form-field">
           <span className="cap">{t('Tên dịch vụ *')}</span>
           <input value={form.title} maxLength={80} onChange={e => field('title', e.target.value)}
-                 placeholder="Đầu bếp nấu bữa tối tại nhà" required />
+                 placeholder={t('Đầu bếp nấu bữa tối tại nhà')} required />
         </label>
         <div className="grid-2">
           <label className="form-field"><span className="cap">{t('Danh mục *')}</span>
@@ -409,7 +409,7 @@ export function ServiceEditor() {
           <label className="form-field">
             <span className="cap">{needsCertificate(form.category) ? t('Tên chứng chỉ *') : t('Tên chứng chỉ')}</span>
             <input value={form.certificateName} onChange={e => field('certificateName', e.target.value)}
-                   placeholder="Chứng nhận an toàn thực phẩm — số 2026/1187" /></label>
+                   placeholder={t('Chứng nhận an toàn thực phẩm — số 2026/1187')} /></label>
           <label className="form-field"><span className="cap">{t('Chứng chỉ hết hạn ngày')}</span>
             <input type="date" value={form.certificateExpiresOn}
                    onChange={e => field('certificateExpiresOn', e.target.value)} /></label>
@@ -469,7 +469,7 @@ function ServiceAddOns({ form, setForm }) {
       {form.addOns.map((a, i) => (
         <div className="grid-2" key={i} style={{ alignItems: 'end' }}>
           <label className="form-field"><span className="cap">{t('Tên tuỳ chọn')}</span>
-            <input value={a.name} maxLength={80} placeholder="Thực đơn hải sản"
+            <input value={a.name} maxLength={80} placeholder={t('Thực đơn hải sản')}
                    onChange={e => change(i, 'name', e.target.value)} /></label>
           <label className="form-field"><span className="cap">{t('Giá cộng thêm (₫)')}</span>
             <div style={{ display: 'flex', gap: 8 }}>

@@ -65,9 +65,9 @@ function Browse() {
                     {s.reviewCount ? `★ ${s.rating.toFixed(2)} (${s.reviewCount})` : `★ ${t('Mới')}`}
                   </div>
                 </div>
-                <div className="card-sub card-line">{s.city} · {s.pricingLabel}</div>
+                <div className="card-sub card-line">{s.city} · {t(s.pricingLabel)}</div>
                 <div className="card-price">
-                  <b>{money(s.basePrice)}</b> <span>/ {s.unit}</span>
+                  <b>{money(s.basePrice)}</b> <span>/ {t(s.unit)}</span>
                 </div>
                 <div className="card-perks card-line">
                   {s.travelsToGuest ? `${t('Tới tận nơi trong')} ${s.serviceRadiusKm} km` : t('Khách tới chỗ cung cấp')}
@@ -205,7 +205,7 @@ function Detail({ slug }) {
         <TranslatedText as="span" text={s.title} />
       </h1>
       <p className="section-sub">
-        {s.city} · {s.pricingLabel} · {s.durationMinutes} {t('phút')}
+        {s.city} · {t(s.pricingLabel)} · {s.durationMinutes} {t('phút')}
         {s.isPartner ? ` · ${t('do')} ${s.partnerName} ${t('thực hiện')}` : ''}
       </p>
 
@@ -229,7 +229,7 @@ function Detail({ slug }) {
                     value={`${t('Thêm')} ${money(s.travelFeePerKm)}/km, ${t('tối đa thêm')} ${s.maxTravelKm} km`} />
               )}
               <Kv label={t('Giờ nhận')} value={`${s.opensAtHour}:00 – ${s.closesAtHour}:00`} />
-              <Kv label={t('Nhận từ')} value={`${s.minQuantity} ${t('đến')} ${s.maxQuantity} ${s.unit}`} />
+              <Kv label={t('Nhận từ')} value={`${s.minQuantity} ${t('đến')} ${s.maxQuantity} ${t(s.unit)}`} />
               <Kv label={t('Đặt trước')} value={t('Ít nhất 4 giờ')} />
             </div>
             <p style={{ fontSize: 13.5, color: 'var(--ink-muted)', marginTop: 14, lineHeight: 1.6 }}>
@@ -241,7 +241,7 @@ function Detail({ slug }) {
         <aside className="book-panel">
           <div className="book-price">
             <span className="amount">{money(s.basePrice)}</span>
-            <span className="per">/ {s.unit}</span>
+            <span className="per">/ {t(s.unit)}</span>
           </div>
 
           <p className="cap" style={{ margin: '14px 0 8px' }}>{t('Chọn khung giờ')}</p>
@@ -259,7 +259,7 @@ function Detail({ slug }) {
 
           {s.pricing !== 'PerSession' && (
             <label className="form-field" style={{ marginTop: 14 }}>
-              <span className="cap">{t('Số')} {s.unit}</span>
+              <span className="cap">{t('Số')} {t(s.unit)}</span>
               <input type="number" min={s.minQuantity} max={s.maxQuantity} value={quantity}
                      onChange={e => setQuantity(Math.max(s.minQuantity,
                        Math.min(s.maxQuantity, Number(e.target.value) || s.minQuantity)))} />
@@ -278,7 +278,10 @@ function Detail({ slug }) {
                            onChange={e => setAddOnIds(ids => e.target.checked
                              ? [...ids, a.id]
                              : ids.filter(x => x !== a.id))} />
-                    <span style={{ flex: '1 1 auto' }}>{a.name}</span>
+                    {/* The provider named these add-ons themselves. */}
+                    <span style={{ flex: '1 1 auto' }}>
+                      <TranslatedText as="span" text={a.name} notice={false} />
+                    </span>
                     <b>+{money(a.price)}</b>
                   </label>
                 ))}
@@ -299,7 +302,9 @@ function Detail({ slug }) {
             <div className="book-alert" style={{ marginTop: 14 }}>
               <b>{t('Nơi thực hiện cần có')}</b>
               <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 13, lineHeight: 1.7, color: '#5c5c5c' }}>
-                {requirements.map(r => <li key={r}>{r}</li>)}
+                {requirements.map(r => (
+                  <li key={r}><TranslatedText as="span" text={r} notice={false} /></li>
+                ))}
               </ul>
               <label className="check-row" style={{ marginTop: 10, alignItems: 'flex-start' }}>
                 <input type="checkbox" checked={conditionsOk}
