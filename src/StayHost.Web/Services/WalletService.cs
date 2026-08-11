@@ -27,24 +27,17 @@ public class WalletService(StayHostDbContext db, NotificationService notificatio
     /// <summary>
     /// Adds a movement without saving; the caller commits it with the rest. A
     /// positive amount is a grant, so it picks up whatever lifetime its kind
-    /// carries — none at all, unless the customer has chosen one (docs/07 §15.1).
+    /// carries under docs/07 §16 — twelve months for the promotional kinds, none
+    /// for a gift card. The lifetime is stamped here, at the moment of the grant,
+    /// which is why changing the setting later cannot reach back and expire
+    /// balance a guest was already holding.
     /// </summary>
     public void Add(int userId, decimal amount, CreditReason reason, string memo, int? bookingId = null)
     {
         if (amount == 0) return;
 
-        var now = DateTime.UtcNow;
-
-        db.CreditEntries.Add(new CreditEntry
-        {
-            UserId = userId,
-            Amount = amount,
-            Reason = reason,
-            Memo = memo,
-            BookingId = bookingId,
-            CreatedAt = now,
-            ExpiresAt = amount > 0 ? CreditSettings.Current.ExpiryFor(reason, now) : null
-        });
+        db.CreditEntries.Add(
+            CreditLedger.Grant(userId, amount, reason, memo, DateTime.UtcNow, bookingId));
     }
 
     /// <summary>

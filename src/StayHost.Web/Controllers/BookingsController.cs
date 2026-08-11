@@ -922,14 +922,13 @@ public class BookingsController(
             var creditBack = Math.Min(booking.CreditUsed, Math.Max(0m, outcome.Amount - cashBack - netted));
             db.LedgerEntries.AddRange(Ledger.SettleRefundAsCredit(booking, creditBack, DateTime.UtcNow));
 
-            db.CreditEntries.Add(new CreditEntry
-            {
-                UserId = creditOwner,
-                Amount = booking.CreditUsed,
-                Reason = CreditReason.Returned,
-                Memo = $"Hoàn số dư đơn {booking.Reference}",
-                BookingId = booking.Id
-            });
+            // Through CreditLedger.Grant rather than straight onto the table:
+            // docs/01 TC-07 stamps a lifetime on a grant at the moment it is made,
+            // and the row this used to build by hand quietly skipped that — so
+            // returned balance never lapsed, whatever docs/07 §16 said.
+            db.CreditEntries.Add(CreditLedger.Grant(
+                creditOwner, booking.CreditUsed, CreditReason.Returned,
+                $"Hoàn số dư đơn {booking.Reference}", DateTime.UtcNow, booking.Id));
             booking.CreditUsed = 0;
         }
 

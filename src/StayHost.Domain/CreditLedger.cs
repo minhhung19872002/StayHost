@@ -3,17 +3,16 @@ namespace StayHost.Domain;
 /// <summary>
 /// docs/01 TC-07 — how long a grant of balance lasts before it lapses.
 ///
-/// Every value is null by default, which means "never lapses" and is exactly how
-/// the balance behaved before this existed. That default is deliberate:
-/// `docs/07 §15.1` lists the lifetime as a question for the customer, not a
-/// decision to be made here, and picking a number would be taking money off
-/// guests on nobody's authority. Filling one in is a configuration change; the
-/// machinery below already handles it.
+/// Null means "never lapses". The numbers themselves are not decided here — they
+/// come from `docs/07 §16`, which the customer settled on 11/08/2026 at twelve
+/// months for the three promotional kinds, and appsettings.json carries them.
+/// Expiry takes money off guests, so the number belongs where the decision is
+/// recorded rather than compiled in.
 ///
 /// A gift card is listed separately because it is the one grant somebody paid
 /// real money for. Expiring it is closer to keeping their payment than to
 /// retiring a promotion, so it stays on its own line rather than sharing a
-/// number with the others.
+/// number with the others — and §16 duly left it at "never".
 /// </summary>
 public sealed record CreditSettings
 {
@@ -70,6 +69,32 @@ public sealed record CreditLot(
 /// </summary>
 public static class CreditLedger
 {
+    /// <summary>
+    /// The one place a movement of balance is built.
+    ///
+    /// docs/01 TC-07 stamps a grant's lifetime at the moment it is made, so a
+    /// caller that hand-rolls the row instead skips it — and the balance then
+    /// never lapses, whatever `docs/07 §16` says. That is not hypothetical: the
+    /// refund path in BookingsController built its own row and returned balance
+    /// outlived every rule for it. Going through here is what makes the setting
+    /// mean the same thing everywhere.
+    ///
+    /// Only a positive amount carries an expiry; a spend or a sweep row is not a
+    /// grant and has nothing to lapse.
+    /// </summary>
+    public static CreditEntry Grant(
+        int userId, decimal amount, CreditReason reason, string memo, DateTime now, int? bookingId = null) =>
+        new()
+        {
+            UserId = userId,
+            Amount = amount,
+            Reason = reason,
+            Memo = memo,
+            BookingId = bookingId,
+            CreatedAt = now,
+            ExpiresAt = amount > 0 ? CreditSettings.Current.ExpiryFor(reason, now) : null
+        };
+
     /// <summary>
     /// What remains of each grant. Order is the order the grants were made.
     /// </summary>

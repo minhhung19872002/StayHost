@@ -4,10 +4,11 @@ namespace StayHost.Domain.Tests;
 /// docs/01 TC-07 and docs/07 §3 — balance that lapses, and the rule that spending
 /// takes from whatever lapses soonest.
 ///
-/// The lifetime itself is not decided here: docs/07 §15.1 leaves the number to the
-/// customer, and every setting ships unset. What is tested is that the machinery
-/// is right once one is chosen, and that with none chosen the balance behaves
-/// exactly as it did before any of this existed.
+/// The lifetime itself is not decided here — docs/07 §16 holds the numbers the
+/// customer settled and appsettings.json carries them. What is tested is that the
+/// machinery is right once one is chosen, and that an unset kind still behaves
+/// exactly as the balance did before any of this existed, because rows written
+/// then have no expiry to reason about.
 /// </summary>
 public class CreditLedgerTests
 {
@@ -47,6 +48,44 @@ public class CreditLedgerTests
         Assert.False(settings.NothingExpires);
         // Choosing one kind does not silently expire the others.
         Assert.Null(settings.ExpiryFor(CreditReason.GiftCard, Day1));
+    }
+
+    /* ---- every grant is built in one place, so none can skip its lifetime ---- */
+
+    [Fact]
+    public void A_grant_built_through_the_ledger_carries_the_lifetime_of_its_kind()
+    {
+        // The refund path in BookingsController used to build its own CreditEntry
+        // and so never stamped ExpiresAt: returned balance outlived docs/07 §16 no
+        // matter what was configured. Grant is the one door, and this is the lock.
+        var saved = CreditSettings.Current;
+        try
+        {
+            CreditSettings.Current = new CreditSettings { ReturnedMonths = 12, GiftCardMonths = null };
+
+            var returned = CreditLedger.Grant(1, 250_000m, CreditReason.Returned, "hoàn", Day1);
+            Assert.Equal(Day1.AddMonths(12), returned.ExpiresAt);
+
+            // A gift card was paid for with real money, so §16 leaves it alone.
+            var card = CreditLedger.Grant(1, 250_000m, CreditReason.GiftCard, "thẻ", Day1);
+            Assert.Null(card.ExpiresAt);
+        }
+        finally { CreditSettings.Current = saved; }
+    }
+
+    [Fact]
+    public void A_withdrawal_is_not_a_grant_and_has_nothing_to_lapse()
+    {
+        var saved = CreditSettings.Current;
+        try
+        {
+            CreditSettings.Current = new CreditSettings { GoodwillMonths = 12 };
+
+            // A spend row with an expiry would be double-counted by the sweep,
+            // which reads a lapsed date as "there is something left to retire".
+            Assert.Null(CreditLedger.Grant(1, -250_000m, CreditReason.Spent, "tiêu", Day1).ExpiresAt);
+        }
+        finally { CreditSettings.Current = saved; }
     }
 
     [Fact]

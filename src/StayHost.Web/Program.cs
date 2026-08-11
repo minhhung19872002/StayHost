@@ -11,10 +11,10 @@ var builder = WebApplication.CreateBuilder(args);
 var pricing = builder.Configuration.GetSection("Pricing").Get<PricingSettings>();
 if (pricing is not null) PricingSettings.Current = pricing;
 
-// docs/01 TC-07 — how long promotional balance lasts. Every value is unset by
-// default, meaning nothing expires, which is the behaviour the platform shipped
-// with; docs/07 §15.1 leaves the number to the customer. Filling one in here is
-// all it takes to switch expiry on.
+// docs/01 TC-07 — how long promotional balance lasts. docs/07 §16 settled the
+// numbers on 11/08/2026 (twelve months for what the platform gave away, no expiry
+// on a gift card) and appsettings.json carries them; an unset value still means
+// that kind never lapses.
 var credits = builder.Configuration.GetSection("Credits").Get<CreditSettings>();
 if (credits is not null) CreditSettings.Current = credits;
 
@@ -24,10 +24,11 @@ if (credits is not null) CreditSettings.Current = credits;
 var moderation = builder.Configuration.GetSection("Moderation").Get<ModerationSettings>();
 if (moderation is not null) ModerationSettings.Current = moderation;
 
-// docs/01 TĐ-03, TN-06 — machine translation. Off unless a provider is named:
-// with none, the "Dịch" button never shows, like the social-login buttons. The
-// customer picks the provider and pays for the key; the key arrives from the
-// environment as Translation__ApiKey, never appsettings.json.
+// docs/01 TĐ-03, TN-06 — machine translation. Both compose files run a
+// LibreTranslate container and set Translation__Provider, so a deployment has this
+// on without buying anything; a bare `dotnet run` has no provider named and the
+// "Dịch" button never shows, like the social-login buttons. A paid provider is
+// still an option — its key arrives as Translation__ApiKey, never appsettings.json.
 var translation = builder.Configuration.GetSection("Translation").Get<TranslationSettings>() ?? new();
 TranslationSettings.Current = translation;
 var translationKey = builder.Configuration["Translation:ApiKey"];

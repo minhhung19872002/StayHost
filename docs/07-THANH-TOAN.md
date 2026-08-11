@@ -331,10 +331,10 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
 | TT-A | Trả một phần: cách ngày nhận tối thiểu bao nhiêu ngày | 14 ngày | |
 | TT-B | Trả một phần: giá trị đơn tối thiểu | 5 triệu ₫ | |
 | TT-C | Chủ nhà mới bị giữ thêm bao nhiêu ngày | 3 ngày | |
-| TC-07a | Số dư bù đắp (Goodwill) hết hạn sau bao lâu | 12 tháng | |
-| TC-07b | Thưởng giới thiệu bạn hết hạn sau bao lâu | 12 tháng | |
-| TC-07c | Số dư hoàn lại khi huỷ đơn hết hạn sau bao lâu | 12 tháng | |
-| TC-07d | Thẻ quà tặng hết hạn sau bao lâu | **không hết hạn** — khách đã trả tiền thật cho nó | |
+| TC-07a | Số dư bù đắp (Goodwill) hết hạn sau bao lâu | 12 tháng | **12 tháng** (chốt 11/08/2026) |
+| TC-07b | Thưởng giới thiệu bạn hết hạn sau bao lâu | 12 tháng | **12 tháng** (chốt 11/08/2026) |
+| TC-07c | Số dư hoàn lại khi huỷ đơn hết hạn sau bao lâu | 12 tháng | **12 tháng** (chốt 11/08/2026) |
+| TC-07d | Thẻ quà tặng hết hạn sau bao lâu | **không hết hạn** — khách đã trả tiền thật cho nó | **không hết hạn** (chốt 11/08/2026) |
 | — | Chọn phương án pháp lý A, B hay C (§13) | A | |
 | — | Cổng thanh toán chính | | |
 | — | Có nhận khách quốc tế ngay từ đầu không? | không | |
