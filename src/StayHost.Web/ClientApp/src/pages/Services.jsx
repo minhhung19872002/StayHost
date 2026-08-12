@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { set, toast, shareListing } from '../lib/store.js';
 import { api } from '../lib/api.js';
@@ -10,6 +10,7 @@ import { Avatar } from '../components/Avatar.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { DetailMap } from '../components/Maps.jsx';
 import { Sheet } from '../components/modals/Sheet.jsx';
+import { FALLBACK_METHODS } from '../lib/payments.js';
 import { t } from '../lib/i18n.js';
 import { TranslatedText } from '../components/TranslatedText.jsx';
 
@@ -143,24 +144,36 @@ const MINIMUM_NOTICE_MS = 4 * 3600_000;
 /** How far ahead the rail and the month grid look. */
 const HORIZON_DAYS = 30;
 
-/** Two-hour steps inside the provider's working day, for the next month. */
+/**
+ * How far apart two start times are offered. Half an hour, not two: a provider
+ * open 9:00–18:00 has eighteen ways to fit a job into their day and the picker
+ * used to offer five of them, so a guest who wanted 10:30 was told to come at
+ * 10:00 or 12:00. Consecutive offers overlap — the diary decides which of them
+ * survives, not the grid.
+ */
+const STEP_MINUTES = 30;
+
+/** Every half-hour a job could start inside the working day, for the next month. */
 function slotsFor(detail) {
   const out = [];
   const now = new Date();
   const earliest = now.getTime() + MINIMUM_NOTICE_MS;
+  const closes = detail.closesAtHour * 60;
 
-  for (let day = 0; day < HORIZON_DAYS; day++) {
-    for (let hour = detail.opensAtHour; hour < detail.closesAtHour; hour += 2) {
-      const at = new Date(now);
-      at.setDate(at.getDate() + day);
-      at.setHours(hour, 0, 0, 0);
+  for (let d = 0; d < HORIZON_DAYS; d++) {
+    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d);
+    // A day the provider does not work at all never becomes a slot to click.
+    if (!worksOn(detail, dayStart)) continue;
+
+    // The job has to finish before closing, counted in minutes rather than
+    // whole hours: a 90-minute job starting at 16:30 ends at 18:00, and reading
+    // that as "hour 18" made it look like it ran past a 18:00 close.
+    for (let m = detail.opensAtHour * 60; m + detail.durationMinutes <= closes; m += STEP_MINUTES) {
+      const at = new Date(dayStart.getTime());
+      at.setMinutes(m);
       if (at.getTime() < earliest) continue;
-      // A day the provider does not work at all never becomes a slot to click.
-      if (!worksOn(detail, at)) continue;
 
       const ends = new Date(at.getTime() + detail.durationMinutes * 60000);
-      if (ends.getHours() > detail.closesAtHour && ends.getHours() !== 0) continue;
-
       const taken = detail.busy.some(b => at < new Date(b.to) && new Date(b.from) < ends);
       out.push({ at, ends, taken });
     }
@@ -200,22 +213,14 @@ const DOW_NARROW = () => {
 const mondayIndex = date => (date.getDay() + 6) % 7;
 
 function Detail({ slug }) {
-  const state = useStore();
   const navigate = useNavigate();
   const [s, setS] = useState(null);
   const [missing, setMissing] = useState(false);
   const [when, setWhen] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [address, setAddress] = useState('');
-  const [note, setNote] = useState('');
-  // docs/09 §3.3 — the paid extras ticked (MR-S-03) and the guest's word that the
-  // place has what the job needs (MR-S-07). Both travel with the quote as well as
-  // the booking: an extra changes the price, and an unconfirmed condition is the
-  // very thing that makes the job unbookable.
+  // docs/09 §3.3 (MR-S-03) — the paid extras ticked, from the cards on the page
+  // or from the dialog; both write here and both carry through to checkout.
   const [addOnIds, setAddOnIds] = useState([]);
-  const [conditionsOk, setConditionsOk] = useState(false);
-  const [quote, setQuote] = useState(null);
-  const [busy, setBusy] = useState(false);
   const [booking, setBooking] = useState(false);
 
   const load = () => api.service(slug).then(d => {
@@ -224,21 +229,6 @@ function Detail({ slug }) {
   }).catch(() => setMissing(true));
 
   useEffect(() => { load(); }, [slug]);
-
-  useEffect(() => {
-    if (!s || !when) { setQuote(null); return; }
-    // The address decides whether the provider will come at all, so it is part
-    // of the quote rather than something checked at the end (docs/01 MR-05).
-    api.quoteService(s.id, {
-      startsAt: when.toISOString(),
-      quantity,
-      address: address.trim() || null,
-      latitude: s.latitude + 0.01,
-      longitude: s.longitude + 0.01,
-      addOnIds,
-      conditionsConfirmed: conditionsOk
-    }).then(setQuote).catch(e => toast(e.message));
-  }, [s, when, quantity, address, addOnIds, conditionsOk]);
 
   if (missing) {
     return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
@@ -250,25 +240,16 @@ function Detail({ slug }) {
   if (!s) return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
     <div className="stat skeleton" style={{ height: 300, border: 0 }} /></div>;
 
-  const book = async () => {
-    if (!state.user) { set({ authMode: 'login', authError: null, overlay: 'login' }); return; }
-    setBusy(true);
-    try {
-      const b = await api.bookService(s.id, {
-        startsAt: when.toISOString(),
-        quantity,
-        address: address.trim() || null,
-        latitude: s.latitude + 0.01,
-        longitude: s.longitude + 0.01,
-        note: note.trim() || null,
-        paymentMethod: 'card',
-        cardLast4: '4242',
-        addOnIds,
-        conditionsConfirmed: conditionsOk
-      });
-      toast(`${t('Đã đặt — mã')} ${b.reference}`);
-      navigate('/services/bookings');
-    } catch (err) { toast(err.message); } finally { setBusy(false); }
+  /*
+   * Choosing an hour ends the dialog and opens the checkout page, the way
+   * Airbnb's "Show dates" ends at Confirm and pay. The choice travels in the
+   * address bar rather than in router state so a reload, a back button or a
+   * pasted link all land on the same booking instead of an empty page.
+   */
+  const toCheckout = () => {
+    const q = new URLSearchParams({ at: when.toISOString(), qty: String(quantity) });
+    if (addOnIds.length) q.set('addons', addOnIds.join(','));
+    navigate(`/services/${slug}/thanh-toan?${q}`);
   };
 
   const addOns = s.addOns ?? [];
@@ -276,7 +257,6 @@ function Detail({ slug }) {
   // guest has said the place meets them; that answer is what makes §3.6's "khai
   // sai điều kiện" rule fair, so it is a tick of its own, not fine print.
   const requirements = s.onSiteRequirements ?? [];
-  const conditionsPending = requirements.length > 0 && !conditionsOk;
   const cover = s.images[0];
   const category = t(CATEGORY_LABEL[s.category] ?? 'Dịch vụ');
 
@@ -524,13 +504,7 @@ function Detail({ slug }) {
         <BookingSheet
           service={s} slots={slotsFor(s)} when={when} onPick={setWhen}
           quantity={quantity} setQuantity={setQuantity}
-          address={address} setAddress={setAddress}
-          note={note} setNote={setNote}
-          addOnIds={addOnIds} toggleAddOn={toggleAddOn}
-          requirements={requirements} conditionsOk={conditionsOk} setConditionsOk={setConditionsOk}
-          quote={quote} busy={busy}
-          blocked={conditionsPending || (!!s.requiredNote && !note.trim())}
-          onBook={book} onClose={() => setBooking(false)} />
+          onContinue={toCheckout} onClose={() => setBooking(false)} />
       )}
     </div>
   );
@@ -544,13 +518,16 @@ function Detail({ slug }) {
  * a taller list would have pushed the price off the screen.
  */
 function BookingSheet({
-  service: s, slots, when, onPick, quantity, setQuantity, address, setAddress,
-  note, setNote, addOnIds, toggleAddOn, requirements, conditionsOk, setConditionsOk,
-  quote, busy, blocked, onBook, onClose
+  service: s, slots, when, onPick, quantity, setQuantity, onContinue, onClose
 }) {
-  // 'when' is the picker; 'calendar' is the month grid behind the calendar
-  // button, which is a separate view of the same choice rather than a popover —
-  // a month grid inside a scrolling dialog has nowhere to hang.
+  /*
+   * Two views of one choice: 'when' is guests, a day and an hour and nothing
+   * else, and 'calendar' is the month grid behind the calendar button — a
+   * separate view rather than a popover, because a month grid inside a
+   * scrolling dialog has nowhere to hang. Everything that only matters once an
+   * hour exists — the address, the extras, the bill, the card — lives on the
+   * checkout page this hands over to.
+   */
   const [pane, setPane] = useState('when');
   const [chosenDay, setChosenDay] = useState(null);
 
@@ -592,29 +569,27 @@ function BookingSheet({
   };
 
   const daySlots = day ? (byDay.get(dayKey(day)) ?? []) : [];
-  const addOns = s.addOns ?? [];
   const anyRoom = rail.some(hasRoom);
 
+  const foot = pane === 'calendar'
+    ? <button className="btn btn-dark" style={{ width: '100%' }}
+              onClick={() => setPane('when')}>{t('Tiếp tục')}</button>
+    : <>
+        <span>
+          {when
+            ? <><b style={{ fontSize: 16 }}>{money(s.basePrice)}</b>{' '}
+                <span style={{ color: 'var(--ink-muted)', fontSize: 13 }}>/ {t(s.unit)}</span></>
+            : <span style={{ color: 'var(--ink-muted)', fontSize: 13.5 }}>
+                {t('Chọn một khung giờ để tiếp tục.')}
+              </span>}
+        </span>
+        <button className="btn btn-primary" disabled={!when} onClick={onContinue}>
+          {t('Tiếp tục')}
+        </button>
+      </>;
+
   return (
-    <Sheet title={t('Chọn khung giờ')} onClose={onClose}
-           foot={pane === 'calendar'
-             ? <button className="btn btn-dark" style={{ width: '100%' }}
-                       onClick={() => setPane('when')}>{t('Tiếp tục')}</button>
-             : <>
-                 <span>
-                   {quote
-                     ? <><b style={{ fontSize: 16 }}>{money(quote.total)}</b>{' '}
-                         <span style={{ color: 'var(--ink-muted)', fontSize: 13 }}>{t('tổng cộng')}</span></>
-                     : <span style={{ color: 'var(--ink-muted)', fontSize: 13.5 }}>
-                         {t('Chọn một khung giờ để xem giá.')}
-                       </span>}
-                 </span>
-                 <button className="btn btn-primary"
-                         disabled={busy || !quote || !quote.canBook || blocked}
-                         onClick={onBook}>
-                   {busy ? t('Đang xử lý…') : t('Đặt dịch vụ')}
-                 </button>
-               </>}>
+    <Sheet title={t(pane === 'calendar' ? 'Chọn ngày' : 'Chọn khung giờ')} onClose={onClose} foot={foot}>
       {pane === 'calendar' ? (
         <MonthGrid rail={rail} day={day} hasRoom={hasRoom} onPick={pickDay} />
       ) : <>
@@ -698,85 +673,292 @@ function BookingSheet({
             ) : <p className="slot-empty">{t('Ngày này không còn giờ trống.')}</p>}
           </>}
         </> : <p className="slot-empty">{t('Tháng tới chưa có khung giờ nào trống.')}</p>}
-
-      {when && <>
-        {/* docs/09 §3.3 (MR-S-03) — each extra is priced on its own and shows up
-            as its own line on the quote, so nothing grows quietly. */}
-        {!!addOns.length && (
-          <div className="modal-section" style={{ marginTop: 22 }}>
-            <h3>{t('Tuỳ chọn thêm')}</h3>
-            <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-              {addOns.map(a => (
-                <label className="check-row" key={a.id}>
-                  <input type="checkbox" checked={addOnIds.includes(a.id)}
-                         onChange={() => toggleAddOn(a.id)} />
-                  <span style={{ flex: '1 1 auto' }}>
-                    <TranslatedText as="span" text={a.name} notice={false} />
-                  </span>
-                  <b>+{money(a.price)}</b>
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {s.travelsToGuest && (
-          <label className="form-field" style={{ marginTop: 18 }}>
-            <span className="cap">{t('Địa chỉ thực hiện')}</span>
-            <input value={address} placeholder={t('Số nhà, đường, phường')}
-                   onChange={e => setAddress(e.target.value)} />
-          </label>
-        )}
-
-        {/* docs/09 §3.3 (MR-S-07) — the provider turns up expecting these. */}
-        {!!requirements.length && (
-          <div className="book-alert" style={{ marginTop: 14 }}>
-            <b>{t('Nơi thực hiện cần có')}</b>
-            <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 13, lineHeight: 1.7, color: '#5c5c5c' }}>
-              {requirements.map(r => (
-                <li key={r}><TranslatedText as="span" text={r} notice={false} /></li>
-              ))}
-            </ul>
-            <label className="check-row" style={{ marginTop: 10, alignItems: 'flex-start' }}>
-              <input type="checkbox" checked={conditionsOk}
-                     onChange={e => setConditionsOk(e.target.checked)} />
-              <span style={{ fontSize: 13, lineHeight: 1.5 }}>
-                {t('Tôi xác nhận nơi thực hiện có đủ những điều kiện trên.')}
-              </span>
-            </label>
-            <span style={{ fontSize: 12.5, marginTop: 6, display: 'block', color: '#5c5c5c', lineHeight: 1.5 }}>
-              {t('Khai sai điều kiện thì nhà cung cấp vẫn được nhận 50% giá trị đơn.')}
-            </span>
-          </div>
-        )}
-
-        <label className="form-field" style={{ marginTop: 14 }}>
-          <span className="cap">
-            {s.requiredNote
-              ? <>{t(s.requiredNote)} <span style={{ color: 'var(--danger, #c0392b)' }}>*</span></>
-              : <>{t('Ghi chú')} <span style={{ fontWeight: 400 }}>{t('(không bắt buộc)')}</span></>}
-          </span>
-          <input value={note} placeholder={s.requiredNote ? t(s.requiredNote) : t('Có người dị ứng hải sản…')}
-                 onChange={e => setNote(e.target.value)} />
-          {s.requiredNote && !note.trim() &&
-            <span className="hint" style={{ color: 'var(--ink-muted)', fontSize: 13 }}>
-              {t('Dịch vụ này bắt buộc điền thông tin trên trước khi đặt.')}</span>}
-        </label>
-
-        {quote && <>
-          <div className="book-lines" style={{ marginTop: 18 }}>
-            {quote.lines.map(l => (
-              <div className="book-line" key={l.key}><span>{t(l.label)}</span><b>{money(l.amount)}</b></div>
-            ))}
-            <div className="book-line is-total"><span>{t('Tổng')}</span><b>{money(quote.total)}</b></div>
-          </div>
-
-          {!quote.canBook &&
-            <div className="book-alert is-error"><b>{t('Chưa đặt được')}</b><span>{quote.reason}</span></div>}
-        </>}
-      </>}
       </>}
     </Sheet>
+  );
+}
+
+/**
+ * docs/09 §3.5 and docs/07 §2 — "Xác nhận và thanh toán", a page of its own the
+ * way Airbnb ends its picker on one. Three numbered steps down the left and the
+ * booking itself pinned on the right, so what is being paid for stays in sight
+ * while the address and the card are filled in.
+ *
+ * The choice arrives in the query string rather than in router state: a reload,
+ * a back button and a pasted link then all land on the same booking instead of
+ * an empty page.
+ */
+export function ServiceCheckout() {
+  const { slug } = useParams();
+  const [params] = useSearchParams();
+  const state = useStore();
+  const navigate = useNavigate();
+
+  const [s, setS] = useState(null);
+  const [missing, setMissing] = useState(false);
+  const [address, setAddress] = useState('');
+  const [note, setNote] = useState('');
+  const [conditionsOk, setConditionsOk] = useState(false);
+  const [addOnIds, setAddOnIds] = useState(
+    (params.get('addons') ?? '').split(',').map(Number).filter(Boolean));
+  const [quote, setQuote] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [methods, setMethods] = useState(FALLBACK_METHODS);
+  const [cards, setCards] = useState([]);
+
+  const at = params.get('at');
+  const when = at ? new Date(at) : null;
+  const quantity = Math.max(1, Number(params.get('qty')) || 1);
+
+  useEffect(() => {
+    api.service(slug).then(setS).catch(() => setMissing(true));
+    // docs/07 §2 — the list is the server's, so this page and the saved-methods
+    // screen cannot disagree about what StayHost takes. The balance has its own
+    // control on a stay and none here, so it is not a method to pick.
+    api.paymentCatalogue()
+      .then(d => setMethods(d.methods.filter(m => m.key !== 'balance')))
+      .catch(() => { /* the §2.1 group is the fallback either way */ });
+    api.savedCards().then(setCards).catch(() => setCards([]));
+  }, [slug]);
+
+  useEffect(() => {
+    if (!s || !when) return;
+    // The address decides whether the provider will come at all, so it is part
+    // of the quote rather than something checked at the end (docs/01 MR-05).
+    api.quoteService(s.id, {
+      startsAt: when.toISOString(),
+      quantity,
+      address: address.trim() || null,
+      latitude: s.latitude + 0.01,
+      longitude: s.longitude + 0.01,
+      addOnIds,
+      conditionsConfirmed: conditionsOk
+    }).then(setQuote).catch(e => toast(e.message));
+    // `when` is `at` parsed, so the string covers it and the object would only
+    // re-run this on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s, at, quantity, address, addOnIds, conditionsOk]);
+
+  if (missing || (at && Number.isNaN(when?.getTime()))) {
+    return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
+      <div className="empty-state"><h3>{t('Không tìm thấy dịch vụ này')}</h3>
+        <button className="btn btn-primary" style={{ marginTop: 18 }}
+                onClick={() => navigate('/services')}>{t('Xem tất cả')}</button></div></div>;
+  }
+
+  if (!s || !when) return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
+    <div className="stat skeleton" style={{ height: 320, border: 0 }} /></div>;
+
+  const addOns = s.addOns ?? [];
+  const requirements = s.onSiteRequirements ?? [];
+  const usable = cards.filter(c => !c.isExpired);
+  const ends = new Date(when.getTime() + s.durationMinutes * 60000);
+  const blocked = (requirements.length > 0 && !conditionsOk)
+    || (!!s.requiredNote && !note.trim());
+
+  const toggleAddOn = id =>
+    setAddOnIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]);
+
+  const book = async () => {
+    if (!state.user) { set({ authMode: 'login', authError: null, overlay: 'login' }); return; }
+    setBusy(true);
+    try {
+      // docs/07 §2 and §4 — whatever the guest picked above: a saved card keeps
+      // its own last four, a freshly typed one is read off the field. Sending
+      // "card / 4242" regardless would make the whole step decoration.
+      const typed = document.getElementById('svc-card-number')?.value?.replace(/\D/g, '') ?? '';
+      const b = await api.bookService(s.id, {
+        startsAt: when.toISOString(),
+        quantity,
+        address: address.trim() || null,
+        latitude: s.latitude + 0.01,
+        longitude: s.longitude + 0.01,
+        note: note.trim() || null,
+        paymentMethod: state.payMethod ?? 'card',
+        cardLast4: state.payCardLast4 ?? (typed.length >= 4 ? typed.slice(-4) : null),
+        addOnIds,
+        conditionsConfirmed: conditionsOk
+      });
+      toast(`${t('Đã đặt — mã')} ${b.reference}`);
+      navigate('/services/bookings');
+    } catch (err) { toast(err.message); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="shell" style={{ paddingBlock: '26px 90px' }}>
+      <button className="back-link" onClick={() => navigate(`/services/${slug}`)}>
+        ← {t('Quay lại')}
+      </button>
+      <h1 className="section-title" style={{ marginTop: 10 }}>{t('Xác nhận và thanh toán')}</h1>
+
+      <div className="trip-layout">
+        <div style={{ minWidth: 0, display: 'grid', gap: 16 }}>
+          <section className="pay-step">
+            <h2><i>1</i> {t('Thông tin buổi làm')}</h2>
+
+            {s.travelsToGuest && (
+              <label className="form-field">
+                <span className="cap">{t('Địa chỉ thực hiện')}</span>
+                <input value={address} placeholder={t('Số nhà, đường, phường')}
+                       onChange={e => setAddress(e.target.value)} />
+              </label>
+            )}
+
+            {/* docs/09 §3.3 (MR-S-03) — each extra is priced on its own and shows
+                up as its own line on the bill, so nothing grows quietly. */}
+            {!!addOns.length && (
+              <div style={{ marginTop: 14 }}>
+                <span className="cap">{t('Tuỳ chọn thêm')}</span>
+                <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+                  {addOns.map(a => (
+                    <label className="check-row" key={a.id}>
+                      <input type="checkbox" checked={addOnIds.includes(a.id)}
+                             onChange={() => toggleAddOn(a.id)} />
+                      <span style={{ flex: '1 1 auto' }}>
+                        <TranslatedText as="span" text={a.name} notice={false} />
+                      </span>
+                      <b>+{money(a.price)}</b>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* docs/09 §3.3 (MR-S-07) — the provider turns up expecting these. */}
+            {!!requirements.length && (
+              <div className="book-alert" style={{ marginTop: 14 }}>
+                <b>{t('Nơi thực hiện cần có')}</b>
+                <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 13, lineHeight: 1.7, color: '#5c5c5c' }}>
+                  {requirements.map(r => (
+                    <li key={r}><TranslatedText as="span" text={r} notice={false} /></li>
+                  ))}
+                </ul>
+                <label className="check-row" style={{ marginTop: 10, alignItems: 'flex-start' }}>
+                  <input type="checkbox" checked={conditionsOk}
+                         onChange={e => setConditionsOk(e.target.checked)} />
+                  <span style={{ fontSize: 13, lineHeight: 1.5 }}>
+                    {t('Tôi xác nhận nơi thực hiện có đủ những điều kiện trên.')}
+                  </span>
+                </label>
+                <span style={{ fontSize: 12.5, marginTop: 6, display: 'block', color: '#5c5c5c', lineHeight: 1.5 }}>
+                  {t('Khai sai điều kiện thì nhà cung cấp vẫn được nhận 50% giá trị đơn.')}
+                </span>
+              </div>
+            )}
+
+            <label className="form-field" style={{ marginTop: 14 }}>
+              <span className="cap">
+                {s.requiredNote
+                  ? <>{t(s.requiredNote)} <span style={{ color: 'var(--danger, #c0392b)' }}>*</span></>
+                  : <>{t('Ghi chú')} <span style={{ fontWeight: 400 }}>{t('(không bắt buộc)')}</span></>}
+              </span>
+              <input value={note} placeholder={s.requiredNote ? t(s.requiredNote) : t('Có người dị ứng hải sản…')}
+                     onChange={e => setNote(e.target.value)} />
+              {s.requiredNote && !note.trim() &&
+                <span className="hint" style={{ color: 'var(--ink-muted)', fontSize: 13 }}>
+                  {t('Dịch vụ này bắt buộc điền thông tin trên trước khi đặt.')}</span>}
+            </label>
+          </section>
+
+          {/* docs/07 §2 — the same choice a stay offers, from the same catalogue. */}
+          <section className="pay-step">
+            <h2><i>2</i> {t('Cách thanh toán')}</h2>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {methods.map(m => (
+                <button type="button" key={m.key}
+                        className={`opt ${state.payMethod === m.key ? 'is-on' : ''}`}
+                        onClick={() => set({ payMethod: m.key })}>
+                  <b>{t(m.label)}</b><span>{t(m.hint)}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* docs/07 §4 — a guest who has saved a card should not retype it. */}
+            {state.payMethod === 'card' && !!usable.length && (
+              <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
+                <span className="cap">{t('Thẻ đã lưu')}</span>
+                {usable.map(c => (
+                  <button type="button" key={c.id}
+                          className={`opt ${state.payCardId === c.id ? 'is-on' : ''}`}
+                          onClick={() => set({ payCardId: c.id, payCardLast4: c.last4 })}>
+                    <b>{c.brandLabel} •••• {c.last4}</b><span>{t('Hết hạn')} {c.expiry}</span>
+                  </button>
+                ))}
+                <button type="button" className={`opt ${state.payCardId ? '' : 'is-on'}`}
+                        onClick={() => set({ payCardId: null, payCardLast4: null })}>
+                  <b>{t('Dùng thẻ khác')}</b><span>{t('Nhập số thẻ bên dưới')}</span>
+                </button>
+              </div>
+            )}
+
+            {state.payMethod === 'card' && !state.payCardId && <>
+              <div className="field-grid" style={{ marginTop: 18 }}>
+                <label className="form-field" style={{ gridColumn: '1/-1' }}>
+                  <span className="cap">{t('Số thẻ')}</span>
+                  <input id="svc-card-number" inputMode="numeric" placeholder="4242 4242 4242 4242"
+                         defaultValue="4242 4242 4242 4242" /></label>
+                <label className="form-field"><span className="cap">{t('Hết hạn')}</span>
+                  <input id="svc-card-exp" placeholder="12/28" defaultValue="12/28" /></label>
+                <label className="form-field"><span className="cap">CVV</span>
+                  <input id="svc-card-cvv" inputMode="numeric" placeholder="123" defaultValue="123" /></label>
+              </div>
+              <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.5 }}>
+                {t('Bản demo dùng thẻ thử nghiệm, không có giao dịch thật nào được thực hiện.')}
+              </p>
+            </>}
+          </section>
+
+          <section className="pay-step">
+            <h2><i>3</i> {t('Xem lại và xác nhận')}</h2>
+            {quote && !quote.canBook &&
+              <div className="book-alert is-error" style={{ marginTop: 0 }}>
+                <b>{t('Chưa đặt được')}</b><span>{quote.reason}</span>
+              </div>}
+            <p className="svc-safe" style={{ marginBottom: 14 }}>
+              {t('Trước 72 giờ hoàn 100%, trước 24 giờ hoàn 50%, sát giờ không hoàn.')}
+            </p>
+            <button className="btn btn-primary" style={{ width: '100%' }}
+                    disabled={busy || !quote || !quote.canBook || blocked}
+                    onClick={book}>
+              {busy ? t('Đang xử lý…') : t('Xác nhận và thanh toán')}
+            </button>
+          </section>
+        </div>
+
+        {/* What is being paid for, pinned while the forms are filled in. */}
+        <aside className="receipt">
+          <div className="receipt-head">
+            {!!s.images.length && (
+              <img src={s.images[0]} alt="" loading="lazy" decoding="async"
+                   style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 12, flex: '0 0 auto' }} />
+            )}
+            <div style={{ minWidth: 0 }}>
+              <b><TranslatedText as="span" text={s.title} notice={false} /></b>
+              <div className="meta">{s.hostName}</div>
+              {!!s.reviewCount && (
+                <div className="meta">★ {s.rating.toFixed(2)} ({s.reviewCount})</div>
+              )}
+            </div>
+          </div>
+
+          <div className="kv-grid" style={{ marginTop: 18 }}>
+            <Kv label={t('Ngày')} value={`${dayLabel(when)} · ${TIME().format(when)} – ${TIME().format(ends)}`} />
+            <Kv label={t('Số lượng')} value={`${quantity} ${t(s.unit)}`} />
+            <Kv label={t('Nơi thực hiện')}
+                value={s.travelsToGuest ? (address.trim() || t('Chưa điền')) : `${t('Khách tới chỗ cung cấp')} · ${s.city}`} />
+          </div>
+
+          {quote && (
+            <div className="book-lines" style={{ marginTop: 18 }}>
+              {quote.lines.map(l => (
+                <div className="book-line" key={l.key}><span>{t(l.label)}</span><b>{money(l.amount)}</b></div>
+              ))}
+              <div className="book-line is-total"><span>{t('Tổng')}</span><b>{money(quote.total)}</b></div>
+            </div>
+          )}
+        </aside>
+      </div>
+    </div>
   );
 }
 
@@ -827,6 +1009,11 @@ function MonthGrid({ rail, day, hasRoom, onPick }) {
       })}
     </div>
   );
+}
+
+/** A label over its value, for the summary card on the checkout page. */
+function Kv({ label, value }) {
+  return <div className="kv"><span className="kv-label">{label}</span><b>{value}</b></div>;
 }
 
 /** One thing worth knowing before booking: an icon, a heading and a single line. */

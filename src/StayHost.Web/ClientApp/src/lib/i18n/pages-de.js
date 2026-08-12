@@ -2084,4 +2084,15 @@ export default {
   "Mở lịch để tìm ngày còn trống": "Kalender öffnen, um einen freien Termin zu finden",
   "Ngày này không còn giờ trống.": "An diesem Tag ist keine Uhrzeit mehr frei.",
   "Tháng tới chưa có khung giờ nào trống.": "Im kommenden Monat ist kein Termin frei.",
+
+  /* The checkout step of the service dialog. */
+  "Chọn một khung giờ để tiếp tục.": "Wählen Sie eine Uhrzeit, um fortzufahren.",
+  "Đang tính giá…": "Preis wird berechnet…",
+
+  /* docs/07 §2 — the service checkout page. */
+  "Thông tin buổi làm": "Angaben zum Auftrag",
+  "Cách thanh toán": "Zahlungsart",
+  "Xem lại và xác nhận": "Prüfen und bestätigen",
+  "Số lượng": "Menge",
+  "Chưa điền": "Noch nicht ausgefüllt",
 };

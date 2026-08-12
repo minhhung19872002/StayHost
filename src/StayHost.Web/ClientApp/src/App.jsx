@@ -25,7 +25,7 @@ import { Admin } from './pages/Admin.jsx';
 import { Help } from './pages/Help.jsx';
 import { Split } from './pages/Split.jsx';
 import { Experiences, ExperienceBookings } from './pages/Experiences.jsx';
-import { Services, ServiceBookings } from './pages/Services.jsx';
+import { Services, ServiceBookings, ServiceCheckout } from './pages/Services.jsx';
 import { Wallet } from './pages/Wallet.jsx';
 import { Shield, ShieldTerms } from './pages/Shield.jsx';
 import { Resolutions } from './pages/Resolutions.jsx';
@@ -135,6 +135,9 @@ export function App() {
             <Route path="/experiences/:slug" element={<Experiences />} />
             <Route path="/services" element={<Services />} />
             <Route path="/services/bookings" element={<ServiceBookings />} />
+            {/* docs/07 §2 — picking an hour ends on a checkout page of its own,
+                not in the dialog that offered it. */}
+            <Route path="/services/:slug/thanh-toan" element={<ServiceCheckout />} />
             <Route path="/services/:slug" element={<Services />} />
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/shield" element={<Shield />} />

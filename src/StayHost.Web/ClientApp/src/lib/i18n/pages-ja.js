@@ -2084,4 +2084,15 @@ export default {
   "Mở lịch để tìm ngày còn trống": "空いている日をカレンダーで探す",
   "Ngày này không còn giờ trống.": "この日に空いている時間はありません。",
   "Tháng tới chưa có khung giờ nào trống.": "今後1か月に空き枠はありません。",
+
+  /* The checkout step of the service dialog. */
+  "Chọn một khung giờ để tiếp tục.": "続けるには時間を選んでください。",
+  "Đang tính giá…": "料金を計算しています…",
+
+  /* docs/07 §2 — the service checkout page. */
+  "Thông tin buổi làm": "作業の内容",
+  "Cách thanh toán": "お支払い方法",
+  "Xem lại và xác nhận": "内容を確認する",
+  "Số lượng": "数量",
+  "Chưa điền": "未入力",
 };

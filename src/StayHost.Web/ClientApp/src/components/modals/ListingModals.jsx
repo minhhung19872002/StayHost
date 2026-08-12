@@ -10,6 +10,7 @@ import { HostReply, StarDistribution } from '../../pages/Detail.jsx';
 import { api } from '../../lib/api.js';
 import { useSlideshow } from '../../lib/useSlideshow.js';
 import { Modal } from './Modal.jsx';
+import { FALLBACK_METHODS } from '../../lib/payments.js';
 import { t } from '../../lib/i18n.js';
 
 const PHOTO_CAPTIONS = ['Ảnh chính', 'Phòng khách', 'Phòng ngủ', 'Không gian ngoài trời', 'Phòng tắm'];
@@ -205,19 +206,6 @@ export function ReviewsModal() {
 
 const CHECKOUT_STEPS = ['Chuyến đi', 'Thanh toán', 'Xác nhận'];
 // NOTE: step labels above are wrapped with t() at the render site.
-
-/**
- * docs/07 §2 — the list comes from the server so the payment page and the
- * saved-methods screen cannot disagree about what StayHost takes. The fallback
- * is the §2.1 group, which is what has to be there for the platform to work at
- * all. Manual bank transfer used to be offered here; §2.4 refuses it.
- */
-const FALLBACK_METHODS = [
-  { key: 'card', label: 'Thẻ tín dụng / ghi nợ', hint: 'Visa, Mastercard, JCB, American Express' },
-  { key: 'napas', label: 'Thẻ ATM nội địa', hint: 'Qua NAPAS, cần đăng ký thanh toán trực tuyến' },
-  { key: 'momo', label: 'Ví MoMo', hint: 'Mở ứng dụng MoMo để xác nhận' },
-  { key: 'zalopay', label: 'ZaloPay', hint: 'Mở ứng dụng ZaloPay để xác nhận' }
-];
 
 export function CheckoutModal() {
   const state = useStore();

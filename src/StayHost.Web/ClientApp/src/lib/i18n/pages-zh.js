@@ -2084,4 +2084,15 @@ export default {
   "Mở lịch để tìm ngày còn trống": "打开日历查找可预订的日期",
   "Ngày này không còn giờ trống.": "这一天没有剩余时段。",
   "Tháng tới chưa có khung giờ nào trống.": "未来一个月没有可预订的时段。",
+
+  /* The checkout step of the service dialog. */
+  "Chọn một khung giờ để tiếp tục.": "请选择一个时段以继续。",
+  "Đang tính giá…": "正在计算价格…",
+
+  /* docs/07 §2 — the service checkout page. */
+  "Thông tin buổi làm": "服务信息",
+  "Cách thanh toán": "支付方式",
+  "Xem lại và xác nhận": "确认并预订",
+  "Số lượng": "数量",
+  "Chưa điền": "尚未填写",
 };

@@ -2262,4 +2262,15 @@ export default {
   "Mở lịch để tìm ngày còn trống": "Open the calendar to find an available date",
   "Ngày này không còn giờ trống.": "No times left on this date.",
   "Tháng tới chưa có khung giờ nào trống.": "No free slots in the coming month.",
+
+  /* The checkout step of the service dialog. */
+  "Chọn một khung giờ để tiếp tục.": "Pick a time to continue.",
+  "Đang tính giá…": "Working out the price…",
+
+  /* docs/07 §2 — the service checkout page. */
+  "Thông tin buổi làm": "About the job",
+  "Cách thanh toán": "How you'll pay",
+  "Xem lại và xác nhận": "Review and confirm",
+  "Số lượng": "Quantity",
+  "Chưa điền": "Not filled in yet",
 };

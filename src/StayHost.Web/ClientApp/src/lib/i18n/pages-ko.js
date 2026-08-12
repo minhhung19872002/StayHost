@@ -2084,4 +2084,15 @@ export default {
   "Mở lịch để tìm ngày còn trống": "달력을 열어 예약 가능한 날짜 찾기",
   "Ngày này không còn giờ trống.": "이 날짜에는 남은 시간이 없습니다.",
   "Tháng tới chưa có khung giờ nào trống.": "앞으로 한 달간 예약 가능한 시간이 없습니다.",
+
+  /* The checkout step of the service dialog. */
+  "Chọn một khung giờ để tiếp tục.": "계속하려면 시간을 선택하세요.",
+  "Đang tính giá…": "가격을 계산하는 중…",
+
+  /* docs/07 §2 — the service checkout page. */
+  "Thông tin buổi làm": "작업 정보",
+  "Cách thanh toán": "결제 방법",
+  "Xem lại và xác nhận": "확인 후 예약",
+  "Số lượng": "수량",
+  "Chưa điền": "아직 입력 안 함",
 };
