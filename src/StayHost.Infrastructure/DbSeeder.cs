@@ -321,6 +321,23 @@ public static class DbSeeder
             "Villa Hồ Tràm cho nhóm lớn, hồ bơi 15m và sân cỏ chơi bóng.", "Hồ bơi 15m và sân cỏ")
     ];
 
+    /// <summary>
+    /// The guests who wrote the demo history. Same names the stay reviews already
+    /// use, so one person's word turns up on a stay, a session and a job rather
+    /// than the site looking like six separate crowds.
+    /// </summary>
+    private record GuestSeed(string Name, string Bio);
+
+    private static readonly GuestSeed[] GuestSeeds =
+    [
+        new("Ngọc Anh", "Đi làm ở Hà Nội, cuối tuần trốn ra biển."),
+        new("Trần Hùng", "Mê đồ ăn đường phố, đi đâu cũng tìm chợ sớm."),
+        new("Phương Vy", "Làm remote, hay ở lại một thành phố cả tháng."),
+        new("Lê Bảo", "Đi cùng vợ và hai con nhỏ, cần chỗ rộng."),
+        new("Mai Chi", "Chụp ảnh phim, thích phố cổ và ánh sáng chiều."),
+        new("Đức Thắng", "Hay bay đêm nên quen với nhận phòng muộn.")
+    ];
+
     private record ReviewSeed(string Name, string Location, string When, string Text, double Rating);
 
     private static readonly ReviewSeed[] ReviewSeeds =
@@ -362,6 +379,13 @@ public static class DbSeeder
         db.Users.AddRange(hostUsers);
         db.Users.Add(NewUser("guest@stayhost.vn", "Khách Demo", UserRole.Guest,
             "Mình hay đi cuối tuần quanh miền Trung."));
+        // An experience or a service review is signed by the account that booked
+        // it (docs/09 §5), unlike a stay review, which carries a name typed into
+        // the row. Seeded history therefore needs guests who exist: without them
+        // every session and every job on the demo would show an empty review
+        // block under a rating the card is already advertising.
+        db.Users.AddRange(GuestSeeds.Select((g, i) => NewUser(
+            $"khach{i + 1}@stayhost.vn", g.Name, UserRole.Guest, g.Bio)));
         var admin = NewUser("admin@stayhost.vn", "Quản trị viên", UserRole.Admin,
             "Đội vận hành StayHost.");
         admin.AdminScope = AdminScope.Super;

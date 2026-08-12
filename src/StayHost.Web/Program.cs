@@ -201,6 +201,9 @@ await using (var scope = app.Services.CreateAsyncScope())
             await HelpSeeder.SeedAsync(db);
             await ExperienceSeeder.SeedAsync(db);
             await ServiceSeeder.SeedAsync(db);
+            // Last of the three: it books the sessions and jobs the other two
+            // created, so both have to exist before it runs.
+            await ReviewSeeder.SeedAsync(db);
             await HotelSeeder.SeedAsync(db);
             await FeatureFlagSeeder.SeedAsync(db);
             log.LogInformation("Database ready.");

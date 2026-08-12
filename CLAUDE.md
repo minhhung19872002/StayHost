@@ -85,6 +85,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | StayShield | Hai nhánh K1–K4 / C1–C4 (kể cả bên thứ ba), cửa sổ khiếu nại, thứ tự thu tiền, quỹ trích từ phí dịch vụ, khiếu nại một lần do người khác xét |
 | Mở rộng | Khách sạn (nhiều loại phòng có tồn kho), thẻ quà tặng, số dư, giới thiệu bạn bè |
 | Trải nghiệm (`docs/09`) | Thẩm định có người duyệt + phân loại rủi ro theo danh mục, hàng chờ kiểm duyệt, suất lặp lại và chặn chồng giờ, **giữ chỗ 10 phút**, nhiều đơn chung một suất, thuê trọn nhóm, tự huỷ khi thiếu người + gợi ý suất khác, điểm danh, huỷ theo bậc 7 ngày/50%, đánh giá 4 tiêu chí riêng |
+| Dữ liệu mẫu | `ReviewSeeder` dựng lịch sử có thật cho hai dòng này: 6 buổi/đơn đã hoàn tất mỗi tin, khách được điểm danh, người cung cấp đã nhận tiền, **bút toán đi qua `Ledger` nên sổ vẫn cân bằng**, rồi 6 đánh giá và điểm sao tính lại từ chính chúng |
 | Dịch vụ (`docs/09`) | Chủ nhà tự đăng, chứng chỉ hành nghề có hạn **tự ẩn tin khi hết hạn**, tuỳ chọn thêm có giá riêng, phí di chuyển ngoài bán kính, lịch theo thứ + đệm + chặn hai đơn quá xa, ghi chú bắt buộc theo danh mục, xác nhận điều kiện tại chỗ, huỷ theo bậc 72 giờ, **đánh giá 4 tiêu chí riêng** (tay nghề / đúng như mô tả / đúng giờ / đáng giá tiền — `docs/09 §5`, bảng `service_reviews`) |
 | Tiền hai dòng mới | **Dịch vụ có mức phí riêng 0% khách / 15% NCC**; Trải nghiệm giữ 14%/3% như chỗ ở (khách chốt). Trả tiền người cung cấp **sau khi buổi kết thúc 24 giờ**, không phải từ lúc bắt đầu |
 | Đa ngôn ngữ | 8 thứ tiếng (vi/en/ja/ko/zh/fr/de/es), **2075 khoá mỗi thứ, không thiếu khoá nào**. Dịch cả **chữ do server sinh** (trạng thái, dòng hoá đơn, tiện nghi, nhóm tiện nghi, loại chỗ ở, lời khuyên chủ nhà) nhờ từ điển khoá bằng chính chuỗi tiếng Việt. Ngày/giờ/số theo ngôn ngữ đang chọn. Nội dung **người dùng tự viết** (tên tin, mô tả, đánh giá, tiểu sử, nội quy chủ nhà tự gõ) được **máy dịch tự động** kèm dòng "Đã dịch tự động · Xem bản gốc" |
@@ -161,6 +162,12 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   `"de is not supported"` — hỏng mà không có dấu hiệu nào. Đã bật `LT_UPDATE_MODELS`
   ở cả hai compose. Danh sách này phải khớp `Translations.Targets`, khớp luôn cả danh
   sách ngôn ngữ giao diện (`CatalogService.Languages`).
+- **Điểm sao seed sẵn sẽ biến mất khi có đánh giá thật.** `Rating`/`ReviewCount`
+  được **tính lại từ chính bảng đánh giá** mỗi lần ai đó chấm điểm, nên một tin
+  seed "4.85 · 27 đánh giá" mà chưa có dòng nào trong `experience_reviews` /
+  `service_reviews` sẽ tụt về "5.0 · 1" ngay sau đánh giá đầu tiên. Vì thế
+  `ReviewSeeder` seed cả **đơn đã hoàn tất + bút toán + đánh giá**, rồi tự tính
+  lại điểm — chứ không bịa một con số rồi để trống khối đánh giá bên dưới.
 - **Đừng ghép tên người vào giữa một câu đã dịch.** `{t('Nhắn cho')} {tên}` ra
   "Message Binn" đúng, nhưng tiếng Hàn/Nhật đặt tân ngữ trước động từ nên thành
   "메시지 보내기 Binn". Hoặc dùng nhãn không có tên (`Nhắn cho nhà cung cấp`), hoặc
@@ -191,6 +198,8 @@ docker exec stayhost-db psql -U stayhost -d stayhost -c "DROP SCHEMA public CASC
 
 ### Tài khoản demo (mật khẩu `stayhost123`)
 `guest@stayhost.vn` · `host1@stayhost.vn` … `host10@stayhost.vn` · `admin@stayhost.vn`
+`khach1@stayhost.vn` … `khach6@stayhost.vn` — sáu khách đã ký tên dưới các đánh giá
+trải nghiệm và dịch vụ được seed sẵn (`ReviewSeeder`).
 
 **Tài khoản admin bắt buộc có bảo mật 2 lớp** (`docs/08 §3`, không có ngoại lệ), nên
 đăng nhập admin đi qua hai bước. Chạy server với `ASPNETCORE_ENVIRONMENT=Development`
