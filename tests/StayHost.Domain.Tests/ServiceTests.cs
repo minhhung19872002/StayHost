@@ -403,4 +403,54 @@ public class ServiceTests
         Assert.Equal(570_000m, ServiceRules.ProviderShareOnMisdeclared(1_140_000m));
         Assert.Equal(0m, ServiceRules.ProviderShareOnMisdeclared(0m));
     }
+
+    /* ------------------------------------------------------- §5, the review */
+
+    [Fact]
+    public void A_service_is_judged_on_four_criteria_of_its_own()
+    {
+        // docs/09 §5 — four, and not the experience's four: nobody is being led,
+        // and "tổ chức và an toàn" is not what a haircut is judged on.
+        Assert.Equal(4, ServiceReviews.Criteria.Count);
+        Assert.Equal(["skill", "asDescribed", "punctuality", "value"],
+            ServiceReviews.Criteria.Select(c => c.Key).ToArray());
+        Assert.NotEqual(
+            ExperienceReviews.Criteria.Select(c => c.Key).ToArray(),
+            ServiceReviews.Criteria.Select(c => c.Key).ToArray());
+
+        Assert.Equal(4.5, ServiceReviews.Average(5, 4, 5, 4));
+        Assert.True(ServiceReviews.ScoreInRange(1));
+        Assert.True(ServiceReviews.ScoreInRange(5));
+        Assert.False(ServiceReviews.ScoreInRange(0));
+        Assert.False(ServiceReviews.ScoreInRange(6));
+    }
+
+    [Fact]
+    public void Only_a_job_that_went_ahead_and_is_over_can_be_reviewed()
+    {
+        var booking = new ServiceBooking
+        {
+            StartsAt = Now, DurationMinutes = 120, Status = ServiceBookingStatus.Confirmed
+        };
+        var ends = booking.EndsAt;
+
+        Assert.True(ServiceReviews.CanReview(booking, ends));
+        Assert.True(ServiceReviews.CanReview(booking, ends.AddDays(1)));
+        // A job still running is not something the guest can have an opinion of.
+        Assert.False(ServiceReviews.CanReview(booking, ends.AddMinutes(-1)));
+
+        // A completed job counts; a cancelled one never does, whoever cancelled it.
+        booking.Status = ServiceBookingStatus.Completed;
+        Assert.True(ServiceReviews.CanReview(booking, ends.AddDays(1)));
+
+        booking.Status = ServiceBookingStatus.CancelledByGuest;
+        Assert.False(ServiceReviews.CanReview(booking, ends.AddDays(1)));
+
+        booking.Status = ServiceBookingStatus.CancelledByProvider;
+        Assert.False(ServiceReviews.CanReview(booking, ends.AddDays(1)));
+
+        // Still only a request, so nothing was received either.
+        booking.Status = ServiceBookingStatus.Requested;
+        Assert.False(ServiceReviews.CanReview(booking, ends.AddDays(1)));
+    }
 }

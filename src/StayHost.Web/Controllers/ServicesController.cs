@@ -63,6 +63,26 @@ public class ServicesController(AuthService auth, ServiceMarketService market) :
         return Ok(await market.BookingDtoAsync(id, ct));
     }
 
+    /// <summary>
+    /// docs/09 §5 — the four service headings, written once the job is over.
+    /// Placed above the catch-all detail route only for readability; the two
+    /// segments make it the more specific match either way.
+    /// </summary>
+    [HttpPost("bookings/{id:int}/review")]
+    public async Task<IActionResult> Review(
+        int id, [FromBody] SubmitServiceReviewRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var error = await market.WriteReviewAsync(user, id, req, ct);
+        return error is null ? Ok(new { ok = true }) : BadRequest(new { message = error });
+    }
+
+    [HttpGet("{id:int}/reviews")]
+    public async Task<ActionResult<IReadOnlyList<ServiceReviewDto>>> Reviews(int id, CancellationToken ct) =>
+        Ok(await market.ReviewsAsync(id, ct));
+
     [HttpGet("{idOrSlug}")]
     public async Task<ActionResult<ServiceDetailDto>> Detail(string idOrSlug, CancellationToken ct)
     {

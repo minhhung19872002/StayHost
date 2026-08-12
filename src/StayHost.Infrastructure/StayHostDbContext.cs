@@ -63,6 +63,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<ServiceBooking> ServiceBookings => Set<ServiceBooking>();
     public DbSet<ServiceAddOn> ServiceAddOns => Set<ServiceAddOn>();
     public DbSet<ServiceBookingAddOn> ServiceBookingAddOns => Set<ServiceBookingAddOn>();
+    public DbSet<ServiceReview> ServiceReviews => Set<ServiceReview>();
     public DbSet<RoomTypeOption> RoomTypes => Set<RoomTypeOption>();
     public DbSet<PriceMatchClaim> PriceMatchClaims => Set<PriceMatchClaim>();
     public DbSet<CreditEntry> CreditEntries => Set<CreditEntry>();
@@ -834,6 +835,22 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             // of the name and price, so the receipt never changes underneath it.
             e.HasOne(x => x.AddOn).WithMany()
                 .HasForeignKey(x => x.AddOnId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<ServiceReview>(e =>
+        {
+            e.ToTable("service_reviews");
+            // docs/09 §5 — one review per job, so a booking cannot be scored twice.
+            e.HasIndex(x => x.BookingId).IsUnique();
+            e.HasIndex(x => x.OfferingId);
+            e.Property(x => x.Comment).HasMaxLength(2000);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Offering).WithMany()
+                .HasForeignKey(x => x.OfferingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.AuthorUser).WithMany()
+                .HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.Cascade);
+            e.Ignore(x => x.Average);
         });
 
         b.Entity<ServiceImage>(e =>

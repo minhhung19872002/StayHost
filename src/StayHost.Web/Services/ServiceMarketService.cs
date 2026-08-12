@@ -37,7 +37,8 @@ public class ServiceMarketService(
                 o.TravelsToGuest, o.ServiceRadiusKm,
                 o.IsPartner, o.PartnerName,
                 o.Rating, o.ReviewCount, o.Host!.Name,
-                o.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).ToList()))
+                o.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).ToList(),
+                o.DurationMinutes, o.Host.AvatarUrl))
             .ToListAsync(ct);
     }
 
@@ -97,7 +98,9 @@ public class ServiceMarketService(
                 .Select(a => new ServiceAddOnDto(a.Id, a.Name, a.Price)).ToList(),
             o.RequirementList,
             o.TravelFeePerKm, o.MaxTravelKm, o.WorkingDaysMask, o.MaxJobsPerDay,
-            o.CertificateName, o.CertificateExpiresOn, o.BufferMinutes);
+            o.CertificateName, o.CertificateExpiresOn, o.BufferMinutes,
+            o.Host?.AvatarUrl, o.Host?.YearsHosting ?? 0, o.Host?.Bio,
+            o.Host?.IsSuperhost ?? false, o.Host?.UserId);
     }
 
     public async Task<ServiceQuoteDto?> QuoteAsync(int offeringId, QuoteServiceRequest req, CancellationToken ct)
@@ -418,7 +421,8 @@ public class ServiceMarketService(
                 b.Address, b.Note,
                 b.Subtotal, b.ServiceFee, b.Tax, b.Total, b.RefundedAmount,
                 b.Status.ToString(), ServiceRules.StatusLabel(b.Status), ServiceRules.StatusBadge(b.Status),
-                b.CancelReason, b.CreatedAt))
+                b.CancelReason, b.CreatedAt,
+                db.ServiceReviews.Any(r => r.BookingId == b.Id)))
             .ToListAsync(ct);
 
     /// <summary>
@@ -495,6 +499,78 @@ public class ServiceMarketService(
                 b.Address, b.Note,
                 b.Subtotal, b.ServiceFee, b.Tax, b.Total, b.RefundedAmount,
                 b.Status.ToString(), ServiceRules.StatusLabel(b.Status), ServiceRules.StatusBadge(b.Status),
-                b.CancelReason, b.CreatedAt))
+                b.CancelReason, b.CreatedAt,
+                db.ServiceReviews.Any(r => r.BookingId == b.Id)))
             .FirstOrDefaultAsync(ct);
+
+    /* --------------------------------------------------- docs/09 §5, the review */
+
+    /// <summary>
+    /// docs/09 §5 — a service is scored on four headings of its own. The
+    /// offering's headline rating is recomputed from the reviews themselves
+    /// rather than nudged, so the number on the card is always the average of
+    /// what is written underneath it.
+    /// </summary>
+    public async Task<string?> WriteReviewAsync(
+        User user, int bookingId, SubmitServiceReviewRequest req, CancellationToken ct)
+    {
+        var booking = await db.ServiceBookings
+            .Include(b => b.Offering)
+            .FirstOrDefaultAsync(b => b.Id == bookingId && b.GuestUserId == user.Id, ct);
+        if (booking?.Offering is null) return "Không tìm thấy đơn dịch vụ này.";
+
+        if (!ServiceReviews.CanReview(booking, DateTime.UtcNow))
+            return booking.Status is ServiceBookingStatus.Confirmed or ServiceBookingStatus.Completed
+                ? "Buổi này chưa kết thúc nên chưa đánh giá được."
+                : "Đơn đã huỷ thì không đánh giá được.";
+
+        int[] scores = [req.Skill, req.AsDescribed, req.Punctuality, req.Value];
+        if (scores.Any(s => !ServiceReviews.ScoreInRange(s)))
+            return "Mỗi tiêu chí chấm từ 1 đến 5 sao.";
+
+        if (await db.ServiceReviews.AnyAsync(r => r.BookingId == bookingId, ct))
+            return "Bạn đã đánh giá đơn này rồi.";
+
+        db.ServiceReviews.Add(new ServiceReview
+        {
+            BookingId = booking.Id,
+            OfferingId = booking.OfferingId,
+            AuthorUserId = user.Id,
+            SkillScore = req.Skill,
+            AsDescribedScore = req.AsDescribed,
+            PunctualityScore = req.Punctuality,
+            ValueScore = req.Value,
+            Comment = (req.Comment ?? "").Trim()
+        });
+        await db.SaveChangesAsync(ct);
+
+        var all = await db.ServiceReviews
+            .Where(r => r.OfferingId == booking.OfferingId)
+            .Select(r => new { r.SkillScore, r.AsDescribedScore, r.PunctualityScore, r.ValueScore })
+            .ToListAsync(ct);
+
+        var offering = booking.Offering;
+        offering.ReviewCount = all.Count;
+        offering.Rating = all.Count == 0
+            ? 0
+            : Math.Round(all.Average(r => ServiceReviews.Average(
+                r.SkillScore, r.AsDescribedScore, r.PunctualityScore, r.ValueScore)), 2);
+
+        await db.SaveChangesAsync(ct);
+        return null;
+    }
+
+    /// <summary>What people who actually had the job done wrote, newest first.</summary>
+    public async Task<IReadOnlyList<ServiceReviewDto>> ReviewsAsync(int offeringId, CancellationToken ct) =>
+        await db.ServiceReviews
+            .Where(r => r.OfferingId == offeringId)
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(50)
+            .Select(r => new ServiceReviewDto(
+                r.Id,
+                r.AuthorUser!.DisplayName ?? r.AuthorUser.FullName,
+                r.AuthorUser.AvatarUrl,
+                r.SkillScore, r.AsDescribedScore, r.PunctualityScore, r.ValueScore,
+                r.Comment, r.CreatedAt))
+            .ToListAsync(ct);
 }

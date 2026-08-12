@@ -1665,7 +1665,10 @@ public record ServiceCardDto(
     double Rating,
     int ReviewCount,
     string HostName,
-    IReadOnlyList<string> Images);
+    IReadOnlyList<string> Images,
+    /// <summary>How long one booking runs, so a card can say "1 giờ" the way the price says "/ buổi".</summary>
+    int DurationMinutes = 0,
+    string? HostAvatarUrl = null);
 
 /// <summary>A stretch of the provider's diary that is already spoken for.</summary>
 public record BusySlotDto(DateTime From, DateTime To);
@@ -1714,7 +1717,14 @@ public record ServiceDetailDto(
     string? CertificateName = null,
     DateOnly? CertificateExpiresOn = null,
     /// <summary>0 means the platform's own 30-minute gap between jobs.</summary>
-    int BufferMinutes = 0);
+    int BufferMinutes = 0,
+    // The provider as a person, for the identity card the page opens with and the
+    // "Trình độ của tôi" block: docs/09 §3.2 sells a service on who is coming.
+    string? HostAvatarUrl = null,
+    int HostYears = 0,
+    string? HostBio = null,
+    bool HostIsSuperhost = false,
+    int? HostUserId = null);
 
 public record ServiceQuoteDto(
     int OfferingId,
@@ -1752,7 +1762,18 @@ public record ServiceBookingDto(
     string StatusLabel,
     string StatusBadge,
     string? CancelReason,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    /// <summary>docs/09 §5 — set once this job has been scored, so nobody is asked twice.</summary>
+    bool HasReview = false);
+
+/// <summary>docs/09 §5 — one guest's word on one job, on the four service headings.</summary>
+public record ServiceReviewDto(
+    int Id, string AuthorName, string? AuthorAvatarUrl,
+    int Skill, int AsDescribed, int Punctuality, int Value,
+    string Comment, DateTime CreatedAt);
+
+public record SubmitServiceReviewRequest(
+    int Skill, int AsDescribed, int Punctuality, int Value, string? Comment);
 
 public record QuoteServiceRequest(
     DateTime StartsAt,

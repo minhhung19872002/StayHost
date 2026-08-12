@@ -472,6 +472,10 @@ export const api = {
     request(`/api/services/${id}/book`, { method: 'POST', body: JSON.stringify(body) }),
   serviceBookings: () => request('/api/services/bookings'),
   cancelServiceBooking: id => request(`/api/services/bookings/${id}/cancel`, { method: 'POST' }),
+  /* docs/09 §5 — the service's own four criteria, written and read. */
+  reviewServiceBooking: (bookingId, body) =>
+    request(`/api/services/bookings/${bookingId}/review`, { method: 'POST', body: JSON.stringify(body) }),
+  serviceReviews: id => request(`/api/services/${id}/reviews`),
   /* docs/09 §3.2–§3.4 MR-S-01 — the provider's own services and the listing form. */
   myServices: () => request('/api/services/mine'),
   saveService: body => request('/api/services', { method: 'POST', body: JSON.stringify(body) }),

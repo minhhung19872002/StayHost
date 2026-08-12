@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { set, toast } from '../lib/store.js';
@@ -9,6 +9,7 @@ import { PhotoMosaic } from '../components/PhotoMosaic.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { DetailMap } from '../components/Maps.jsx';
+import { Sheet } from '../components/modals/Sheet.jsx';
 import { t } from '../lib/i18n.js';
 import { TranslatedText } from '../components/TranslatedText.jsx';
 
@@ -24,6 +25,19 @@ const XP_CRITERIA = [
   ['value', 'Đáng giá tiền']
 ];
 
+/**
+ * The host stores the languages they run in as codes. "vi, en" is not something
+ * a guest reads, so they are shown the way CatalogService.Languages names them —
+ * each in its own script, which needs no translating in either direction.
+ */
+const LANGUAGE_NAME = {
+  vi: 'Tiếng Việt', en: 'English', ja: '日本語', ko: '한국어',
+  zh: '中文 (简体)', fr: 'Français', de: 'Deutsch', es: 'Español'
+};
+
+const languagesOf = codes =>
+  (codes ?? []).map(c => LANGUAGE_NAME[c] ?? c).join(', ');
+
 /** Two letters for somebody with no photo, the way the server builds them. */
 const initialsOf = name => (name || '?')
   .trim().split(/\s+/).slice(-2).map(w => w[0] ?? '').join('').toUpperCase() || '?';
@@ -32,6 +46,20 @@ const initialsOf = name => (name || '?')
 // are asked for per render rather than frozen at import.
 const TIME = () => dateFormat({ hour: '2-digit', minute: '2-digit' });
 const DAY = () => dateFormat({ weekday: 'short', day: '2-digit', month: '2-digit' });
+const LONG_DAY = () => dateFormat({ weekday: 'long', day: 'numeric', month: 'long' });
+const MONTH = () => dateFormat({ month: 'long', year: 'numeric' });
+
+/** "Hôm nay · thứ tư, 12 tháng 8" — the day a session falls on, said the short way. */
+function dayLabel(date) {
+  const today = new Date();
+  const tomorrow = new Date(today.getTime() + 86400000);
+  const same = (a, b) => a.toDateString() === b.toDateString();
+  const written = LONG_DAY().format(date);
+
+  if (same(date, today)) return `${t('Hôm nay')} · ${written}`;
+  if (same(date, tomorrow)) return `${t('Ngày mai')} · ${written}`;
+  return written;
+}
 
 // Exported so the trip page's cross-sell cards (docs/09 §4) read a session's
 // length exactly the way the experience cards here do.
@@ -121,6 +149,7 @@ function Detail({ slug }) {
   const [priv, setPriv] = useState(false);
   const [quote, setQuote] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [picking, setPicking] = useState(false);
 
   const load = () => api.experience(slug).then(d => {
     setX(d);
@@ -262,7 +291,7 @@ function Detail({ slug }) {
             <div className="xp-know">
               <Know icon="user" title={t('Độ tuổi')}
                     body={x.minAge ? `${t('Từ')} ${x.minAge} ${t('tuổi')}` : t('Mọi lứa tuổi')} />
-              <Know icon="globe" title={t('Ngôn ngữ')} body={x.languages.join(', ')} />
+              <Know icon="globe" title={t('Ngôn ngữ')} body={languagesOf(x.languages)} />
               <Know icon="users" title={t('Số người')}
                     body={`${x.minGuests}–${x.maxGroup} ${t('người mỗi suất')}`} />
               <Know icon="calendar" title={t('Chính sách huỷ')}
@@ -274,30 +303,36 @@ function Detail({ slug }) {
           </section>
         </div>
 
+        {/*
+          * The rail sells; the dialog books. What stays on screen is the price,
+          * the cancellation promise and the next few sessions — the four facts
+          * somebody decides on. Choosing a session used to mean scrolling a
+          * boxed list inside the panel while the number of people, the private
+          * group option and the whole bill fought for the same 360 pixels.
+          */}
         <aside className="book-panel">
           <div className="book-price">
-            <span className="amount">{money(x.pricePerPerson)}</span>
+            <span className="amount">{t('Từ')} {money(x.pricePerPerson)}</span>
             <span className="per">/ {t('người')}</span>
           </div>
 
-          <p className="cap" style={{ margin: '14px 0 8px' }}>{t('Chọn suất')}</p>
-          {/*
-            * One row per session rather than a grid of chips. A chip had room for a
-            * date and a number and nothing else, so the reader could not tell a
-            * morning session from an evening one without opening it — and the seats
-            * left, which is the thing that decides whether to book now, was the
-            * smallest text on the page.
-            */}
-          <div className="xp-slots">
-            {open.length ? open.slice(0, 12).map(s => {
+          <p style={{ margin: '10px 0 14px', fontSize: 14, color: 'var(--ink-body)' }}>
+            <b style={{ color: 'var(--brand)' }}>{t('Huỷ miễn phí')}</b> · {t('trước 24 giờ được hoàn toàn bộ')}
+          </p>
+
+          <button className="btn btn-primary" style={{ width: '100%' }}
+                  onClick={() => setPicking(true)}>{t('Xem lịch')}</button>
+
+          <div className="slot-list" style={{ marginTop: 16 }}>
+            {open.length ? open.slice(0, 4).map(s => {
               const at = new Date(s.startsAt);
               const ends = new Date(at.getTime() + x.durationMinutes * 60000);
               const scarce = s.seatsLeft > 0 && s.seatsLeft <= 3;
               return (
-                <button key={s.id} className={`xp-slot ${slotId === s.id ? 'is-on' : ''}`}
+                <button key={s.id} className={`slot-card ${slotId === s.id ? 'is-on' : ''}`}
                         disabled={s.seatsLeft === 0}
-                        onClick={() => setSlotId(s.id)}>
-                  <span className="xp-slot-when">
+                        onClick={() => { setSlotId(s.id); setPicking(true); }}>
+                  <span className="slot-card-when">
                     <b>{DAY().format(at)}</b>
                     <span>{TIME().format(at)} – {TIME().format(ends)}</span>
                   </span>
@@ -309,38 +344,132 @@ function Detail({ slug }) {
             }) : <p className="section-sub">{t('Chưa có suất nào mở.')}</p>}
           </div>
 
-          <label className="form-field" style={{ marginTop: 14 }}>
-            <span className="cap">{t('Số người')}</span>
-            <input type="number" min={1} max={x.maxGroup} value={seats}
-                   onChange={e => setSeats(Math.max(1, Math.min(x.maxGroup, Number(e.target.value) || 1)))} />
-          </label>
-
-          {x.privateGroupPrice != null && (
-            <button type="button" className={`opt ${priv ? 'is-on' : ''}`} style={{ marginTop: 10 }}
-                    onClick={() => setPriv(p => !p)}>
-              <b>{t('Thuê trọn nhóm riêng')} — {money(x.privateGroupPrice)}</b>
-              <span>{t('Chỉ nhóm bạn, không ghép với khách khác')}</span>
-            </button>
+          {open.length > 4 && (
+            <button className="link-btn" style={{ marginTop: 12 }}
+                    onClick={() => setPicking(true)}>{t('Xem tất cả ngày')}</button>
           )}
-
-          {quote && <>
-            <div className="book-lines" style={{ marginTop: 16 }}>
-              {quote.lines.map(l => (
-                <div className="book-line" key={l.key}><span>{t(l.label)}</span><b>{money(l.amount)}</b></div>
-              ))}
-              <div className="book-line is-total"><span>{t('Tổng')}</span><b>{money(quote.total)}</b></div>
-            </div>
-
-            {!quote.canBook && <div className="book-alert is-error"><b>{t('Chưa đặt được')}</b><span>{quote.reason}</span></div>}
-
-            <button className="btn btn-primary" style={{ width: '100%', marginTop: 14 }}
-                    disabled={busy || !quote.canBook} onClick={book}>
-              {busy ? t('Đang xử lý…') : t('Đặt trải nghiệm')}
-            </button>
-          </>}
         </aside>
       </div>
+
+      {picking && (
+        <SlotSheet experience={x} slots={open} slotId={slotId} onPick={setSlotId}
+                   seats={seats} setSeats={setSeats} priv={priv} setPriv={setPriv}
+                   quote={quote} busy={busy} onBook={book} onClose={() => setPicking(false)} />
+      )}
     </div>
+  );
+}
+
+/**
+ * docs/01 MR-04 — choosing a session, in the dialog "Xem lịch" opens. Grouped
+ * by the day it falls on rather than listed flat, because "thứ tư 14/08" twice
+ * in a row is two sessions of the same day and the reader should not have to
+ * work that out from a date repeated in two rows.
+ */
+function SlotSheet({
+  experience: x, slots, slotId, onPick, seats, setSeats, priv, setPriv,
+  quote, busy, onBook, onClose
+}) {
+  const days = useMemo(() => {
+    const groups = [];
+    for (const s of slots) {
+      const at = new Date(s.startsAt);
+      const key = at.toDateString();
+      const last = groups[groups.length - 1];
+      if (last?.key === key) last.slots.push({ ...s, at });
+      else groups.push({ key, at, slots: [{ ...s, at }] });
+    }
+    return groups;
+  }, [slots]);
+
+  const chosen = slots.find(s => s.id === slotId);
+
+  return (
+    <Sheet title={t('Chọn giờ')} onClose={onClose}
+           foot={
+             <>
+               <span>
+                 {quote
+                   ? <><b style={{ fontSize: 16 }}>{money(quote.total)}</b>{' '}
+                       <span style={{ color: 'var(--ink-muted)', fontSize: 13 }}>{t('tổng cộng')}</span></>
+                   : <span style={{ color: 'var(--ink-muted)', fontSize: 13.5 }}>
+                       {t('Chọn một suất để xem giá.')}
+                     </span>}
+               </span>
+               <button className="btn btn-primary"
+                       disabled={busy || !quote || !quote.canBook} onClick={onBook}>
+                 {busy ? t('Đang xử lý…') : t('Đặt trải nghiệm')}
+               </button>
+             </>
+           }>
+      <div className="count-row" style={{ paddingTop: 0 }}>
+        <div className="tx">
+          <b>{seats} {t('người')}</b>
+          <span>{t('Tối đa')} {x.maxGroup} {t('người mỗi suất')}</span>
+        </div>
+        <div className="count-ctl">
+          <button type="button" className="round-btn" aria-label={t('Giảm')}
+                  disabled={seats <= 1}
+                  onClick={() => setSeats(n => Math.max(1, n - 1))}>−</button>
+          <span className="num">{seats}</span>
+          <button type="button" className="round-btn" aria-label={t('Tăng')}
+                  disabled={seats >= x.maxGroup}
+                  onClick={() => setSeats(n => Math.min(x.maxGroup, n + 1))}>+</button>
+        </div>
+      </div>
+
+      <div className="slot-month">
+        <span>{MONTH().format(chosen ? new Date(chosen.startsAt) : new Date())}</span>
+        <Icon name="calendar" size={20} />
+      </div>
+
+      {days.length ? days.map(day => (
+        <div key={day.key}>
+          <h3 className="slot-day">{dayLabel(day.at)}</h3>
+          <div className="slot-list">
+            {day.slots.map(s => {
+              const ends = new Date(s.at.getTime() + x.durationMinutes * 60000);
+              const scarce = s.seatsLeft > 0 && s.seatsLeft <= 3;
+              return (
+                <button key={s.id} type="button" disabled={s.seatsLeft === 0}
+                        className={`slot-card ${slotId === s.id ? 'is-on' : ''}`}
+                        onClick={() => onPick(s.id)}>
+                  <span className="slot-card-when">
+                    <b>{TIME().format(s.at)} – {TIME().format(ends)}</b>
+                    <span>
+                      {languagesOf(x.languages)} · {money(x.pricePerPerson)} / {t('người')}
+                    </span>
+                  </span>
+                  <i className={scarce ? 'is-scarce' : ''}>
+                    {s.seatsLeft ? `${t('còn')} ${s.seatsLeft} ${t('chỗ')}` : t('hết chỗ')}
+                  </i>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )) : <p className="slot-empty">{t('Chưa có suất nào mở.')}</p>}
+
+      {x.privateGroupPrice != null && (
+        <button type="button" className={`opt ${priv ? 'is-on' : ''}`} style={{ marginTop: 20, width: '100%' }}
+                onClick={() => setPriv(p => !p)}>
+          <b>{t('Thuê trọn nhóm riêng')} — {money(x.privateGroupPrice)}</b>
+          <span>{t('Chỉ nhóm bạn, không ghép với khách khác')}</span>
+        </button>
+      )}
+
+      {quote && <>
+        <div className="book-lines" style={{ marginTop: 20 }}>
+          {quote.lines.map(l => (
+            <div className="book-line" key={l.key}><span>{t(l.label)}</span><b>{money(l.amount)}</b></div>
+          ))}
+          <div className="book-line is-total"><span>{t('Tổng')}</span><b>{money(quote.total)}</b></div>
+        </div>
+
+        {!quote.canBook &&
+          <div className="book-alert is-error"><b>{t('Chưa đặt được')}</b><span>{quote.reason}</span></div>}
+      </>}
+    </Sheet>
   );
 }
 

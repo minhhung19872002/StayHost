@@ -155,6 +155,71 @@ public class ServiceBookingAddOn
     public decimal Price { get; set; }
 }
 
+/// <summary>
+/// docs/09 §5 — "Tiêu chí đánh giá … dịch vụ: 4 mục riêng". A stay is scored on
+/// six headings and an experience on four of its own; a service is scored on
+/// four again, but not the experience's four. There is no "người dẫn" when
+/// nobody is being led and no "tổ chức và an toàn" for a haircut — what a guest
+/// can actually judge is the craft, whether it matched the advert, whether the
+/// provider turned up on time, and whether it was worth the money.
+/// </summary>
+public class ServiceReview
+{
+    public int Id { get; set; }
+
+    public int BookingId { get; set; }
+    public ServiceBooking? Booking { get; set; }
+
+    public int OfferingId { get; set; }
+    public ServiceOffering? Offering { get; set; }
+
+    public int AuthorUserId { get; set; }
+    public User? AuthorUser { get; set; }
+
+    /// <summary>Tay nghề.</summary>
+    public int SkillScore { get; set; }
+    /// <summary>Đúng như mô tả.</summary>
+    public int AsDescribedScore { get; set; }
+    /// <summary>Đúng giờ.</summary>
+    public int PunctualityScore { get; set; }
+    /// <summary>Đáng giá tiền.</summary>
+    public int ValueScore { get; set; }
+
+    public string Comment { get; set; } = "";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public double Average =>
+        ServiceReviews.Average(SkillScore, AsDescribedScore, PunctualityScore, ValueScore);
+}
+
+/// <summary>The four headings a service is judged on, and who may use them.</summary>
+public static class ServiceReviews
+{
+    public static readonly IReadOnlyList<(string Key, string Label)> Criteria =
+    [
+        ("skill", "Tay nghề"),
+        ("asDescribed", "Đúng như mô tả"),
+        ("punctuality", "Đúng giờ"),
+        ("value", "Đáng giá tiền")
+    ];
+
+    public static bool ScoreInRange(int score) => score is >= 1 and <= 5;
+
+    public static double Average(int skill, int asDescribed, int punctuality, int value) =>
+        Math.Round((skill + asDescribed + punctuality + value) / 4.0, 2);
+
+    /// <summary>
+    /// A service has no register the way an experience does — nobody marks a
+    /// haircut present — so the test is the booking itself: it must be one that
+    /// went ahead, and the job must already be over. A cancelled job is not
+    /// something the guest received, and a job still to come is not something
+    /// they can have an opinion of yet.
+    /// </summary>
+    public static bool CanReview(ServiceBooking booking, DateTime now) =>
+        now >= booking.EndsAt
+        && booking.Status is ServiceBookingStatus.Confirmed or ServiceBookingStatus.Completed;
+}
+
 public class ServiceImage
 {
     public int Id { get; set; }
