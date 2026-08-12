@@ -2095,4 +2095,8 @@ export default {
   "Xem lại và xác nhận": "内容を確認する",
   "Số lượng": "数量",
   "Chưa điền": "未入力",
+
+  /* docs/07 §2 — the experience checkout page. */
+  "Chọn một suất để tiếp tục.": "続けるには回を選んでください。",
+  "Vé của bạn": "あなたのチケット",
 };

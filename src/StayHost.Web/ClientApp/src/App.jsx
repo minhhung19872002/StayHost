@@ -24,7 +24,7 @@ import { Messages } from './pages/Messages.jsx';
 import { Admin } from './pages/Admin.jsx';
 import { Help } from './pages/Help.jsx';
 import { Split } from './pages/Split.jsx';
-import { Experiences, ExperienceBookings } from './pages/Experiences.jsx';
+import { Experiences, ExperienceBookings, ExperienceCheckout } from './pages/Experiences.jsx';
 import { Services, ServiceBookings, ServiceCheckout } from './pages/Services.jsx';
 import { Wallet } from './pages/Wallet.jsx';
 import { Shield, ShieldTerms } from './pages/Shield.jsx';
@@ -132,6 +132,7 @@ export function App() {
             <Route path="/help/:slug" element={<Help />} />
             <Route path="/experiences" element={<Experiences />} />
             <Route path="/experiences/bookings" element={<ExperienceBookings />} />
+            <Route path="/experiences/:slug/thanh-toan" element={<ExperienceCheckout />} />
             <Route path="/experiences/:slug" element={<Experiences />} />
             <Route path="/services" element={<Services />} />
             <Route path="/services/bookings" element={<ServiceBookings />} />

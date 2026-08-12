@@ -2095,4 +2095,8 @@ export default {
   "Xem lại và xác nhận": "확인 후 예약",
   "Số lượng": "수량",
   "Chưa điền": "아직 입력 안 함",
+
+  /* docs/07 §2 — the experience checkout page. */
+  "Chọn một suất để tiếp tục.": "계속하려면 세션을 선택하세요.",
+  "Vé của bạn": "예약 내용",
 };

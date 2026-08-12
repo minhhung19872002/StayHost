@@ -2273,4 +2273,8 @@ export default {
   "Xem lại và xác nhận": "Review and confirm",
   "Số lượng": "Quantity",
   "Chưa điền": "Not filled in yet",
+
+  /* docs/07 §2 — the experience checkout page. */
+  "Chọn một suất để tiếp tục.": "Pick a session to continue.",
+  "Vé của bạn": "Your ticket",
 };

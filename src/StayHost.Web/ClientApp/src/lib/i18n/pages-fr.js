@@ -2095,4 +2095,8 @@ export default {
   "Xem lại và xác nhận": "Vérifier et confirmer",
   "Số lượng": "Quantité",
   "Chưa điền": "Pas encore renseigné",
+
+  /* docs/07 §2 — the experience checkout page. */
+  "Chọn một suất để tiếp tục.": "Choisissez une séance pour continuer.",
+  "Vé của bạn": "Votre billet",
 };

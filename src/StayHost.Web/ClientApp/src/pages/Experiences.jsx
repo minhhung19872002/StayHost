@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { set, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
@@ -10,6 +10,7 @@ import { Avatar } from '../components/Avatar.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { DetailMap } from '../components/Maps.jsx';
 import { Sheet } from '../components/modals/Sheet.jsx';
+import { FALLBACK_METHODS } from '../lib/payments.js';
 import { t } from '../lib/i18n.js';
 import { TranslatedText } from '../components/TranslatedText.jsx';
 
@@ -140,15 +141,12 @@ function Browse() {
 }
 
 function Detail({ slug }) {
-  const state = useStore();
   const navigate = useNavigate();
   const [x, setX] = useState(null);
   const [missing, setMissing] = useState(false);
   const [slotId, setSlotId] = useState(null);
   const [seats, setSeats] = useState(2);
   const [priv, setPriv] = useState(false);
-  const [quote, setQuote] = useState(null);
-  const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(false);
 
   const load = () => api.experience(slug).then(d => {
@@ -157,11 +155,6 @@ function Detail({ slug }) {
   }).catch(() => setMissing(true));
 
   useEffect(() => { load(); }, [slug]);
-
-  useEffect(() => {
-    if (!slotId) { setQuote(null); return; }
-    api.experienceQuote(slotId, seats, priv).then(setQuote).catch(e => toast(e.message));
-  }, [slotId, seats, priv]);
 
   if (missing) {
     return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
@@ -174,15 +167,15 @@ function Detail({ slug }) {
   if (!x) return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
     <div className="stat skeleton" style={{ height: 320, border: 0 }} /></div>;
 
-  const book = async () => {
-    if (!state.user) { set({ authMode: 'login', authError: null, overlay: 'login' }); return; }
-    setBusy(true);
-    try {
-      const b = await api.bookExperience(slotId, { seats, private: priv, paymentMethod: 'card', cardLast4: '4242' });
-      toast(`${t('Đã đặt — mã')} ${b.reference}`);
-      await load();
-      navigate('/experiences/bookings');
-    } catch (err) { toast(err.message); } finally { setBusy(false); }
+  /*
+   * Choosing a session ends the dialog on the checkout page, the same way a
+   * service does. The choice travels in the address bar so a reload or a back
+   * button lands on the same session rather than an empty page.
+   */
+  const toCheckout = () => {
+    const q = new URLSearchParams({ slot: String(slotId), seats: String(seats) });
+    if (priv) q.set('private', '1');
+    navigate(`/experiences/${slug}/thanh-toan?${q}`);
   };
 
   const open = x.slots.filter(s => s.status === 'Open');
@@ -354,7 +347,7 @@ function Detail({ slug }) {
       {picking && (
         <SlotSheet experience={x} slots={open} slotId={slotId} onPick={setSlotId}
                    seats={seats} setSeats={setSeats} priv={priv} setPriv={setPriv}
-                   quote={quote} busy={busy} onBook={book} onClose={() => setPicking(false)} />
+                   onContinue={toCheckout} onClose={() => setPicking(false)} />
       )}
     </div>
   );
@@ -368,7 +361,7 @@ function Detail({ slug }) {
  */
 function SlotSheet({
   experience: x, slots, slotId, onPick, seats, setSeats, priv, setPriv,
-  quote, busy, onBook, onClose
+  onContinue, onClose
 }) {
   const days = useMemo(() => {
     const groups = [];
@@ -389,16 +382,15 @@ function SlotSheet({
            foot={
              <>
                <span>
-                 {quote
-                   ? <><b style={{ fontSize: 16 }}>{money(quote.total)}</b>{' '}
-                       <span style={{ color: 'var(--ink-muted)', fontSize: 13 }}>{t('tổng cộng')}</span></>
+                 {chosen
+                   ? <><b style={{ fontSize: 16 }}>{money(x.pricePerPerson)}</b>{' '}
+                       <span style={{ color: 'var(--ink-muted)', fontSize: 13 }}>/ {t('người')}</span></>
                    : <span style={{ color: 'var(--ink-muted)', fontSize: 13.5 }}>
-                       {t('Chọn một suất để xem giá.')}
+                       {t('Chọn một suất để tiếp tục.')}
                      </span>}
                </span>
-               <button className="btn btn-primary"
-                       disabled={busy || !quote || !quote.canBook} onClick={onBook}>
-                 {busy ? t('Đang xử lý…') : t('Đặt trải nghiệm')}
+               <button className="btn btn-primary" disabled={!chosen} onClick={onContinue}>
+                 {t('Tiếp tục')}
                </button>
              </>
            }>
@@ -458,19 +450,201 @@ function SlotSheet({
         </button>
       )}
 
-      {quote && <>
-        <div className="book-lines" style={{ marginTop: 20 }}>
-          {quote.lines.map(l => (
-            <div className="book-line" key={l.key}><span>{t(l.label)}</span><b>{money(l.amount)}</b></div>
-          ))}
-          <div className="book-line is-total"><span>{t('Tổng')}</span><b>{money(quote.total)}</b></div>
-        </div>
-
-        {!quote.canBook &&
-          <div className="book-alert is-error"><b>{t('Chưa đặt được')}</b><span>{quote.reason}</span></div>}
-      </>}
     </Sheet>
   );
+}
+
+/**
+ * docs/01 MR-04 and docs/07 §2 — "Xác nhận và thanh toán" for a ticket. Same
+ * shape as the service checkout: three numbered steps down the left, the seat
+ * being bought pinned on the right.
+ */
+export function ExperienceCheckout() {
+  const { slug } = useParams();
+  const [params] = useSearchParams();
+  const state = useStore();
+  const navigate = useNavigate();
+
+  const [x, setX] = useState(null);
+  const [missing, setMissing] = useState(false);
+  const [quote, setQuote] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [methods, setMethods] = useState(FALLBACK_METHODS);
+  const [cards, setCards] = useState([]);
+
+  const slotId = Number(params.get('slot')) || 0;
+  const seats = Math.max(1, Number(params.get('seats')) || 1);
+  const priv = params.get('private') === '1';
+
+  useEffect(() => {
+    api.experience(slug).then(setX).catch(() => setMissing(true));
+    api.paymentCatalogue()
+      .then(d => setMethods(d.methods.filter(m => m.key !== 'balance')))
+      .catch(() => { /* the §2.1 group is the fallback either way */ });
+    api.savedCards().then(setCards).catch(() => setCards([]));
+  }, [slug]);
+
+  useEffect(() => {
+    if (!slotId) return;
+    api.experienceQuote(slotId, seats, priv).then(setQuote).catch(e => toast(e.message));
+  }, [slotId, seats, priv]);
+
+  const slot = x?.slots.find(s => s.id === slotId);
+
+  if (missing || (x && !slot)) {
+    return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
+      <div className="empty-state"><h3>{t('Không tìm thấy trải nghiệm này')}</h3>
+        <button className="btn btn-primary" style={{ marginTop: 18 }}
+                onClick={() => navigate('/experiences')}>{t('Xem tất cả')}</button></div></div>;
+  }
+
+  if (!x || !slot) return <div className="shell" style={{ paddingBlock: '40px 90px' }}>
+    <div className="stat skeleton" style={{ height: 320, border: 0 }} /></div>;
+
+  const at = new Date(slot.startsAt);
+  const ends = new Date(at.getTime() + x.durationMinutes * 60000);
+  const usable = cards.filter(c => !c.isExpired);
+
+  const book = async () => {
+    if (!state.user) { set({ authMode: 'login', authError: null, overlay: 'login' }); return; }
+    setBusy(true);
+    try {
+      // docs/07 §2 and §4 — what was actually chosen above, not a hard-coded card.
+      const typed = document.getElementById('xp-card-number')?.value?.replace(/\D/g, '') ?? '';
+      const b = await api.bookExperience(slotId, {
+        seats,
+        private: priv,
+        paymentMethod: state.payMethod ?? 'card',
+        cardLast4: state.payCardLast4 ?? (typed.length >= 4 ? typed.slice(-4) : null)
+      });
+      toast(`${t('Đã đặt — mã')} ${b.reference}`);
+      navigate('/experiences/bookings');
+    } catch (err) { toast(err.message); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="shell" style={{ paddingBlock: '26px 90px' }}>
+      <button className="back-link" onClick={() => navigate(`/experiences/${slug}`)}>
+        ← {t('Quay lại')}
+      </button>
+      <h1 className="section-title" style={{ marginTop: 10 }}>{t('Xác nhận và thanh toán')}</h1>
+
+      <div className="trip-layout">
+        <div style={{ minWidth: 0, display: 'grid', gap: 16 }}>
+          <section className="pay-step">
+            <h2><i>1</i> {t('Vé của bạn')}</h2>
+            <div className="kv-grid">
+              <Kv label={t('Suất')} value={`${dayLabel(at)} · ${TIME().format(at)} – ${TIME().format(ends)}`} />
+              <Kv label={t('Số người')} value={`${seats} ${t('người')}`} />
+              <Kv label={t('Điểm hẹn')} value={x.meetingPoint} />
+            </div>
+            {priv && (
+              <p className="svc-safe" style={{ marginTop: 14 }}>
+                {t('Thuê trọn nhóm riêng')} — {t('Chỉ nhóm bạn, không ghép với khách khác')}
+              </p>
+            )}
+          </section>
+
+          <section className="pay-step">
+            <h2><i>2</i> {t('Cách thanh toán')}</h2>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {methods.map(m => (
+                <button type="button" key={m.key}
+                        className={`opt ${state.payMethod === m.key ? 'is-on' : ''}`}
+                        onClick={() => set({ payMethod: m.key })}>
+                  <b>{t(m.label)}</b><span>{t(m.hint)}</span>
+                </button>
+              ))}
+            </div>
+
+            {state.payMethod === 'card' && !!usable.length && (
+              <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
+                <span className="cap">{t('Thẻ đã lưu')}</span>
+                {usable.map(c => (
+                  <button type="button" key={c.id}
+                          className={`opt ${state.payCardId === c.id ? 'is-on' : ''}`}
+                          onClick={() => set({ payCardId: c.id, payCardLast4: c.last4 })}>
+                    <b>{c.brandLabel} •••• {c.last4}</b><span>{t('Hết hạn')} {c.expiry}</span>
+                  </button>
+                ))}
+                <button type="button" className={`opt ${state.payCardId ? '' : 'is-on'}`}
+                        onClick={() => set({ payCardId: null, payCardLast4: null })}>
+                  <b>{t('Dùng thẻ khác')}</b><span>{t('Nhập số thẻ bên dưới')}</span>
+                </button>
+              </div>
+            )}
+
+            {state.payMethod === 'card' && !state.payCardId && <>
+              <div className="field-grid" style={{ marginTop: 18 }}>
+                <label className="form-field" style={{ gridColumn: '1/-1' }}>
+                  <span className="cap">{t('Số thẻ')}</span>
+                  <input id="xp-card-number" inputMode="numeric" placeholder="4242 4242 4242 4242"
+                         defaultValue="4242 4242 4242 4242" /></label>
+                <label className="form-field"><span className="cap">{t('Hết hạn')}</span>
+                  <input id="xp-card-exp" placeholder="12/28" defaultValue="12/28" /></label>
+                <label className="form-field"><span className="cap">CVV</span>
+                  <input id="xp-card-cvv" inputMode="numeric" placeholder="123" defaultValue="123" /></label>
+              </div>
+              <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.5 }}>
+                {t('Bản demo dùng thẻ thử nghiệm, không có giao dịch thật nào được thực hiện.')}
+              </p>
+            </>}
+          </section>
+
+          <section className="pay-step">
+            <h2><i>3</i> {t('Xem lại và xác nhận')}</h2>
+            {quote && !quote.canBook &&
+              <div className="book-alert is-error" style={{ marginTop: 0 }}>
+                <b>{t('Chưa đặt được')}</b><span>{quote.reason}</span>
+              </div>}
+            <p className="svc-safe" style={{ marginBottom: 14 }}>
+              {t('Huỷ trước 24 giờ được hoàn toàn bộ.')}
+            </p>
+            <button className="btn btn-primary" style={{ width: '100%' }}
+                    disabled={busy || !quote || !quote.canBook} onClick={book}>
+              {busy ? t('Đang xử lý…') : t('Xác nhận và thanh toán')}
+            </button>
+          </section>
+        </div>
+
+        <aside className="receipt">
+          <div className="receipt-head">
+            {!!x.images.length && (
+              <img src={x.images[0]} alt="" loading="lazy" decoding="async"
+                   style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 12, flex: '0 0 auto' }} />
+            )}
+            <div style={{ minWidth: 0 }}>
+              <b><TranslatedText as="span" text={x.title} notice={false} /></b>
+              <div className="meta">{x.hostName}</div>
+              {!!x.reviewCount && (
+                <div className="meta">★ {x.rating.toFixed(2)} ({x.reviewCount})</div>
+              )}
+            </div>
+          </div>
+
+          <div className="kv-grid" style={{ marginTop: 18 }}>
+            <Kv label={t('Ngày')} value={`${dayLabel(at)} · ${TIME().format(at)} – ${TIME().format(ends)}`} />
+            <Kv label={t('Số người')} value={`${seats} ${t('người')}`} />
+            <Kv label={t('Ngôn ngữ')} value={languagesOf(x.languages)} />
+          </div>
+
+          {quote && (
+            <div className="book-lines" style={{ marginTop: 18 }}>
+              {quote.lines.map(l => (
+                <div className="book-line" key={l.key}><span>{t(l.label)}</span><b>{money(l.amount)}</b></div>
+              ))}
+              <div className="book-line is-total"><span>{t('Tổng')}</span><b>{money(quote.total)}</b></div>
+            </div>
+          )}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+/** A label over its value, for the summary card on the checkout page. */
+function Kv({ label, value }) {
+  return <div className="kv"><span className="kv-label">{label}</span><b>{value}</b></div>;
 }
 
 /** One thing worth knowing before booking: an icon, a heading and a single line. */
