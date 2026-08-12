@@ -64,6 +64,26 @@ public static class PaymentMethods
     /// <summary>The card family, which is the only thing §4's rules are about.</summary>
     public static bool IsCard(string? key) => key is "card" or "napas";
 
+    /// <summary>
+    /// docs/07 §2.3 — whether the platform can take the money during the request
+    /// that books, or has to wait for it to arrive by itself.
+    ///
+    /// Everything §2.1 offers is charged there and then: a card is authorised, a
+    /// wallet is debited, a balance is spent. VietQR is not — the guest goes to
+    /// their banking app and the transfer lands whenever it lands, which is a
+    /// booking that waits and a confirmation that comes from a bank statement.
+    ///
+    /// Until that path exists, a booking sent with this method must be refused
+    /// rather than confirmed: the stand-in gateway says yes to everything that is
+    /// not the declining test card, so accepting it would confirm a stay nobody
+    /// had paid for, the moment an account number is configured.
+    /// </summary>
+    public static bool ChargesOnBooking(string? key) => key != "vietqr";
+
+    /// <summary>Said to a guest who reaches a booking with a method that cannot pay for it yet.</summary>
+    public const string NotChargeableYet =
+        "Chuyển khoản QR chưa dùng để đặt được. Hãy chọn thẻ hoặc ví điện tử.";
+
     /* ------------------------------------------------------- §3, the fallback */
 
     /// <summary>

@@ -91,6 +91,21 @@ public class VietQrTests
     }
 
     [Fact]
+    public void A_transfer_cannot_confirm_a_booking_until_the_money_has_arrived()
+    {
+        // docs/07 §2.3 — everything §2.1 offers is charged during the request
+        // that books. VietQR is not: the guest leaves for their banking app and
+        // the money lands later. Until that path exists a booking sent with it
+        // must be refused, because the stand-in gateway says yes to everything
+        // that is not the declining test card — so it would confirm a stay
+        // nobody had paid for, the moment an account number is configured.
+        Assert.False(PaymentMethods.ChargesOnBooking("vietqr"));
+
+        foreach (var key in new[] { "card", "napas", "momo", "zalopay", "balance" })
+            Assert.True(PaymentMethods.ChargesOnBooking(key));
+    }
+
+    [Fact]
     public void A_beneficiary_missing_either_half_is_refused()
     {
         Assert.False(new VietQr.Beneficiary("", "0123456789").IsComplete);

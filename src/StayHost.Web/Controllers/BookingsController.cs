@@ -532,6 +532,13 @@ public class BookingsController(
             return Conflict(new { message = "Yêu cầu thanh toán này đang được xử lý. Vui lòng đợi trong giây lát." });
         }
 
+        // docs/07 §2.3 — a method that cannot be charged here has to be refused
+        // here. The stand-in gateway says yes to anything that is not the
+        // declining test card, so letting VietQR through would confirm a stay
+        // whose money is still sitting in the guest's own account.
+        if (!PaymentMethods.ChargesOnBooking(method))
+            return BadRequest(new { message = PaymentMethods.NotChargeableYet });
+
         // The key goes to the gateway too: docs/07 §5's self-check is only
         // possible if the platform can ask "what happened to this attempt".
         var attempt = gateway.Charge(charged, method, req?.CardLast4, key);

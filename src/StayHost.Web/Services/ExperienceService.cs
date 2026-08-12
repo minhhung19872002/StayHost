@@ -330,7 +330,13 @@ public class ExperienceService(
                     : "Vừa có người đặt hết chỗ của suất này.");
         }
 
-        var attempt = gateway.Charge(price.Total, req.PaymentMethod ?? "card", req.CardLast4);
+        // docs/07 §2.3 — see BookingsController: a method the platform cannot
+        // charge during this request must not be allowed to confirm a ticket.
+        // Checked after the seats are taken so the refusal releases them below.
+        var attempt = PaymentMethods.ChargesOnBooking(req.PaymentMethod)
+            ? gateway.Charge(price.Total, req.PaymentMethod ?? "card", req.CardLast4)
+            : new PaymentGateway.Result(false, DeclineReason.IncorrectDetails);
+
         if (!attempt.Ok)
         {
             // Give the seats straight back; a refused card must not hold a seat.

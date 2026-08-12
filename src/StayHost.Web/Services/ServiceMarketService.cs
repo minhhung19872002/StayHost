@@ -344,6 +344,11 @@ public class ServiceMarketService(
             DistanceKm = DistanceFor(offering, req.Latitude, req.Longitude)
         });
 
+        // docs/07 §2.3 — see BookingsController: a method the platform cannot
+        // charge during this request must not be allowed to confirm a job.
+        if (!PaymentMethods.ChargesOnBooking(req.PaymentMethod))
+            return (null, PaymentMethods.NotChargeableYet);
+
         var attempt = gateway.Charge(price.Total, req.PaymentMethod ?? "card", req.CardLast4);
         if (!attempt.Ok) return (null, attempt.Reason);
 
