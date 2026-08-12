@@ -41,7 +41,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (12/08/2026).** 940 test nghiệp vụ · **10/10** kịch bản của `docs/04`
+**Toàn bộ xanh (12/08/2026).** 948 test nghiệp vụ · **10/10** kịch bản của `docs/04`
 (`scripts/acceptance.py`) · **10/10** kịch bản quản trị của `docs/08 §13`
 (`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
 (`scripts/doc09_acceptance.py`, gồm cả 12 tình huống bắt buộc của `docs/09 §9`).
@@ -162,6 +162,13 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   `"de is not supported"` — hỏng mà không có dấu hiệu nào. Đã bật `LT_UPDATE_MODELS`
   ở cả hai compose. Danh sách này phải khớp `Translations.Targets`, khớp luôn cả danh
   sách ngôn ngữ giao diện (`CatalogService.Languages`).
+- **Script nghiệm thu phải nói cùng đồng hồ với server.** `psql` trong container
+  chạy `Asia/Ho_Chi_Minh`, còn app xét ngày bằng `DateTime.UtcNow`. Nên
+  `current_date - 1` của script, **từ 00:00 tới 07:00 giờ VN**, chính là *hôm nay*
+  của server: kịch bản 9 của `docs/09` dựng chứng chỉ "đã hết hạn" mà server thấy
+  chưa hết, sweep không ẩn tin, và script báo FAIL trong khi sản phẩm đúng. Bảy
+  tiếng mỗi ngày. Dùng `(now() at time zone 'utc')::date`, đừng dùng
+  `current_date`. `now()` thì không sao — `timestamptz` so sánh không lệch.
 - **Giờ mở cửa là giờ của nhà cung cấp, không phải giờ UTC.** `CanBook` từng so
   `req.StartsAt.Hour` (UTC) với `OpensAtHour`, trong khi picker sinh khung giờ
   theo giờ máy khách. Ở Việt Nam lệch 7 tiếng: khách bấm "10:00" thì server nhận
@@ -273,7 +280,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 940 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 948 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09

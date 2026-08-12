@@ -1766,6 +1766,20 @@ public record ServiceBookingDto(
     /// <summary>docs/09 §5 — set once this job has been scored, so nobody is asked twice.</summary>
     bool HasReview = false);
 
+/// <summary>
+/// docs/07 §2.3 — everything a page needs to draw a VietQR and tell the guest
+/// what they are about to do. <c>Payload</c> is the string that goes into the QR
+/// image; the rest is for the humans who would rather type it into their banking
+/// app by hand, or check that the name on the screen is who they meant to pay.
+/// </summary>
+public record BankTransferQrDto(
+    string Payload,
+    string BankName,
+    string AccountNumber,
+    string AccountName,
+    string Memo,
+    decimal Amount);
+
 /// <summary>docs/09 §5 — one guest's word on one job, on the four service headings.</summary>
 public record ServiceReviewDto(
     int Id, string AuthorName, string? AuthorAvatarUrl,

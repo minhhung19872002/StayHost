@@ -18,7 +18,8 @@ namespace StayHost.Web.Controllers;
 [ApiController]
 [Route("api/payment-methods")]
 public class PaymentMethodsController(
-    StayHostDbContext db, AuthService auth, NotificationService notifications) : ControllerBase
+    StayHostDbContext db, AuthService auth, NotificationService notifications,
+    BankTransferSettings bank) : ControllerBase
 {
     /// <summary>docs/07 §2 — the catalogue, so the payment page and this screen agree.</summary>
     [HttpGet("catalogue")]
@@ -28,7 +29,68 @@ public class PaymentMethodsController(
             .Select(m => new PaymentMethodDto(m.Key, m.Group, m.Label, m.Hint, m.Savable))
             .ToList();
 
+        // docs/07 §2.3 — VietQR is a "later" method in the catalogue, so it is not
+        // in the required set above. It joins the list once there is an account
+        // for it to credit, and never before: an option that leads to a QR code
+        // crediting nobody is worse than one that is missing.
+        if (bank.Enabled && PaymentMethods.Find("vietqr") is { } qr)
+            offered.Add(new PaymentMethodDto(qr.Key, qr.Group, qr.Label, qr.Hint, qr.Savable));
+
         return Ok(new PaymentCatalogueDto(offered, PaymentMethods.RefusedLabels, PaymentMethods.RefusalReason()));
+    }
+
+    /// <summary>
+    /// docs/07 §2.3 — the QR for one amount and one reference.
+    ///
+    /// The reference is the whole mechanism: it is what turns an anonymous credit
+    /// on a bank statement back into the booking that was waiting for it, and
+    /// putting it inside the QR is what stops the guest mistyping it. Anything
+    /// the guest could have chosen — how much, what memo — is rejected here and
+    /// taken from the booking instead; a QR built from what the browser asked for
+    /// is a QR the guest wrote themselves.
+    /// </summary>
+    [HttpGet("vietqr/{reference}")]
+    public async Task<ActionResult<BankTransferQrDto>> Qr(string reference, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        if (!bank.Enabled)
+            return BadRequest(new { message = "Chưa cấu hình tài khoản nhận chuyển khoản." });
+
+        var owed = await OwedOnAsync(user.Id, reference, ct);
+        if (owed is null) return NotFound();
+        if (owed <= 0) return BadRequest(new { message = "Đơn này không còn khoản nào phải trả." });
+
+        return Ok(new BankTransferQrDto(
+            VietQr.Payload(bank.Beneficiary, owed.Value, reference),
+            bank.BankName,
+            bank.AccountNumber,
+            bank.AccountName,
+            VietQr.Sanitise(reference),
+            owed.Value));
+    }
+
+    /// <summary>
+    /// What this guest still owes on that reference, across the three things they
+    /// can book. Null when the reference is not theirs — which reads the same as
+    /// "no such booking", so nobody can probe for other people's references.
+    /// </summary>
+    private async Task<decimal?> OwedOnAsync(int userId, string reference, CancellationToken ct)
+    {
+        if (await db.Bookings.FirstOrDefaultAsync(
+                b => b.Reference == reference && b.GuestUserId == userId, ct) is { } stay)
+            return stay.BalanceDue > 0 ? stay.BalanceDue : stay.Total;
+
+        if (await db.ServiceBookings.FirstOrDefaultAsync(
+                b => b.Reference == reference && b.GuestUserId == userId, ct) is { } job)
+            return job.Total;
+
+        if (await db.ExperienceBookings.FirstOrDefaultAsync(
+                b => b.Reference == reference && b.GuestUserId == userId, ct) is { } ticket)
+            return ticket.Total;
+
+        return null;
     }
 
     [HttpGet]

@@ -298,12 +298,16 @@ sql(f"""UPDATE bookings
             "CheckOut" = ("CheckOut" - INTERVAL '1 year')::date
         WHERE "ListingId" = {req_listing['id']}
           AND "Id" <> {request['id']}
-          AND "CheckOut" >= CURRENT_DATE - 20
-          AND "CheckOut" < CURRENT_DATE;""")
+          AND "CheckOut" >= (now() at time zone 'utc')::date - 20
+          AND "CheckOut" < (now() at time zone 'utc')::date;""")
 
+# The server's today, not the database session's: psql runs in Asia/Ho_Chi_Minh
+# and the app judges dates in UTC, so plain CURRENT_DATE is a day ahead between
+# midnight and 7am Vietnam time.
 placed = False
 for back in range(2, 12):
-    if sql(f'UPDATE bookings SET "CheckIn"=CURRENT_DATE-{back + 3}, "CheckOut"=CURRENT_DATE-{back}, '
+    if sql(f'UPDATE bookings SET "CheckIn"=(now() at time zone \'utc\')::date-{back + 3}, '
+           f'"CheckOut"=(now() at time zone \'utc\')::date-{back}, '
            f'"Status"=4 WHERE "Id"={request["id"]};').returncode == 0:
         placed = True
         break

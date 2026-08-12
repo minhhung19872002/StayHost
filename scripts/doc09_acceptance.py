@@ -199,9 +199,15 @@ def scenario_12():
 def scenario_9():
     """A massage certificate that lapsed takes the listing down by itself."""
     oid = sql("""select "Id" from service_offerings where "IsPublished" order by "Id" limit 1;""")
+    # Yesterday on the server's clock, not on the database session's.
+    # ServiceRules.CertificateLapsed compares against DateTime.UtcNow, while psql
+    # runs in Asia/Ho_Chi_Minh: between midnight and 7am Vietnam time, plain
+    # `current_date - 1` is still *today* in UTC, the certificate is not lapsed,
+    # and the sweep is right to leave the listing up. This failed nowhere else
+    # and only during those seven hours.
     sql(f"""update service_offerings
             set "CertificateName" = 'Chung chi massage',
-                "CertificateExpiresOn" = (current_date - 1),
+                "CertificateExpiresOn" = ((now() at time zone 'utc')::date - 1),
                 "HiddenByExpiredCertificate" = false,
                 "IsPublished" = true
             where "Id" = {oid};""")

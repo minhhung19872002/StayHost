@@ -56,6 +56,11 @@ builder.Services.AddScoped(sp => new TranslationService(
 // run against a test project on a laptop and the real one on the server. Nothing
 // here is a secret except the Facebook app secret, which comes from the
 // environment file rather than appsettings.json.
+// docs/07 §2.3 — the company account a VietQR credits. Off until an account
+// number exists, so the method never shows up leading nowhere.
+var bankTransfer = builder.Configuration.GetSection("BankTransfer").Get<BankTransferSettings>() ?? new();
+builder.Services.AddSingleton(bankTransfer);
+
 var externalLogin = builder.Configuration.GetSection("ExternalLogin").Get<ExternalLoginSettings>() ?? new();
 builder.Services.AddSingleton(externalLogin);
 builder.Services.AddHttpClient("external-login");
