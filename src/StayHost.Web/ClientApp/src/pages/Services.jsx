@@ -140,13 +140,16 @@ function worksOn(detail, date) {
  */
 const MINIMUM_NOTICE_MS = 4 * 3600_000;
 
-/** Two-hour steps inside the provider's working day, for the next fortnight. */
+/** How far ahead the rail and the month grid look. */
+const HORIZON_DAYS = 30;
+
+/** Two-hour steps inside the provider's working day, for the next month. */
 function slotsFor(detail) {
   const out = [];
   const now = new Date();
   const earliest = now.getTime() + MINIMUM_NOTICE_MS;
 
-  for (let day = 0; day < 14; day++) {
+  for (let day = 0; day < HORIZON_DAYS; day++) {
     for (let hour = detail.opensAtHour; hour < detail.closesAtHour; hour += 2) {
       const at = new Date(now);
       at.setDate(at.getDate() + day);
@@ -165,17 +168,36 @@ function slotsFor(detail) {
   return out;
 }
 
-/** "Hôm nay, 12 tháng 8" — the day a session falls on, said the short way. */
+/** "Hôm nay · Thứ Tư, 12 tháng 8" — the day a session falls on, said the short way. */
 function dayLabel(date) {
   const today = new Date();
   const tomorrow = new Date(today.getTime() + 86400000);
-  const same = (a, b) => a.toDateString() === b.toDateString();
   const written = DAY().format(date);
 
-  if (same(date, today)) return `${t('Hôm nay')} · ${written}`;
-  if (same(date, tomorrow)) return `${t('Ngày mai')} · ${written}`;
+  if (sameDay(date, today)) return `${t('Hôm nay')} · ${written}`;
+  if (sameDay(date, tomorrow)) return `${t('Ngày mai')} · ${written}`;
   return written;
 }
+
+const sameDay = (a, b) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
+const midnight = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+/**
+ * The weekday initials over a month, in the reader's language, starting Monday —
+ * the same anchor Calendar.jsx uses (5 Jan 1970 was a Monday) so the two grids
+ * on the site do not start their weeks on different days.
+ */
+const DOW_NARROW = () => {
+  const f = dateFormat({ weekday: 'narrow' });
+  return Array.from({ length: 7 }, (_, i) => f.format(new Date(1970, 0, 5 + i)));
+};
+
+/** Monday = 0 … Sunday = 6, to match the grid above. */
+const mondayIndex = date => (date.getDay() + 6) % 7;
 
 function Detail({ slug }) {
   const state = useStore();
@@ -526,80 +548,156 @@ function BookingSheet({
   note, setNote, addOnIds, toggleAddOn, requirements, conditionsOk, setConditionsOk,
   quote, busy, blocked, onBook, onClose
 }) {
-  // One heading per day, the slots of that day under it.
-  const days = useMemo(() => {
-    const groups = [];
+  // 'when' is the picker; 'calendar' is the month grid behind the calendar
+  // button, which is a separate view of the same choice rather than a popover —
+  // a month grid inside a scrolling dialog has nowhere to hang.
+  const [pane, setPane] = useState('when');
+  const [chosenDay, setChosenDay] = useState(null);
+
+  /** Every free slot, filed under the day it falls on. */
+  const byDay = useMemo(() => {
+    const map = new Map();
     for (const slot of slots) {
-      const key = slot.at.toDateString();
-      const last = groups[groups.length - 1];
-      if (last?.key === key) last.slots.push(slot);
-      else groups.push({ key, at: slot.at, slots: [slot] });
+      const key = dayKey(slot.at);
+      const list = map.get(key);
+      if (list) list.push(slot); else map.set(key, [slot]);
     }
-    return groups;
+    return map;
   }, [slots]);
 
+  const hasRoom = date => (byDay.get(dayKey(date)) ?? []).some(x => !x.taken);
+
+  /**
+   * A month of days whether or not the provider works them. Airbnb greys the
+   * closed days rather than hiding them, and it is the difference between "they
+   * are busy on Tuesday" and "Tuesday does not exist".
+   */
+  const rail = useMemo(() => {
+    const start = midnight(new Date());
+    return Array.from({ length: HORIZON_DAYS }, (_, i) =>
+      new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+  }, []);
+
+  // Derived rather than stored, so the dialog opens on the first day with room
+  // without an effect that would have to fight the guest's own choice for it.
+  const day = chosenDay ?? (when ? midnight(when) : rail.find(hasRoom) ?? null);
+
+  const pickDay = date => {
+    setChosenDay(date);
+    // The chosen time belongs to the day it was chosen on. Keeping it while the
+    // rail moved elsewhere is how a guest ends up booking a different date from
+    // the one highlighted in front of them.
+    if (when && !sameDay(when, date)) onPick(null);
+    setPane('when');
+  };
+
+  const daySlots = day ? (byDay.get(dayKey(day)) ?? []) : [];
   const addOns = s.addOns ?? [];
+  const anyRoom = rail.some(hasRoom);
 
   return (
     <Sheet title={t('Chọn khung giờ')} onClose={onClose}
-           foot={
-             <>
-               <span>
-                 {quote
-                   ? <><b style={{ fontSize: 16 }}>{money(quote.total)}</b>{' '}
-                       <span style={{ color: 'var(--ink-muted)', fontSize: 13 }}>{t('tổng cộng')}</span></>
-                   : <span style={{ color: 'var(--ink-muted)', fontSize: 13.5 }}>
-                       {t('Chọn một khung giờ để xem giá.')}
-                     </span>}
-               </span>
-               <button className="btn btn-primary"
-                       disabled={busy || !quote || !quote.canBook || blocked}
-                       onClick={onBook}>
-                 {busy ? t('Đang xử lý…') : t('Đặt dịch vụ')}
-               </button>
-             </>
-           }>
-      {s.pricing !== 'PerSession' && (
-        <div className="count-row" style={{ paddingTop: 0 }}>
-          <div className="tx">
-            <b>{quantity} {t(s.unit)}</b>
-            <span>{t('Nhận từ')} {s.minQuantity} {t('đến')} {s.maxQuantity}</span>
+           foot={pane === 'calendar'
+             ? <button className="btn btn-dark" style={{ width: '100%' }}
+                       onClick={() => setPane('when')}>{t('Tiếp tục')}</button>
+             : <>
+                 <span>
+                   {quote
+                     ? <><b style={{ fontSize: 16 }}>{money(quote.total)}</b>{' '}
+                         <span style={{ color: 'var(--ink-muted)', fontSize: 13 }}>{t('tổng cộng')}</span></>
+                     : <span style={{ color: 'var(--ink-muted)', fontSize: 13.5 }}>
+                         {t('Chọn một khung giờ để xem giá.')}
+                       </span>}
+                 </span>
+                 <button className="btn btn-primary"
+                         disabled={busy || !quote || !quote.canBook || blocked}
+                         onClick={onBook}>
+                   {busy ? t('Đang xử lý…') : t('Đặt dịch vụ')}
+                 </button>
+               </>}>
+      {pane === 'calendar' ? (
+        <MonthGrid rail={rail} day={day} hasRoom={hasRoom} onPick={pickDay} />
+      ) : <>
+        {/* docs/09 §3.3 — a flat-rate visit is one price however many people are
+            named, so there is nothing to count. */}
+        {s.pricing !== 'PerSession' && (
+          <div className="count-row" style={{ paddingTop: 0 }}>
+            <div className="tx">
+              <b>{quantity} {t(s.unit)}</b>
+              <span>{t('Nhận từ')} {s.minQuantity} {t('đến')} {s.maxQuantity}</span>
+            </div>
+            <div className="count-ctl">
+              <button type="button" className="round-btn" aria-label={t('Giảm')}
+                      disabled={quantity <= s.minQuantity}
+                      onClick={() => setQuantity(q => Math.max(s.minQuantity, q - 1))}>−</button>
+              <span className="num">{quantity}</span>
+              <button type="button" className="round-btn" aria-label={t('Tăng')}
+                      disabled={quantity >= s.maxQuantity}
+                      onClick={() => setQuantity(q => Math.min(s.maxQuantity, q + 1))}>+</button>
+            </div>
           </div>
-          <div className="count-ctl">
-            <button type="button" className="round-btn" aria-label={t('Giảm')}
-                    disabled={quantity <= s.minQuantity}
-                    onClick={() => setQuantity(q => Math.max(s.minQuantity, q - 1))}>−</button>
-            <span className="num">{quantity}</span>
-            <button type="button" className="round-btn" aria-label={t('Tăng')}
-                    disabled={quantity >= s.maxQuantity}
-                    onClick={() => setQuantity(q => Math.min(s.maxQuantity, q + 1))}>+</button>
-          </div>
-        </div>
-      )}
+        )}
 
-      <div className="slot-month">
-        <span>{MONTH().format(when ?? new Date())}</span>
-        <Icon name="calendar" size={20} />
-      </div>
-
-      {days.length ? days.map(day => (
-        <div key={day.key}>
-          <h3 className="slot-day">{dayLabel(day.at)}</h3>
-          <div className="slot-list">
-            {day.slots.map(({ at, ends, taken }) => (
-              <button key={at.toISOString()} type="button" disabled={taken}
-                      className={`slot-card ${when && +when === +at ? 'is-on' : ''}`}
-                      onClick={() => onPick(at)}>
-                <span className="slot-card-when">
-                  <b>{TIME().format(at)} – {TIME().format(ends)}</b>
-                  <span>{money(s.basePrice)} / {t(s.unit)} · {duration(s.durationMinutes)}</span>
-                </span>
-                <i className={taken ? '' : 'is-scarce'}>{taken ? t('đã kín') : t('còn trống')}</i>
-              </button>
-            ))}
-          </div>
+        <div className="slot-month">
+          <span>{MONTH().format(day ?? new Date())}</span>
+          <button type="button" className="slot-month-cal"
+                  aria-label={t('Mở lịch để tìm ngày còn trống')}
+                  onClick={() => setPane('calendar')}>
+            <Icon name="calendar" size={20} />
+          </button>
         </div>
-      )) : <p className="slot-empty">{t('Hai tuần tới chưa có khung giờ nào trống.')}</p>}
+
+        {anyRoom ? <>
+          {/*
+            * A month of days on one scrolling rail rather than a stack of
+            * headings. The stack made the reader scroll past every hour of
+            * Tuesday to find out whether Wednesday had anything at all, and the
+            * dialog could only ever be a fortnight long before it became
+            * unreadable.
+            */}
+          <div className="slot-rail" role="group" aria-label={t('Chọn ngày')}>
+            {rail.map(date => {
+              const free = hasRoom(date);
+              const on = day && sameDay(day, date);
+              return (
+                <button key={dayKey(date)} type="button" disabled={!free}
+                        className={`slot-rail-day ${on ? 'is-on' : ''}`}
+                        aria-pressed={!!on}
+                        aria-label={`${DAY().format(date)}${free ? '' : ` — ${t('hết chỗ')}`}`}
+                        onClick={() => pickDay(date)}>
+                  <span>{DOW_NARROW()[mondayIndex(date)]}</span>
+                  <b>{date.getDate()}</b>
+                </button>
+              );
+            })}
+          </div>
+
+          {day && <>
+            <h3 className="slot-day">{dayLabel(day)}</h3>
+
+            {/* What is being bought at that hour, said once above the times
+                rather than repeated on every one of them. */}
+            <div className="slot-what">
+              {!!s.images.length && <img src={s.images[0]} alt="" loading="lazy" decoding="async" />}
+              <div>
+                <b><TranslatedText as="span" text={s.title} notice={false} /></b>
+                <span>{money(s.basePrice)} / {t(s.unit)} · {duration(s.durationMinutes)}</span>
+              </div>
+            </div>
+
+            {daySlots.length ? (
+              <div className="time-chips">
+                {daySlots.map(({ at, taken }) => (
+                  <button key={at.toISOString()} type="button" disabled={taken}
+                          className={`time-chip ${when && +when === +at ? 'is-on' : ''}`}
+                          onClick={() => onPick(at)}>
+                    {TIME().format(at)}
+                  </button>
+                ))}
+              </div>
+            ) : <p className="slot-empty">{t('Ngày này không còn giờ trống.')}</p>}
+          </>}
+        </> : <p className="slot-empty">{t('Tháng tới chưa có khung giờ nào trống.')}</p>}
 
       {when && <>
         {/* docs/09 §3.3 (MR-S-03) — each extra is priced on its own and shows up
@@ -677,7 +775,57 @@ function BookingSheet({
             <div className="book-alert is-error"><b>{t('Chưa đặt được')}</b><span>{quote.reason}</span></div>}
         </>}
       </>}
+      </>}
     </Sheet>
+  );
+}
+
+/**
+ * The month grid behind the calendar button: two months at a time, closed and
+ * fully booked days struck through, the chosen one filled in. Weeks start on
+ * Monday, the same as the stay calendar, so the site has one idea of where a
+ * week begins.
+ */
+function MonthGrid({ rail, day, hasRoom, onPick }) {
+  const first = rail[0];
+  const months = [
+    new Date(first.getFullYear(), first.getMonth(), 1),
+    new Date(first.getFullYear(), first.getMonth() + 1, 1)
+  ];
+  const dow = DOW_NARROW();
+  const bookable = new Set(rail.filter(hasRoom).map(dayKey));
+
+  return (
+    <div className="cal-wrap" data-months="2">
+      {months.map(monthStart => {
+        const year = monthStart.getFullYear();
+        const month = monthStart.getMonth();
+        const days = new Date(year, month + 1, 0).getDate();
+        const lead = mondayIndex(monthStart);
+
+        return (
+          <div key={`${year}-${month}`}>
+            <div className="cal-head"><b>{MONTH().format(monthStart)}</b></div>
+            <div className="cal-grid">
+              {dow.map((d, i) => <span className="cal-dow" key={i}>{d}</span>)}
+              {Array.from({ length: lead }, (_, i) => <span key={`pad${i}`} />)}
+              {Array.from({ length: days }, (_, i) => {
+                const date = new Date(year, month, i + 1);
+                const free = bookable.has(dayKey(date));
+                return (
+                  <button key={i} type="button" disabled={!free}
+                          className={`cal-day ${day && sameDay(day, date) ? 'is-edge' : ''}`}
+                          aria-label={DAY().format(date)}
+                          onClick={() => onPick(date)}>
+                    {i + 1}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

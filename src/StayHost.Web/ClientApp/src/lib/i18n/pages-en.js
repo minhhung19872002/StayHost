@@ -2256,4 +2256,10 @@ export default {
   "Đã chọn": "Selected",
   "Để được bảo vệ, hãy luôn thanh toán và trao đổi qua StayHost.": "To stay protected, always pay and communicate through StayHost.",
   "đặt trước ít nhất 4 giờ": "book at least 4 hours ahead",
+
+  /* The two-pane time picker: a month of days on a rail, the hours of the
+     chosen one as chips, and the month grid behind the calendar button. */
+  "Mở lịch để tìm ngày còn trống": "Open the calendar to find an available date",
+  "Ngày này không còn giờ trống.": "No times left on this date.",
+  "Tháng tới chưa có khung giờ nào trống.": "No free slots in the coming month.",
 };

@@ -70,9 +70,12 @@ public class ServiceMarketService(
             : await query.FirstOrDefaultAsync(x => x.Slug == idOrSlug, ct);
         if (o is null) return null;
 
-        // The next fortnight of taken slots, so the picker can grey them out.
+        // Two months of taken slots, so the picker can grey them out. It used to
+        // be a fortnight, which was exactly as far as the picker looked; now the
+        // dialog offers a month rail and a month grid, and a job outside the
+        // window would have shown as free right up until the server refused it.
         var from = DateTime.UtcNow;
-        var to = from.AddDays(14);
+        var to = from.AddDays(60);
         var busy = await db.ServiceBookings
             .Where(b => b.OfferingId == o.Id
                         && b.Status != ServiceBookingStatus.CancelledByGuest

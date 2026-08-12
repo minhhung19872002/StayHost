@@ -201,8 +201,10 @@ public static class ReviewSeeder
             {
                 // Spread across separate days: two finished jobs sitting on top of
                 // each other would be a diary the provider could never have worked.
-                var startsAt = DateTime.SpecifyKind(
-                    midnight.AddDays(-9 - p * 11).AddHours(o.OpensAtHour + 1), DateTimeKind.Utc);
+                // The hour is the provider's own — an instant an hour after they
+                // open, not an instant an hour after midnight UTC, which for a
+                // grocery run that shuts at noon would be two hours after closing.
+                var startsAt = AtLocalHour(o, midnight.AddDays(-9 - p * 11), o.OpensAtHour + 1);
 
                 var guest = guests[written % guests.Count];
                 var note = ServiceNotes[written % ServiceNotes.Length];
@@ -283,4 +285,16 @@ public static class ReviewSeeder
     /// </summary>
     private static string Reference(int ownerId, int n) =>
         $"{ownerId:D4}{n:D2}00";
+
+    /// <summary>
+    /// The instant behind a wall-clock hour in the provider's own timezone —
+    /// the inverse of <see cref="ServiceRules.LocalTime"/>, near enough for a
+    /// seeder in a country with no daylight saving.
+    /// </summary>
+    private static DateTime AtLocalHour(ServiceOffering o, DateTime day, int hour)
+    {
+        var wall = day.AddHours(hour);
+        var offset = ServiceRules.LocalTime(o, wall) - wall;
+        return DateTime.SpecifyKind(wall - offset, DateTimeKind.Utc);
+    }
 }

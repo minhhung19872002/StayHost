@@ -375,6 +375,29 @@ public static class ServiceRules
         return (WorkingDays(o.WorkingDaysMask) & (1 << bit)) != 0;
     }
 
+    /// <summary>
+    /// docs/09 §3.4 — "khung giờ nhận việc theo từng thứ trong tuần". A chef who
+    /// says they work 9:00 to 21:00 means nine in the morning where they live,
+    /// not nine UTC, and the weekday they work is their weekday. Instants are
+    /// stored and compared in UTC everywhere else, so the conversion happens
+    /// here, once, at the only place that reads a clock face rather than a
+    /// moment. An unknown zone id falls back to UTC rather than throwing: a
+    /// mistyped setting must not take a listing off sale.
+    /// </summary>
+    public static DateTime LocalTime(ServiceOffering o, DateTime instant)
+    {
+        try
+        {
+            var tz = TimeZoneInfo.FindSystemTimeZoneById(o.TimeZoneId);
+            return TimeZoneInfo.ConvertTimeFromUtc(
+                DateTime.SpecifyKind(instant, DateTimeKind.Utc), tz);
+        }
+        catch (Exception e) when (e is TimeZoneNotFoundException or InvalidTimeZoneException)
+        {
+            return instant;
+        }
+    }
+
     /// <summary>The provider's own gap between jobs, or the platform default.</summary>
     public static TimeSpan BufferFor(ServiceOffering o) =>
         o.BufferMinutes > 0 ? TimeSpan.FromMinutes(o.BufferMinutes) : BufferBetweenJobs;
@@ -426,8 +449,12 @@ public static class ServiceRules
             return Check.Fail(Refusal.TooSoon,
                 $"Cần đặt trước ít nhất {MinimumNotice.TotalHours:0} giờ.");
 
+        // The working week and the opening hours are the provider's own clock,
+        // so everything below reads this rather than the UTC instant.
+        var local = LocalTime(o, req.StartsAt);
+
         // docs/09 §3.4 (MR-S-05) — a day the provider does not work at all.
-        if (!WorksOn(o, req.StartsAt.DayOfWeek))
+        if (!WorksOn(o, local.DayOfWeek))
             return Check.Fail(Refusal.OutsideHours, "Ngày này nhà cung cấp không nhận việc.");
 
         // docs/09 §3.3 (MR-S-07) — asked before booking, so §3.6's DV-D is fair.
@@ -436,13 +463,14 @@ public static class ServiceRules
                 "Cần xác nhận nơi thực hiện có đủ điều kiện trước khi đặt.");
 
         // docs/09 §3.4 — a provider's day has a ceiling on how many jobs fit.
+        // "A day" is their day, so the other jobs are counted on their calendar.
         if (o.MaxJobsPerDay > 0
-            && req.Busy.Count(b => b.From.Date == req.StartsAt.Date) >= o.MaxJobsPerDay)
+            && req.Busy.Count(b => LocalTime(o, b.From).Date == local.Date) >= o.MaxJobsPerDay)
             return Check.Fail(Refusal.DayFull,
                 $"Ngày này đã kín ({o.MaxJobsPerDay} đơn).");
 
-        var hour = req.StartsAt.Hour;
-        var endHour = req.StartsAt.AddMinutes(o.DurationMinutes).Hour;
+        var hour = local.Hour;
+        var endHour = local.AddMinutes(o.DurationMinutes).Hour;
         if (hour < o.OpensAtHour || hour >= o.ClosesAtHour || (endHour > o.ClosesAtHour && endHour != 0))
             return Check.Fail(Refusal.OutsideHours,
                 $"Dịch vụ này chỉ nhận từ {o.OpensAtHour}:00 đến {o.ClosesAtHour}:00.");

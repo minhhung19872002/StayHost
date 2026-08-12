@@ -2078,4 +2078,10 @@ export default {
   "Đã chọn": "Seleccionado",
   "Để được bảo vệ, hãy luôn thanh toán và trao đổi qua StayHost.": "Para estar protegido, paga y comunícate siempre a través de StayHost.",
   "đặt trước ít nhất 4 giờ": "reserva con al menos 4 horas de antelación",
+
+  /* The two-pane time picker: a month of days on a rail, the hours of the
+     chosen one as chips, and the month grid behind the calendar button. */
+  "Mở lịch để tìm ngày còn trống": "Abrir el calendario para buscar una fecha disponible",
+  "Ngày này không còn giờ trống.": "No quedan horarios ese día.",
+  "Tháng tới chưa có khung giờ nào trống.": "No hay horarios libres en el próximo mes.",
 };

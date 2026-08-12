@@ -2480,7 +2480,58 @@ a.opt { color: inherit; text-decoration: none; display: block; }
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   font-size: 16px; font-weight: 700; padding: 14px 0; border-bottom: 1px solid var(--divider);
 }
+.slot-month-cal {
+  width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent;
+  display: grid; place-items: center; color: var(--ink); cursor: pointer;
+}
+.slot-month-cal:hover { background: var(--surface-placeholder); }
+
+/*
+ * A month of days on one rail rather than a stack of day headings. The stack
+ * made the reader scroll past every hour of Tuesday to learn whether Wednesday
+ * had anything at all, and it put a hard ceiling on how far ahead the dialog
+ * could usefully offer. Seven fit at a time; the rest scroll.
+ */
+.slot-rail {
+  display: flex; gap: 2px; overflow-x: auto; scroll-snap-type: x proximity;
+  padding-bottom: 6px; margin-top: 4px; scrollbar-width: thin;
+}
+.slot-rail-day {
+  flex: 0 0 calc((100% - 12px) / 7); scroll-snap-align: start;
+  display: grid; justify-items: center; gap: 6px; padding: 8px 0;
+  border: 0; background: transparent; font: inherit; cursor: pointer;
+}
+.slot-rail-day span { font-size: 12px; font-weight: 600; color: var(--ink-faint); }
+.slot-rail-day b {
+  width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 15px; font-weight: 600;
+}
+.slot-rail-day:hover:not(:disabled) b { box-shadow: inset 0 0 0 1px var(--ink); }
+.slot-rail-day.is-on b { background: var(--ink); color: #fff; }
+.slot-rail-day:disabled { cursor: not-allowed; }
+.slot-rail-day:disabled span { color: #cfcfcf; }
+.slot-rail-day:disabled b { color: #cfcfcf; text-decoration: line-through; }
+
 .slot-day { margin: 20px 0 10px; font-size: 15.5px; font-weight: 700; }
+
+/* What is being bought at that hour, said once above the times. */
+.slot-what { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.slot-what img {
+  width: 64px; height: 64px; border-radius: var(--r-card); object-fit: cover;
+  flex: 0 0 auto; background: var(--surface-placeholder);
+}
+.slot-what b { display: block; font-size: 15.5px; }
+.slot-what span { display: block; margin-top: 3px; font-size: 13.5px; color: var(--ink-muted); }
+
+.time-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.time-chip {
+  padding: 11px 18px; border: 1px solid var(--line); border-radius: var(--r-card);
+  background: #fff; font: inherit; font-size: 14.5px; cursor: pointer;
+  transition: border-color .12s ease;
+}
+.time-chip:hover:not(:disabled) { border-color: var(--ink); }
+.time-chip.is-on { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink) inset; font-weight: 600; }
+.time-chip:disabled { opacity: .4; cursor: not-allowed; text-decoration: line-through; }
 .slot-list { display: grid; gap: 10px; }
 .slot-card {
   display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%;

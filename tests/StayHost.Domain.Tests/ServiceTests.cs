@@ -16,7 +16,12 @@ public class ServiceTests
             Pricing = pricing, BasePrice = price, MinQuantity = 1, MaxQuantity = 8,
             DurationMinutes = 120, TravelsToGuest = travels, ServiceRadiusKm = radius,
             Latitude = 16.0544, Longitude = 108.2022, OpensAtHour = 8, ClosesAtHour = 20,
-            IsPartner = partner, CommissionRate = commission
+            IsPartner = partner, CommissionRate = commission,
+            // The hour arithmetic in these tests is written in UTC, and opening
+            // hours are read on the provider's own clock, so the two only line up
+            // if the provider keeps UTC. The Vietnamese default is exercised on
+            // its own below.
+            TimeZoneId = "UTC"
         };
 
     private static ServiceRules.Request Ask(
@@ -402,6 +407,54 @@ public class ServiceTests
         // and turned other work away, so they are not left with nothing.
         Assert.Equal(570_000m, ServiceRules.ProviderShareOnMisdeclared(1_140_000m));
         Assert.Equal(0m, ServiceRules.ProviderShareOnMisdeclared(0m));
+    }
+
+    [Fact]
+    public void Opening_hours_are_read_on_the_providers_clock_not_on_UTC()
+    {
+        // docs/09 §3.4 — a chef in Đà Nẵng who takes work from 9:00 means nine in
+        // the morning where they live. Instants travel as UTC, so a 10:00 job
+        // arrives as 03:00Z: judged against the raw UTC hour it was refused as
+        // "outside working hours", and every time the picker offered was a time
+        // the server would not take.
+        var o = Make();
+        o.TimeZoneId = "Asia/Ho_Chi_Minh";
+        o.OpensAtHour = 9;
+        o.ClosesAtHour = 21;
+        o.DurationMinutes = 90;
+
+        // 03:00Z on a Wednesday is 10:00 on Wednesday in Đà Nẵng: inside hours.
+        var tenLocal = new DateTime(2026, 9, 2, 3, 0, 0, DateTimeKind.Utc);
+        Assert.Equal(10, ServiceRules.LocalTime(o, tenLocal).Hour);
+        Assert.True(ServiceRules.CanBook(Ask(o) with { StartsAt = tenLocal }).Ok);
+
+        // 22:00Z is 05:00 the next morning there, which is before they open —
+        // and it is a different weekday, which the day rule has to see too.
+        var beforeOpening = new DateTime(2026, 9, 2, 22, 0, 0, DateTimeKind.Utc);
+        Assert.Equal(5, ServiceRules.LocalTime(o, beforeOpening).Hour);
+        Assert.Equal(DayOfWeek.Thursday, ServiceRules.LocalTime(o, beforeOpening).DayOfWeek);
+        Assert.Equal(ServiceRules.Refusal.OutsideHours,
+            ServiceRules.CanBook(Ask(o) with { StartsAt = beforeOpening }).Reason);
+
+        // A provider who works Mondays only is shut at midday on their Sunday.
+        // The hour is deliberately inside opening hours, so only the weekday rule
+        // can be doing the refusing — both rules answer OutsideHours, and the
+        // sentence is the only thing that tells them apart.
+        o.WorkingDaysMask = 1;
+        var sundayNoon = new DateTime(2026, 9, 6, 5, 0, 0, DateTimeKind.Utc);
+        var there = ServiceRules.LocalTime(o, sundayNoon);
+        Assert.Equal(DayOfWeek.Sunday, there.DayOfWeek);
+        Assert.Equal(12, there.Hour);
+        Assert.Equal("Ngày này nhà cung cấp không nhận việc.",
+            ServiceRules.CanBook(Ask(o) with { StartsAt = sundayNoon }).Message);
+
+        // …and open at the same hour on the Monday after it.
+        Assert.True(ServiceRules.CanBook(
+            Ask(o) with { StartsAt = sundayNoon.AddDays(1) }).Ok);
+
+        // An id nobody can resolve must not take the listing off sale.
+        o.TimeZoneId = "Mars/Olympus_Mons";
+        Assert.Equal(tenLocal, ServiceRules.LocalTime(o, tenLocal));
     }
 
     [Fact]

@@ -2078,4 +2078,10 @@ export default {
   "Đã chọn": "已选择",
   "Để được bảo vệ, hãy luôn thanh toán và trao đổi qua StayHost.": "为了获得保障，请始终通过 StayHost 付款和沟通。",
   "đặt trước ít nhất 4 giờ": "至少提前4小时预订",
+
+  /* The two-pane time picker: a month of days on a rail, the hours of the
+     chosen one as chips, and the month grid behind the calendar button. */
+  "Mở lịch để tìm ngày còn trống": "打开日历查找可预订的日期",
+  "Ngày này không còn giờ trống.": "这一天没有剩余时段。",
+  "Tháng tới chưa có khung giờ nào trống.": "未来一个月没有可预订的时段。",
 };
