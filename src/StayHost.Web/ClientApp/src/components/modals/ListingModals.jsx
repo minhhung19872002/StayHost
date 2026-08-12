@@ -10,7 +10,7 @@ import { HostReply, StarDistribution } from '../../pages/Detail.jsx';
 import { api } from '../../lib/api.js';
 import { useSlideshow } from '../../lib/useSlideshow.js';
 import { Modal } from './Modal.jsx';
-import { FALLBACK_METHODS } from '../../lib/payments.js';
+import { PaymentMethods } from '../PaymentMethods.jsx';
 import { t } from '../../lib/i18n.js';
 
 const PHOTO_CAPTIONS = ['Ảnh chính', 'Phòng khách', 'Phòng ngủ', 'Không gian ngoài trời', 'Phòng tắm'];
@@ -549,69 +549,22 @@ function SplitChoice({ q }) {
 }
 
 function StepPayment({ q }) {
-  const state = useStore();
-  const method = state.payMethod;
-  const [offered, setOffered] = useState(FALLBACK_METHODS);
+  const method = useStore().payMethod;
   const [refused, setRefused] = useState(null);
-  const [cards, setCards] = useState([]);
 
+  // Only for the §2.4 footnote below; the list itself belongs to <PaymentMethods>.
   useEffect(() => {
-    // The balance has its own control below, so it is not a method to pick here.
-    api.paymentCatalogue()
-      .then(d => {
-        setOffered(d.methods.filter(m => m.key !== 'balance'));
-        setRefused(d);
-      })
-      .catch(() => { /* the fallback list is the §2.1 group either way */ });
-
-    api.savedCards().then(setCards).catch(() => setCards([]));
+    api.paymentCatalogue().then(setRefused).catch(() => { /* no footnote, then */ });
   }, []);
-
-  const usable = cards.filter(c => !c.isExpired);
 
   return (
     <section className="modal-section">
       <h3>{t('Chọn cách thanh toán')}</h3>
-      <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-        {offered.map(m => (
-          <button type="button" key={m.key} className={`opt ${method === m.key ? 'is-on' : ''}`}
-                  onClick={() => set({ payMethod: m.key })}>
-            <b>{t(m.label)}</b><span>{t(m.hint)}</span>
-          </button>
-        ))}
+      <div style={{ marginTop: 14 }}>
+        {/* The same picker the service and experience checkouts use, ids and
+            all: `card-number` is what confirm() reads back. */}
+        <PaymentMethods idPrefix="card" />
       </div>
-
-      {/* docs/07 §4 — a guest who has saved a card should not retype it. */}
-      {method === 'card' && !!usable.length && (
-        <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
-          <span className="cap">{t('Thẻ đã lưu')}</span>
-          {usable.map(c => (
-            <button type="button" key={c.id}
-                    className={`opt ${state.payCardId === c.id ? 'is-on' : ''}`}
-                    onClick={() => set({ payCardId: c.id, payCardLast4: c.last4 })}>
-              <b>{c.brandLabel} •••• {c.last4}</b><span>{t('Hết hạn')} {c.expiry}</span>
-            </button>
-          ))}
-          <button type="button" className={`opt ${state.payCardId ? '' : 'is-on'}`}
-                  onClick={() => set({ payCardId: null, payCardLast4: null })}>
-            <b>{t('Dùng thẻ khác')}</b><span>{t('Nhập số thẻ bên dưới')}</span>
-          </button>
-        </div>
-      )}
-
-      {method === 'card' && !state.payCardId && <>
-        <div className="field-grid" style={{ marginTop: 18 }}>
-          <label className="form-field" style={{ gridColumn: '1/-1' }}><span className="cap">{t('Số thẻ')}</span>
-            <input id="card-number" inputMode="numeric" placeholder="4242 4242 4242 4242" defaultValue="4242 4242 4242 4242" /></label>
-          <label className="form-field"><span className="cap">{t('Hết hạn')}</span>
-            <input id="card-exp" placeholder="12/28" defaultValue="12/28" /></label>
-          <label className="form-field"><span className="cap">CVV</span>
-            <input id="card-cvv" inputMode="numeric" placeholder="123" defaultValue="123" /></label>
-        </div>
-        <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.5 }}>
-          {t('Bản demo dùng thẻ thử nghiệm, không có giao dịch thật nào được thực hiện.')}
-        </p>
-      </>}
 
       <CouponField q={q} />
       <CreditChoice q={q} />

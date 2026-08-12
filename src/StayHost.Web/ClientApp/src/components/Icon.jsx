@@ -47,7 +47,15 @@ const P = {
   pin: <><path d="M12 21s7-5.7 7-11a7 7 0 1 0-14 0c0 5.3 7 11 7 11Z" /><circle cx="12" cy="10" r="2.6" /></>,
   user: <><circle cx="12" cy="8" r="3.6" /><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0" /></>,
   users: <><circle cx="9" cy="8" r="3.2" /><path d="M2.8 19.5a6.2 6.2 0 0 1 12.4 0" /><path d="M16.2 5.2a3.2 3.2 0 0 1 0 5.9" /><path d="M17.6 14.4a6.2 6.2 0 0 1 3.6 5.1" /></>,
-  calendar: <><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3.5V6M16 3.5V6" /></>
+  calendar: <><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3.5V6M16 3.5V6" /></>,
+
+  // docs/07 §2 — the ways of paying, so the list reads as four different things
+  // rather than four paragraphs. A domestic ATM card is drawn as the bank behind
+  // it, because that is what tells it apart from the card above it at a glance.
+  card: <><rect x="2.5" y="5" width="19" height="14" rx="2.5" /><path d="M2.5 9.5h19" /><path d="M6 14.5h4" /></>,
+  bank: <><path d="M3 9.5 12 4.5l9 5" /><path d="M5.5 11v7M9.8 11v7M14.2 11v7M18.5 11v7" /><path d="M3 20.5h18" /></>,
+  wallet: <><path d="M4 8V6.6A1.6 1.6 0 0 1 5.6 5h11.9V8" /><rect x="3" y="8" width="18" height="11.5" rx="2.5" /><circle cx="16.6" cy="13.7" r="1.5" /></>,
+  shield: <><path d="M12 3.5 19.5 6v5.6c0 4.4-3.2 7.6-7.5 9.2-4.3-1.6-7.5-4.8-7.5-9.2V6z" /><path d="m8.8 12.2 2.2 2.2 4.2-4.4" /></>
 };
 
 export function Icon({ name, size = 24, filled = false, weight = 1.6 }) {

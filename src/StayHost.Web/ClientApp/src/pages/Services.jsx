@@ -10,7 +10,7 @@ import { Avatar } from '../components/Avatar.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { DetailMap } from '../components/Maps.jsx';
 import { Sheet } from '../components/modals/Sheet.jsx';
-import { FALLBACK_METHODS } from '../lib/payments.js';
+import { PaymentMethods } from '../components/PaymentMethods.jsx';
 import { t } from '../lib/i18n.js';
 import { TranslatedText } from '../components/TranslatedText.jsx';
 
@@ -703,8 +703,6 @@ export function ServiceCheckout() {
     (params.get('addons') ?? '').split(',').map(Number).filter(Boolean));
   const [quote, setQuote] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [methods, setMethods] = useState(FALLBACK_METHODS);
-  const [cards, setCards] = useState([]);
 
   const at = params.get('at');
   const when = at ? new Date(at) : null;
@@ -712,13 +710,6 @@ export function ServiceCheckout() {
 
   useEffect(() => {
     api.service(slug).then(setS).catch(() => setMissing(true));
-    // docs/07 §2 — the list is the server's, so this page and the saved-methods
-    // screen cannot disagree about what StayHost takes. The balance has its own
-    // control on a stay and none here, so it is not a method to pick.
-    api.paymentCatalogue()
-      .then(d => setMethods(d.methods.filter(m => m.key !== 'balance')))
-      .catch(() => { /* the §2.1 group is the fallback either way */ });
-    api.savedCards().then(setCards).catch(() => setCards([]));
   }, [slug]);
 
   useEffect(() => {
@@ -751,7 +742,6 @@ export function ServiceCheckout() {
 
   const addOns = s.addOns ?? [];
   const requirements = s.onSiteRequirements ?? [];
-  const usable = cards.filter(c => !c.isExpired);
   const ends = new Date(when.getTime() + s.durationMinutes * 60000);
   const blocked = (requirements.length > 0 && !conditionsOk)
     || (!!s.requiredNote && !note.trim());
@@ -860,52 +850,10 @@ export function ServiceCheckout() {
             </label>
           </section>
 
-          {/* docs/07 §2 — the same choice a stay offers, from the same catalogue. */}
+          {/* docs/07 §2 — the same choice a stay offers, from the same list. */}
           <section className="pay-step">
             <h2><i>2</i> {t('Cách thanh toán')}</h2>
-            <div style={{ display: 'grid', gap: 10 }}>
-              {methods.map(m => (
-                <button type="button" key={m.key}
-                        className={`opt ${state.payMethod === m.key ? 'is-on' : ''}`}
-                        onClick={() => set({ payMethod: m.key })}>
-                  <b>{t(m.label)}</b><span>{t(m.hint)}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* docs/07 §4 — a guest who has saved a card should not retype it. */}
-            {state.payMethod === 'card' && !!usable.length && (
-              <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
-                <span className="cap">{t('Thẻ đã lưu')}</span>
-                {usable.map(c => (
-                  <button type="button" key={c.id}
-                          className={`opt ${state.payCardId === c.id ? 'is-on' : ''}`}
-                          onClick={() => set({ payCardId: c.id, payCardLast4: c.last4 })}>
-                    <b>{c.brandLabel} •••• {c.last4}</b><span>{t('Hết hạn')} {c.expiry}</span>
-                  </button>
-                ))}
-                <button type="button" className={`opt ${state.payCardId ? '' : 'is-on'}`}
-                        onClick={() => set({ payCardId: null, payCardLast4: null })}>
-                  <b>{t('Dùng thẻ khác')}</b><span>{t('Nhập số thẻ bên dưới')}</span>
-                </button>
-              </div>
-            )}
-
-            {state.payMethod === 'card' && !state.payCardId && <>
-              <div className="field-grid" style={{ marginTop: 18 }}>
-                <label className="form-field" style={{ gridColumn: '1/-1' }}>
-                  <span className="cap">{t('Số thẻ')}</span>
-                  <input id="svc-card-number" inputMode="numeric" placeholder="4242 4242 4242 4242"
-                         defaultValue="4242 4242 4242 4242" /></label>
-                <label className="form-field"><span className="cap">{t('Hết hạn')}</span>
-                  <input id="svc-card-exp" placeholder="12/28" defaultValue="12/28" /></label>
-                <label className="form-field"><span className="cap">CVV</span>
-                  <input id="svc-card-cvv" inputMode="numeric" placeholder="123" defaultValue="123" /></label>
-              </div>
-              <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.5 }}>
-                {t('Bản demo dùng thẻ thử nghiệm, không có giao dịch thật nào được thực hiện.')}
-              </p>
-            </>}
+            <PaymentMethods idPrefix="svc-card" />
           </section>
 
           <section className="pay-step">
@@ -914,7 +862,8 @@ export function ServiceCheckout() {
               <div className="book-alert is-error" style={{ marginTop: 0 }}>
                 <b>{t('Chưa đặt được')}</b><span>{quote.reason}</span>
               </div>}
-            <p className="svc-safe" style={{ marginBottom: 14 }}>
+            <p className="pay-demo" style={{ marginBottom: 14 }}>
+              <Icon name="shield" size={16} />
               {t('Trước 72 giờ hoàn 100%, trước 24 giờ hoàn 50%, sát giờ không hoàn.')}
             </p>
             <button className="btn btn-primary" style={{ width: '100%' }}
@@ -942,9 +891,10 @@ export function ServiceCheckout() {
           </div>
 
           <div className="kv-grid" style={{ marginTop: 18 }}>
-            <Kv label={t('Ngày')} value={`${dayLabel(when)} · ${TIME().format(when)} – ${TIME().format(ends)}`} />
-            <Kv label={t('Số lượng')} value={`${quantity} ${t(s.unit)}`} />
-            <Kv label={t('Nơi thực hiện')}
+            <Kv icon="calendar" label={t('Ngày')}
+                value={`${dayLabel(when)} · ${TIME().format(when)} – ${TIME().format(ends)}`} />
+            <Kv icon="users" label={t('Số lượng')} value={`${quantity} ${t(s.unit)}`} />
+            <Kv icon="pin" label={t('Nơi thực hiện')}
                 value={s.travelsToGuest ? (address.trim() || t('Chưa điền')) : `${t('Khách tới chỗ cung cấp')} · ${s.city}`} />
           </div>
 
@@ -1012,8 +962,15 @@ function MonthGrid({ rail, day, hasRoom, onPick }) {
 }
 
 /** A label over its value, for the summary card on the checkout page. */
-function Kv({ label, value }) {
-  return <div className="kv"><span className="kv-label">{label}</span><b>{value}</b></div>;
+function Kv({ icon, label, value }) {
+  return (
+    <div className="kv">
+      <span className="kv-label kv-ic">
+        {icon && <Icon name={icon} size={14} />}{label}
+      </span>
+      <b>{value}</b>
+    </div>
+  );
 }
 
 /** One thing worth knowing before booking: an icon, a heading and a single line. */

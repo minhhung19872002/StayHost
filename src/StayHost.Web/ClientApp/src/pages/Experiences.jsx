@@ -10,7 +10,7 @@ import { Avatar } from '../components/Avatar.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { DetailMap } from '../components/Maps.jsx';
 import { Sheet } from '../components/modals/Sheet.jsx';
-import { FALLBACK_METHODS } from '../lib/payments.js';
+import { PaymentMethods } from '../components/PaymentMethods.jsx';
 import { t } from '../lib/i18n.js';
 import { TranslatedText } from '../components/TranslatedText.jsx';
 
@@ -469,8 +469,6 @@ export function ExperienceCheckout() {
   const [missing, setMissing] = useState(false);
   const [quote, setQuote] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [methods, setMethods] = useState(FALLBACK_METHODS);
-  const [cards, setCards] = useState([]);
 
   const slotId = Number(params.get('slot')) || 0;
   const seats = Math.max(1, Number(params.get('seats')) || 1);
@@ -478,10 +476,6 @@ export function ExperienceCheckout() {
 
   useEffect(() => {
     api.experience(slug).then(setX).catch(() => setMissing(true));
-    api.paymentCatalogue()
-      .then(d => setMethods(d.methods.filter(m => m.key !== 'balance')))
-      .catch(() => { /* the §2.1 group is the fallback either way */ });
-    api.savedCards().then(setCards).catch(() => setCards([]));
   }, [slug]);
 
   useEffect(() => {
@@ -503,7 +497,6 @@ export function ExperienceCheckout() {
 
   const at = new Date(slot.startsAt);
   const ends = new Date(at.getTime() + x.durationMinutes * 60000);
-  const usable = cards.filter(c => !c.isExpired);
 
   const book = async () => {
     if (!state.user) { set({ authMode: 'login', authError: null, overlay: 'login' }); return; }
@@ -534,12 +527,14 @@ export function ExperienceCheckout() {
           <section className="pay-step">
             <h2><i>1</i> {t('Vé của bạn')}</h2>
             <div className="kv-grid">
-              <Kv label={t('Suất')} value={`${dayLabel(at)} · ${TIME().format(at)} – ${TIME().format(ends)}`} />
-              <Kv label={t('Số người')} value={`${seats} ${t('người')}`} />
-              <Kv label={t('Điểm hẹn')} value={x.meetingPoint} />
+              <Kv icon="calendar" label={t('Suất')}
+                  value={`${dayLabel(at)} · ${TIME().format(at)} – ${TIME().format(ends)}`} />
+              <Kv icon="users" label={t('Số người')} value={`${seats} ${t('người')}`} />
+              <Kv icon="pin" label={t('Điểm hẹn')} value={x.meetingPoint} />
             </div>
             {priv && (
-              <p className="svc-safe" style={{ marginTop: 14 }}>
+              <p className="pay-demo" style={{ marginTop: 14 }}>
+                <Icon name="users" size={16} />
                 {t('Thuê trọn nhóm riêng')} — {t('Chỉ nhóm bạn, không ghép với khách khác')}
               </p>
             )}
@@ -547,48 +542,7 @@ export function ExperienceCheckout() {
 
           <section className="pay-step">
             <h2><i>2</i> {t('Cách thanh toán')}</h2>
-            <div style={{ display: 'grid', gap: 10 }}>
-              {methods.map(m => (
-                <button type="button" key={m.key}
-                        className={`opt ${state.payMethod === m.key ? 'is-on' : ''}`}
-                        onClick={() => set({ payMethod: m.key })}>
-                  <b>{t(m.label)}</b><span>{t(m.hint)}</span>
-                </button>
-              ))}
-            </div>
-
-            {state.payMethod === 'card' && !!usable.length && (
-              <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
-                <span className="cap">{t('Thẻ đã lưu')}</span>
-                {usable.map(c => (
-                  <button type="button" key={c.id}
-                          className={`opt ${state.payCardId === c.id ? 'is-on' : ''}`}
-                          onClick={() => set({ payCardId: c.id, payCardLast4: c.last4 })}>
-                    <b>{c.brandLabel} •••• {c.last4}</b><span>{t('Hết hạn')} {c.expiry}</span>
-                  </button>
-                ))}
-                <button type="button" className={`opt ${state.payCardId ? '' : 'is-on'}`}
-                        onClick={() => set({ payCardId: null, payCardLast4: null })}>
-                  <b>{t('Dùng thẻ khác')}</b><span>{t('Nhập số thẻ bên dưới')}</span>
-                </button>
-              </div>
-            )}
-
-            {state.payMethod === 'card' && !state.payCardId && <>
-              <div className="field-grid" style={{ marginTop: 18 }}>
-                <label className="form-field" style={{ gridColumn: '1/-1' }}>
-                  <span className="cap">{t('Số thẻ')}</span>
-                  <input id="xp-card-number" inputMode="numeric" placeholder="4242 4242 4242 4242"
-                         defaultValue="4242 4242 4242 4242" /></label>
-                <label className="form-field"><span className="cap">{t('Hết hạn')}</span>
-                  <input id="xp-card-exp" placeholder="12/28" defaultValue="12/28" /></label>
-                <label className="form-field"><span className="cap">CVV</span>
-                  <input id="xp-card-cvv" inputMode="numeric" placeholder="123" defaultValue="123" /></label>
-              </div>
-              <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.5 }}>
-                {t('Bản demo dùng thẻ thử nghiệm, không có giao dịch thật nào được thực hiện.')}
-              </p>
-            </>}
+            <PaymentMethods idPrefix="xp-card" />
           </section>
 
           <section className="pay-step">
@@ -597,7 +551,8 @@ export function ExperienceCheckout() {
               <div className="book-alert is-error" style={{ marginTop: 0 }}>
                 <b>{t('Chưa đặt được')}</b><span>{quote.reason}</span>
               </div>}
-            <p className="svc-safe" style={{ marginBottom: 14 }}>
+            <p className="pay-demo" style={{ marginBottom: 14 }}>
+              <Icon name="shield" size={16} />
               {t('Huỷ trước 24 giờ được hoàn toàn bộ.')}
             </p>
             <button className="btn btn-primary" style={{ width: '100%' }}
@@ -623,9 +578,10 @@ export function ExperienceCheckout() {
           </div>
 
           <div className="kv-grid" style={{ marginTop: 18 }}>
-            <Kv label={t('Ngày')} value={`${dayLabel(at)} · ${TIME().format(at)} – ${TIME().format(ends)}`} />
-            <Kv label={t('Số người')} value={`${seats} ${t('người')}`} />
-            <Kv label={t('Ngôn ngữ')} value={languagesOf(x.languages)} />
+            <Kv icon="calendar" label={t('Ngày')}
+                value={`${dayLabel(at)} · ${TIME().format(at)} – ${TIME().format(ends)}`} />
+            <Kv icon="users" label={t('Số người')} value={`${seats} ${t('người')}`} />
+            <Kv icon="globe" label={t('Ngôn ngữ')} value={languagesOf(x.languages)} />
           </div>
 
           {quote && (
@@ -643,8 +599,15 @@ export function ExperienceCheckout() {
 }
 
 /** A label over its value, for the summary card on the checkout page. */
-function Kv({ label, value }) {
-  return <div className="kv"><span className="kv-label">{label}</span><b>{value}</b></div>;
+function Kv({ icon, label, value }) {
+  return (
+    <div className="kv">
+      <span className="kv-label kv-ic">
+        {icon && <Icon name={icon} size={14} />}{label}
+      </span>
+      <b>{value}</b>
+    </div>
+  );
 }
 
 /** One thing worth knowing before booking: an icon, a heading and a single line. */
