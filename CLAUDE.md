@@ -49,7 +49,8 @@ Sổ sách lệch 0. Cả 201 mã của `docs/01` đã làm xong (`docs/PLAN.md 
 
 > **`acceptance.py` cần DB sạch.** Nó ra 8/10 trên DB đã chạy nhiều lần — **không phải
 > lỗi code**: dữ liệu tích luỹ làm bước lùi ngày một đơn về quá khứ đụng ràng buộc GiST
-> `bookings_no_overlap`. Reset DB theo §5 rồi chạy lại là 10/10 (đã xác nhận 11/08/2026).
+> `bookings_no_overlap`. Reset DB theo §5 rồi chạy lại là 10/10 (xác nhận lại 12/08/2026,
+> lần này cùng lượt với `service_reviews` mới nên migration cũng đã chạy từ DB trắng).
 > Trong lúc truy đã sửa **hai lỗi thật của chính script**: `bookable()` gọi dry-run rồi
 > **bỏ qua kết quả** (nên hứa những tin đã bị đặt), và chỉ thử **một khung ngày**. Giờ nó
 > đọc kết quả dry-run (đạt là **201**, không phải 200) và thử tám khung ngày.
