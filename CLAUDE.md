@@ -41,7 +41,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (12/08/2026).** 938 test nghiệp vụ · **10/10** kịch bản của `docs/04`
+**Toàn bộ xanh (12/08/2026).** 939 test nghiệp vụ · **10/10** kịch bản của `docs/04`
 (`scripts/acceptance.py`) · **10/10** kịch bản quản trị của `docs/08 §13`
 (`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
 (`scripts/doc09_acceptance.py`, gồm cả 12 tình huống bắt buộc của `docs/09 §9`).
@@ -162,6 +162,14 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   `"de is not supported"` — hỏng mà không có dấu hiệu nào. Đã bật `LT_UPDATE_MODELS`
   ở cả hai compose. Danh sách này phải khớp `Translations.Targets`, khớp luôn cả danh
   sách ngôn ngữ giao diện (`CatalogService.Languages`).
+- **`AddColumn` với `defaultValue: 0` có thể làm hỏng dữ liệu đang chạy.**
+  `WorkingDaysMask` thêm vào `service_offerings` với mặc định 0, nghĩa là mọi
+  dịch vụ đang bán lúc đó **không làm ngày nào trong tuần**: `WorksOn` trả false
+  mọi ngày → `CanBook` từ chối mọi lần đặt → picker trống trơn, mà **không có
+  lỗi ở đâu cả**. Nằm im từ 10/08 tới 12/08, chỉ lộ ra khi khách mở modal chọn
+  giờ trên bản chạy thật. Reset DB xong thì không thấy, vì dòng mới lấy mặc định
+  của entity. Thêm cột có ý nghĩa "mọi/tất cả" thì mặc định phải là giá trị đó,
+  không phải 0; và chỗ đọc nên tự chuẩn hoá (`ServiceRules.WorkingDays`).
 - **Điểm sao seed sẵn sẽ biến mất khi có đánh giá thật.** `Rating`/`ReviewCount`
   được **tính lại từ chính bảng đánh giá** mỗi lần ai đó chấm điểm, nên một tin
   seed "4.85 · 27 đánh giá" mà chưa có dòng nào trong `experience_reviews` /
@@ -258,7 +266,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 938 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 939 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09

@@ -125,7 +125,10 @@ function Browse() {
  * ServiceRules.WorksOn reads it: Monday is bit 0 and Sunday bit 6.
  */
 function worksOn(detail, date) {
-  const mask = detail.workingDaysMask ?? 127;
+  // `|| 127`, not `?? 127`: a mask of 0 reaches here from rows that predate the
+  // field, and it does not mean "works no day" — it means nobody ever answered.
+  // ServiceRules.WorkingDays reads it the same way on the server.
+  const mask = detail.workingDaysMask || 127;
   const day = date.getDay();
   return (mask & (1 << (day === 0 ? 6 : day - 1))) !== 0;
 }

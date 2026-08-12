@@ -404,6 +404,38 @@ public class ServiceTests
         Assert.Equal(0m, ServiceRules.ProviderShareOnMisdeclared(0m));
     }
 
+    [Fact]
+    public void A_working_week_of_zero_reads_as_every_day_not_as_no_day()
+    {
+        // docs/09 §3.4 — the column arrived with defaultValue 0 on a table that
+        // already had rows, so every service on sale at the time came out of the
+        // migration working no day of the week: CanBook refused every date, the
+        // picker offered nothing, and nothing anywhere said why.
+        var o = Make();
+        o.WorkingDaysMask = 0;
+
+        foreach (var day in Enum.GetValues<DayOfWeek>())
+            Assert.True(ServiceRules.WorksOn(o, day));
+
+        Assert.True(ServiceRules.CanBook(Ask(o)).Ok);
+
+        // Out of range the other way is just as meaningless, and reads the same.
+        o.WorkingDaysMask = 999;
+        Assert.True(ServiceRules.WorksOn(o, DayOfWeek.Monday));
+
+        // A week the provider really did choose is left exactly as they set it:
+        // bit 0 is Monday, so 1 is Mondays only.
+        o.WorkingDaysMask = 1;
+        Assert.True(ServiceRules.WorksOn(o, DayOfWeek.Monday));
+        Assert.False(ServiceRules.WorksOn(o, DayOfWeek.Tuesday));
+        Assert.False(ServiceRules.WorksOn(o, DayOfWeek.Sunday));
+
+        // …and Sunday is bit 6, the far end of the week rather than the near one.
+        o.WorkingDaysMask = 1 << 6;
+        Assert.True(ServiceRules.WorksOn(o, DayOfWeek.Sunday));
+        Assert.False(ServiceRules.WorksOn(o, DayOfWeek.Monday));
+    }
+
     /* ------------------------------------------------------- §5, the review */
 
     [Fact]

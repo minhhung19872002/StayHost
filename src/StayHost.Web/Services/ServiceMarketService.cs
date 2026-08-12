@@ -97,7 +97,10 @@ public class ServiceMarketService(
             o.AddOns.Where(a => a.IsActive).OrderBy(a => a.SortOrder)
                 .Select(a => new ServiceAddOnDto(a.Id, a.Name, a.Price)).ToList(),
             o.RequirementList,
-            o.TravelFeePerKm, o.MaxTravelKm, o.WorkingDaysMask, o.MaxJobsPerDay,
+            // Normalised on the way out too: the picker draws the working week
+            // from this, so a stored 0 would grey out every day on the page even
+            // once the server had stopped refusing the booking.
+            o.TravelFeePerKm, o.MaxTravelKm, ServiceRules.WorkingDays(o.WorkingDaysMask), o.MaxJobsPerDay,
             o.CertificateName, o.CertificateExpiresOn, o.BufferMinutes,
             o.Host?.AvatarUrl, o.Host?.YearsHosting ?? 0, o.Host?.Bio,
             o.Host?.IsSuperhost ?? false, o.Host?.UserId);

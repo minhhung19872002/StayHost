@@ -354,12 +354,25 @@ public static class ServiceRules
 
     /* -------------------------------------------- §3.4, the working week */
 
+    /// <summary>
+    /// docs/09 §3.4 — the working week, normalised before anyone reads it.
+    ///
+    /// Zero does not mean "works no day". It is what the column defaulted to when
+    /// the field was added to a table that already had rows in it, and a provider
+    /// who works no day at all is a provider nobody can ever book: WorksOn says no
+    /// to every date, so CanBook refuses every request and the slot picker offers
+    /// nothing — with no error anywhere to say why. Anything outside 1–127 reads
+    /// as the whole week, which is also what SaveOfferingAsync stores when the
+    /// provider leaves the question blank.
+    /// </summary>
+    public static int WorkingDays(int mask) => mask is > 0 and < 128 ? mask : 127;
+
     /// <summary>docs/09 §3.4 — whether the provider works that weekday at all.</summary>
     public static bool WorksOn(ServiceOffering o, DayOfWeek day)
     {
         // Monday is bit 0, so Sunday (DayOfWeek 0) sits at the end of the week.
         var bit = day == DayOfWeek.Sunday ? 6 : (int)day - 1;
-        return (o.WorkingDaysMask & (1 << bit)) != 0;
+        return (WorkingDays(o.WorkingDaysMask) & (1 << bit)) != 0;
     }
 
     /// <summary>The provider's own gap between jobs, or the platform default.</summary>
