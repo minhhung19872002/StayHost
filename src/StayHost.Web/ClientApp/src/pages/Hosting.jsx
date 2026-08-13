@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
-  set, loadHosting, loadHostCalendar, respondBooking, respondChange, requireAuth, toast
+  set, loadHosting, loadHostCalendar, respondBooking, respondChange, requireAuth, toast,
+  previewHostCancel
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate, todayIso, dateFormat } from '../lib/format.js';

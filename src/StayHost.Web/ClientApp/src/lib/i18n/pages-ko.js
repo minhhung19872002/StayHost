@@ -2159,9 +2159,7 @@ export default {
   "Đơn chờ {}₫ nhưng nhận {}₫.": "예약 청구액은 {}₫인데 {}₫가 입금되었습니다.",
 
   /* docs/03 §2, docs/07 §2.3 — the history lines a booking writes for itself. */
-  "Giữ chỗ {} phút để thanh toán": "결제를 위해 {}분간 보관",
   "Giữ chỗ {} giờ để chuyển khoản": "이체를 위해 {}시간 보관",
-  "Hết {} phút giữ chỗ mà chưa thanh toán xong.": "{}분 보관 시간 내에 결제가 끝나지 않았습니다.",
   "Hết hạn chờ chuyển khoản mà tiền chưa về.": "이체 기한이 지났지만 입금이 없었습니다.",
   "Hết hạn chờ chuyển khoản.": "이체 기한이 지났습니다.",
   "Khách không chuyển khoản nữa.": "게스트가 이체를 취소했습니다.",

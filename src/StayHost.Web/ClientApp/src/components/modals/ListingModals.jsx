@@ -12,6 +12,7 @@ import { api } from '../../lib/api.js';
 import { useSlideshow } from '../../lib/useSlideshow.js';
 import { Modal } from './Modal.jsx';
 import { PaymentMethods } from '../PaymentMethods.jsx';
+import { FALLBACK_METHODS } from '../../lib/payments.js';
 import { t } from '../../lib/i18n.js';
 
 const PHOTO_CAPTIONS = ['Ảnh chính', 'Phòng khách', 'Phòng ngủ', 'Không gian ngoài trời', 'Phòng tắm'];
@@ -604,7 +605,12 @@ function StepPayment({ q }) {
 
 function StepReview({ q }) {
   const state = useStore();
-  const method = FALLBACK_METHODS.find(m => m.key === state.payMethod);
+
+  // The catalogue the payment step loaded, falling back to the §2.1 group if
+  // that call never came back. This line used to read FALLBACK_METHODS with no
+  // import behind it, which threw on render — and since this is the step the
+  // "Tiếp tục" button leads to, checkout ended in a modal that vanished.
+  const method = (state.paymentMethods ?? FALLBACK_METHODS).find(m => m.key === state.payMethod);
 
   return <>
     <section className="modal-section">

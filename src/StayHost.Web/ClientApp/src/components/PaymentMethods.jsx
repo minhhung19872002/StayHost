@@ -28,7 +28,15 @@ export function PaymentMethods({ idPrefix = 'card' }) {
     // cannot disagree about what StayHost takes. The balance has a control of
     // its own on a stay, so it is not a method to pick here.
     api.paymentCatalogue()
-      .then(d => setOffered(d.methods.filter(m => m.key !== 'balance')))
+      .then(d => {
+        const methods = d.methods.filter(m => m.key !== 'balance');
+        setOffered(methods);
+        // Kept on the store as well, because the review step has to name the
+        // method the guest picked and the fallback list cannot: it is the §2.1
+        // group by definition, so anything added later — VietQR, PayPal — would
+        // come out as "Thẻ" there.
+        set({ paymentMethods: methods });
+      })
       .catch(() => { /* the §2.1 group is the fallback either way */ });
     api.savedCards().then(setCards).catch(() => setCards([]));
   }, []);

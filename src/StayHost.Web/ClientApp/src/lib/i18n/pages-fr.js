@@ -2159,9 +2159,7 @@ export default {
   "Đơn chờ {}₫ nhưng nhận {}₫.": "La réservation attend {}₫ mais {}₫ sont arrivés.",
 
   /* docs/03 §2, docs/07 §2.3 — the history lines a booking writes for itself. */
-  "Giữ chỗ {} phút để thanh toán": "Retenu {} minutes pour le paiement",
   "Giữ chỗ {} giờ để chuyển khoản": "Retenu {} heures pour le virement",
-  "Hết {} phút giữ chỗ mà chưa thanh toán xong.": "La retenue de {} minutes a expiré avant la fin du paiement.",
   "Hết hạn chờ chuyển khoản mà tiền chưa về.": "Le délai de virement a expiré sans réception de paiement.",
   "Hết hạn chờ chuyển khoản.": "Le délai de virement a expiré.",
   "Khách không chuyển khoản nữa.": "Le voyageur a renoncé au virement.",

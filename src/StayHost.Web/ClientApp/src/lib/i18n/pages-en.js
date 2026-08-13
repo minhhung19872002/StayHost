@@ -2337,9 +2337,7 @@ export default {
   "Đơn chờ {}₫ nhưng nhận {}₫.": "The booking expects {}₫ but {}₫ arrived.",
 
   /* docs/03 §2, docs/07 §2.3 — the history lines a booking writes for itself. */
-  "Giữ chỗ {} phút để thanh toán": "Held for {} minutes to pay",
   "Giữ chỗ {} giờ để chuyển khoản": "Held for {} hours for the transfer",
-  "Hết {} phút giữ chỗ mà chưa thanh toán xong.": "The {}-minute hold ran out before payment finished.",
   "Hết hạn chờ chuyển khoản mà tiền chưa về.": "The transfer window ran out and no money arrived.",
   "Hết hạn chờ chuyển khoản.": "The transfer window ran out.",
   "Khách không chuyển khoản nữa.": "The guest decided not to transfer.",

@@ -2159,9 +2159,7 @@ export default {
   "Đơn chờ {}₫ nhưng nhận {}₫.": "予約の請求額は{}₫ですが、{}₫が入金されました。",
 
   /* docs/03 §2, docs/07 §2.3 — the history lines a booking writes for itself. */
-  "Giữ chỗ {} phút để thanh toán": "支払いのため{}分間の仮押さえ",
   "Giữ chỗ {} giờ để chuyển khoản": "振込のため{}時間の仮押さえ",
-  "Hết {} phút giữ chỗ mà chưa thanh toán xong.": "{}分の仮押さえ期限内に支払いが完了しませんでした。",
   "Hết hạn chờ chuyển khoản mà tiền chưa về.": "振込期限を過ぎましたが入金がありませんでした。",
   "Hết hạn chờ chuyển khoản.": "振込期限切れ。",
   "Khách không chuyển khoản nữa.": "ゲストが振込を取りやめました。",

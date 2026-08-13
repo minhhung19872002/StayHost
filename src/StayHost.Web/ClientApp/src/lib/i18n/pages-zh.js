@@ -2159,9 +2159,7 @@ export default {
   "Đơn chờ {}₫ nhưng nhận {}₫.": "订单应收 {}₫，实收 {}₫。",
 
   /* docs/03 §2, docs/07 §2.3 — the history lines a booking writes for itself. */
-  "Giữ chỗ {} phút để thanh toán": "保留 {} 分钟以完成支付",
   "Giữ chỗ {} giờ để chuyển khoản": "保留 {} 小时以完成转账",
-  "Hết {} phút giữ chỗ mà chưa thanh toán xong.": "{} 分钟的保留时间内未完成支付。",
   "Hết hạn chờ chuyển khoản mà tiền chưa về.": "转账时限已过，款项未到账。",
   "Hết hạn chờ chuyển khoản.": "转账时限已过。",
   "Khách không chuyển khoản nữa.": "房客决定不再转账。",
