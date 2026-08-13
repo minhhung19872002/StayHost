@@ -41,7 +41,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (12/08/2026).** 949 test nghiệp vụ · **10/10** kịch bản của `docs/04`
+**Toàn bộ xanh (13/08/2026).** 963 test nghiệp vụ · **10/10** kịch bản của `docs/04`
 (`scripts/acceptance.py`) · **10/10** kịch bản quản trị của `docs/08 §13`
 (`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
 (`scripts/doc09_acceptance.py`, gồm cả 12 tình huống bắt buộc của `docs/09 §9`).
@@ -72,6 +72,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Khám phá | Tìm không dấu, ngày là bộ lọc thật, ngày linh hoạt ±1–7, cuối tuần/tuần/tháng, chọn theo tháng |
 | Chủ nhà | Đăng tin theo bước, lịch nhiều tin, giá mùa/theo ngày, đồng bộ iCal hai chiều, co-host có phạm vi quyền |
 | Thanh toán | Trả đủ, trả một phần (cọc ≥50% + tự thu trước 14 ngày), chia hoá đơn tối đa 16 người |
+| Chuyển khoản VietQR | `docs/07 §2.3`, cả ba dòng đơn. Đơn ở trạng thái **chờ chuyển khoản** giữ ngày/ghế **2 giờ** (`BankTransfers.Window`) và **chưa ghi bút toán nào**; người trực dán sao kê ở trang quản trị, `BankTransfers.Judge` khớp mã đơn trong nội dung, rồi đơn đi qua **đúng đường xác nhận mà thẻ đang đi**. Sáu phán quyết, chỉ "khớp" và "đã nhập trước đó" là im lặng. Hết hạn thì trả lại chỗ, không có gì phải đảo. **Chỉ hiện khi có `BankTransfer:AccountNumber`; prod chưa bật** — xem `docs/PLAN.md §9.3` |
 | Đánh giá & tin nhắn | Đánh giá mù hai chiều, sửa trong 48h, gửi ảnh, thẻ đơn trong hội thoại, mẫu trả lời nhanh |
 | An toàn | Trung tâm giải quyết, trung tâm trợ giúp 14 bài, phát hiện bất thường, nhật ký quản trị chỉ-thêm |
 | Quản trị người dùng | Ma trận quyền §2, thang bậc §5 tuần tự, **khoá tài khoản thực thi đúng bảng §6** (huỷ + hoàn tiền + giữ tiền, khách đang ở không bị đụng), khiếu nại người dùng tự nộp được, ảnh giấy tờ không nằm ở thư mục công khai, phiên admin hết hạn sau 30 phút, cấm đăng ký lại sau khoá vĩnh viễn |
@@ -88,7 +89,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Dữ liệu mẫu | `ReviewSeeder` dựng lịch sử có thật cho hai dòng này: 6 buổi/đơn đã hoàn tất mỗi tin, khách được điểm danh, người cung cấp đã nhận tiền, **bút toán đi qua `Ledger` nên sổ vẫn cân bằng**, rồi 6 đánh giá và điểm sao tính lại từ chính chúng |
 | Dịch vụ (`docs/09`) | Chủ nhà tự đăng, chứng chỉ hành nghề có hạn **tự ẩn tin khi hết hạn**, tuỳ chọn thêm có giá riêng, phí di chuyển ngoài bán kính, lịch theo thứ + đệm + chặn hai đơn quá xa, ghi chú bắt buộc theo danh mục, xác nhận điều kiện tại chỗ, huỷ theo bậc 72 giờ, **đánh giá 4 tiêu chí riêng** (tay nghề / đúng như mô tả / đúng giờ / đáng giá tiền — `docs/09 §5`, bảng `service_reviews`) |
 | Tiền hai dòng mới | **Dịch vụ có mức phí riêng 0% khách / 15% NCC**; Trải nghiệm giữ 14%/3% như chỗ ở (khách chốt). Trả tiền người cung cấp **sau khi buổi kết thúc 24 giờ**, không phải từ lúc bắt đầu |
-| Đa ngôn ngữ | 8 thứ tiếng (vi/en/ja/ko/zh/fr/de/es), **2075 khoá mỗi thứ, không thiếu khoá nào**. Dịch cả **chữ do server sinh** (trạng thái, dòng hoá đơn, tiện nghi, nhóm tiện nghi, loại chỗ ở, lời khuyên chủ nhà) nhờ từ điển khoá bằng chính chuỗi tiếng Việt. Ngày/giờ/số theo ngôn ngữ đang chọn. Nội dung **người dùng tự viết** (tên tin, mô tả, đánh giá, tiểu sử, nội quy chủ nhà tự gõ) được **máy dịch tự động** kèm dòng "Đã dịch tự động · Xem bản gốc" |
+| Đa ngôn ngữ | 8 thứ tiếng (vi/en/ja/ko/zh/fr/de/es), **2149 khoá mỗi thứ, không thiếu khoá nào**. Dịch cả **chữ do server sinh** (trạng thái, dòng hoá đơn, tiện nghi, nhóm tiện nghi, loại chỗ ở, lời khuyên chủ nhà) nhờ từ điển khoá bằng chính chuỗi tiếng Việt. Ngày/giờ/số theo ngôn ngữ đang chọn. Nội dung **người dùng tự viết** (tên tin, mô tả, đánh giá, tiểu sử, nội quy chủ nhà tự gõ) được **máy dịch tự động** kèm dòng "Đã dịch tự động · Xem bản gốc" |
 | Máy dịch | `libretranslate` tự host trong cả hai compose — **không cần khoá API, không tính tiền theo ký tự**. Đủ 8 thứ tiếng, trùng khít danh sách giao diện. Kết quả cache trong `translation_caches`, mỗi (chuỗi × ngôn ngữ) chỉ dịch một lần |
 | Hạn dùng số dư | `docs/07 §16` đã chốt (11/08/2026): bù đắp / giới thiệu bạn / hoàn khi huỷ **12 tháng**, thẻ quà tặng **không hết hạn**. Hạn đóng dấu **lúc cấp**, nên đổi tham số về sau không với ngược lại số dư khách đang giữ |
 
@@ -197,6 +198,11 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 - **Chữ viết trên màn hình phải khớp luật đang chạy.** Trang dịch vụ hứa "huỷ
   trước 24 giờ hoàn toàn bộ" suốt từ đầu, trong khi `ServiceRules` là 72 giờ 100%
   / 24 giờ 50% / sát giờ 0. Không test nào bắt được vì đó chỉ là một chuỗi.
+- **`HoldExpiresAt` bị xoá khi đơn rời trạng thái chờ.** `BookingLifecycle.Transition`
+  set nó về null cho mọi trạng thái khác `PendingPayment`, nên câu truy vấn "đơn vừa
+  hết hạn trong 7 ngày qua" lọc theo cột đó **không bao giờ khớp dòng nào** — và
+  không có lỗi ở đâu cả, chỉ là một phán quyết không bao giờ chạy. Đã đổi sang
+  `CreatedAt`. Muốn biết một đơn *đã* hết hạn lúc nào thì đọc `BookingEvents`.
 - **Đừng tự dựng `CreditEntry` bằng tay.** `docs/01 TC-07` đóng dấu hạn dùng **lúc cấp**;
   đường hoàn số dư khi huỷ đơn trong `BookingsController` tự `new CreditEntry` nên bỏ
   qua bước đó, và số dư hoàn lại **không bao giờ hết hạn** dù cấu hình nói 12 tháng.
@@ -280,7 +286,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 949 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 963 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09

@@ -60,15 +60,57 @@ public class PaymentMethodsController(
 
         var owed = await OwedOnAsync(user.Id, reference, ct);
         if (owed is null) return NotFound();
-        if (owed <= 0) return BadRequest(new { message = "Đơn này không còn khoản nào phải trả." });
+        if (owed.Value.Amount <= 0) return BadRequest(new { message = "Đơn này không còn khoản nào phải trả." });
 
         return Ok(new BankTransferQrDto(
-            VietQr.Payload(bank.Beneficiary, owed.Value, reference),
+            VietQr.Payload(bank.Beneficiary, owed.Value.Amount, reference),
             bank.BankName,
             bank.AccountNumber,
             bank.AccountName,
             VietQr.Sanitise(reference),
-            owed.Value));
+            owed.Value.Amount,
+            owed.Value.ExpiresAt));
+    }
+
+    /// <summary>
+    /// docs/07 §2.3 — whether the money has been found yet.
+    ///
+    /// The guest is on a page with a QR code and no way of knowing what happened
+    /// after they pressed send in their banking app, so the page asks. It reads
+    /// the booking's own status rather than anything about the transfer: what a
+    /// guest wants to know is whether they have a booking.
+    /// </summary>
+    [HttpGet("vietqr/{reference}/status")]
+    public async Task<ActionResult<BankTransferStatusDto>> QrStatus(string reference, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        if (await db.Bookings.FirstOrDefaultAsync(
+                b => b.Reference == reference && b.GuestUserId == user.Id, ct) is { } stay)
+            return Ok(new BankTransferStatusDto(
+                stay.Status.ToString(), BookingLifecycle.Label(stay.Status),
+                stay.Status == BookingStatus.Confirmed,
+                stay.Status == BookingStatus.PendingPayment,
+                stay.HoldExpiresAt, $"/trips/{stay.Id}"));
+
+        if (await db.ExperienceBookings.FirstOrDefaultAsync(
+                b => b.Reference == reference && b.GuestUserId == user.Id, ct) is { } ticket)
+            return Ok(new BankTransferStatusDto(
+                ticket.Status.ToString(), ExperienceRules.StatusLabel(ticket.Status),
+                ticket.Status == ExperienceBookingStatus.Confirmed,
+                ticket.Status == ExperienceBookingStatus.AwaitingPayment,
+                ticket.CreatedAt + BankTransfers.Window, "/experiences/bookings"));
+
+        if (await db.ServiceBookings.FirstOrDefaultAsync(
+                b => b.Reference == reference && b.GuestUserId == user.Id, ct) is { } job)
+            return Ok(new BankTransferStatusDto(
+                job.Status.ToString(), ServiceRules.StatusLabel(job.Status),
+                job.Status == ServiceBookingStatus.Confirmed,
+                job.Status == ServiceBookingStatus.AwaitingPayment,
+                job.CreatedAt + BankTransfers.Window, "/services/bookings"));
+
+        return NotFound();
     }
 
     /// <summary>
@@ -76,19 +118,33 @@ public class PaymentMethodsController(
     /// can book. Null when the reference is not theirs — which reads the same as
     /// "no such booking", so nobody can probe for other people's references.
     /// </summary>
-    private async Task<decimal?> OwedOnAsync(int userId, string reference, CancellationToken ct)
+    private async Task<(decimal Amount, DateTime? ExpiresAt)?> OwedOnAsync(
+        int userId, string reference, CancellationToken ct)
     {
         if (await db.Bookings.FirstOrDefaultAsync(
                 b => b.Reference == reference && b.GuestUserId == userId, ct) is { } stay)
-            return stay.BalanceDue > 0 ? stay.BalanceDue : stay.Total;
+        {
+            // A stay that has been paid owes nothing, and must not be handed a QR
+            // for its own total a second time. Only two things are outstanding: a
+            // booking still waiting to be paid at all, and the balance of one paid
+            // by deposit.
+            if (stay.BalanceDue > 0) return (stay.BalanceDue, null);
+            return stay.Status == BookingStatus.PendingPayment
+                ? (stay.Total, stay.HoldExpiresAt)
+                : (0m, null);
+        }
 
         if (await db.ServiceBookings.FirstOrDefaultAsync(
                 b => b.Reference == reference && b.GuestUserId == userId, ct) is { } job)
-            return job.Total;
+            return job.Status == ServiceBookingStatus.AwaitingPayment
+                ? (job.Total, job.CreatedAt + BankTransfers.Window)
+                : (0m, null);
 
         if (await db.ExperienceBookings.FirstOrDefaultAsync(
                 b => b.Reference == reference && b.GuestUserId == userId, ct) is { } ticket)
-            return ticket.Total;
+            return ticket.Status == ExperienceBookingStatus.AwaitingPayment
+                ? (ticket.Total, ticket.CreatedAt + BankTransfers.Window)
+                : (0m, null);
 
         return null;
     }

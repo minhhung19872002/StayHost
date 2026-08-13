@@ -1,4 +1,4 @@
-using StayHost.Domain;
+﻿using StayHost.Domain;
 
 namespace StayHost.Domain.Tests;
 
@@ -373,7 +373,7 @@ public class ServiceTests
             Total = price.Total, PlatformCut = price.PlatformCut, ProviderPayout = price.ProviderPayout
         };
 
-        var captured = Ledger.CaptureService(booking, price, Now);
+        var captured = Ledger.CaptureService(booking, Now);
         var refunded = Ledger.RefundService(booking, booking.Total, Now);
 
         Assert.Equal(0m, Ledger.Imbalance(captured));

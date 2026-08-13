@@ -546,6 +546,97 @@ public class FinanceController(
         return b?.Payment is null ? null : ToDto(b);
     }
 
+    /* ------------------------------------------- docs/07 §2.3, bank transfers */
+
+    /// <summary>
+    /// What the platform is waiting to be paid by transfer right now, so the
+    /// desk can see whether a credit they are looking at belongs to anything.
+    /// </summary>
+    [HttpGet("bank-transfers")]
+    public async Task<ActionResult<BankTransferDeskDto>> BankTransfers(
+        [FromServices] BankTransferService transfers, CancellationToken ct)
+    {
+        var admin = await RequireAsync(ct);
+        if (admin is null) return this.Denied();
+
+        var awaited = await transfers.AwaitedAsync(ct);
+        var open = await transfers.OpenAsync(ct);
+
+        return Ok(new BankTransferDeskDto(
+            awaited.Select(a => new AwaitedTransferDto(a.Key, a.Value)).OrderBy(a => a.Reference).ToList(),
+            open.Select(c => new BankCreditDto(
+                c.Id, c.BankReference, c.Amount, c.Description,
+                c.Verdict.ToString(), Domain.BankTransfers.VerdictLabel(c.Verdict),
+                c.MatchedReference, c.Expected, c.ImportedAt)).ToList()));
+    }
+
+    /// <summary>
+    /// docs/07 §2.3 — a statement, read against the bookings waiting for money.
+    ///
+    /// The rows arrive already split into columns because bank exports disagree
+    /// about column order, headings and decimal separators, and that mapping is
+    /// something a person does once while looking at their own file. What must
+    /// not be guessed at is here instead: which booking a memo belongs to, and
+    /// whether this credit has been seen before.
+    /// </summary>
+    [HttpPost("bank-transfers/import")]
+    public async Task<ActionResult<BankImportResultDto>> ImportStatement(
+        [FromBody] ImportStatementRequest req,
+        [FromServices] BankTransferService transfers,
+        CancellationToken ct)
+    {
+        var admin = await RequireAsync(ct);
+        if (admin is null) return this.Denied();
+
+        if (req.Lines is not { Count: > 0 })
+            return BadRequest(new { message = "Chưa có dòng nào để nhập." });
+
+        if (req.Lines.Count > 1000)
+            return BadRequest(new { message = "Mỗi lần nhập tối đa 1000 dòng." });
+
+        var result = await transfers.ImportAsync(
+            admin.Id,
+            req.Lines.Select(l => new BankTransferService.Line(
+                l.BankReference ?? "", l.Amount, l.Description ?? "")).ToList(),
+            ct);
+
+        audit.Record(admin, "finance.bank-import", $"lines:{req.Lines.Count}", null,
+            $"{result.Settled} khớp đơn, {result.Pending} cần xử lý, {result.Skipped} đã nhập trước đó");
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new BankImportResultDto(
+            result.Settled, result.Pending, result.Skipped,
+            result.Rows.Select(r => new BankImportRowDto(
+                r.BankReference, r.Amount, r.Description,
+                r.Verdict.ToString(), Domain.BankTransfers.VerdictLabel(r.Verdict),
+                r.MatchedReference, r.Expected, r.Explanation)).ToList()));
+    }
+
+    /// <summary>
+    /// A person has dealt with a credit the machine could not. What they did is
+    /// kept on the row: it is the platform's only record of where that money went.
+    /// </summary>
+    [HttpPost("bank-transfers/{id:long}/resolve")]
+    public async Task<ActionResult> ResolveCredit(
+        long id, [FromBody] ResolveCreditRequest req,
+        [FromServices] BankTransferService transfers,
+        CancellationToken ct)
+    {
+        var admin = await RequireAsync(ct);
+        if (admin is null) return this.Denied();
+
+        if (string.IsNullOrWhiteSpace(req.Note))
+            return BadRequest(new { message = "Cần ghi lại đã xử lý thế nào." });
+
+        if (!await transfers.ResolveAsync(id, admin.Id, req.Note, ct))
+            return NotFound(new { message = "Không tìm thấy giao dịch, hoặc đã xử lý rồi." });
+
+        audit.Record(admin, "finance.bank-resolve", $"credit:{id}", null, req.Note.Trim());
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new { ok = true });
+    }
+
     private static TransactionDto ToDto(Booking b) => new(
         b.Id,
         b.Reference,

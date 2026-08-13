@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using StayHost.Domain;
 using StayHost.Infrastructure;
 using StayHost.Web.Contracts;
@@ -330,21 +330,24 @@ public class ExperienceService(
                     : "Vừa có người đặt hết chỗ của suất này.");
         }
 
-        // docs/07 §2.3 — see BookingsController: a method the platform cannot
-        // charge during this request must not be allowed to confirm a ticket.
-        // Checked after the seats are taken so the refusal releases them below.
-        var attempt = PaymentMethods.ChargesOnBooking(req.PaymentMethod)
-            ? gateway.Charge(price.Total, req.PaymentMethod ?? "card", req.CardLast4)
-            : new PaymentGateway.Result(false, DeclineReason.IncorrectDetails);
+        // docs/07 §2.3 — a bank transfer is not charged here. The ticket is
+        // written down holding its seats and stays unconfirmed until the money is
+        // found on a statement; the seats come back on the timer if it never is.
+        var byTransfer = !PaymentMethods.ChargesOnBooking(req.PaymentMethod);
 
-        if (!attempt.Ok)
+        if (!byTransfer)
         {
-            // Give the seats straight back; a refused card must not hold a seat.
-            await ReleaseSeatsAsync(slotId, taken, req.Private, ct);
-            if (heldAlready && hold is not null) db.ExperienceHolds.Remove(hold);
-            await db.SaveChangesAsync(ct);
+            var attempt = gateway.Charge(price.Total, req.PaymentMethod ?? "card", req.CardLast4);
 
-            return (null, attempt.Reason);
+            if (!attempt.Ok)
+            {
+                // Give the seats straight back; a refused card must not hold a seat.
+                await ReleaseSeatsAsync(slotId, taken, req.Private, ct);
+                if (heldAlready && hold is not null) db.ExperienceHolds.Remove(hold);
+                await db.SaveChangesAsync(ct);
+
+                return (null, attempt.Reason);
+            }
         }
 
         // The hold has done its job; the booking now owns the seats.
@@ -362,13 +365,18 @@ public class ExperienceService(
             Tax = price.Tax,
             Total = price.Total,
             HostServiceFee = price.HostServiceFee,
-            HostPayout = price.HostPayout
+            HostPayout = price.HostPayout,
+            Status = byTransfer ? ExperienceBookingStatus.AwaitingPayment : ExperienceBookingStatus.Confirmed
         };
 
         db.ExperienceBookings.Add(booking);
         await db.SaveChangesAsync(ct);
 
-        db.LedgerEntries.AddRange(Ledger.CaptureExperience(booking, price, DateTime.UtcNow));
+        // Nothing else happens yet: no capture, no word to the host. Both are
+        // done by BankTransferService the moment the money is found.
+        if (byTransfer) return (booking, null);
+
+        db.LedgerEntries.AddRange(Ledger.CaptureExperience(booking, DateTime.UtcNow));
         await db.SaveChangesAsync(ct);
 
         await notifications.QueueWithEmailAsync(
@@ -381,12 +389,79 @@ public class ExperienceService(
         return (booking, null);
     }
 
+    /// <summary>
+    /// docs/07 §2.3 — the money for a transfer-booked ticket has been found on a
+    /// statement. This is the rest of BookAsync, run late.
+    /// </summary>
+    public async Task ConfirmTransferAsync(ExperienceBooking booking, CancellationToken ct)
+    {
+        if (booking.Status != ExperienceBookingStatus.AwaitingPayment) return;
+
+        booking.Status = ExperienceBookingStatus.Confirmed;
+        db.LedgerEntries.AddRange(Ledger.CaptureExperience(booking, DateTime.UtcNow));
+        await db.SaveChangesAsync(ct);
+
+        var slot = await db.ExperienceSlots
+            .Include(s => s.Experience)
+            .FirstOrDefaultAsync(s => s.Id == booking.SlotId, ct);
+        var guest = await db.Users.FirstOrDefaultAsync(u => u.Id == booking.GuestUserId, ct);
+
+        await notifications.QueueWithEmailAsync(
+            guest, NotificationKind.BookingConfirmed,
+            "Đã nhận được chuyển khoản",
+            $"{slot?.Experience?.Title} · {booking.Seats} chỗ · mã {booking.Reference}.",
+            "/experiences", ct);
+        await db.SaveChangesAsync(ct);
+
+        log.LogInformation("Experience {Reference} confirmed by bank transfer.", booking.Reference);
+    }
+
+    /// <summary>
+    /// docs/07 §2.3 — tickets whose transfer window ran out. The seats go back to
+    /// the session, the same way a lapsed hold gives them back. Nothing was
+    /// captured, so there is nothing to refund.
+    /// </summary>
+    public async Task<int> ExpireAwaitingTransfersAsync(CancellationToken ct)
+    {
+        var cutoff = DateTime.UtcNow - BankTransfers.Window;
+
+        var stale = await db.ExperienceBookings
+            .Where(b => b.Status == ExperienceBookingStatus.AwaitingPayment && b.CreatedAt <= cutoff)
+            .Take(200)
+            .ToListAsync(ct);
+        if (stale.Count == 0) return 0;
+
+        foreach (var booking in stale)
+        {
+            await ReleaseSeatsAsync(booking.SlotId, booking.Seats, booking.IsPrivate, ct);
+            booking.Status = ExperienceBookingStatus.PaymentExpired;
+            booking.CancelReason = "Hết hạn chờ chuyển khoản.";
+            booking.CancelledAt = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync(ct);
+        log.LogInformation("Huỷ {Count} vé trải nghiệm hết hạn chờ chuyển khoản.", stale.Count);
+        return stale.Count;
+    }
+
     public async Task<string?> CancelAsync(int userId, int bookingId, CancellationToken ct)
     {
         var booking = await db.ExperienceBookings
             .Include(b => b.Slot!).ThenInclude(s => s.Experience)
             .FirstOrDefaultAsync(b => b.Id == bookingId && b.GuestUserId == userId, ct);
         if (booking is null) return "Không tìm thấy vé này.";
+
+        // docs/07 §2.3 — walking away before transferring. No money moved, so the
+        // seats go back and no refund is computed over an amount never paid.
+        if (booking.Status == ExperienceBookingStatus.AwaitingPayment)
+        {
+            await ReleaseSeatsAsync(booking.SlotId, booking.Seats, booking.IsPrivate, ct);
+            booking.Status = ExperienceBookingStatus.PaymentExpired;
+            booking.CancelReason = "Khách không chuyển khoản nữa.";
+            booking.CancelledAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+            return null;
+        }
         if (booking.Status != ExperienceBookingStatus.Confirmed) return "Vé này không còn hiệu lực.";
 
         var refund = ExperienceRules.GuestRefund(booking, booking.Slot!.StartsAt, DateTime.UtcNow);

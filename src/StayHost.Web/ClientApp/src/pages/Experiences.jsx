@@ -510,6 +510,10 @@ export function ExperienceCheckout() {
         paymentMethod: state.payMethod ?? 'card',
         cardLast4: state.payCardLast4 ?? (typed.length >= 4 ? typed.slice(-4) : null)
       });
+      // docs/07 §2.3 — a transfer books nothing yet: the seats are held and the
+      // guest goes to the QR. Saying "đã đặt" here would be a lie until the
+      // money is found on a statement.
+      if (b.status === 'AwaitingPayment') { navigate(`/chuyen-khoan/${b.reference}`); return; }
       toast(`${t('Đã đặt — mã')} ${b.reference}`);
       navigate('/experiences/bookings');
     } catch (err) { toast(err.message); } finally { setBusy(false); }

@@ -6,6 +6,7 @@ import { api } from '../lib/api.js';
 import { money, longDate, dateTime } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 import { FinancePanel, ReconciliationPanel, TransactionsPanel, ChargebackPanel } from './admin/Finance.jsx';
+import { BankTransferPanel } from './admin/BankTransfers.jsx';
 import { UserAdminPanel, AppealsPanel, OversightPanel, DataRequestsPanel } from './admin/Users.jsx';
 import { ExperienceReviewPanel } from './admin/Experiences.jsx';
 
@@ -79,6 +80,7 @@ export function Admin() {
       <ReconciliationPanel />
       <TransactionsPanel />
       <ChargebackPanel />
+      <BankTransferPanel />
       <UserAdminPanel />
       <AppealsPanel />
       <DataRequestsPanel />

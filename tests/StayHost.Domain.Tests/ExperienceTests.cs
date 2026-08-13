@@ -1,4 +1,4 @@
-using StayHost.Domain;
+﻿using StayHost.Domain;
 
 namespace StayHost.Domain.Tests;
 
@@ -431,7 +431,7 @@ public class ExperienceTests
             Total = price.Total, HostServiceFee = price.HostServiceFee, HostPayout = price.HostPayout
         };
 
-        var captured = Ledger.CaptureExperience(booking, price, Now);
+        var captured = Ledger.CaptureExperience(booking, Now);
         var refunded = Ledger.RefundExperience(booking, booking.Total, Now);
 
         Assert.Equal(0m, Ledger.Imbalance(captured));

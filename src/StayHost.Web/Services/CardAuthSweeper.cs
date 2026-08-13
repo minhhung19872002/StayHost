@@ -15,7 +15,7 @@ namespace StayHost.Web.Services;
 /// </summary>
 public class CardAuthSweeper(
     StayHostDbContext db, PaymentGateway gateway, PaymentCompletion completion,
-    CatalogService catalog, ILogger<CardAuthSweeper> log)
+    ILogger<CardAuthSweeper> log)
 {
     /// <summary>How long to leave a guest alone before assuming they are not coming back.</summary>
     public static readonly TimeSpan Grace = TimeSpan.FromMinutes(2);
@@ -96,25 +96,11 @@ public class CardAuthSweeper(
     /// </summary>
     private async Task RescueAsync(CardAuthentication auth, Booking booking, CancellationToken ct)
     {
-        var party = new PartySize(booking.Adults, booking.Children, booking.Infants, booking.Pets);
-        var fresh = await catalog.BuildQuoteRequestAsync(
-            booking.ListingId, booking.CheckIn, booking.CheckOut, party, ct, booking.Id, booking.RoomTypeId,
-            // docs/01 ĐP-17 — the offer's rate must survive the off-site rescue too.
-            nightlyOverride: booking.NightlyOverride);
-
-        if (fresh is null) return;
-
         // The bank already took the money, so this reproduces the exact total the
-        // guest agreed to rather than re-pricing it. The promo discount is the
-        // figure frozen on the booking, not a fresh evaluation: a campaign that
-        // ended since must not change a total that has already been charged.
-        if (booking.CouponDiscount > 0)
-            fresh = fresh with { CouponAmount = booking.CouponDiscount, CouponLabel = "Mã giảm giá" };
+        // guest agreed to rather than re-pricing it.
+        var price = await completion.QuoteFromRecordAsync(booking, ct);
+        if (price is null) return;
 
-        if (booking.CreditUsed > 0)
-            fresh = fresh with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư StayHost" };
-
-        var price = Pricing.Quote(fresh);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var partial = auth.Amount < price.Total;
 

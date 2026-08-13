@@ -224,15 +224,21 @@ public static class Ledger
     /// <summary>
     /// docs/01 MR-03 — a seat at a session. Same accounts as a stay: the money
     /// engine does not care what was sold, only how it splits.
+    ///
+    /// The figures come off the booking rather than from a fresh quote, which is
+    /// what lets this be posted long after the booking was made — docs/07 §2.3's
+    /// bank transfer confirms when the money lands, by which time a re-quote
+    /// could disagree with the total the guest actually paid. It also means
+    /// capture and <see cref="RefundExperience"/> read the same numbers, so a
+    /// full refund provably reverses the capture.
     /// </summary>
-    public static List<LedgerEntry> CaptureExperience(
-        ExperienceBooking booking, Pricing.ExperienceBreakdown price, DateTime at) =>
+    public static List<LedgerEntry> CaptureExperience(ExperienceBooking booking, DateTime at) =>
         Post("experience-captured", null, booking.Id, at,
-            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, price.Total, $"Khách trả vé {booking.Reference}"),
-            new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, price.HostPayout, "Phần chủ trải nghiệm nhận"),
-            new Leg(LedgerAccount.GuestServiceFeeRevenue, LedgerDirection.Credit, price.GuestServiceFee, "Phí dịch vụ khách"),
-            new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Credit, price.HostServiceFee, "Phí dịch vụ chủ nhà"),
-            new Leg(LedgerAccount.TaxPayable, LedgerDirection.Credit, price.Tax, "Thuế thu hộ"));
+            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, booking.Total, $"Khách trả vé {booking.Reference}"),
+            new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, booking.HostPayout, "Phần chủ trải nghiệm nhận"),
+            new Leg(LedgerAccount.GuestServiceFeeRevenue, LedgerDirection.Credit, booking.ServiceFee, "Phí dịch vụ khách"),
+            new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Credit, booking.HostServiceFee, "Phí dịch vụ chủ nhà"),
+            new Leg(LedgerAccount.TaxPayable, LedgerDirection.Credit, booking.Tax, "Thuế thu hộ"));
 
     /// <summary>
     /// A ticket refunded, whether the guest pulled out or the session was called
@@ -264,14 +270,14 @@ public static class Ledger
     /// commission where a host's own service pays the host service fee; both land
     /// in the same revenue account because both are what the platform kept.
     /// </summary>
-    public static List<LedgerEntry> CaptureService(
-        ServiceBooking booking, Pricing.ServiceBreakdown price, DateTime at) =>
+    /// <remarks>Reads the booking's own figures, for the reasons on <see cref="CaptureExperience"/>.</remarks>
+    public static List<LedgerEntry> CaptureService(ServiceBooking booking, DateTime at) =>
         Post("service-captured", null, null, booking.Id, at,
-            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, price.Total, $"Khách trả dịch vụ {booking.Reference}"),
-            new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, price.ProviderPayout, "Phần bên cung cấp nhận"),
-            new Leg(LedgerAccount.GuestServiceFeeRevenue, LedgerDirection.Credit, price.GuestServiceFee, "Phí dịch vụ khách"),
-            new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Credit, price.PlatformCut, "Phần sàn giữ lại"),
-            new Leg(LedgerAccount.TaxPayable, LedgerDirection.Credit, price.Tax, "Thuế thu hộ"));
+            new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, booking.Total, $"Khách trả dịch vụ {booking.Reference}"),
+            new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, booking.ProviderPayout, "Phần bên cung cấp nhận"),
+            new Leg(LedgerAccount.GuestServiceFeeRevenue, LedgerDirection.Credit, booking.ServiceFee, "Phí dịch vụ khách"),
+            new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Credit, booking.PlatformCut, "Phần sàn giữ lại"),
+            new Leg(LedgerAccount.TaxPayable, LedgerDirection.Credit, booking.Tax, "Thuế thu hộ"));
 
     /* ------------------------------------------------------- StayShield */
 

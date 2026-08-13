@@ -596,6 +596,19 @@ dịch tự host và `TC-07` đã chốt tham số ở `docs/07 §16` — chi ti
 Các mục còn để trống trong `docs/07 §16` (`TT-A`, `TT-B`, `TT-C`, phương án pháp lý,
 cổng thanh toán) là quyết định vận hành, chưa chặn tính năng nào.
 
+### 9.3. Việc ngoài 201 mã: VietQR (13/08/2026)
+
+`docs/07 §2.3` xếp VietQR vào nhóm P2 "có thể thêm sau", nên nó **không nằm trong
+201 mã của `docs/01`** — con số đó giữ nguyên. Đã làm đủ vòng: sinh mã, đơn chờ
+chuyển khoản cho cả ba dòng, nhập sao kê, khớp về đơn, hết hạn thì trả lại chỗ.
+Chi tiết ở `docs/07 §15.2`, mã `TC-P-13`.
+
+**Chưa bật ở bản chạy thật.** Phương thức chỉ xuất hiện khi có
+`BankTransfer:AccountNumber`, và `docker-compose.prod.yml` chưa truyền biến đó
+xuống container. Trước khi bật cần một tài khoản **của pháp nhân**, không phải
+tài khoản cá nhân: `docs/07 §1` nói tiền khách phải do sàn giữ hộ, và §13 vẫn
+chưa chốt phương án pháp lý A/B/C.
+
 ---
 
 ## Kiểm chứng

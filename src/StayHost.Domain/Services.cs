@@ -17,7 +17,15 @@ public enum ServiceBookingStatus
     Confirmed = 1,
     Completed = 2,
     CancelledByGuest = 3,
-    CancelledByProvider = 4
+    CancelledByProvider = 4,
+    /// <summary>
+    /// docs/07 §2.3 — booked by bank transfer, holding its place in the
+    /// provider's day while the money makes its way over. Nothing captured, and
+    /// the provider has not been told to turn up.
+    /// </summary>
+    AwaitingPayment = 5,
+    /// <summary>The transfer window ran out and the slot went back.</summary>
+    PaymentExpired = 6
 }
 
 /// <summary>
@@ -632,13 +640,15 @@ public static class ServiceRules
         ServiceBookingStatus.Confirmed => "Đã xác nhận",
         ServiceBookingStatus.Completed => "Đã hoàn tất",
         ServiceBookingStatus.CancelledByGuest => "Khách đã huỷ",
+        ServiceBookingStatus.AwaitingPayment => "Chờ chuyển khoản",
+        ServiceBookingStatus.PaymentExpired => "Hết hạn chờ chuyển khoản",
         _ => "Bên cung cấp đã huỷ"
     };
 
     public static string StatusBadge(ServiceBookingStatus status) => status switch
     {
         ServiceBookingStatus.Confirmed or ServiceBookingStatus.Completed => "confirmed",
-        ServiceBookingStatus.Requested => "pending",
+        ServiceBookingStatus.Requested or ServiceBookingStatus.AwaitingPayment => "pending",
         _ => "cancelled"
     };
 }

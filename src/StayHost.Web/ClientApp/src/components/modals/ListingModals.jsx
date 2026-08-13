@@ -1,5 +1,6 @@
 import { useStore } from '../../lib/useStore.js';
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   set, holdDates, payHeld, releaseHold, openSplit, openOverlay, closeOverlay,
   shareListing, toggleFavorite, applyCoupon
@@ -209,6 +210,7 @@ const CHECKOUT_STEPS = ['Chuyến đi', 'Thanh toán', 'Xác nhận'];
 
 export function CheckoutModal() {
   const state = useStore();
+  const navigate = useNavigate();
   const d = state.detail;
   const q = state.quote;
   const [busy, setBusy] = useState(false);
@@ -277,7 +279,14 @@ export function CheckoutModal() {
       : await payHeld(payment);
     setBusy(false);
 
-    if (result) { set({ bookingResult: result, held: null }); closeOverlay(); }
+    if (!result) return;
+
+    set({ bookingResult: result, held: null });
+    closeOverlay();
+
+    // docs/07 §2.3 — a booking still pending payment after /pay is one paid by
+    // transfer: the dates are held and the money has not moved yet.
+    if (result.status === 'PendingPayment') navigate(`/chuyen-khoan/${result.reference}`);
   };
 
   return (

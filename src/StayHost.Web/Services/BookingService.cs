@@ -253,13 +253,21 @@ public class BookingService(StayHostDbContext db)
 
         // Holds that ran out: the dates go back on the market.
         var staleHolds = await db.Bookings
+            .Include(b => b.Payment)
             .Where(b => b.Status == BookingStatus.PendingPayment && b.HoldExpiresAt != null && b.HoldExpiresAt < now)
             .ToListAsync(ct);
 
         foreach (var b in staleHolds)
         {
+            // docs/07 §2.3 — a transfer gets a longer window than a card, so the
+            // line in the history has to say which one ran out.
+            var byTransfer = !PaymentMethods.ChargesOnBooking(b.Payment?.Method);
+
             db.BookingEvents.Add(BookingLifecycle.Transition(
-                b, BookingStatus.PaymentFailed, "system", "Hết 15 phút giữ chỗ mà chưa thanh toán xong."));
+                b, BookingStatus.PaymentFailed, "system",
+                byTransfer
+                    ? "Hết hạn chờ chuyển khoản mà tiền chưa về."
+                    : "Hết 15 phút giữ chỗ mà chưa thanh toán xong."));
             result.HoldsExpired++;
         }
 
@@ -404,6 +412,13 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var calledOff = await experiences.SweepAsync(stoppingToken);
                 if (calledOff > 0) log.LogInformation("Đã huỷ {Count} suất trải nghiệm thiếu người.", calledOff);
 
+                // docs/07 §2.3 — tickets and jobs whose bank transfer never
+                // arrived. The stay half is done by the lifecycle sweep above,
+                // which already expires a hold that has run out.
+                var lapsedTickets = await experiences.ExpireAwaitingTransfersAsync(stoppingToken);
+                if (lapsedTickets > 0)
+                    log.LogInformation("Vé trải nghiệm hết hạn chờ chuyển khoản: {Count}.", lapsedTickets);
+
                 // docs/07 §12 — sends hosts their money, or says why not.
                 var payouts = scope.ServiceProvider.GetRequiredService<PayoutService>();
                 var payoutResult = await payouts.SweepAsync(stoppingToken);
@@ -423,6 +438,10 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 if (certResult.Hidden + certResult.Reminded > 0)
                     log.LogInformation("Chứng chỉ dịch vụ: {Hidden} tạm ẩn, {Reminded} nhắc.",
                         certResult.Hidden, certResult.Reminded);
+
+                var lapsedJobs = await certs.ExpireAwaitingTransfersAsync(stoppingToken);
+                if (lapsedJobs > 0)
+                    log.LogInformation("Đơn dịch vụ hết hạn chờ chuyển khoản: {Count}.", lapsedJobs);
 
                 // docs/07 §4 — a card about to expire with money still to come
                 // off it, fourteen days ahead.

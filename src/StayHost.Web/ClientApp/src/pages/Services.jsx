@@ -769,6 +769,8 @@ export function ServiceCheckout() {
         addOnIds,
         conditionsConfirmed: conditionsOk
       });
+      // docs/07 §2.3 — see the experience checkout: a transfer goes to the QR.
+      if (b.status === 'AwaitingPayment') { navigate(`/chuyen-khoan/${b.reference}`); return; }
       toast(`${t('Đã đặt — mã')} ${b.reference}`);
       navigate('/services/bookings');
     } catch (err) { toast(err.message); } finally { setBusy(false); }

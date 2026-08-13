@@ -129,4 +129,73 @@ public class BankTransferTests
         Assert.Equal(BankTransfers.Verdict.Paid, BankTransfers.Judge(
             new BankTransfers.Credit("FT-B", 518_400m, "SV7EA95836"), Awaited, seen).Verdict);
     }
+
+    /* --------------------------------------------------- money that came late */
+
+    private static readonly Dictionary<string, decimal> Lapsed = new()
+    {
+        ["XP2E5A975A"] = 900_000m
+    };
+
+    [Fact]
+    public void Money_for_a_booking_that_already_lapsed_stops_for_a_person()
+    {
+        // The seats went back two hours ago. The guest did pay, so the answer is
+        // neither "confirmed" nor "no such booking" — somebody decides between
+        // reinstating it and sending the money back.
+        var o = BankTransfers.Judge(
+            new BankTransfers.Credit("FT-LATE", 900_000m, "VE XP2E5A975A"), Awaited, Seen, Lapsed);
+
+        Assert.Equal(BankTransfers.Verdict.PaidLate, o.Verdict);
+        Assert.Equal("XP2E5A975A", o.Booking);
+        Assert.Equal(900_000m, o.Expected);
+        Assert.True(o.NeedsSomebody);
+        Assert.False(BankTransfers.Settles(o.Verdict));
+    }
+
+    [Fact]
+    public void Late_and_short_is_reported_as_short()
+    {
+        // Being late is the smaller of the two problems, and the amount has to be
+        // settled before the lateness is worth discussing.
+        var o = BankTransfers.Judge(
+            new BankTransfers.Credit("FT-LATE-2", 500_000m, "VE XP2E5A975A"), Awaited, Seen, Lapsed);
+
+        Assert.Equal(BankTransfers.Verdict.WrongAmount, o.Verdict);
+        Assert.Equal(900_000m, o.Expected);
+    }
+
+    [Fact]
+    public void A_booking_still_inside_its_window_is_paid_not_late()
+    {
+        // The same reference in both dictionaries must resolve to the live one:
+        // a booking that is still waiting confirms, it does not queue for a human.
+        var both = new Dictionary<string, decimal> { ["SH1A2B3C4D"] = 2_672_000m };
+
+        var o = BankTransfers.Judge(
+            new BankTransfers.Credit("FT-C", 2_672_000m, "SH1A2B3C4D"), Awaited, Seen, both);
+
+        Assert.Equal(BankTransfers.Verdict.Paid, o.Verdict);
+    }
+
+    [Fact]
+    public void Only_a_clean_match_settles_a_booking_on_its_own()
+    {
+        // Four of the six verdicts mean money is sitting somewhere unexplained,
+        // and none of them may confirm anything without a person looking.
+        Assert.True(BankTransfers.Settles(BankTransfers.Verdict.Paid));
+
+        foreach (var v in Enum.GetValues<BankTransfers.Verdict>().Where(v => v != BankTransfers.Verdict.Paid))
+            Assert.False(BankTransfers.Settles(v));
+    }
+
+    [Fact]
+    public void The_transfer_window_is_longer_than_a_card_hold_and_shorter_than_a_day()
+    {
+        // The guest has to leave for a banking app, which fifteen minutes does not
+        // allow for; and these are real dates held for a booking nobody has paid.
+        Assert.True(BankTransfers.Window > BookingLifecycle.PaymentHold);
+        Assert.True(BankTransfers.Window < TimeSpan.FromDays(1));
+        Assert.True(BankTransfers.LateWindow > BankTransfers.Window);
+    }
 }

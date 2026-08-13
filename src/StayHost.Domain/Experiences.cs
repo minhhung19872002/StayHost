@@ -13,7 +13,15 @@ public enum ExperienceBookingStatus
     CancelledByGuest = 1,
     /// <summary>The whole session was called off; everyone was refunded.</summary>
     CancelledWithSlot = 2,
-    Completed = 3
+    Completed = 3,
+    /// <summary>
+    /// docs/07 §2.3 — booked by bank transfer, holding its seats while the money
+    /// makes its way over. Not a ticket yet: nothing has been captured and the
+    /// provider has not been told to expect anybody.
+    /// </summary>
+    AwaitingPayment = 4,
+    /// <summary>The transfer window ran out and the seats went back.</summary>
+    PaymentExpired = 5
 }
 
 /// <summary>docs/09 §2.3 — how much can go wrong, and so what must be proved.</summary>
@@ -538,6 +546,8 @@ public static class ExperienceRules
         ExperienceBookingStatus.Confirmed => "Đã xác nhận",
         ExperienceBookingStatus.CancelledByGuest => "Khách đã huỷ",
         ExperienceBookingStatus.CancelledWithSlot => "Suất bị huỷ",
+        ExperienceBookingStatus.AwaitingPayment => "Chờ chuyển khoản",
+        ExperienceBookingStatus.PaymentExpired => "Hết hạn chờ chuyển khoản",
         _ => "Đã hoàn tất"
     };
 
@@ -545,6 +555,7 @@ public static class ExperienceRules
     {
         ExperienceBookingStatus.Confirmed => "confirmed",
         ExperienceBookingStatus.Completed => "confirmed",
+        ExperienceBookingStatus.AwaitingPayment => "pending",
         _ => "cancelled"
     };
 }

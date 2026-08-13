@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using StayHost.Domain;
 using StayHost.Infrastructure;
 using StayHost.Web.Contracts;
@@ -14,6 +14,22 @@ public class ServiceMarketService(
     StayHostDbContext db, CatalogService catalog, NotificationService notifications,
     PaymentGateway gateway, ILogger<ServiceMarketService> log)
 {
+    /// <summary>
+    /// The statuses that have given the provider's time back. Everything else —
+    /// including a booking still waiting for its bank transfer — is holding that
+    /// slot, and must keep the next guest out of it.
+    ///
+    /// Kept in one place because it is read by both the picker and the check
+    /// that refuses a booking, and those two disagreeing means the picker offers
+    /// a time the server then refuses.
+    /// </summary>
+    private static readonly ServiceBookingStatus[] LetGo =
+    [
+        ServiceBookingStatus.CancelledByGuest,
+        ServiceBookingStatus.CancelledByProvider,
+        ServiceBookingStatus.PaymentExpired
+    ];
+
     public async Task<IReadOnlyList<ServiceCardDto>> BrowseAsync(
         string? q, string? category, string? city, CancellationToken ct)
     {
@@ -78,8 +94,7 @@ public class ServiceMarketService(
         var to = from.AddDays(60);
         var busy = await db.ServiceBookings
             .Where(b => b.OfferingId == o.Id
-                        && b.Status != ServiceBookingStatus.CancelledByGuest
-                        && b.Status != ServiceBookingStatus.CancelledByProvider
+                        && !LetGo.Contains(b.Status)
                         && b.StartsAt < to && b.StartsAt >= from.AddDays(-1))
             .Select(b => new { b.StartsAt, b.DurationMinutes })
             .ToListAsync(ct);
@@ -277,8 +292,7 @@ public class ServiceMarketService(
         var day = startsAt.Date;
         var busy = await db.ServiceBookings
             .Where(b => b.OfferingId == offering.Id
-                        && b.Status != ServiceBookingStatus.CancelledByGuest
-                        && b.Status != ServiceBookingStatus.CancelledByProvider
+                        && !LetGo.Contains(b.Status)
                         && b.StartsAt >= day.AddDays(-1) && b.StartsAt < day.AddDays(2))
             .Select(b => new { b.StartsAt, b.DurationMinutes, b.Latitude, b.Longitude })
             .ToListAsync(ct);
@@ -344,13 +358,17 @@ public class ServiceMarketService(
             DistanceKm = DistanceFor(offering, req.Latitude, req.Longitude)
         });
 
-        // docs/07 §2.3 — see BookingsController: a method the platform cannot
-        // charge during this request must not be allowed to confirm a job.
-        if (!PaymentMethods.ChargesOnBooking(req.PaymentMethod))
-            return (null, PaymentMethods.NotChargeableYet);
+        // docs/07 §2.3 — a bank transfer is not charged here. The job is written
+        // down holding its place in the provider's day, and stays unconfirmed
+        // until the money is found on a statement. Nothing is captured, so the
+        // provider is not told to turn up for a job nobody has paid for.
+        var byTransfer = !PaymentMethods.ChargesOnBooking(req.PaymentMethod);
 
-        var attempt = gateway.Charge(price.Total, req.PaymentMethod ?? "card", req.CardLast4);
-        if (!attempt.Ok) return (null, attempt.Reason);
+        if (!byTransfer)
+        {
+            var attempt = gateway.Charge(price.Total, req.PaymentMethod ?? "card", req.CardLast4);
+            if (!attempt.Ok) return (null, attempt.Reason);
+        }
 
         var booking = new ServiceBooking
         {
@@ -375,6 +393,7 @@ public class ServiceMarketService(
             AddOnsTotal = price.AddOnsTotal,
             TravelFee = price.TravelFee,
             ConditionsConfirmed = req.ConditionsConfirmed,
+            Status = byTransfer ? ServiceBookingStatus.AwaitingPayment : ServiceBookingStatus.Confirmed,
             AddOns = chosen
                 .Select(a => new ServiceBookingAddOn { AddOnId = a.Id, Name = a.Name, Price = a.Price })
                 .ToList()
@@ -383,7 +402,11 @@ public class ServiceMarketService(
         db.ServiceBookings.Add(booking);
         await db.SaveChangesAsync(ct);
 
-        db.LedgerEntries.AddRange(Ledger.CaptureService(booking, price, DateTime.UtcNow));
+        // Nothing else happens yet: no capture, no notification to the provider.
+        // BankTransferService does both the moment the money is found.
+        if (byTransfer) return (booking, null);
+
+        db.LedgerEntries.AddRange(Ledger.CaptureService(booking, DateTime.UtcNow));
         await db.SaveChangesAsync(ct);
 
         await notifications.QueueWithEmailAsync(
@@ -397,11 +420,77 @@ public class ServiceMarketService(
         return (booking, null);
     }
 
+    /// <summary>
+    /// docs/07 §2.3 — the money for a transfer-booked job has been found on a
+    /// statement. This is the rest of BookAsync, run late: the capture and the
+    /// notifications that were deliberately not done at booking time.
+    /// </summary>
+    public async Task ConfirmTransferAsync(ServiceBooking booking, CancellationToken ct)
+    {
+        if (booking.Status != ServiceBookingStatus.AwaitingPayment) return;
+
+        booking.Status = ServiceBookingStatus.Confirmed;
+        db.LedgerEntries.AddRange(Ledger.CaptureService(booking, DateTime.UtcNow));
+        await db.SaveChangesAsync(ct);
+
+        var offering = await db.ServiceOfferings.FirstOrDefaultAsync(o => o.Id == booking.OfferingId, ct);
+        var guest = await db.Users.FirstOrDefaultAsync(u => u.Id == booking.GuestUserId, ct);
+
+        await notifications.QueueWithEmailAsync(
+            guest, NotificationKind.BookingConfirmed,
+            "Đã nhận được chuyển khoản",
+            $"{offering?.Title} · {booking.StartsAt:dd/MM HH:mm} · mã {booking.Reference}.",
+            "/services/bookings", ct);
+        await db.SaveChangesAsync(ct);
+
+        log.LogInformation("Service {Reference} confirmed by bank transfer.", booking.Reference);
+    }
+
+    /// <summary>
+    /// docs/07 §2.3 — jobs whose transfer window ran out. The slot goes back to
+    /// the provider's day; nothing was captured, so there is nothing to refund.
+    /// Runs on the lifecycle tick alongside the other sweeps.
+    /// </summary>
+    public async Task<int> ExpireAwaitingTransfersAsync(CancellationToken ct)
+    {
+        var cutoff = DateTime.UtcNow - BankTransfers.Window;
+
+        var stale = await db.ServiceBookings
+            .Where(b => b.Status == ServiceBookingStatus.AwaitingPayment && b.CreatedAt <= cutoff)
+            .Take(200)
+            .ToListAsync(ct);
+        if (stale.Count == 0) return 0;
+
+        foreach (var booking in stale)
+        {
+            booking.Status = ServiceBookingStatus.PaymentExpired;
+            booking.CancelReason = "Hết hạn chờ chuyển khoản.";
+            booking.CancelledAt = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync(ct);
+        log.LogInformation("Huỷ {Count} đơn dịch vụ hết hạn chờ chuyển khoản.", stale.Count);
+        return stale.Count;
+    }
+
     public async Task<string?> CancelAsync(int userId, int bookingId, CancellationToken ct)
     {
         var booking = await db.ServiceBookings
             .FirstOrDefaultAsync(b => b.Id == bookingId && b.GuestUserId == userId, ct);
         if (booking is null) return "Không tìm thấy đơn dịch vụ này.";
+        // docs/07 §2.3 — a guest walking away before they transfer. No money has
+        // moved, so there is nothing to refund and no ledger entry to make; the
+        // slot simply goes back rather than running the cancellation tiers over
+        // an amount that was never paid.
+        if (booking.Status == ServiceBookingStatus.AwaitingPayment)
+        {
+            booking.Status = ServiceBookingStatus.PaymentExpired;
+            booking.CancelReason = "Khách không chuyển khoản nữa.";
+            booking.CancelledAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+            return null;
+        }
+
         if (booking.Status is not (ServiceBookingStatus.Confirmed or ServiceBookingStatus.Requested))
             return "Đơn này không còn hiệu lực.";
 

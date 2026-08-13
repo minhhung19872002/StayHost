@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using StayHost.Domain;
 
 namespace StayHost.Infrastructure;
@@ -151,7 +151,7 @@ public static class ReviewSeeder
                 db.ExperienceBookings.Add(booking);
                 await db.SaveChangesAsync(ct);
 
-                db.LedgerEntries.AddRange(Ledger.CaptureExperience(booking, price, booking.CreatedAt));
+                db.LedgerEntries.AddRange(Ledger.CaptureExperience(booking, booking.CreatedAt));
                 db.LedgerEntries.AddRange(Ledger.PayoutExperience(booking, booking.HostPayout, paidOutAt));
 
                 db.ExperienceReviews.Add(new ExperienceReview
@@ -250,7 +250,7 @@ public static class ReviewSeeder
                 db.ServiceBookings.Add(booking);
                 await db.SaveChangesAsync(ct);
 
-                db.LedgerEntries.AddRange(Ledger.CaptureService(booking, price, booking.CreatedAt));
+                db.LedgerEntries.AddRange(Ledger.CaptureService(booking, booking.CreatedAt));
                 db.LedgerEntries.AddRange(Ledger.PayoutService(booking, booking.ProviderPayout, paidOutAt));
 
                 db.ServiceReviews.Add(new ServiceReview

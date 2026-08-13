@@ -706,7 +706,13 @@ export async function payHeld(extra = {}) {
   try {
     state.bookingResult = await api.pay(state.held.id, extra);
     state.held = null;
-    toast(`Đặt chỗ thành công — mã ${state.bookingResult.reference}`);
+
+    // docs/07 §2.3 — paying by transfer leaves the booking where it was: held,
+    // unpaid, waiting for money. The caller sends the guest to the QR instead,
+    // and nothing here may congratulate them on a booking they have not paid.
+    if (state.bookingResult.status !== 'PendingPayment')
+      toast(`Đặt chỗ thành công — mã ${state.bookingResult.reference}`);
+
     await loadBookings();
     return state.bookingResult;
   } catch (err) {

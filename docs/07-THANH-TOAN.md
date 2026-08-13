@@ -302,6 +302,7 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
 | TC-A-02 | Màn hình quản trị: tra cứu giao dịch, hoàn tiền thủ công, điều chỉnh khoản chuyển — **đã làm** (`FinanceController`, cần quyền `Finance`, mọi thao tác có nhật ký) |
 | TC-A-03 | Bảng theo dõi gian lận theo §14.5 — **đã làm** (`RiskWatch`, bảng Cảnh báo bất thường) |
 | TC-A-04 | Báo cáo tài chính: doanh thu phí, tiền đang giữ hộ, thuế phải nộp, thất thoát — **đã làm** (đọc thẳng từ sổ ghi tiền) |
+| TC-P-13 | **VietQR** (§2.3): sinh mã, giữ chỗ chờ tiền, đọc sao kê, khớp về đơn — **đã làm 13/08/2026**, xem §15.2 |
 
 ### 15.1. Hai chỗ của §3 cần khách xác nhận
 
@@ -323,6 +324,36 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
    Nếu khách muốn số dư trừ được cả phí thì phải sửa `docs/03 §1` trước.
 
 ---
+
+### 15.2. VietQR — chuyển khoản là một chặng, không phải một lần bấm
+
+§2.3 xếp VietQR vào nhóm "có thể thêm sau", và điều khiến nó khác mọi phương thức
+ở §2.1 là **sàn không nhìn thấy tiền đi**. Khách rời trang sang ứng dụng ngân hàng,
+tiền về lúc nào không ai báo, và dấu vết duy nhất là một dòng trên sao kê. Vì thế
+nó không dùng chung đường với thẻ được:
+
+| Bước | Ai làm | Ghi lại ở đâu |
+|---|---|---|
+| Chọn VietQR ở bước thanh toán | Khách | Đơn ở trạng thái **chờ chuyển khoản**, giữ ngày/ghế/lịch, **chưa có bút toán nào** |
+| Quét mã | Khách | Mã dựng từ chính đơn (`VietQr.cs`), nội dung là mã đơn nên không gõ nhầm được |
+| Dán sao kê | Người trực (quyền `Finance`) | Mỗi dòng thành một `bank_credits`, khoá theo mã giao dịch ngân hàng |
+| Khớp | Máy (`BankTransfers.Judge`) | Đúng mã + đúng số tiền thì đơn đi qua **đúng đường xác nhận mà thẻ đang đi** |
+| Không khớp | Người trực | Dòng nằm lại hàng chờ tới khi có người ghi đã xử lý thế nào |
+
+**Sáu phán quyết, chỉ hai cái im lặng.** Khớp thì xác nhận đơn; đã nhập trước đó thì
+bỏ qua. Bốn cái còn lại — không tìm thấy mã đơn, không có đơn nào chờ mã đó, lệch số
+tiền, tiền về sau khi đơn đã hết hạn — đều thành **việc cho người**, vì trong cả bốn
+trường hợp tiền là tiền thật và chỉ người mới biết nên hoàn hay nên gọi cho khách.
+**Trả thiếu không phải là trả**: §7 không cho phép bù hai cái sai thành một cái đúng.
+
+**Giữ chỗ 2 giờ** (`BankTransfers.Window`) thay cho 15 phút của thẻ: khách phải mở
+được ứng dụng ngân hàng và thường phải đăng nhập lại. Hết hạn thì ngày, ghế và lịch
+được trả lại; **không có bút toán nào phải đảo, vì chưa từng có bút toán nào**. Tiền
+về muộn trong vòng **7 ngày** (`LateWindow`) vẫn nhận ra đơn cũ, nhưng ra phán quyết
+riêng chứ không tự khôi phục — chỗ đã cho người khác rồi.
+
+**Chưa làm:** đặt cọc bằng chuyển khoản (sẽ là hai lần chuyển, hai mã, một lịch đòi
+nốt — bị từ chối thẳng với câu giải thích), và tự động lấy sao kê từ ngân hàng.
 
 ## 16. Tham số cần chốt
 

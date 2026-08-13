@@ -81,6 +81,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<IdentityCheck> IdentityChecks => Set<IdentityCheck>();
     public DbSet<ListingView> ListingViews => Set<ListingView>();
     public DbSet<PaymentAttempt> PaymentAttempts => Set<PaymentAttempt>();
+    public DbSet<BankCredit> BankCredits => Set<BankCredit>();
     public DbSet<SavedCard> SavedCards => Set<SavedCard>();
     public DbSet<Sanction> Sanctions => Set<Sanction>();
     public DbSet<Appeal> Appeals => Set<Appeal>();
@@ -191,6 +192,23 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Message).HasMaxLength(300);
             e.HasOne(x => x.Booking).WithMany()
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/07 §2.3 — the bank's side. BankReference is unique for the same
+        // reason payment_attempts.Key is: re-importing a statement must not
+        // confirm the same booking a second time.
+        b.Entity<BankCredit>(e =>
+        {
+            e.ToTable("bank_credits");
+            e.HasIndex(x => x.BankReference).IsUnique();
+            e.HasIndex(x => new { x.ResolvedAt, x.ImportedAt });
+            e.Property(x => x.BankReference).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(500);
+            e.Property(x => x.MatchedReference).HasMaxLength(20);
+            e.Property(x => x.ResolutionNote).HasMaxLength(400);
+            e.Property(x => x.Amount).HasPrecision(12, 2);
+            e.Property(x => x.Expected).HasPrecision(12, 2);
+            e.Ignore(x => x.NeedsSomebody);
         });
 
         // docs/07 §7 — the gateway's side of the daily reconciliation. Written

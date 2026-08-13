@@ -181,6 +181,12 @@ public class BookingsController(
             }
         }
 
+        // docs/07 §2.3 — a guest paying by transfer has to leave for a banking
+        // app, so the 15 minutes a card gets would run out while they are still
+        // logging in. The dates are held for the transfer window instead.
+        var byTransfer = !PaymentMethods.ChargesOnBooking(req.PaymentMethod);
+        var holdFor = byTransfer ? BankTransfers.Window : BookingLifecycle.PaymentHold;
+
         var booking = new Booking
         {
             Reference = "SH" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant(),
@@ -227,7 +233,7 @@ public class BookingsController(
             // minutes while the guest pays; a request waits 24 hours on the host
             // and deliberately does not hold the dates at all.
             Status = instantAvailable ? BookingStatus.PendingPayment : BookingStatus.PendingHostApproval,
-            HoldExpiresAt = instantAvailable ? DateTime.UtcNow + BookingLifecycle.PaymentHold : null,
+            HoldExpiresAt = instantAvailable ? DateTime.UtcNow + holdFor : null,
             RequestExpiresAt = instantAvailable ? null : DateTime.UtcNow + BookingLifecycle.RequestWindow
         };
 
@@ -237,8 +243,8 @@ public class BookingsController(
             Amount = price.Total,
             Currency = "VND",
             Method = string.IsNullOrWhiteSpace(req.PaymentMethod) ? "card" : req.PaymentMethod,
-            CardLast4 = req.CardLast4 ?? "4242",
-            Status = PaymentStatus.Authorized,
+            CardLast4 = byTransfer ? null : req.CardLast4 ?? "4242",
+            Status = byTransfer ? PaymentStatus.Pending : PaymentStatus.Authorized,
             PlatformFee = price.GuestServiceFee + price.HostServiceFee,
             HostPayout = price.HostPayout,
             PayoutDueOn = req.CheckIn.AddDays(1)
@@ -279,7 +285,12 @@ public class BookingsController(
         }
 
         db.BookingEvents.Add(BookingLifecycle.Created(booking, $"guest:{user.Id}",
-            instantAvailable ? "Giữ chỗ 15 phút để thanh toán"
+            instantAvailable
+                // docs/07 §2.3 — the two hold lengths are different, and the
+                // history is the record of which one this booking actually got.
+                ? byTransfer
+                    ? $"Giữ chỗ {BankTransfers.Window.TotalHours:0} giờ để chuyển khoản"
+                    : "Giữ chỗ 15 phút để thanh toán"
                 : instantFallbackNote is null ? "Gửi yêu cầu đặt"
                 : "Chuyển thành yêu cầu đặt do chưa đủ điều kiện Đặt ngay của chủ nhà"));
         await db.SaveChangesAsync(ct);
@@ -474,6 +485,39 @@ public class BookingsController(
         var charged = partial ? PartialPayment.Deposit(price.Total, req?.DepositAmount) : price.Total;
 
         var method = req?.PaymentMethod ?? "card";
+
+        // docs/07 §2.3 — a bank transfer is not taken here. The guest leaves for
+        // their banking app, so the booking keeps its dates on a longer timer and
+        // waits to be found on a statement. Everything below this point — the
+        // idempotency key, the gateway, the confirmation — belongs to methods
+        // that move money inside this request, and none of it applies.
+        if (!PaymentMethods.ChargesOnBooking(method))
+        {
+            // A deposit paid by transfer would mean a second transfer, a second
+            // reference and a schedule to chase it. Not in this first version, and
+            // saying so is better than quietly taking the whole amount.
+            if (partial)
+                return BadRequest(new { message = "Chuyển khoản QR chưa dùng để đặt cọc được. Hãy trả đủ hoặc chọn cách khác." });
+
+            if (booking.Status != BookingStatus.PendingPayment)
+                return BadRequest(new { message = "Đơn này không còn ở bước chờ thanh toán." });
+
+            booking.HoldExpiresAt = DateTime.UtcNow + BankTransfers.Window;
+
+            if (booking.Payment is not null)
+            {
+                booking.Payment.Method = method;
+                booking.Payment.CardLast4 = null;
+                booking.Payment.Status = PaymentStatus.Pending;
+            }
+
+            await db.SaveChangesAsync(ct);
+
+            // The QR itself comes from /api/payment-methods/vietqr/{reference},
+            // which builds it from the booking rather than from anything the
+            // browser could have chosen.
+            return Ok(ToDto(booking));
+        }
 
         // docs/07 §3 — the balance covering everything does not end the question
         // of where later money comes from. docs/06 §3.3 collects damages through

@@ -15,8 +15,39 @@ namespace StayHost.Web.Services;
 /// </summary>
 public class PaymentCompletion(
     StayHostDbContext db, NotificationService notifications, ThreadMessenger messenger,
-    WalletService wallet, RiskWatch risk)
+    WalletService wallet, RiskWatch risk, CatalogService catalog)
 {
+    /// <summary>
+    /// The breakdown for a booking that was priced some time ago, rebuilt for a
+    /// confirmation arriving after the fact — a card the gateway settled while
+    /// the guest's connection was down (docs/07 §5), or a bank transfer landing
+    /// hours after checkout (docs/07 §2.3).
+    ///
+    /// It reproduces the total the guest agreed to rather than re-pricing the
+    /// stay: the coupon and the balance spent are the figures frozen on the
+    /// booking, so a campaign that has since ended cannot change a total that
+    /// has already been paid.
+    /// </summary>
+    public async Task<Pricing.Breakdown?> QuoteFromRecordAsync(Booking booking, CancellationToken ct)
+    {
+        var party = new PartySize(booking.Adults, booking.Children, booking.Infants, booking.Pets);
+
+        var fresh = await catalog.BuildQuoteRequestAsync(
+            booking.ListingId, booking.CheckIn, booking.CheckOut, party, ct, booking.Id, booking.RoomTypeId,
+            // docs/01 ĐP-17 — the offer's rate must survive the off-site rescue too.
+            nightlyOverride: booking.NightlyOverride);
+
+        if (fresh is null) return null;
+
+        if (booking.CouponDiscount > 0)
+            fresh = fresh with { CouponAmount = booking.CouponDiscount, CouponLabel = "Mã giảm giá" };
+
+        if (booking.CreditUsed > 0)
+            fresh = fresh with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư StayHost" };
+
+        return Pricing.Quote(fresh);
+    }
+
     public async Task ConfirmAsync(
         Booking booking, Pricing.Breakdown price, decimal charged, bool partial,
         DateOnly today, int guestUserId, string? method, string? cardLast4, CancellationToken ct)

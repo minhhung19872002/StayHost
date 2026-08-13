@@ -1778,7 +1778,50 @@ public record BankTransferQrDto(
     string AccountNumber,
     string AccountName,
     string Memo,
-    decimal Amount);
+    decimal Amount,
+    /// <summary>When the booking stops holding its dates or seats, so the page can count down.</summary>
+    DateTime? ExpiresAt);
+
+/// <summary>
+/// docs/07 §2.3 — what the guest's QR page asks while it waits: has the money
+/// been found, is it still worth waiting, and where to go once it has.
+/// </summary>
+public record BankTransferStatusDto(
+    string Status,
+    string StatusLabel,
+    bool Confirmed,
+    bool StillWaiting,
+    DateTime? ExpiresAt,
+    string NextUrl);
+
+/* ---------------------------------------- docs/07 §2.3, the finance desk's side */
+
+/// <summary>One booking waiting for its money, and how much.</summary>
+public record AwaitedTransferDto(string Reference, decimal Amount);
+
+/// <summary>A credit read off a statement that a person still has to answer for.</summary>
+public record BankCreditDto(
+    long Id, string BankReference, decimal Amount, string Description,
+    string Verdict, string VerdictLabel, string? MatchedReference, decimal Expected,
+    DateTime ImportedAt);
+
+public record BankTransferDeskDto(
+    IReadOnlyList<AwaitedTransferDto> Awaited,
+    IReadOnlyList<BankCreditDto> Open);
+
+public record StatementLineDto(string? BankReference, decimal Amount, string? Description);
+
+public record ImportStatementRequest(List<StatementLineDto>? Lines);
+
+public record BankImportRowDto(
+    string BankReference, decimal Amount, string Description,
+    string Verdict, string VerdictLabel, string? MatchedReference, decimal Expected,
+    string Explanation);
+
+public record BankImportResultDto(
+    int Settled, int Pending, int Skipped, IReadOnlyList<BankImportRowDto> Rows);
+
+public record ResolveCreditRequest(string? Note);
 
 /// <summary>docs/09 §5 — one guest's word on one job, on the four service headings.</summary>
 public record ServiceReviewDto(

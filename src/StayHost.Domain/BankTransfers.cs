@@ -22,6 +22,31 @@ namespace StayHost.Domain;
 public static class BankTransfers
 {
     /// <summary>
+    /// How long a booking waits for the money before it gives its dates, seats
+    /// or slot back.
+    ///
+    /// The 15 minutes a card gets is far too short here: the guest has to leave
+    /// the page, open a banking app, and often log in again. A whole day is too
+    /// long the other way — those are real dates held off the market for a
+    /// booking nobody has paid for. Two hours is the compromise, and it is a
+    /// parameter rather than a literal because it is the kind of number an
+    /// operator changes after watching a month of transfers.
+    /// </summary>
+    public static readonly TimeSpan Window = TimeSpan.FromHours(2);
+
+    /// <summary>
+    /// How far back a lapsed booking is still recognised when its money finally
+    /// turns up.
+    ///
+    /// Money that arrives after the window is the awkward case, and the wrong
+    /// answer is to say "no booking is waiting for this" — the guest did pay,
+    /// and somebody has to either reinstate the booking or send it back. So a
+    /// reference that expired recently is still matched, just to a verdict that
+    /// stops and asks.
+    /// </summary>
+    public static readonly TimeSpan LateWindow = TimeSpan.FromDays(7);
+
+    /// <summary>
     /// SH for a stay, SV for a service, XP for a ticket, then eight hex digits.
     /// Every reference this platform issues has that shape.
     /// </summary>
@@ -67,7 +92,13 @@ public static class BankTransfers
         /// <summary>Right booking, wrong money.</summary>
         WrongAmount = 3,
         /// <summary>This exact credit has been imported before.</summary>
-        AlreadySeen = 4
+        AlreadySeen = 4,
+        /// <summary>
+        /// The right money for a booking whose window had already run out. The
+        /// dates or seats have been given back, so this cannot simply confirm —
+        /// somebody decides between reinstating it and refunding.
+        /// </summary>
+        PaidLate = 5
     }
 
     public readonly record struct Outcome(Verdict Verdict, Credit Credit, string? Booking, decimal Expected)
@@ -85,10 +116,17 @@ public static class BankTransfers
     /// is the honest answer — the money is real, the booking is not settled, and
     /// only a human knows which of those to fix.
     /// </summary>
+    /// <param name="lapsed">
+    /// References whose window ran out within <see cref="LateWindow"/>, and what
+    /// each was owed. Money for one of these is real money against a booking
+    /// that no longer holds anything, so it stops for a person rather than
+    /// confirming something that has already been given away.
+    /// </param>
     public static Outcome Judge(
         Credit credit,
         IReadOnlyDictionary<string, decimal> awaited,
-        IReadOnlySet<string> alreadySeen)
+        IReadOnlySet<string> alreadySeen,
+        IReadOnlyDictionary<string, decimal>? lapsed = null)
     {
         if (alreadySeen.Contains(credit.BankReference))
             return new Outcome(Verdict.AlreadySeen, credit, credit.Booking, 0);
@@ -97,20 +135,95 @@ public static class BankTransfers
             return new Outcome(Verdict.Unidentified, credit, null, 0);
 
         if (!awaited.TryGetValue(reference, out var expected))
-            return new Outcome(Verdict.NotAwaited, credit, reference, 0);
+        {
+            if (lapsed is null || !lapsed.TryGetValue(reference, out var was))
+                return new Outcome(Verdict.NotAwaited, credit, reference, 0);
+
+            // Late and short is still short: the amount has to be settled before
+            // the lateness is worth discussing.
+            return credit.Amount == was
+                ? new Outcome(Verdict.PaidLate, credit, reference, was)
+                : new Outcome(Verdict.WrongAmount, credit, reference, was);
+        }
 
         return credit.Amount == expected
             ? new Outcome(Verdict.Paid, credit, reference, expected)
             : new Outcome(Verdict.WrongAmount, credit, reference, expected);
     }
 
-    /// <summary>The sentence an operator reads next to a line they have to act on.</summary>
+    /// <summary>Whether a verdict means the booking may now be confirmed.</summary>
+    public static bool Settles(Verdict v) => v == Verdict.Paid;
+
+    /// <summary>
+    /// The sentence an operator reads next to a line they have to act on.
+    ///
+    /// The booking reference is deliberately not in it. It has its own column on
+    /// every screen that shows this, so repeating it here only makes the sentence
+    /// longer — and a reference in the middle of a sentence is a string the
+    /// interface translator cannot key on, because its letters and digits differ
+    /// every time. What is left is one shape per verdict, with only money in it.
+    /// </summary>
     public static string Explain(Outcome o) => o.Verdict switch
     {
         Verdict.Paid => "Đã khớp và xác nhận đơn.",
         Verdict.AlreadySeen => "Giao dịch này đã nhập trước đó, bỏ qua.",
         Verdict.Unidentified => "Không tìm thấy mã đơn trong nội dung chuyển khoản.",
-        Verdict.NotAwaited => $"Không có đơn nào đang chờ mã {o.Booking}.",
-        _ => $"Đơn {o.Booking} chờ {o.Expected:#,##0}₫ nhưng nhận {o.Credit.Amount:#,##0}₫."
+        Verdict.NotAwaited => "Không có đơn nào đang chờ mã này.",
+        Verdict.PaidLate => "Đơn đã hết hạn giữ chỗ trước khi tiền tới. Cần quyết định khôi phục hay hoàn lại.",
+        _ => $"Đơn chờ {o.Expected:#,##0}₫ nhưng nhận {o.Credit.Amount:#,##0}₫."
     };
+
+    public static string VerdictLabel(Verdict v) => v switch
+    {
+        Verdict.Paid => "Đã khớp",
+        Verdict.AlreadySeen => "Đã nhập trước đó",
+        Verdict.Unidentified => "Không rõ đơn",
+        Verdict.NotAwaited => "Không có đơn chờ",
+        Verdict.PaidLate => "Tiền về muộn",
+        _ => "Lệch số tiền"
+    };
+}
+
+/// <summary>
+/// One credit read off a bank statement, kept forever.
+///
+/// This is the platform's record that a specific transfer was seen and what was
+/// decided about it. It is what makes importing the same statement twice
+/// harmless — <see cref="BankReference"/> is unique, so the second import of a
+/// line collides instead of confirming a booking again — and it is the only
+/// place an operator can look to answer "we received this money, where did it
+/// go".
+/// </summary>
+public class BankCredit
+{
+    public long Id { get; set; }
+
+    /// <summary>The bank's own id for the transfer. Unique: this is the whole guard.</summary>
+    public string BankReference { get; set; } = "";
+
+    public decimal Amount { get; set; }
+
+    /// <summary>The memo as the bank assembled it, kept verbatim.</summary>
+    public string Description { get; set; } = "";
+
+    public BankTransfers.Verdict Verdict { get; set; }
+
+    /// <summary>The booking reference found in the memo, when there was one.</summary>
+    public string? MatchedReference { get; set; }
+
+    /// <summary>What that booking was owed, for the lines where the two disagree.</summary>
+    public decimal Expected { get; set; }
+
+    public DateTime ImportedAt { get; set; } = DateTime.UtcNow;
+    public int ImportedByUserId { get; set; }
+
+    /// <summary>
+    /// Set when a person has dealt with a line that needed them. A credit that
+    /// matched cleanly is born resolved; the other four verdicts wait.
+    /// </summary>
+    public DateTime? ResolvedAt { get; set; }
+    public int? ResolvedByUserId { get; set; }
+    public string? ResolutionNote { get; set; }
+
+    public bool NeedsSomebody => ResolvedAt is null;
 }

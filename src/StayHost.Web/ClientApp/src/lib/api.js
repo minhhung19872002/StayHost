@@ -273,6 +273,21 @@ export const api = {
   makeCardDefault: id => request(`/api/payment-methods/${id}/default`, { method: 'PUT' }),
   removeCard: id => request(`/api/payment-methods/${id}`, { method: 'DELETE' }),
 
+  /* docs/07 §2.3 — the QR for one booking, and whether its money has arrived. */
+  bankTransferQr: reference => request(`/api/payment-methods/vietqr/${reference}`),
+  bankTransferStatus: reference => request(`/api/payment-methods/vietqr/${reference}/status`),
+
+  /* The finance desk's side: what is being waited for, and reading a statement. */
+  bankTransferDesk: () => request('/api/admin/finance/bank-transfers'),
+  importStatement: lines =>
+    request('/api/admin/finance/bank-transfers/import', {
+      method: 'POST', body: JSON.stringify({ lines })
+    }),
+  resolveBankCredit: (id, note) =>
+    request(`/api/admin/finance/bank-transfers/${id}/resolve`, {
+      method: 'POST', body: JSON.stringify({ note })
+    }),
+
   hostPayout: () => request('/api/host/payout'),
   saveHostPayout: body => request('/api/host/payout', { method: 'PUT', body: JSON.stringify(body) }),
   superhostProgress: () => request('/api/host/superhost'),
