@@ -26,8 +26,14 @@ public class BankTransferService(
     ServiceMarketService services,
     ILogger<BankTransferService> log)
 {
-    /// <summary>One line of a statement, after an operator has said which column is which.</summary>
-    public readonly record struct Line(string BankReference, decimal Amount, string Description);
+    /// <summary>
+    /// One line of a statement, after an operator has said which column is which.
+    ///
+    /// Both strings are nullable because a struct can always be default-built and
+    /// because a spreadsheet column is empty often enough to be ordinary; the
+    /// import normalises them once rather than trusting the caller.
+    /// </summary>
+    public readonly record struct Line(string? BankReference, decimal Amount, string? Description);
 
     public sealed record Row(
         string BankReference,
@@ -155,17 +161,20 @@ public class BankTransferService(
 
         foreach (var line in lines)
         {
-            if (string.IsNullOrWhiteSpace(line.BankReference))
+            var bankReference = (line.BankReference ?? "").Trim();
+            var memo = line.Description ?? "";
+
+            if (bankReference.Length == 0)
             {
                 // docs/07 §2.3 — a credit with no id of its own cannot be told
                 // apart from the same credit tomorrow, so it is refused rather
                 // than guessed at.
-                rows.Add(new Row("", line.Amount, line.Description, BankTransfers.Verdict.Unidentified,
+                rows.Add(new Row("", line.Amount, memo, BankTransfers.Verdict.Unidentified,
                     null, 0, "Dòng này không có mã giao dịch của ngân hàng."));
                 continue;
             }
 
-            var credit = new BankTransfers.Credit(line.BankReference.Trim(), line.Amount, line.Description ?? "");
+            var credit = new BankTransfers.Credit(bankReference, line.Amount, memo);
             var outcome = BankTransfers.Judge(credit, awaited, seen, lapsed);
 
             rows.Add(new Row(

@@ -597,7 +597,7 @@ public class FinanceController(
         var result = await transfers.ImportAsync(
             admin.Id,
             req.Lines.Select(l => new BankTransferService.Line(
-                l.BankReference ?? "", l.Amount, l.Description ?? "")).ToList(),
+                l.BankReference, l.Amount, l.Description)).ToList(),
             ct);
 
         audit.Record(admin, "finance.bank-import", $"lines:{req.Lines.Count}", null,
