@@ -2163,4 +2163,7 @@ export default {
   "Hết hạn chờ chuyển khoản mà tiền chưa về.": "转账时限已过，款项未到账。",
   "Hết hạn chờ chuyển khoản.": "转账时限已过。",
   "Khách không chuyển khoản nữa.": "房客决定不再转账。",
+
+  /* docs/07 2.3 - the way back to the code of a booking still unpaid. */
+  "Chuyển khoản": "转账",
 };

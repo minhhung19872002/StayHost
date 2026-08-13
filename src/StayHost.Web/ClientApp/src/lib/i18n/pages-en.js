@@ -2341,4 +2341,7 @@ export default {
   "Hết hạn chờ chuyển khoản mà tiền chưa về.": "The transfer window ran out and no money arrived.",
   "Hết hạn chờ chuyển khoản.": "The transfer window ran out.",
   "Khách không chuyển khoản nữa.": "The guest decided not to transfer.",
+
+  /* docs/07 2.3 - the way back to the code of a booking still unpaid. */
+  "Chuyển khoản": "Transfer",
 };

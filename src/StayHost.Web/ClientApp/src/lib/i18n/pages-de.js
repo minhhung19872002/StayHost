@@ -2163,4 +2163,7 @@ export default {
   "Hết hạn chờ chuyển khoản mà tiền chưa về.": "Die Überweisungsfrist lief ab, ohne dass Geld einging.",
   "Hết hạn chờ chuyển khoản.": "Die Überweisungsfrist ist abgelaufen.",
   "Khách không chuyển khoản nữa.": "Der Gast hat die Überweisung abgesagt.",
+
+  /* docs/07 2.3 - the way back to the code of a booking still unpaid. */
+  "Chuyển khoản": "Überweisen",
 };

@@ -2163,4 +2163,7 @@ export default {
   "Hết hạn chờ chuyển khoản mà tiền chưa về.": "Le délai de virement a expiré sans réception de paiement.",
   "Hết hạn chờ chuyển khoản.": "Le délai de virement a expiré.",
   "Khách không chuyển khoản nữa.": "Le voyageur a renoncé au virement.",
+
+  /* docs/07 2.3 - the way back to the code of a booking still unpaid. */
+  "Chuyển khoản": "Virement",
 };

@@ -2163,4 +2163,7 @@ export default {
   "Hết hạn chờ chuyển khoản mà tiền chưa về.": "이체 기한이 지났지만 입금이 없었습니다.",
   "Hết hạn chờ chuyển khoản.": "이체 기한이 지났습니다.",
   "Khách không chuyển khoản nữa.": "게스트가 이체를 취소했습니다.",
+
+  /* docs/07 2.3 - the way back to the code of a booking still unpaid. */
+  "Chuyển khoản": "이체",
 };

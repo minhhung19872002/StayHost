@@ -2163,4 +2163,7 @@ export default {
   "Hết hạn chờ chuyển khoản mà tiền chưa về.": "振込期限を過ぎましたが入金がありませんでした。",
   "Hết hạn chờ chuyển khoản.": "振込期限切れ。",
   "Khách không chuyển khoản nữa.": "ゲストが振込を取りやめました。",
+
+  /* docs/07 2.3 - the way back to the code of a booking still unpaid. */
+  "Chuyển khoản": "振込",
 };

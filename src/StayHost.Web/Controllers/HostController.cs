@@ -698,6 +698,29 @@ public class HostController(
             // "chờ thanh toán" rather than jumping straight to confirmed.
             db.BookingEvents.Add(BookingLifecycle.Transition(
                 booking, BookingStatus.PendingPayment, $"host:{user.Id}", "Chủ nhà chấp nhận yêu cầu."));
+
+            // docs/07 §2.3 — unless the guest asked to pay by transfer, in which
+            // case accepting cannot also collect. The money is not moved by
+            // anything here: it arrives in the guest's own time and is found on a
+            // statement. Confirming now would hand out a stay nobody had paid for
+            // and put a capture in the ledger for money that is not there.
+            if (!PaymentMethods.ChargesOnBooking(booking.Payment?.Method))
+            {
+                booking.HoldExpiresAt = DateTime.UtcNow + BankTransfers.Window;
+                await db.SaveChangesAsync(ct);
+
+                await notifications.QueueWithEmailAsync(
+                    await db.Users.FirstOrDefaultAsync(u => u.Id == booking.GuestUserId, ct),
+                    NotificationKind.BookingConfirmed,
+                    "Chủ nhà đã đồng ý — mời bạn chuyển khoản",
+                    $"Đơn {booking.Reference} được giữ trong " +
+                    $"{BankTransfers.Window.TotalHours:0} giờ để bạn chuyển khoản.",
+                    $"/chuyen-khoan/{booking.Reference}", ct);
+
+                await db.SaveChangesAsync(ct);
+                return Ok(new { status = booking.Status.ToString(), awaitingTransfer = true });
+            }
+
             db.BookingEvents.Add(BookingLifecycle.Transition(
                 booking, BookingStatus.Confirmed, "system", "Thanh toán thành công."));
 

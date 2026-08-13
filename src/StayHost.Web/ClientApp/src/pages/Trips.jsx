@@ -83,6 +83,14 @@ export function Trips() {
             </div>
             <div style={{ display: 'grid', gap: 8 }}>
               <button className="btn btn-dark btn-sm" onClick={() => navigate(`/trips/${b.id}`)}>{t('Chi tiết & hoá đơn')}</button>
+              {/* docs/07 §2.3 — a booking waiting on a transfer is the one case
+                  where the guest still has something to do here: a host who has
+                  just accepted a request leaves it exactly like this, and without
+                  a way back to the code there is nowhere to pay from. */}
+              {b.status === 'PendingPayment' && b.paymentMethod === 'vietqr' && (
+                <button className="btn btn-primary btn-sm"
+                        onClick={() => navigate(`/chuyen-khoan/${b.reference}`)}>{t('Chuyển khoản')}</button>
+              )}
               {b.canReview && <button className="btn btn-primary btn-sm" onClick={() => openReview(b)}>{t('Viết đánh giá')}</button>}
               {b.canCancel && <button className="btn btn-outline btn-sm" onClick={() => previewCancel(b.id)}>{t('Huỷ đặt chỗ')}</button>}
             </div>

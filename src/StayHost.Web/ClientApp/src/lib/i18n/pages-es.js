@@ -2163,4 +2163,7 @@ export default {
   "Hết hạn chờ chuyển khoản mà tiền chưa về.": "El plazo de transferencia venció sin recibir el dinero.",
   "Hết hạn chờ chuyển khoản.": "El plazo de transferencia ha vencido.",
   "Khách không chuyển khoản nữa.": "El huésped decidió no transferir.",
+
+  /* docs/07 2.3 - the way back to the code of a booking still unpaid. */
+  "Chuyển khoản": "Transferir",
 };
