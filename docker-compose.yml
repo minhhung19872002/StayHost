@@ -65,6 +65,13 @@ services:
       # docs/01 TĐ-03 — point the app at the self-hosted engine above.
       Translation__Provider: "libretranslate"
       Translation__Url: "http://libretranslate:5000"
+      # docs/07 §2.3 — VietQR stays off until an account is named. Set these in a
+      # .env beside this file to try it locally; a QR built here credits a real
+      # account, so there is no sensible default to ship.
+      BankTransfer__BankBin: ${BANK_BIN:-}
+      BankTransfer__BankName: ${BANK_NAME:-}
+      BankTransfer__AccountNumber: ${BANK_ACCOUNT_NUMBER:-}
+      BankTransfer__AccountName: ${BANK_ACCOUNT_NAME:-}
     volumes:
       # Same split as production: photos under wwwroot, identity documents out of
       # reach of the static file middleware (docs/08 §4).

@@ -93,6 +93,21 @@ services:
       Translation__Provider: ${TRANSLATION_PROVIDER-libretranslate}
       Translation__Url: ${TRANSLATION_URL:-http://libretranslate:5000}
       Translation__ApiKey: ${TRANSLATION_API_KEY:-}
+      # docs/07 §2.3 — the account a VietQR credits. Leave BANK_ACCOUNT_NUMBER
+      # empty and the method never reaches the payment page, the same rule the
+      # social-login buttons follow: better a missing option than one that leads
+      # nowhere. None of these four is a secret — all are printed on any invoice
+      # — but they decide where real guests' money lands, so they live in the env
+      # file on the server rather than in this file.
+      #
+      # docs/07 §1 wants that account to belong to the platform, not to a person:
+      # the ledger records these transfers as money held on a guest's behalf, and
+      # that is only true if the account is the company's. §13's legal option is
+      # still unchosen, and this switch does not choose it.
+      BankTransfer__BankBin: ${BANK_BIN:-}
+      BankTransfer__BankName: ${BANK_NAME:-}
+      BankTransfer__AccountNumber: ${BANK_ACCOUNT_NUMBER:-}
+      BankTransfer__AccountName: ${BANK_ACCOUNT_NAME:-}
     # Nginx terminates TLS on the host and proxies here, so the port stays on loopback.
     ports:
       - "127.0.0.1:8090:8080"

@@ -121,6 +121,47 @@ cần làm gì thêm**: deploy xong là nút "Dịch" tự hiện.
 > **RAM:** LibreTranslate cần ~1–2GB. Nếu VPS eo hẹp, giảm `TRANSLATE_LANGS` xuống còn
 > `en,vi` hoặc tắt hẳn như trên.
 
+## 2.4. Bật nhận chuyển khoản VietQR
+
+`docs/07 §2.3`. Mặc định **tắt**: chưa khai số tài khoản thì phương thức không xuất hiện
+ở trang thanh toán, y như nút đăng nhập của nhà cung cấp chưa cấu hình. Bật bằng cách
+thêm bốn dòng vào `~/deploy/stayhost.env` rồi khởi động lại `web`:
+
+```bash
+cat >> ~/deploy/stayhost.env <<'EOF'
+BANK_BIN=970418
+BANK_NAME=BIDV
+BANK_ACCOUNT_NUMBER=<số tài khoản>
+BANK_ACCOUNT_NAME=<TEN CHU TAI KHOAN KHONG DAU>
+EOF
+
+cd ~/actions-runner/_work/StayHost/StayHost
+docker compose -p stayhost -f docker-compose.prod.yml --env-file ~/deploy/stayhost.env up -d web
+
+curl -s https://staylio.bluestar.com.vn/api/payment-methods/catalogue | grep -o vietqr
+```
+
+- `BANK_BIN` là mã NAPAS của ngân hàng, tra ở vietqr.io/danh-sach-ngan-hang
+  (BIDV `970418`, MB `970422`, Vietcombank `970436`, Techcombank `970407`).
+- `BANK_ACCOUNT_NAME` **viết hoa không dấu**. Tên này không nằm trong mã QR — ứng dụng
+  ngân hàng tự tra ra từ số tài khoản — nó chỉ hiện trên trang cho khách đối chiếu.
+- Bốn giá trị này **không phải bí mật**, nhưng chúng quyết định tiền khách rơi vào đâu,
+  nên để trong env file chứ không commit vào repo.
+
+**Bật xong thì có người phải trực.** Tiền về không tự báo: mỗi ngày một lần, người có
+quyền `Finance` vào trang quản trị, mục *Chuyển khoản ngân hàng*, dán sao kê. Đơn khớp
+được xác nhận ngay; các dòng còn lại nằm ở hàng chờ tới khi có người ghi đã xử lý thế
+nào. **Đơn chỉ giữ chỗ 2 giờ** — sao kê nhập muộn hơn thì đơn đã nhả chỗ và tiền về
+thành phán quyết "tiền về muộn" phải xử lý tay.
+
+> **`docs/07 §1`:** sổ ghi các khoản này là "tiền sàn giữ hộ khách". Điều đó chỉ đúng
+> nếu tài khoản là **của pháp nhân**. Dùng tài khoản cá nhân thì sổ và thực tế lệch
+> nhau, và `docs/07 §13` (phương án pháp lý A/B/C) vẫn chưa chốt. Bật công tắc này
+> không chốt thay.
+
+**Tắt lại:** xoá dòng `BANK_ACCOUNT_NUMBER` (hoặc để trống) rồi `up -d web`. Đơn đang
+chờ chuyển khoản vẫn tự hết hạn và nhả chỗ như thường.
+
 ## 3. Các lệnh vận hành
 
 Tất cả chạy với user `hung`:
