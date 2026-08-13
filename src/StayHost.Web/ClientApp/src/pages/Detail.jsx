@@ -6,7 +6,7 @@ import {
   clearDates, openOverlay, openReport, requireAuth, toast, set, setRoom, shareListing
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
-import { money, longDate, nightsBetween, monthLabel } from '../lib/format.js';
+import { money, longDate, nightsBetween, monthLabel, dateTime } from '../lib/format.js';
 import { Avatar } from '../components/Avatar.jsx';
 import { Card } from '../components/Card.jsx';
 import { Calendar } from '../components/Calendar.jsx';
@@ -708,12 +708,7 @@ function BookPanel({ detail, card }) {
         )}
       </> : <div className="book-lines"><div className="book-line"><span>{t('Đang tính giá…')}</span></div></div>}
 
-      {result && (
-        <div className="book-alert">
-          <b>{t('Đã giữ chỗ cho bạn')} · {result.reference}</b>
-          <span>{result.nights} {t('đêm')} · {result.guests} {t('khách')} · {money(result.total)}. {t('Chủ nhà sẽ xác nhận trong 12 giờ.')}</span>
-        </div>
-      )}
+      {result && <BookingOutcome result={result} />}
 
       {state.bookingError && (
         <div className="book-alert is-error"><b>{t('Không đặt được')}</b><span>{state.bookingError}</span></div>
@@ -722,6 +717,61 @@ function BookPanel({ detail, card }) {
       <button className="text-btn" style={{ marginTop: 14, justifyContent: 'center' }}
               onClick={() => openReport('listing', card.id, card.title)}>⚑ {t('Báo cáo chỗ nghỉ này')}</button>
     </aside>
+  );
+}
+
+/**
+ * What just happened, in the panel the checkout modal was covering.
+ *
+ * It used to say one thing for all three endings: "đã giữ chỗ cho bạn … chủ
+ * nhà sẽ xác nhận trong 12 giờ". A request-to-book holds nothing — docs/03 §2
+ * is explicit that only instant book takes the dates off the market — and the
+ * window is 24 hours, not 12. Rather than correct the number, the deadline is
+ * now read off the booking itself, so it cannot drift from the rule again.
+ */
+function BookingOutcome({ result }) {
+  const navigate = useNavigate();
+  const summary = `${result.nights} ${t('đêm')} · ${result.guests} ${t('khách')} · ${money(result.total)}.`;
+
+  if (result.status === 'PendingHostApproval') {
+    return (
+      <div className="book-alert">
+        <b>{t('Đã gửi yêu cầu')} · {result.reference}</b>
+        <span>
+          {summary} {t('Chủ nhà có đến')} {dateTime(result.requestExpiresAt)} {t('để trả lời.')}{' '}
+          {t('Yêu cầu chưa giữ ngày và bạn chưa bị trừ tiền.')}
+          {result.paymentMethod === 'vietqr' &&
+            ` ${t('Chủ nhà đồng ý rồi bạn mới chuyển khoản — mã sẽ được gửi qua email.')}`}
+        </span>
+        <button className="text-btn" style={{ marginTop: 8 }} onClick={() => navigate('/trips')}>
+          {t('Xem chuyến đi')}
+        </button>
+      </div>
+    );
+  }
+
+  // docs/07 §2.3 — held, unpaid, waiting on a transfer the guest still has to make.
+  if (result.status === 'PendingPayment') {
+    return (
+      <div className="book-alert">
+        <b>{t('Chờ bạn chuyển khoản')} · {result.reference}</b>
+        <span>{summary} {t('Chỗ được giữ tới')} {dateTime(result.holdExpiresAt)}.</span>
+        <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }}
+                onClick={() => navigate(`/chuyen-khoan/${result.reference}`)}>
+          {t('Mở mã chuyển khoản')}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="book-alert">
+      <b>{t('Đã đặt xong')} · {result.reference}</b>
+      <span>{summary} {t('Chi tiết nằm trong mục Chuyến đi.')}</span>
+      <button className="text-btn" style={{ marginTop: 8 }} onClick={() => navigate('/trips')}>
+        {t('Xem chuyến đi')}
+      </button>
+    </div>
   );
 }
 

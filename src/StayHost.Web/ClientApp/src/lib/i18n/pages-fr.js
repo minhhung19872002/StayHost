@@ -2166,4 +2166,17 @@ export default {
 
   /* docs/07 2.3 - the way back to the code of a booking still unpaid. */
   "Chuyển khoản": "Virement",
+
+  /* docs/03 2-3, docs/07 2.3 - the three endings of a checkout. */
+  "Đã gửi yêu cầu": "Demande envoyée",
+  "Chủ nhà có đến": "L'hôte a jusqu'au",
+  "để trả lời.": "pour répondre.",
+  "Yêu cầu chưa giữ ngày và bạn chưa bị trừ tiền.": "Une demande ne bloque pas les dates et rien n'a été débité.",
+  "Chủ nhà đồng ý rồi bạn mới chuyển khoản — mã sẽ được gửi qua email.": "Vous ne virez qu'une fois l'hôte d'accord — le code vous sera envoyé par e-mail.",
+  "Chờ bạn chuyển khoản": "En attente de votre virement",
+  "Chỗ được giữ tới": "Retenu jusqu'au",
+  "Mở mã chuyển khoản": "Ouvrir le code de virement",
+  "Đã đặt xong": "Réservé",
+  "Chi tiết nằm trong mục Chuyến đi.": "Les détails sont dans Voyages.",
+  "Đã gửi yêu cầu — mã": "Demande envoyée — référence",
 };

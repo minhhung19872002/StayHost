@@ -2166,4 +2166,17 @@ export default {
 
   /* docs/07 2.3 - the way back to the code of a booking still unpaid. */
   "Chuyển khoản": "Überweisen",
+
+  /* docs/03 2-3, docs/07 2.3 - the three endings of a checkout. */
+  "Đã gửi yêu cầu": "Anfrage gesendet",
+  "Chủ nhà có đến": "Der Gastgeber hat Zeit bis",
+  "để trả lời.": "zu antworten.",
+  "Yêu cầu chưa giữ ngày và bạn chưa bị trừ tiền.": "Eine Anfrage reserviert die Daten nicht, und es wurde nichts abgebucht.",
+  "Chủ nhà đồng ý rồi bạn mới chuyển khoản — mã sẽ được gửi qua email.": "Sie überweisen erst, wenn der Gastgeber zusagt — den Code erhalten Sie per E-Mail.",
+  "Chờ bạn chuyển khoản": "Warten auf Ihre Überweisung",
+  "Chỗ được giữ tới": "Reserviert bis",
+  "Mở mã chuyển khoản": "Überweisungscode öffnen",
+  "Đã đặt xong": "Gebucht",
+  "Chi tiết nằm trong mục Chuyến đi.": "Die Details finden Sie unter Reisen.",
+  "Đã gửi yêu cầu — mã": "Anfrage gesendet — Nummer",
 };

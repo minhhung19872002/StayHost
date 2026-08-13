@@ -2344,4 +2344,17 @@ export default {
 
   /* docs/07 2.3 - the way back to the code of a booking still unpaid. */
   "Chuyển khoản": "Transfer",
+
+  /* docs/03 2-3, docs/07 2.3 - the three endings of a checkout. */
+  "Đã gửi yêu cầu": "Request sent",
+  "Chủ nhà có đến": "The host has until",
+  "để trả lời.": "to answer.",
+  "Yêu cầu chưa giữ ngày và bạn chưa bị trừ tiền.": "A request does not hold the dates, and nothing has been charged.",
+  "Chủ nhà đồng ý rồi bạn mới chuyển khoản — mã sẽ được gửi qua email.": "You transfer only once the host accepts — the code will be emailed to you.",
+  "Chờ bạn chuyển khoản": "Waiting for your transfer",
+  "Chỗ được giữ tới": "Held until",
+  "Mở mã chuyển khoản": "Open the transfer code",
+  "Đã đặt xong": "Booked",
+  "Chi tiết nằm trong mục Chuyến đi.": "The details are under Trips.",
+  "Đã gửi yêu cầu — mã": "Request sent — reference",
 };

@@ -2166,4 +2166,17 @@ export default {
 
   /* docs/07 2.3 - the way back to the code of a booking still unpaid. */
   "Chuyển khoản": "이체",
+
+  /* docs/03 2-3, docs/07 2.3 - the three endings of a checkout. */
+  "Đã gửi yêu cầu": "요청을 보냈습니다",
+  "Chủ nhà có đến": "호스트 응답 기한은",
+  "để trả lời.": "까지입니다.",
+  "Yêu cầu chưa giữ ngày và bạn chưa bị trừ tiền.": "요청은 날짜를 확보하지 않으며, 결제도 되지 않았습니다.",
+  "Chủ nhà đồng ý rồi bạn mới chuyển khoản — mã sẽ được gửi qua email.": "호스트가 수락한 뒤에 이체하시면 됩니다. 코드는 이메일로 보내드립니다.",
+  "Chờ bạn chuyển khoản": "이체를 기다리고 있습니다",
+  "Chỗ được giữ tới": "보관 기한은",
+  "Mở mã chuyển khoản": "이체 코드 열기",
+  "Đã đặt xong": "예약 완료",
+  "Chi tiết nằm trong mục Chuyến đi.": "자세한 내용은 여행에서 확인하세요.",
+  "Đã gửi yêu cầu — mã": "요청을 보냈습니다 — 번호",
 };

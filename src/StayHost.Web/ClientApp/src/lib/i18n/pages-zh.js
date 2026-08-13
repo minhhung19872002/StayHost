@@ -2166,4 +2166,17 @@ export default {
 
   /* docs/07 2.3 - the way back to the code of a booking still unpaid. */
   "Chuyển khoản": "转账",
+
+  /* docs/03 2-3, docs/07 2.3 - the three endings of a checkout. */
+  "Đã gửi yêu cầu": "已发送请求",
+  "Chủ nhà có đến": "房东需在",
+  "để trả lời.": "前答复。",
+  "Yêu cầu chưa giữ ngày và bạn chưa bị trừ tiền.": "请求不会占用日期，也尚未扣款。",
+  "Chủ nhà đồng ý rồi bạn mới chuyển khoản — mã sẽ được gửi qua email.": "房东同意后再转账——二维码会发到您的邮箱。",
+  "Chờ bạn chuyển khoản": "等待您转账",
+  "Chỗ được giữ tới": "保留至",
+  "Mở mã chuyển khoản": "打开转账码",
+  "Đã đặt xong": "预订完成",
+  "Chi tiết nằm trong mục Chuyến đi.": "详情请见“行程”。",
+  "Đã gửi yêu cầu — mã": "已发送请求 — 单号",
 };

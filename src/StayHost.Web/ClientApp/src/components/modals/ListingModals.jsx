@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   set, holdDates, payHeld, releaseHold, openSplit, openOverlay, closeOverlay,
-  shareListing, toggleFavorite, applyCoupon
+  shareListing, toggleFavorite, applyCoupon, toast
 } from '../../lib/store.js';
 import { money, longDate, parseIso, isoOf } from '../../lib/format.js';
 import { AmenityIcon } from '../Icon.jsx';
@@ -285,9 +285,24 @@ export function CheckoutModal() {
     set({ bookingResult: result, held: null });
     closeOverlay();
 
+    // Where the guest looks next. Closing a full-screen modal and writing the
+    // outcome into the booking panel was not enough: that panel is sticky and
+    // its foot sits below the fold, so a request-to-book ended with the form
+    // vanishing and nothing visibly taking its place.
+
     // docs/07 §2.3 — a booking still pending payment after /pay is one paid by
     // transfer: the dates are held and the money has not moved yet.
-    if (result.status === 'PendingPayment') navigate(`/chuyen-khoan/${result.reference}`);
+    if (result.status === 'PendingPayment') {
+      navigate(`/chuyen-khoan/${result.reference}`);
+      return;
+    }
+
+    // docs/03 §3 — a request goes to the host first. Nothing is held and
+    // nothing is charged, so the honest destination is the trip itself.
+    if (result.status === 'PendingHostApproval') {
+      toast(`${t('Đã gửi yêu cầu — mã')} ${result.reference}`);
+      navigate('/trips');
+    }
   };
 
   return (

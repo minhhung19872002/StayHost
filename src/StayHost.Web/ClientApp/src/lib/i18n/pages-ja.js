@@ -2166,4 +2166,17 @@ export default {
 
   /* docs/07 2.3 - the way back to the code of a booking still unpaid. */
   "Chuyển khoản": "振込",
+
+  /* docs/03 2-3, docs/07 2.3 - the three endings of a checkout. */
+  "Đã gửi yêu cầu": "リクエストを送信しました",
+  "Chủ nhà có đến": "ホストの回答期限は",
+  "để trả lời.": "までです。",
+  "Yêu cầu chưa giữ ngày và bạn chưa bị trừ tiền.": "リクエストでは日程は確保されず、料金も発生しません。",
+  "Chủ nhà đồng ý rồi bạn mới chuyển khoản — mã sẽ được gửi qua email.": "ホストが承認してから送金してください。コードはメールでお送りします。",
+  "Chờ bạn chuyển khoản": "お振込をお待ちしています",
+  "Chỗ được giữ tới": "確保期限は",
+  "Mở mã chuyển khoản": "振込コードを開く",
+  "Đã đặt xong": "予約完了",
+  "Chi tiết nằm trong mục Chuyến đi.": "詳細は「旅行」からご確認ください。",
+  "Đã gửi yêu cầu — mã": "リクエストを送信しました — 予約番号",
 };
