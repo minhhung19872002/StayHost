@@ -2179,4 +2179,5 @@ export default {
   "Đã đặt xong": "Gebucht",
   "Chi tiết nằm trong mục Chuyến đi.": "Die Details finden Sie unter Reisen.",
   "Đã gửi yêu cầu — mã": "Anfrage gesendet — Nummer",
+  "Cần đồng ý nội quy nhà trước khi tiếp tục.": "Sie müssen den Hausregeln zustimmen, um fortzufahren.",
 };

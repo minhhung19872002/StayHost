@@ -2179,4 +2179,5 @@ export default {
   "Đã đặt xong": "预订完成",
   "Chi tiết nằm trong mục Chuyến đi.": "详情请见“行程”。",
   "Đã gửi yêu cầu — mã": "已发送请求 — 单号",
+  "Cần đồng ý nội quy nhà trước khi tiếp tục.": "需要先同意房屋守则才能继续。",
 };

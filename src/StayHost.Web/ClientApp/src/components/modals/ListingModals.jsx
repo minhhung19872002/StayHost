@@ -218,6 +218,19 @@ export function CheckoutModal() {
   /* docs/07 §7 — one key per attempt the guest makes, reused by every retry. */
   const attemptKey = useRef(null);
 
+  /*
+   * A refusal at the foot of a scrolled modal is a refusal nobody reads. Every
+   * "I pressed the button and nothing happened" reported today was one of
+   * these: the dates going while the guest thought, a hold running out, the
+   * house rules untouched. The server said so each time, at the bottom of a box
+   * the guest was looking at the top of.
+   */
+  const errorBox = useRef(null);
+
+  useEffect(() => {
+    if (state.bookingError) errorBox.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [state.bookingError]);
+
   // docs/01 ĐP-02 — moving past the trip step takes the dates off the market
   // for 15 minutes; walking away puts them straight back.
   useEffect(() => () => { releaseHold(); }, []);
@@ -229,6 +242,15 @@ export function CheckoutModal() {
   const isRequest = !d.card.instantBook;
 
   const next = async () => {
+    // docs/01 ĐP-10 — the server refuses without this tick, and refusing from
+    // the server put the reason at the bottom of a scrolled modal. Answered
+    // here instead, next to the box that has to be ticked.
+    if (step === 0 && state.detail?.houseRules?.length && !state.agreedToRules) {
+      set({ rulesMissing: true });
+      document.getElementById('house-rules-agree')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
     if (step === 0 && !isRequest && !state.held) {
       setBusy(true);
       const held = await holdDates({
@@ -359,7 +381,9 @@ export function CheckoutModal() {
       )}
 
       {state.bookingError && (
-        <div className="book-alert is-error"><b>{t('Không đặt được')}</b><span>{state.bookingError}</span></div>
+        <div className="book-alert is-error" ref={errorBox}>
+          <b>{t('Không đặt được')}</b><span>{state.bookingError}</span>
+        </div>
       )}
     </Modal>
   );
@@ -391,11 +415,28 @@ function StepTrip({ q }) {
         <ul style={{ margin: '10px 0 0', paddingLeft: 18, fontSize: 14, lineHeight: 1.7 }}>
           {state.detail.houseRules.map((r, i) => <li key={i}>{r}</li>)}
         </ul>
-        <label className="check-row" style={{ marginTop: 12 }}>
+        <label className="check-row" id="house-rules-agree"
+               style={{
+                 marginTop: 12,
+                 // The one thing standing between the guest and the next step,
+                 // marked as such. The refusal used to be a sentence at the very
+                 // bottom of the modal, past the contact form and the
+                 // cancellation policy — so pressing "Tiếp tục" read as nothing
+                 // happening at all.
+                 ...(state.rulesMissing
+                   ? { outline: '2px solid var(--danger, #c1121f)', outlineOffset: 6, borderRadius: 8 }
+                   : {})
+               }}>
           <input type="checkbox" checked={state.agreedToRules}
-                 onChange={e => set({ agreedToRules: e.target.checked })} />
+                 onChange={e => set({ agreedToRules: e.target.checked, rulesMissing: false })} />
           <span>{t('Tôi đã đọc và đồng ý với nội quy nhà')}</span>
         </label>
+
+        {state.rulesMissing && (
+          <p style={{ margin: '10px 0 0', fontSize: 13.5, color: 'var(--danger, #c1121f)' }}>
+            {t('Cần đồng ý nội quy nhà trước khi tiếp tục.')}
+          </p>
+        )}
       </section>
     )}
 

@@ -418,9 +418,19 @@ public class BookingsController(
 
         if (booking.Status != BookingStatus.PendingPayment)
         {
+            // The common way to get here is the ordinary one: the guest read the
+            // page for longer than the hold lasts and the dates went back on the
+            // market. "Đơn đang ở trạng thái Thanh toán thất bại" is true and
+            // tells them nothing they can act on, so that case says what happened
+            // and what to do about it.
+            var lapsed = booking.Status == BookingStatus.PaymentFailed;
+
             return BadRequest(new
             {
-                message = $"Đơn đang ở trạng thái \"{BookingLifecycle.Label(booking.Status)}\" nên không thanh toán được."
+                message = lapsed
+                    ? "Lượt giữ chỗ đã hết hạn nên đơn này không thanh toán được nữa. Hãy đóng cửa sổ và đặt lại — ngày bạn chọn có thể vẫn còn."
+                    : $"Đơn đang ở trạng thái \"{BookingLifecycle.Label(booking.Status)}\" nên không thanh toán được.",
+                holdExpired = lapsed
             });
         }
 

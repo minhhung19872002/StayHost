@@ -657,7 +657,7 @@ function BookPanel({ detail, card }) {
 
   const checkout = () => {
     if (!requireAuth()) return;
-    set({ checkoutStep: 0, bookingError: null, overlay: 'checkout' });
+    set({ checkoutStep: 0, bookingError: null, rulesMissing: false, overlay: 'checkout' });
   };
 
   return (
@@ -781,7 +781,7 @@ function MobileBar({ nights, card }) {
 
   const checkout = () => {
     if (!requireAuth()) return;
-    set({ checkoutStep: 0, bookingError: null, overlay: 'checkout' });
+    set({ checkoutStep: 0, bookingError: null, rulesMissing: false, overlay: 'checkout' });
   };
 
   return (

@@ -2357,4 +2357,5 @@ export default {
   "Đã đặt xong": "Booked",
   "Chi tiết nằm trong mục Chuyến đi.": "The details are under Trips.",
   "Đã gửi yêu cầu — mã": "Request sent — reference",
+  "Cần đồng ý nội quy nhà trước khi tiếp tục.": "You need to agree to the house rules before continuing.",
 };

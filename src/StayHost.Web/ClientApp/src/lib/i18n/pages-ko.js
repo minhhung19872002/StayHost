@@ -2179,4 +2179,5 @@ export default {
   "Đã đặt xong": "예약 완료",
   "Chi tiết nằm trong mục Chuyến đi.": "자세한 내용은 여행에서 확인하세요.",
   "Đã gửi yêu cầu — mã": "요청을 보냈습니다 — 번호",
+  "Cần đồng ý nội quy nhà trước khi tiếp tục.": "계속하려면 숙소 이용 규칙에 동의해야 합니다.",
 };

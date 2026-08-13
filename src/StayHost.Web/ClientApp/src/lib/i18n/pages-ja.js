@@ -2179,4 +2179,5 @@ export default {
   "Đã đặt xong": "予約完了",
   "Chi tiết nằm trong mục Chuyến đi.": "詳細は「旅行」からご確認ください。",
   "Đã gửi yêu cầu — mã": "リクエストを送信しました — 予約番号",
+  "Cần đồng ý nội quy nhà trước khi tiếp tục.": "続けるにはハウスルールへの同意が必要です。",
 };
