@@ -329,7 +329,8 @@ public class UserAdminController(
             preview.Warning,
             SuspensionImpact.MustKeepAbleToRespond(preview) ? SuspensionImpact.OpenDisputeNotice() : null,
             SuspensionImpact.SafetyRelocationNotice(preview.GuestsStaying),
-            user.HostProfile is not null));
+            user.HostProfile is not null,
+            SuspensionImpact.BalanceNotice()));
     }
 
     private async Task<SuspensionImpact.Preview> BuildPreviewAsync(

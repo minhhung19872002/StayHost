@@ -136,6 +136,53 @@ public class UnwiredRulesTests
         Assert.True(r.Ok);
     }
 
+    /* ------------------------------------------ docs/07 §10, a bounced refund */
+
+    [Fact]
+    public void A_refund_the_bank_hands_back_becomes_balance_not_nothing()
+    {
+        var sent = Refunds.Split.Of(1_500_000m);
+        Assert.Equal(1_500_000m, sent.ToCard);
+
+        var redirected = Refunds.Redirect(sent);
+        Assert.Equal(0m, redirected.ToCard);
+        Assert.Equal(1_500_000m, redirected.ToCredit);
+        // The guest is owed exactly what they were owed before.
+        Assert.Equal(sent.Total, redirected.Total);
+    }
+
+    [Fact]
+    public void Redirecting_a_refund_that_never_went_to_a_card_changes_nothing()
+    {
+        var creditOnly = new Refunds.Split(0m, 800_000m, 0m);
+        Assert.Equal(creditOnly, Refunds.Redirect(creditOnly));
+    }
+
+    [Fact]
+    public void Redirect_leaves_the_unrefundable_part_alone()
+    {
+        var mixed = new Refunds.Split(500_000m, 100_000m, 250_000m);
+        var after = Refunds.Redirect(mixed);
+
+        Assert.Equal(250_000m, after.Unrefundable);
+        Assert.Equal(600_000m, after.ToCredit);
+    }
+
+    [Fact]
+    public void A_negative_amount_never_becomes_a_refund()
+    {
+        Assert.Equal(0m, Refunds.Split.Of(-5m).ToCard);
+    }
+
+    [Fact]
+    public void The_notice_says_where_the_money_actually_went()
+    {
+        var notice = Refunds.RedirectNotice(1_500_000m);
+
+        Assert.Contains("số dư", notice);
+        Assert.Contains("1,500,000", notice.Replace(".", ","));
+    }
+
     /* ------------------------------------------------ docs/03 §4, the promise */
 
     [Fact]

@@ -34,8 +34,13 @@ def call(op, p, b=None, m=None):
         method=m or ("POST" if d else "GET"))
     try:
         x = op.open(r)
-        raw = x.read().decode()
-        return x.status, (json.loads(raw) if raw else None)
+        raw = x.read().decode().strip()
+        if not raw:
+            return x.status, None
+        try:
+            return x.status, json.loads(raw)
+        except json.JSONDecodeError:
+            return x.status, raw
     except urllib.error.HTTPError as e:
         raw = e.read().decode()
         try:
@@ -97,7 +102,7 @@ def ledger_off():
                'else -"Amount" end),0) from ledger_entries;')
 
 
-def book_and_pay(op, slug, days_out=20, nights=3):
+def book_and_pay(op, slug, days_out=20, nights=3, card_last4="4242"):
     """A confirmed, paid stay on an instant-book listing."""
     st, detail = call(op, f"/api/listings/{slug}")
     lid = detail["card"]["id"]
@@ -115,8 +120,7 @@ def book_and_pay(op, slug, days_out=20, nights=3):
 
     bid = res["id"]
     st, pay = call(op, f"/api/bookings/{bid}/pay",
-                   {"cardNumber": "4242424242424242", "expiry": "12/30",
-                    "cvc": "123", "holder": "KIEM TRA"})
+                   {"paymentMethod": "card", "cardLast4": card_last4})
     if st not in (200, 201):
         return None, f"pay {st} {pay}"
     return bid, None
@@ -348,12 +352,69 @@ def scenario_repeat_chargebacks():
        f"co {flags} co, don sau bi tu choi: {(err2 or '')[:90]}")
 
 
+def scenario_refund_handed_back():
+    """docs/07 §10 — a closed card cannot take the money, so it becomes balance."""
+    guest, guest_id = register(f"rr{RUN}@stayhost.vn", "Khach the chet")
+
+    # A card ending 0009 always hands a refund back (PaymentGateway.RefundRejectingCard).
+    bid, err = book_and_pay(guest, "palm-paradise-can-ho-bien-3",
+                            days_out=OFFSET + 40, card_last4="0009")
+    if err:
+        return ok("8. The chet: tien hoan vao so du", False, err)
+
+    st, res = call(guest, f"/api/bookings/{bid}/cancel", m="POST")
+    if st not in (200, 204):
+        return ok("8. The chet: tien hoan vao so du", False, f"cancel {st} {res}")
+
+    to_credit = sql(f'''select coalesce(sum("Amount"),0) from ledger_entries
+                        where "BookingId"={bid} and "TransactionKind"='refund-as-credit'
+                          and "Direction"=1''')
+    to_card = sql(f'''select coalesce(sum("Amount"),0) from ledger_entries
+                      where "BookingId"={bid} and "TransactionKind"='refund-settled'
+                        and "Direction"=1''')
+    granted = sql(f'''select count(*) from credit_entries
+                      where "UserId"={guest_id} and "BookingId"={bid}''')
+    told = sql(f'''select count(*) from notifications
+                   where "Title" like '%số dư StayHost%' and "UserId"={guest_id}''')
+    off = ledger_off()
+
+    ok("8. The chet: tien hoan vao so du",
+       float(to_credit) > 0 and float(to_card) == 0 and granted != "0"
+       and told != "0" and float(off) == 0.0,
+       f"vao so du {float(to_credit):,.0f}, vao the {float(to_card):,.0f}, "
+       f"{granted} dong so du, {told} thong bao, so lech {off}")
+
+
+def scenario_good_card_still_goes_to_the_card():
+    """The ordinary path must be untouched by the branch above."""
+    guest, _ = register(f"rg{RUN}@stayhost.vn", "Khach the tot")
+    bid, err = book_and_pay(guest, "camelback-views-penthouse-5", days_out=OFFSET + 50)
+    if err:
+        return ok("9. The tot van hoan ve the", False, err)
+
+    st, res = call(guest, f"/api/bookings/{bid}/cancel", m="POST")
+    if st not in (200, 204):
+        return ok("9. The tot van hoan ve the", False, f"cancel {st} {res}")
+
+    to_card = sql(f'''select coalesce(sum("Amount"),0) from ledger_entries
+                      where "BookingId"={bid} and "TransactionKind"='refund-settled'
+                        and "Direction"=1''')
+    to_credit = sql(f'''select coalesce(sum("Amount"),0) from ledger_entries
+                        where "BookingId"={bid} and "TransactionKind"='refund-as-credit'
+                          and "Direction"=1''')
+
+    ok("9. The tot van hoan ve the",
+       float(to_card) > 0 and float(to_credit) == 0 and float(ledger_off()) == 0.0,
+       f"vao the {float(to_card):,.0f}, vao so du {float(to_credit):,.0f}")
+
+
 def main():
     print(f"\nSau quy tac tung co ma khong ai goi — soat sau 15/08/2026\n{'=' * 70}\n")
     for fn in (scenario_force_majeure, scenario_force_majeure_needs_reason,
                scenario_c3_cap, scenario_provider_sees_jobs,
                scenario_misdeclared, scenario_misdeclared_needs_the_hour,
-               scenario_repeat_chargebacks):
+               scenario_repeat_chargebacks, scenario_refund_handed_back,
+               scenario_good_card_still_goes_to_the_card):
         try:
             fn()
         except Exception as e:  # a broken scenario must not hide the rest

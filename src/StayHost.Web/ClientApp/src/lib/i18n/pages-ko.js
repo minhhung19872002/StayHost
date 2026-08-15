@@ -2239,4 +2239,7 @@ export default {
   // docs/09 §2.8 — the real refund ladder, said in every place.
   "Huỷ trước 7 ngày hoàn toàn bộ, trước 24 giờ hoàn 50%.": "7일 전까지 전액 환불, 24시간 전까지 50% 환불.",
   "người trước 48 giờ sẽ bị huỷ và hoàn tiền toàn bộ. Bạn tự huỷ thì theo bậc 7 ngày / 24 giờ ở trên.": "명에 미달하면 48시간 전에 취소되고 전액 환불됩니다. 직접 취소하시면 위의 7일/24시간 단계를 따릅니다.",
+
+  // docs/08 §6 — the frozen-balance line on the lock preview.
+  "Số dư khuyến mãi bị đóng băng, không bị xoá.": "프로모션 잔액은 동결될 뿐 삭제되지 않습니다.",
 };

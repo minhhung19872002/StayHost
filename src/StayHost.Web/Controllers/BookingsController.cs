@@ -922,8 +922,14 @@ public class BookingsController(
     /// Cancels the booking and books the matching double-entry transaction, so
     /// the ledger still balances afterwards (docs/00 §6.1).
     /// </summary>
+    /// <param name="cardRefundAccepted">
+    /// docs/07 §10 — whether the bank took the money back onto the card. Callers
+    /// that have asked the gateway pass its answer; the rest keep the ordinary
+    /// case, so nothing that never had a card to bounce changes behaviour.
+    /// </param>
     internal static void PostCancellation(
-        StayHostDbContext db, Booking booking, Cancellation.Outcome outcome, CancelledBy by, string reason)
+        StayHostDbContext db, Booking booking, Cancellation.Outcome outcome, CancelledBy by, string reason,
+        bool cardRefundAccepted = true)
     {
         // A cancellation the platform made is not the guest's. Recording it as
         // theirs put five bookings a guest never touched on their record and,
@@ -977,8 +983,30 @@ public class BookingsController(
         var cashBack = Math.Min(outcome.Amount, paid);
         var netted = Math.Min(outcome.Amount - cashBack, booking.BalanceDue);
 
-        if (cashBack > 0)
-            db.LedgerEntries.AddRange(Ledger.SettleRefund(booking, cashBack, DateTime.UtcNow));
+        /*
+         * docs/07 §10 — "Thẻ đã hết hạn hoặc đã đóng: vẫn hoàn về thẻ đó trước…
+         * Không được thì chuyển thành số dư trong tài khoản sàn và báo khách."
+         *
+         * Refunds.Redirect has held that rule since the document was written and
+         * had no caller, because nothing here could produce the event: the
+         * stand-in gateway had no refund call, so a refund could not be handed
+         * back. The bank is asked first either way; only its refusal moves the
+         * money, and the guest is told rather than left to find it.
+         */
+        var cash = Refunds.Split.Of(cashBack);
+        if (!cardRefundAccepted) cash = Refunds.Redirect(cash);
+
+        if (cash.ToCard > 0)
+            db.LedgerEntries.AddRange(Ledger.SettleRefund(booking, cash.ToCard, DateTime.UtcNow));
+
+        if (cash.ToCredit > 0 && booking.GuestUserId is { } bounced)
+        {
+            db.LedgerEntries.AddRange(Ledger.SettleRefundAsCredit(booking, cash.ToCredit, DateTime.UtcNow));
+            db.CreditEntries.Add(CreditLedger.Grant(
+                bounced, cash.ToCredit, CreditReason.Returned,
+                $"Hoàn tiền đơn {booking.Reference} — thẻ không nhận được", DateTime.UtcNow, booking.Id));
+        }
+
         if (netted > 0)
             db.LedgerEntries.AddRange(Ledger.NetRefundAgainstReceivable(booking, netted, DateTime.UtcNow));
 
@@ -1034,11 +1062,30 @@ public class BookingsController(
     private async Task ApplyCancellationAsync(
         Booking booking, Cancellation.Outcome outcome, CancelledBy by, string reason, CancellationToken ct)
     {
-        PostCancellation(db, booking, outcome, by, reason);
+        // docs/07 §10 — ask the bank before deciding where the money lands. A
+        // booking with nothing to send back, or one paid some other way, gets
+        // the ordinary answer without a round trip.
+        var accepted = outcome.Amount <= 0
+                       || gateway.Refund(outcome.Amount,
+                           booking.Payment?.Method ?? "card", booking.Payment?.CardLast4);
+
+        PostCancellation(db, booking, outcome, by, reason, accepted);
         // docs/01 TC-09 — a cancelled stay hands its promo code back to the
         // campaign so a limited run is not spent on a booking that did not happen.
         await coupons.ReleaseAsync(booking.Id, ct);
         await db.SaveChangesAsync(ct);
+
+        // "…và báo khách": money arriving somewhere they did not expect is worse
+        // than money arriving late, so this is said rather than left to be found.
+        // Loaded here rather than trusted from the entity: the cancel endpoint's
+        // query does not Include the guest, so reading booking.GuestUser would
+        // find null and this notice would quietly never be sent.
+        if (!accepted && outcome.Amount > 0 && booking.GuestUserId is { } guestId)
+            await notifications.QueueWithEmailAsync(
+                await db.Users.FirstOrDefaultAsync(u => u.Id == guestId, ct),
+                NotificationKind.RefundIssued,
+                "Tiền hoàn đã vào số dư StayHost",
+                Refunds.RedirectNotice(outcome.Amount), $"/trips/{booking.Id}", ct);
     }
 
     /// <summary>A guest may review a stay once, after checkout.</summary>

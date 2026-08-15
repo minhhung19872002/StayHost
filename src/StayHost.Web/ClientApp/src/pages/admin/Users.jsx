@@ -443,6 +443,9 @@ function UserProfilePanel({ d, reload }) {
           <b>{preview.warning}</b>
           {!!preview.openDisputeNotice && <span>{preview.openDisputeNotice}</span>}
           {!!preview.safetyNotice && <span>{preview.safetyNotice}</span>}
+          {/* docs/08 §6 — the row about promotional balance, which the admin
+              pressing this button will be asked about first. */}
+          {!!preview.balanceNotice && <span>{t(preview.balanceNotice)}</span>}
           <div style={{ marginTop: 8, display: 'grid', gap: 4, fontSize: 12.5 }}>
             {preview.lines.map(l => (
               <div key={l.bookingId}>

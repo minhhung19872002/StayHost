@@ -79,6 +79,41 @@ public class PaymentGateway(ILogger<PaymentGateway> log, StayHostDbContext db)
         return new Result(true);
     }
 
+    /// <summary>
+    /// docs/07 §10 — a card ending in these four digits always hands the refund
+    /// back: it stands for the expired or closed card of "Thẻ đã hết hạn hoặc đã
+    /// đóng".
+    ///
+    /// The rule for that case has been in <see cref="Refunds.Redirect"/> since
+    /// docs/07 was written and nothing ever called it, because nothing in this
+    /// build could produce the event: there was no refund call on this gateway
+    /// at all, so a bounced refund was not a thing that could happen. A test
+    /// card selects the branch, the same way <see cref="DecliningCard"/> and
+    /// <see cref="AuthenticatingCard"/> select theirs.
+    /// </summary>
+    public const string RefundRejectingCard = "0009";
+
+    /// <summary>
+    /// docs/07 §10 — sends money back to the card it came from.
+    ///
+    /// True means the bank took it. False means it would not, and the caller has
+    /// to put the money somewhere the guest can still reach — which is the whole
+    /// point of the rule, not an error to swallow.
+    /// </summary>
+    public bool Refund(decimal amount, string method, string? cardLast4)
+    {
+        if (amount <= 0) return true;
+
+        if (PaymentMethods.IsCard(method) && cardLast4 == RefundRejectingCard)
+        {
+            log.LogInformation("Refund of {Amount} handed back: card closed (test card).", amount);
+            return false;
+        }
+
+        log.LogInformation("Refunded {Amount} to {Method}.", amount, method);
+        return true;
+    }
+
     /// <summary>docs/07 §5 — does this card send the guest to their bank first?</summary>
     public bool NeedsAuthentication(string method, string? cardLast4) =>
         PaymentMethods.IsCard(method) && cardLast4 == AuthenticatingCard;

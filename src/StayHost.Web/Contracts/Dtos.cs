@@ -2528,7 +2528,14 @@ public record LockPreviewDto(
     string Warning,
     string? OpenDisputeNotice,
     string SafetyNotice,
-    bool IsHost);
+    bool IsHost,
+    /// <summary>
+    /// docs/08 §6 row "Số dư khuyến mãi: đóng băng, không xoá". The freeze is
+    /// enforced in <c>WalletController</c>, but the admin about to press the
+    /// button could not see it here, so the one question the suspended person
+    /// asks first had no answer on the screen that caused it.
+    /// </summary>
+    string BalanceNotice = "");
 
 public record LockLineDto(
     int BookingId, string Reference, string Action, decimal Money, string Counterparty, string Note);

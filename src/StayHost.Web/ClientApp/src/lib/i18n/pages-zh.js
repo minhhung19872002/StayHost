@@ -2239,4 +2239,7 @@ export default {
   // docs/09 §2.8 — the real refund ladder, said in every place.
   "Huỷ trước 7 ngày hoàn toàn bộ, trước 24 giờ hoàn 50%.": "提前 7 天全额退款，提前 24 小时退 50%。",
   "người trước 48 giờ sẽ bị huỷ và hoàn tiền toàn bộ. Bạn tự huỷ thì theo bậc 7 ngày / 24 giờ ở trên.": "人的场次将在 48 小时前取消并全额退款。你自己取消则按上面 7 天／24 小时的阶梯处理。",
+
+  // docs/08 §6 — the frozen-balance line on the lock preview.
+  "Số dư khuyến mãi bị đóng băng, không bị xoá.": "促销余额只会冻结，不会删除。",
 };

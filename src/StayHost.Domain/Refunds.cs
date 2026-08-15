@@ -26,6 +26,9 @@ public static class Refunds
     public readonly record struct Split(decimal ToCard, decimal ToCredit, decimal Unrefundable)
     {
         public decimal Total => ToCard + ToCredit;
+
+        /// <summary>An amount already known to be going back to the card.</summary>
+        public static Split Of(decimal toCard) => new(Math.Max(0m, toCard), 0m, 0m);
     }
 
     /// <summary>

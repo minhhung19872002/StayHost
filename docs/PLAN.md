@@ -659,7 +659,7 @@ Phần lớn 36 cái là vô hại (hàm bọc, hằng số nhãn). **Sáu cái 
 | **`DV-D` — NCC nhận 50% khi khách khai sai điều kiện** | `docs/09 §3.6`, tham số chốt | **Không có API, không có màn hình.** Đúng tình huống tài liệu nhấn mạnh "đầu bếp tới nơi mới biết nhà không có bếp thì không được để họ mất trắng" |
 | **Nhà cung cấp không có chỗ nào xem đơn của mình** | `docs/09 §3.5` | Console chủ nhà chỉ liệt kê **dịch vụ đang bán**. Ghi chú **bắt buộc** về dị ứng đồ ăn / vùng cần tránh khi massage được thu rồi **không hiện cho đúng người cần đọc** |
 | **Khách thua khiếu nại ngân hàng nhiều lần không bị gắn cờ** | `docs/07 §11 bước 6` | `Chargebacks.GuestNeedsWatching` giữ ngưỡng từ ngày viết luật, không ai gọi. Đi bao nhiêu lần cũng không có gì xảy ra |
-| **Thẻ chết → hoàn vào số dư** | `docs/07 §10` | `Refunds.Redirect` không ai gọi. Chưa sửa: cổng thanh toán mô phỏng **chưa có sự kiện "hoàn tiền bị trả về"** để sinh ra nhánh này. Ghi lại ở đây thay vì làm một đường không bao giờ chạy |
+| **Thẻ chết → hoàn vào số dư** | `docs/07 §10` | `Refunds.Redirect` không ai gọi — vì cổng mô phỏng **không hề có hàm hoàn tiền**, nên "hoàn tiền bị trả về" là chuyện không thể xảy ra. Đã làm nốt 16/08: `PaymentGateway.Refund` + thẻ thử nghiệm `0009`, tiền vào số dư qua `CreditLedger.Grant` và khách được báo bằng `RedirectNotice` |
 
 **Ba lời hứa sai trên màn hình** (đúng bài học "chữ trên màn hình phải khớp luật
 đang chạy", tưởng đã học xong sau vụ dịch vụ 24h/72h):
@@ -695,6 +695,35 @@ làm việc đó không rồi mới kết luận.
 
 **Đếm lại: 203 mã, 203 xong** — sáu việc trên là *chỗ chưa nối dây* của mã đã
 tick, không phải mã mới.
+
+### 9.7. Soát nốt 28 hàm còn lại (16/08/2026)
+
+`§9.6` chọn ra 6 cái đáng ngờ nhất trong 36. Lượt này soi nốt 28 cái còn lại,
+từng cái một: hành vi của nó có tồn tại ở chỗ khác không?
+
+**Không cái nào là lỗi mới.** Phần lớn là **cùng một luật viết hai lần** — bản
+domain để test, bản inline để EF dịch được sang SQL:
+
+| Hàm | Thứ thật sự thực thi |
+|---|---|
+| `Impersonation.IsForbidden` | `BlocksPath` chặn theo **route**, phủ đủ 8 hành động. Comment ngay đó còn ghi lại chính lỗi cũ: "đổi số điện thoại" từng nằm trong danh sách nhãn mà `PUT /api/account/profile` đi qua được |
+| `Shield.ResponseLapsed` | `ShieldService.SweepAsync` lọc `Status == Open && RespondBy <= now` — **bắt buộc** phải viết inline vì EF không gọi được hàm domain trong `Where` |
+| `ExperienceRules.CanPublish` | `PublishBlockers` và cờ `Approved` được kiểm riêng ở hai chỗ |
+| `Badges.SuperhostDue` / `FavoriteDue` | `BadgeService` dùng thẳng `CurrentQuarterStart` / `CurrentWeekStart` |
+| `AntiDiscrimination.IsFlagged` | `Screen()` được gọi trực tiếp |
+| `PartialPayment.ShouldCharge` | `BalanceCollector` so `BalanceDueOn <= today` trong truy vấn |
+| `ListingCopy.TitleWarning` | Wizard có `maxLength={60}` (nhánh "quá dài" **không thể xảy ra**) + cùng thông báo cho nhánh "quá ngắn" + bộ đếm `(x/60)` sống |
+| còn lại | hàm bọc (`CanPay` → `HoldReason`), nhãn, hoặc hằng số cũ giữ cho call site cũ |
+
+**Một cái đáng làm, đã làm:** `SuspensionImpact.BalanceNotice` — dòng "Số dư
+khuyến mãi: đóng băng, không xoá" của `docs/08 §6`. Việc đóng băng **có** thực
+thi (`WalletController`), nhưng bản xem trước trước khi bấm khoá **không hiện
+dòng đó**, tức admin không thấy câu trả lời cho câu hỏi người bị khoá sẽ hỏi đầu
+tiên. Giờ có trên `LockPreviewDto`.
+
+**Bài học:** "không ai gọi" là **tín hiệu**, không phải kết luận. Trong 36 cái,
+6 là lỗi thật, 1 đáng bổ sung, 29 là trùng lặp vô hại. Nhưng trùng lặp vẫn là
+rủi ro trôi lệch — hai bản của cùng một luật có thể lệch nhau về sau.
 
 ---
 

@@ -41,13 +41,13 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (16/08/2026).** 998 test nghiệp vụ · **10/10** kịch bản của `docs/04`
+**Toàn bộ xanh (16/08/2026).** 1003 test nghiệp vụ · **10/10** kịch bản của `docs/04`
 (`scripts/acceptance.py`) · **10/10** kịch bản quản trị của `docs/08 §13`
 (`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
 (`scripts/doc09_acceptance.py`, gồm cả 12 tình huống bắt buộc của `docs/09 §9`) ·
-**7/7** kịch bản của `scripts/unwired_acceptance.py` (`docs/PLAN.md §9.6` — các
+**9/9** kịch bản của `scripts/unwired_acceptance.py` (`docs/PLAN.md §9.6` — các
 quy tắc từng có mã mà không đường nào gọi tới).
-Sổ sách lệch 0. Cả 201 mã của `docs/01` đã làm xong (`docs/PLAN.md §9`).
+Sổ sách lệch 0. Cả 203 mã của `docs/01` đã làm xong (`docs/PLAN.md §9`).
 
 > **`acceptance.py` cần DB sạch.** Nó ra 8/10 trên DB đã chạy nhiều lần — **không phải
 > lỗi code**: dữ liệu tích luỹ làm bước lùi ngày một đơn về quá khứ đụng ràng buộc GiST
@@ -311,6 +311,16 @@ trang khác: ngân hàng trừ tiền ở đó rồi sàn mới biết. Gọi ch
 lại `/pay` chính là kịch bản 3 của `docs/07 §18`; `CardAuthSweeper` hỏi lại cổng thanh
 toán rồi tự xác nhận đơn.
 
+Thẻ kết thúc **`0009`** nhận tiền bình thường nhưng **luôn trả lại khoản hoàn** — nó đóng
+vai "thẻ đã hết hạn hoặc đã đóng" của `docs/07 §10`. Huỷ một đơn trả bằng thẻ này thì tiền
+**vào số dư StayHost** thay vì về thẻ, và khách được báo. Đây là cách duy nhất chạy được
+nhánh `Refunds.Redirect`, thứ vốn không có sự kiện nào sinh ra vì cổng mô phỏng **không
+hề có hàm hoàn tiền** cho tới 16/08/2026.
+
+> **API nhận `cardLast4`, không nhận số thẻ.** `PayBookingRequest` chỉ có bốn số cuối và
+> mặc định `"4242"`, nên gửi `cardNumber` đầy đủ thì trường đó bị bỏ qua và **mọi thẻ thử
+> nghiệm đều thành thẻ thường**. Đã mất một lượt chạy vì chuyện này.
+
 ### Đăng nhập Google / Apple / Facebook (`docs/01 TK-02`)
 
 Nút của nhà cung cấp nào **chưa có mã thì không hiện** trên hộp đăng nhập — thà thiếu nút
@@ -357,7 +367,7 @@ docker exec stayhost-db psql -U stayhost -d stayhost -t \
 - Số dư khách cũng là sổ chỉ-thêm: số dư là tổng các dòng, không phải một cột bị ghi đè.
 - **StayShield không bao giờ được gọi là bảo hiểm** (`docs/06 §11`). Mọi chữ hiển thị
   là "chính sách hỗ trợ". Có `Shield.ReadsAsInsurance` và test chặn từ ngữ này.
-- **`docs/PLAN.md §9` đã soát đủ cả 201 mã: 201 xong · 0 một phần · 0 chưa có**
+- **`docs/PLAN.md §9` đã soát đủ cả 203 mã: 203 xong · 0 một phần · 0 chưa có**
   (soát 07/08/2026, dọn nốt 10/08/2026). Hai việc từng "chờ khách quyết" đã xong
   ngày 11/08/2026: `TĐ-03`/`TN-06` chạy bằng máy dịch tự host, `TC-07` chốt tham số
   ở `docs/07 §16`. Plan đã ba lần đếm lệch (hai lần bỏ sót việc thật, một lần kê

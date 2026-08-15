@@ -2239,4 +2239,7 @@ export default {
   // docs/09 §2.8 — the real refund ladder, said in every place.
   "Huỷ trước 7 ngày hoàn toàn bộ, trước 24 giờ hoàn 50%.": "Volle Erstattung 7 Tage vorher, 50% bis 24 Stunden vorher.",
   "người trước 48 giờ sẽ bị huỷ và hoàn tiền toàn bộ. Bạn tự huỷ thì theo bậc 7 ngày / 24 giờ ở trên.": "Personen 48 Stunden vorher wird abgesagt und voll erstattet. Wenn du selbst stornierst, gilt die Staffel 7 Tage / 24 Stunden oben.",
+
+  // docs/08 §6 — the frozen-balance line on the lock preview.
+  "Số dư khuyến mãi bị đóng băng, không bị xoá.": "Das Aktionsguthaben wird eingefroren, nicht gelöscht.",
 };

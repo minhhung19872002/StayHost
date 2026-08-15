@@ -2239,4 +2239,7 @@ export default {
   // docs/09 §2.8 — the real refund ladder, said in every place.
   "Huỷ trước 7 ngày hoàn toàn bộ, trước 24 giờ hoàn 50%.": "Reembolso total con 7 días, 50% hasta 24 horas antes.",
   "người trước 48 giờ sẽ bị huỷ và hoàn tiền toàn bộ. Bạn tự huỷ thì theo bậc 7 ngày / 24 giờ ở trên.": "personas 48 horas antes se cancela y se reembolsa por completo. Si cancelas tú, se aplica la escala de 7 días / 24 horas de arriba.",
+
+  // docs/08 §6 — the frozen-balance line on the lock preview.
+  "Số dư khuyến mãi bị đóng băng, không bị xoá.": "El saldo promocional se congela, no se elimina.",
 };
