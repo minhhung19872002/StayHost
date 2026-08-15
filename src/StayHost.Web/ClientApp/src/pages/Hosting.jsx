@@ -223,6 +223,10 @@ function ListingCard({ listing: l, navigate }) {
           <button className="btn btn-outline btn-sm"
                   onClick={() => set({ editingListing: l, overlay: 'listing-editor' })}>{t('Chỉnh sửa')}</button>
           <button className="btn btn-outline btn-sm" onClick={openCalendar}>{t('Lịch')}</button>
+          {/* docs/01 TĐ-22 — the guidebook is post-publish content, so it lives
+              beside the listing rather than inside the create wizard. */}
+          <button className="btn btn-outline btn-sm"
+                  onClick={() => set({ editingListing: l, overlay: 'guidebook-editor' })}>{t('Cẩm nang')}</button>
           <button className="btn btn-outline btn-sm" onClick={toggleAdvice}>
             {advice ? t('Ẩn gợi ý') : t('Gợi ý')}
           </button>

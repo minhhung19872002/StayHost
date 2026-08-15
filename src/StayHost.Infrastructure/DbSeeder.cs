@@ -53,6 +53,116 @@ public static class DbSeeder
         new("ground-floor","Phòng tầng trệt",    "▦", "Tiếp cận",  true)
     ];
 
+    private record GuideSeed(GuidebookCategory Category, string Name, string Note, string? Address);
+
+    /// <summary>
+    /// docs/01 TĐ-22 — a starter guidebook per city, so the section on the listing
+    /// page has something in it in the demo. Real hosts write their own; nothing
+    /// here is generated for them at publish time.
+    ///
+    /// The entries carry no coordinates on purpose: an invented pin would put a
+    /// real-sounding restaurant at a wrong address on a map, and
+    /// <see cref="Guidebooks.HasPin"/> already treats "no pin" as ordinary.
+    /// </summary>
+    private static readonly Dictionary<string, GuideSeed[]> GuidebookSeeds = new()
+    {
+        ["Đà Nẵng"] =
+        [
+            new(GuidebookCategory.Food, "Bún chả cá 109 Nguyễn Chí Thanh",
+                "Ăn sáng ở đây, gọi thêm chả bò. Đông nhất 7–8h, đi trước 7h là vừa.", "109 Nguyễn Chí Thanh"),
+            new(GuidebookCategory.Cafe, "Cà phê muối Bảo Trâm",
+                "Ngồi tầng hai nhìn ra sông Hàn. Mình hay ngồi đây làm việc buổi chiều.", null),
+            new(GuidebookCategory.Sightseeing, "Cầu Rồng phun lửa",
+                "Chỉ phun tối thứ Bảy và Chủ nhật, 21h. Đứng bờ đông ít đông hơn bờ tây.", null),
+            new(GuidebookCategory.Nature, "Bán đảo Sơn Trà lúc bình minh",
+                "Thuê xe máy đi sớm, 5h30 xuất phát là kịp. Đừng đi khi trời mưa, đường trơn.", null),
+            new(GuidebookCategory.Transport, "Đi sân bay",
+                "Taxi từ nhà ra sân bay khoảng 15 phút, 90–120k. Gọi hộ được nếu bạn nhắn trước một hôm.", null)
+        ],
+        ["Hội An"] =
+        [
+            new(GuidebookCategory.Food, "Cao lầu bà Bé",
+                "Quán trong chợ, không có biển to. Hỏi người bán hàng ai cũng chỉ được.", "Chợ Hội An"),
+            new(GuidebookCategory.Cafe, "Cà phê Mót",
+                "Nước thảo mộc chứ không phải cà phê. Rẻ, mát, ngay góc phố cổ.", null),
+            new(GuidebookCategory.Sightseeing, "Phố cổ sau 21h",
+                "Đoàn khách đã về, đèn lồng vẫn sáng. Đây là lúc phố cổ đẹp nhất.", null),
+            new(GuidebookCategory.Nature, "Biển An Bàng",
+                "Đạp xe 15 phút từ nhà, có xe đạp miễn phí. Ít người hơn Cửa Đại.", null),
+            new(GuidebookCategory.Tip, "Vé tham quan phố cổ",
+                "Mua ở quầy đầu đường, dùng được cho 5 điểm. Đừng mua lại của người mời chào giữa phố.", null)
+        ],
+        ["Đà Lạt"] =
+        [
+            new(GuidebookCategory.Food, "Bánh căn Lệ",
+                "Ăn tối, gọi bánh căn trứng cút chấm nước mắm xíu mại. Đi trước 18h30.", "27/44 Yersin"),
+            new(GuidebookCategory.Cafe, "Cà phê ngắm mây Cầu Đất",
+                "Đi từ 5h sáng mới có mây. Cách nhà 25km, đường dễ đi.", null),
+            new(GuidebookCategory.Nature, "Hồ Tuyền Lâm buổi sớm",
+                "Sương trên mặt hồ trước 7h. Mang áo ấm, dưới 15 độ.", null),
+            new(GuidebookCategory.Shopping, "Chợ đêm Đà Lạt",
+                "Mua dâu và hồng treo gió ở dãy trong, ngoài mặt tiền đắt hơn khoảng 30%.", null)
+        ],
+        ["Hà Nội"] =
+        [
+            new(GuidebookCategory.Food, "Phở Bát Đàn",
+                "Xếp hàng tự bưng. Đi trước 8h, sau đó hết nước dùng ngon.", "49 Bát Đàn"),
+            new(GuidebookCategory.Cafe, "Cà phê trứng Giảng",
+                "Vào ngõ, đi hết mới tới quán. Gọi thêm ca cao trứng cho người không uống cà phê.", "39 Nguyễn Hữu Huân"),
+            new(GuidebookCategory.Sightseeing, "Hồ Gươm cuối tuần",
+                "Tối thứ Sáu đến Chủ nhật cấm xe, đi bộ được cả vòng hồ.", null),
+            new(GuidebookCategory.Transport, "Xe buýt sân bay 86",
+                "Rẻ hơn taxi nhiều, chạy 5h–22h, dừng ngay bờ hồ.", null)
+        ],
+        ["TP. Hồ Chí Minh"] =
+        [
+            new(GuidebookCategory.Food, "Cơm tấm Ba Ghiền",
+                "Sườn to hơn đĩa. Trưa rất đông, đi 11h hoặc sau 13h30.", "84 Đặng Văn Ngữ"),
+            new(GuidebookCategory.Cafe, "Chung cư cà phê 42 Nguyễn Huệ",
+                "Cả toà nhà là quán. Lên tầng cao nhìn xuống phố đi bộ.", "42 Nguyễn Huệ"),
+            new(GuidebookCategory.Nightlife, "Bùi Viện",
+                "Ồn và đông. Nếu muốn yên hơn thì sang khu Thảo Điền.", null),
+            new(GuidebookCategory.Tip, "Đi lại trong thành phố",
+                "Dùng ứng dụng gọi xe, đừng bắt taxi dọc đường ở khu trung tâm.", null)
+        ],
+        ["Nha Trang"] =
+        [
+            new(GuidebookCategory.Food, "Bún cá Nguyên Loan",
+                "Gọi bún cá sứa. Ăn sáng, 6h–10h là ngon nhất.", "123 Ngô Gia Tự"),
+            new(GuidebookCategory.Nature, "Bãi Dài",
+                "Cách trung tâm 25km, vắng và sạch hơn bãi trước thành phố.", null),
+            new(GuidebookCategory.Sightseeing, "Tháp Bà Ponagar",
+                "Đi buổi chiều muộn, đỡ nắng và ngược sáng đẹp.", null)
+        ],
+        ["Huế"] =
+        [
+            new(GuidebookCategory.Food, "Bún bò Mụ Rơi",
+                "Người Huế ăn ở đây chứ không ăn ở quán trên đường du lịch.", null),
+            new(GuidebookCategory.Sightseeing, "Đại Nội lúc mở cửa",
+                "7h sáng gần như không có ai. Sau 9h là đoàn kéo tới.", null),
+            new(GuidebookCategory.Nature, "Sông Hương đoạn Thiên Mụ",
+                "Thuê thuyền rồng buổi chiều, thương lượng giá trước khi lên.", null)
+        ],
+        ["Phú Quốc"] =
+        [
+            new(GuidebookCategory.Food, "Chợ đêm Dinh Cậu",
+                "Hải sản tươi, nhưng hỏi giá theo ký trước khi gật đầu.", null),
+            new(GuidebookCategory.Nature, "Bãi Sao",
+                "Đi buổi sáng, chiều gió lên là nước đục.", null),
+            new(GuidebookCategory.Transport, "Thuê xe máy",
+                "Mình gửi được xe tận nhà, nhắn trước một ngày. Đường ra Bãi Sao khá xấu.", null)
+        ],
+        ["Sa Pa"] =
+        [
+            new(GuidebookCategory.Food, "Lẩu cá tầm",
+                "Ăn tối cho ấm. Quán nào ở khu trung tâm cũng làm được, gọi thêm rau cải mèo.", null),
+            new(GuidebookCategory.Nature, "Bản Cát Cát đi bộ",
+                "Đi bộ xuống, bắt xe ôm lên. Xuống thì dễ, lên thì dốc.", null),
+            new(GuidebookCategory.Tip, "Thời tiết",
+                "Sáng nắng chiều mưa quanh năm. Luôn mang theo áo mưa mỏng.", null)
+        ]
+    };
+
     /// <summary>docs/01 TM-17 — which accessibility features a demo listing advertises.</summary>
     private static string[] AccessibilityFor(int i) => (i % 4) switch
     {
@@ -528,6 +638,19 @@ public static class DbSeeder
             // whatever the host actually ticks.
             foreach (var key in AccessibilityFor(i).Where(amenityByKey.ContainsKey))
                 listing.Amenities.Add(new ListingAmenity { AmenityId = amenityByKey[key].Id });
+
+            // docs/01 TĐ-22 — the host's guidebook. Same city, same shortlist: these
+            // are places in a city, not features of one house.
+            if (GuidebookSeeds.TryGetValue(listing.City, out var guide))
+                for (var g = 0; g < guide.Length; g++)
+                    listing.Guidebook.Add(new GuidebookPlace
+                    {
+                        Category = guide[g].Category,
+                        Name = guide[g].Name,
+                        Note = guide[g].Note,
+                        Address = guide[g].Address,
+                        SortOrder = g
+                    });
 
             var reviewCount = Math.Min(ReviewSeeds.Length, 4 + (i % 3));
             for (var r = 0; r < reviewCount; r++)

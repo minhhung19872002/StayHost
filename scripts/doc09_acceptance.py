@@ -3,9 +3,13 @@
 # Experiences and services are not stays: one session is sold to several strangers
 # at once, so the seat arithmetic and the races around it are the whole point.
 # These scenarios check the database, not the screen.
+import os
 import json, urllib.request, http.cookiejar, subprocess, threading, datetime
 
-B = "http://localhost:5199"
+# The port is only a default. Another app on this machine may already hold 5199,
+# and a script that hard-codes it then talks to the wrong server and reports
+# failures that are not ours. Override with STAYHOST_URL.
+B = os.environ.get("STAYHOST_URL", "http://localhost:5199").rstrip("/")
 results = []
 
 

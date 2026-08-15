@@ -5,6 +5,7 @@ import { set, loadFavorites, loadWishlists, openWishlist, toast } from '../lib/s
 import { api } from '../lib/api.js';
 import { money } from '../lib/format.js';
 import { Card } from '../components/Card.jsx';
+import { CardsMap } from '../components/Maps.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { t } from '../lib/i18n.js';
 
@@ -191,6 +192,7 @@ function One() {
   const detail = state.activeWishlist;
   const list = detail.list;
   const [compare, setCompare] = useState(null);   // docs/01 YT-07
+  const [showMap, setShowMap] = useState(false);  // docs/01 YT-04
 
   // docs/01 YT-07 — compare up to five saved places side by side.
   const openCompare = async () => {
@@ -239,6 +241,22 @@ function One() {
       </div>
 
       {compare && <CompareTable cards={compare} onClose={() => setCompare(null)} navigate={navigate} />}
+
+      {/* docs/01 YT-04 — where the saved places actually are. Off by default:
+          a list of two in the same street learns nothing from a map, and the
+          tiles are a network round trip nobody asked for. */}
+      {detail.items.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <button className="text-btn" onClick={() => setShowMap(v => !v)}>
+            {showMap ? t('Ẩn bản đồ') : t('Xem trên bản đồ')}
+          </button>
+          {showMap && (
+            <div style={{ marginTop: 12 }}>
+              <CardsMap cards={detail.items.map(e => e.card)} />
+            </div>
+          )}
+        </div>
+      )}
 
       {detail.items.length ? (
         <div className="card-grid" style={{ marginTop: 20 }}>

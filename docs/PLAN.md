@@ -309,7 +309,9 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 ngờ", nên hai lần liên tiếp bỏ sót việc thật (`TK-12`, `TK-13`, `ĐP-03`). Lần này
 đã dò **cả 201 mã** của `docs/01` ở mức mã nguồn.
 
-Kết quả (cập nhật 10/08/2026): **201 xong · 0 làm một phần · 0 chưa có — HẾT.** Con số 105 mã "không thấy
+Kết quả (cập nhật 15/08/2026): **203 xong · 0 làm một phần · 0 chưa có.** Hai mã mới
+(`TĐ-22`, `TĐ-23`) đến từ lượt đối chiếu airbnb.com ở `§9.5`, cùng lượt đó phát hiện
+`YT-04` chưa từng được làm dù vẫn được đếm là xong. Con số 105 mã "không thấy
 nhắc tên trong code" ở lần soát trước phần lớn chỉ là **thiếu mã tham chiếu**, không
 phải thiếu tính năng — hai phần ba trong số đó đã chạy được.
 
@@ -609,16 +611,48 @@ xuống container. Trước khi bật cần một tài khoản **của pháp nh�
 tài khoản cá nhân: `docs/07 §1` nói tiền khách phải do sàn giữ hộ, và §13 vẫn
 chưa chốt phương án pháp lý A/B/C.
 
+### 9.5. Soát lại đối chiếu airbnb.com (15/08/2026)
+
+Lượt soát này đi từ ngoài vào: lấy mặt sản phẩm của Airbnb (kể cả bản phát hành
+hè 2026 — dịch vụ đi lại, khách sạn boutique, lịch trình chung) rồi hỏi StayHost
+có gì tương ứng. Phần lớn **đã có, có chỗ còn rộng hơn**: bộ lọc đủ sáu nhóm kể
+cả nhóm tiếp cận, tìm và sắp xếp trong đánh giá, đổi lịch hai chiều, chia hoá đơn,
+đa tiền tệ, và ba trong bốn "travel services" mới của Airbnb (đưa đón sân bay,
+giữ hành lý, đi chợ hộ) vốn đã nằm sẵn trong `docs/09`.
+
+Bốn thứ thiếu thật, đã làm xong trong ngày:
+
+| Việc | Mã | Ghi chú |
+|---|---|---|
+| Cẩm nang địa phương của chủ nhà | **`TĐ-22` (mới)** | `Guidebooks.cs` + bảng `guidebook_places`. Chủ nhà tự viết, nhóm theo tám loại, có lý do giới thiệu và khoảng cách tính từ toạ độ tin đăng. Nội dung do người viết nên đi qua `TranslatedText`, không vào từ điển giao diện |
+| Dấu "Hiếm có" | **`TĐ-23` (mới)** | `Scarcity.cs`. Dưới 25% đêm trống trong 60 ngày tới, và chỉ khi cửa sổ đủ 14 đêm để đọc |
+| Xem danh sách yêu thích trên bản đồ | `YT-04` | **Spec đã có từ đầu, chưa từng làm.** `Wishlists.jsx` không import component bản đồ nào, nhưng §9 vẫn đếm nó vào "201 xong". Đây là **lần đếm lệch thứ tư** |
+| Báo "sắp hết phòng" cho chỗ đã lưu | `YT-08` | **Mới làm nửa sau.** Nửa "giảm giá" xong từ 10/08; nửa này không có sự kiện nào để móc vào (lịch kín là do *người khác* đặt) nên phải là một vòng quét — `ScarcitySweeper` |
+
+Thêm một lỗi thật, không phải thiếu tính năng: hộp **"Nhắn tin cho chủ nhà"** trên
+trang chi tiết là **bản demo** — khách gõ xong bấm gửi thì chỉ hiện toast "chưa kết
+nối dịch vụ thật", còn nhánh kia gửi một câu **cứng sẵn** khách không viết. Hai
+nhánh giờ gộp làm một và gửi đúng chữ khách gõ. Đây lại đúng bài học cũ: có màn
+hình không có nghĩa là có chạy.
+
+Ngoài ra thêm danh mục **thuê xe** vào Dịch vụ — khoá `car` có sẵn trong trình
+soạn của chủ nhà từ đầu nhưng chưa có hàng nào bán dưới nó, nên khách duyệt dịch
+vụ không bao giờ thấy mục này.
+
+**Đếm lại: 203 mã, 203 xong.** Ai thêm mã mới thì sửa con số này ngay tại đây.
+
 ---
 
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (654 test)
+# Test nghiệp vụ (982 test)
 dotnet test tests/StayHost.Domain.Tests
 
-# 10 tình huống nghiệm thu, cần server chạy ở cổng 5199
+# 10 tình huống nghiệm thu, cần server chạy ở cổng 5199.
+# Cổng bận thì đổi bằng STAYHOST_URL — cả ba script đều đọc biến này.
 python scripts/acceptance.py
+STAYHOST_URL=http://localhost:5200 python scripts/acceptance.py
 ```
 
 ## Ghi chú về quy mô

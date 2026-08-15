@@ -11,12 +11,14 @@ only a development build hands the code back over the API.
 """
 import http.cookiejar
 import json
+import os
 import subprocess
 import time
 import urllib.error
 import urllib.request
 
-B = "http://localhost:5199"
+# The port is only a default; another app may already hold 5199. See STAYHOST_URL.
+B = os.environ.get("STAYHOST_URL", "http://localhost:5199").rstrip("/")
 PW = "stayhost123"
 RUN = str(int(time.time()))[-6:]
 REASON = "Kiem tra kich ban nghiem thu cua docs/08"

@@ -912,6 +912,7 @@ public class CatalogService(StayHostDbContext db)
             .Include(l => l.Amenities).ThenInclude(la => la.Amenity)
             .Include(l => l.Reviews)
             .Include(l => l.Host)
+            .Include(l => l.Guidebook)
             .AsSplitQuery();
 
         var listing = int.TryParse(idOrSlug, out var id)
@@ -1068,7 +1069,66 @@ public class CatalogService(StayHostDbContext db)
                 .OrderByDescending(n => n.CreatedAt)
                 .Take(5)
                 .Select(n => n.Note)
-                .ToListAsync(ct));
+                .ToListAsync(ct),
+            // docs/01 TĐ-22 — the host's own recommendations, grouped for reading.
+            GuidebookGroups(listing),
+            // docs/01 TĐ-23 — "Hiếm có", from the same calendar the picker greys out.
+            RareFind(unavailable, today));
+    }
+
+    /// <summary>
+    /// docs/01 TĐ-22 — the guidebook as the page reads it: display order, not
+    /// enum order, and empty headings dropped rather than shown blank.
+    /// </summary>
+    private static List<GuidebookGroupDto>? GuidebookGroups(Listing listing)
+    {
+        if (listing.Guidebook.Count == 0) return null;
+
+        var groups = Domain.Guidebooks.DisplayOrder
+            .Select(c => new GuidebookGroupDto(
+                c.ToString(),
+                Domain.Guidebooks.Label(c),
+                listing.Guidebook
+                    .Where(p => p.Category == c)
+                    .OrderBy(p => p.SortOrder).ThenBy(p => p.Id)
+                    .Select(p => ToGuidebookDto(p, listing))
+                    .ToList()))
+            .Where(g => g.Places.Count > 0)
+            .ToList();
+
+        return groups.Count == 0 ? null : groups;
+    }
+
+    public static GuidebookPlaceDto ToGuidebookDto(GuidebookPlace p, Listing listing)
+    {
+        var km = Domain.Guidebooks.DistanceKm(
+            listing.Latitude, listing.Longitude, p.Latitude, p.Longitude);
+
+        return new GuidebookPlaceDto(
+            p.Id, p.Category.ToString(), p.Name, p.Note, p.Address,
+            // A pin only travels to the client whole; see Guidebooks.HasPin.
+            Domain.Guidebooks.HasPin(p.Latitude, p.Longitude) ? p.Latitude : null,
+            Domain.Guidebooks.HasPin(p.Latitude, p.Longitude) ? p.Longitude : null,
+            km is { } d ? Landmarks.DistanceLabel(d) : null,
+            p.SortOrder);
+    }
+
+    /// <summary>
+    /// docs/01 TĐ-23 — count the free nights in the scarcity window off the same
+    /// unavailable-date list the calendar renders, so the badge and the greyed
+    /// days can never tell a guest two different stories.
+    /// </summary>
+    private static RareFindDto? RareFind(IReadOnlyCollection<DateOnly> unavailable, DateOnly today)
+    {
+        var horizon = today.AddDays(Scarcity.WindowDays);
+        var taken = unavailable.Count(d => d >= today && d < horizon);
+        var reading = new Scarcity.Reading(Scarcity.WindowDays - taken, Scarcity.WindowDays);
+
+        return Scarcity.IsRareFind(reading)
+            ? new RareFindDto(
+                Scarcity.RareFindLabel, Scarcity.RareFindReason(reading),
+                reading.FreeNights, reading.TotalNights)
+            : null;
     }
 
     /// <summary>

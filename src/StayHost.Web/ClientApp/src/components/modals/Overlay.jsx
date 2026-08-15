@@ -7,6 +7,7 @@ import { AuthModal, ProfileModal, ReviewModal, CancelTripModal } from './Account
 import { PhotosModal, AmenitiesModal, ReviewsModal, CheckoutModal } from './ListingModals.jsx';
 import { HostCalendarModal, GuestReviewModal, HostCancelModal } from './HostModals.jsx';
 import { ListingWizard } from './ListingWizard.jsx';
+import { GuidebookEditor } from './GuidebookEditor.jsx';
 import { ExperienceEditor } from './ExperienceEditor.jsx';
 import { ServiceEditor } from './ServiceEditor.jsx';
 import { ShieldModal } from './ShieldModal.jsx';
@@ -29,6 +30,7 @@ const REGISTRY = {
   reviews: ReviewsModal,
   checkout: CheckoutModal,
   'listing-editor': ListingWizard,
+  'guidebook-editor': GuidebookEditor,
   'experience-editor': ExperienceEditor,
   'service-editor': ServiceEditor,
   'host-block': HostCalendarModal,

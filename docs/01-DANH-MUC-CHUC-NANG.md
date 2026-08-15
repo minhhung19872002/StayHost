@@ -79,6 +79,8 @@ Mỗi chức năng có mã `FR-<module>-<số>` để tham chiếu và theo dõi
 | TĐ-19 | Báo cáo tin đăng | P1 |
 | TĐ-20 | Gợi ý chỗ ở tương tự | P1 |
 | TĐ-21 | Tóm tắt đánh giá theo chủ đề (vị trí, sạch sẽ, tiện nghi, hợp gia đình…) | P2 |
+| TĐ-22 | Cẩm nang địa phương do chủ nhà tự viết: quán ăn, cà phê, tham quan, đi lại, lời khuyên — có lý do giới thiệu và khoảng cách | P1 |
+| TĐ-23 | Dấu "Hiếm có" khi lịch 60 ngày tới gần kín, kèm lý do đọc được từ chính lịch bên dưới | P2 |
 
 ## YT — Danh sách yêu thích & lên kế hoạch
 

@@ -482,6 +482,10 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 // docs/01 TM-23 — new places for anyone watching a saved search.
                 var savedSearch = scope.ServiceProvider.GetRequiredService<SavedSearchSweeper>();
                 await savedSearch.SweepAsync(stoppingToken);
+
+                // docs/01 YT-08 — the other half: a saved place running out of nights.
+                var scarcity = scope.ServiceProvider.GetRequiredService<ScarcitySweeper>();
+                await scarcity.SweepAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

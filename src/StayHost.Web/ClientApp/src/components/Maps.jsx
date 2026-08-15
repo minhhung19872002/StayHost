@@ -246,6 +246,56 @@ function highlightCard(id, on) {
 }
 
 /** Airbnb shows an approximate circle on the room page, never the exact address. */
+/**
+ * docs/01 YT-04 — a plain map of a given set of cards.
+ *
+ * ResultsMap cannot do this job: it reads `state.results` directly and carries
+ * the whole search-as-I-move apparatus, none of which a wishlist has. This one
+ * takes the cards it is handed, so any screen with a list of places can show
+ * where they are.
+ */
+export function CardsMap({ cards, height = 320 }) {
+  const hostRef = useRef(null);
+  const navigate = useNavigate();
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+
+  const pinned = (cards ?? []).filter(c => c.latitude && c.longitude);
+  // Re-pin only when the set itself changes — a ♥ toggle must not rebuild the map.
+  const key = pinned.map(c => c.id).join(',');
+
+  useEffect(() => {
+    if (!pinned.length) return undefined;
+
+    const map = L.map(hostRef.current, { scrollWheelZoom: false });
+    L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: 18 }).addTo(map);
+
+    for (const c of pinned) {
+      const marker = L.marker([c.latitude, c.longitude], {
+        icon: L.divIcon({
+          className: '',
+          html: `<span class="price-marker">${money(c.pricePerNight)}</span>`,
+          iconSize: null
+        })
+      });
+      marker.on('click', () => navigateRef.current(`/rooms/${c.slug}`));
+      marker.bindTooltip(c.title, { direction: 'top', offset: [0, -8] });
+      marker.addTo(map);
+    }
+
+    // One pin has no bounds worth fitting; centre on it instead of zooming to a point.
+    if (pinned.length === 1) map.setView([pinned[0].latitude, pinned[0].longitude], 13);
+    else map.fitBounds(pinned.map(c => [c.latitude, c.longitude]), { padding: [40, 40], maxZoom: 13 });
+
+    const timer = setTimeout(() => map.invalidateSize(), 60);
+    return () => { clearTimeout(timer); map.remove(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  if (!pinned.length) return null;
+  return <div ref={hostRef} style={{ height, borderRadius: 14, overflow: 'hidden' }} />;
+}
+
 export function DetailMap({ latitude, longitude }) {
   const hostRef = useRef(null);
 

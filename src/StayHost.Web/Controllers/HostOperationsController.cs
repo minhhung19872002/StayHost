@@ -1000,6 +1000,123 @@ public class HostOperationsController(
             criteria.Select(c => new SuperhostCriterionDto(c.Key, c.Label, c.Current, c.Target, c.Met)).ToList()));
     }
 
+    /* ------------------------------------------------ docs/01 TĐ-22 guidebook */
+
+    /// <summary>
+    /// docs/01 TĐ-22 — the host's own guidebook for one listing, in the order
+    /// they arranged it. This is the editing view: unlike the guest's, it keeps
+    /// the flat list and every empty category, because the host is about to add
+    /// to them.
+    /// </summary>
+    [HttpGet("listings/{id:int}/guidebook")]
+    public async Task<ActionResult<IReadOnlyList<GuidebookPlaceDto>>> Guidebook(int id, CancellationToken ct)
+    {
+        var listing = await OwnedListingAsync(id, ct, CoHostScope.Listing);
+        if (listing is null) return this.Denied("Bạn không có quyền với chỗ nghỉ này.");
+
+        return Ok(await GuidebookOf(listing, ct));
+    }
+
+    /// <summary>docs/01 TĐ-22 — add one recommendation to the end of the list.</summary>
+    [HttpPost("listings/{id:int}/guidebook")]
+    public async Task<ActionResult<IReadOnlyList<GuidebookPlaceDto>>> AddGuidebookPlace(
+        int id, [FromBody] GuidebookPlaceRequest req, CancellationToken ct)
+    {
+        var listing = await OwnedListingAsync(id, ct, CoHostScope.Listing);
+        if (listing is null) return this.Denied("Bạn không có quyền với chỗ nghỉ này.");
+
+        if (Guidebooks.Validate(req.Name, req.Note, req.Address) is { } invalid)
+            return BadRequest(new { message = invalid });
+        if (!Enum.TryParse<GuidebookCategory>(req.Category, out var category))
+            return BadRequest(new { message = "Nhóm địa điểm không hợp lệ." });
+
+        var existing = await db.GuidebookPlaces.CountAsync(p => p.ListingId == listing.Id, ct);
+        if (Guidebooks.ValidateCount(existing) is { } full)
+            return BadRequest(new { message = full });
+
+        db.GuidebookPlaces.Add(new GuidebookPlace
+        {
+            ListingId = listing.Id,
+            Category = category,
+            Name = req.Name.Trim(),
+            Note = Blank(req.Note),
+            Address = Blank(req.Address),
+            // Half a coordinate is no coordinate: store both or neither, so no
+            // reader has to guess which half to trust.
+            Latitude = Guidebooks.HasPin(req.Latitude, req.Longitude) ? req.Latitude : null,
+            Longitude = Guidebooks.HasPin(req.Latitude, req.Longitude) ? req.Longitude : null,
+            SortOrder = existing
+        });
+        await db.SaveChangesAsync(ct);
+
+        return Ok(await GuidebookOf(listing, ct));
+    }
+
+    /// <summary>docs/01 TĐ-22 — rewrite one entry in place.</summary>
+    [HttpPut("listings/{id:int}/guidebook/{placeId:int}")]
+    public async Task<ActionResult<IReadOnlyList<GuidebookPlaceDto>>> UpdateGuidebookPlace(
+        int id, int placeId, [FromBody] GuidebookPlaceRequest req, CancellationToken ct)
+    {
+        var listing = await OwnedListingAsync(id, ct, CoHostScope.Listing);
+        if (listing is null) return this.Denied("Bạn không có quyền với chỗ nghỉ này.");
+
+        if (Guidebooks.Validate(req.Name, req.Note, req.Address) is { } invalid)
+            return BadRequest(new { message = invalid });
+        if (!Enum.TryParse<GuidebookCategory>(req.Category, out var category))
+            return BadRequest(new { message = "Nhóm địa điểm không hợp lệ." });
+
+        var place = await db.GuidebookPlaces
+            .FirstOrDefaultAsync(p => p.Id == placeId && p.ListingId == listing.Id, ct);
+        if (place is null) return NotFound();
+
+        place.Category = category;
+        place.Name = req.Name.Trim();
+        place.Note = Blank(req.Note);
+        place.Address = Blank(req.Address);
+        place.Latitude = Guidebooks.HasPin(req.Latitude, req.Longitude) ? req.Latitude : null;
+        place.Longitude = Guidebooks.HasPin(req.Latitude, req.Longitude) ? req.Longitude : null;
+        await db.SaveChangesAsync(ct);
+
+        return Ok(await GuidebookOf(listing, ct));
+    }
+
+    /// <summary>docs/01 TĐ-22 — drop one entry and close the gap it leaves in the order.</summary>
+    [HttpDelete("listings/{id:int}/guidebook/{placeId:int}")]
+    public async Task<ActionResult<IReadOnlyList<GuidebookPlaceDto>>> DeleteGuidebookPlace(
+        int id, int placeId, CancellationToken ct)
+    {
+        var listing = await OwnedListingAsync(id, ct, CoHostScope.Listing);
+        if (listing is null) return this.Denied("Bạn không có quyền với chỗ nghỉ này.");
+
+        var place = await db.GuidebookPlaces
+            .FirstOrDefaultAsync(p => p.Id == placeId && p.ListingId == listing.Id, ct);
+        if (place is null) return NotFound();
+
+        db.GuidebookPlaces.Remove(place);
+        await db.SaveChangesAsync(ct);
+
+        // Renumber what is left, or the next add lands on a SortOrder already taken.
+        var rest = await db.GuidebookPlaces
+            .Where(p => p.ListingId == listing.Id)
+            .OrderBy(p => p.SortOrder).ThenBy(p => p.Id)
+            .ToListAsync(ct);
+        for (var i = 0; i < rest.Count; i++) rest[i].SortOrder = i;
+        await db.SaveChangesAsync(ct);
+
+        return Ok(await GuidebookOf(listing, ct));
+    }
+
+    private async Task<List<GuidebookPlaceDto>> GuidebookOf(Listing listing, CancellationToken ct) =>
+        (await db.GuidebookPlaces
+            .Where(p => p.ListingId == listing.Id)
+            .OrderBy(p => p.SortOrder).ThenBy(p => p.Id)
+            .ToListAsync(ct))
+        .Select(p => CatalogService.ToGuidebookDto(p, listing))
+        .ToList();
+
+    private static string? Blank(string? s) =>
+        string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
     /// <summary>
     /// The owner, or a co-host the owner gave this much rope (docs/01 QL-19).
     /// </summary>

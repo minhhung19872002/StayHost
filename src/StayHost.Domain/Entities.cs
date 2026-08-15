@@ -367,6 +367,16 @@ public class Listing
     public List<PriceRule> PriceRules { get; set; } = [];
     public List<ListingAmenity> Amenities { get; set; } = [];
     public List<Review> Reviews { get; set; } = [];
+
+    /// <summary>docs/01 TĐ-22 — the host's local recommendations for this place.</summary>
+    public List<GuidebookPlace> Guidebook { get; set; } = [];
+
+    /// <summary>
+    /// docs/01 YT-08 — when the "sắp hết phòng" notice last went out, so the
+    /// crossing is announced once rather than on every sweep. Cleared the moment
+    /// the calendar opens up again, which arms the next crossing.
+    /// </summary>
+    public DateTime? LowAvailabilityNotifiedAt { get; set; }
 }
 
 public class ListingImage

@@ -37,6 +37,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<AbuseReport> AbuseReports => Set<AbuseReport>();
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
     public DbSet<PriceRule> PriceRules => Set<PriceRule>();
+    public DbSet<GuidebookPlace> GuidebookPlaces => Set<GuidebookPlace>();
     public DbSet<GuestReview> GuestReviews => Set<GuestReview>();
     public DbSet<TaxRule> TaxRules => Set<TaxRule>();
     public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
@@ -1193,6 +1194,18 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Note).HasMaxLength(StayHost.Domain.TripPlans.NoteMax);
             e.HasOne(x => x.TripPlan).WithMany(t => t.Items)
                 .HasForeignKey(x => x.TripPlanId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/01 TĐ-22 — the host's own local guidebook, one shortlist per listing.
+        b.Entity<GuidebookPlace>(e =>
+        {
+            e.ToTable("guidebook_places");
+            e.HasIndex(x => new { x.ListingId, x.SortOrder });
+            e.Property(x => x.Name).HasMaxLength(Guidebooks.NameMax).IsRequired();
+            e.Property(x => x.Note).HasMaxLength(Guidebooks.NoteMax);
+            e.Property(x => x.Address).HasMaxLength(Guidebooks.AddressMax);
+            e.HasOne(x => x.Listing).WithMany(l => l.Guidebook)
+                .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // docs/01 XH-03 — peer messages between friends.

@@ -173,6 +173,16 @@ export const api = {
   listingAdvice: id => request(`/api/host/listings/${id}/advice`),
   /* docs/01 CN-15 — clone a listing into a fresh draft */
   duplicateListing: id => request(`/api/host/listings/${id}/duplicate`, { method: 'POST' }),
+
+  // docs/01 TĐ-22 — the host's local guidebook. Every write returns the whole
+  // list back, so the editor never has to guess what the server ended up with.
+  guidebook: id => request(`/api/host/listings/${id}/guidebook`),
+  addGuidebookPlace: (id, body) =>
+    request(`/api/host/listings/${id}/guidebook`, { method: 'POST', body: JSON.stringify(body) }),
+  updateGuidebookPlace: (id, placeId, body) =>
+    request(`/api/host/listings/${id}/guidebook/${placeId}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteGuidebookPlace: (id, placeId) =>
+    request(`/api/host/listings/${id}/guidebook/${placeId}`, { method: 'DELETE' }),
   /* docs/01 QL-13 — what happens if the host cancels, before they confirm */
   hostCancelPreview: id => request(`/api/host/bookings/${id}/cancel-preview`),
   createListing: body => request('/api/host/listings', { method: 'POST', body: JSON.stringify(body) }),

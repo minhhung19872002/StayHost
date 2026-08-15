@@ -4,10 +4,10 @@ import {
   set, state as store, activeFilterCount, resetFilters, totalGuests,
   toggleAmenity, toggleHostLanguage, bumpCount, bumpGuest, applyDatePreset, clearDates, setStayShape,
   applyCurrency, applyLanguage, closeOverlay, settleDates, toast,
-  shareViaDevice, copyShareLink, saveCurrentSearch
+  shareViaDevice, copyShareLink, saveCurrentSearch, requireAuth
 } from '../../lib/store.js';
 import { api } from '../../lib/api.js';
-import { applySearch } from '../../lib/nav.js';
+import { applySearch, go } from '../../lib/nav.js';
 import { money, longDate, nightsBetween } from '../../lib/format.js';
 import { t } from '../../lib/i18n.js';
 import { Icon, AmenityIcon, CATEGORY_ICON } from '../Icon.jsx';
@@ -550,23 +550,63 @@ ${share.url}`)}`;
   );
 }
 
+/**
+ * docs/01 TN-01 — ask the host a question before booking.
+ *
+ * This box used to throw the guest's message away and toast "bản demo" at them,
+ * while the button beside it sent a hard-coded sentence nobody typed. Both are
+ * the same act, so both now land here: the guest writes their own words, the
+ * message opens a real thread, and the page moves to it.
+ *
+ * A seeded host with no account (h.userId null) has no inbox to receive
+ * anything. That is said plainly rather than dressed up as a send that fails.
+ */
 export function ContactHostModal() {
   const state = useStore();
   const h = state.detail?.host;
+  const listingId = state.detail?.card?.id;
+  const [body, setBody] = useState('');
+  const [busy, setBusy] = useState(false);
   if (!h) return null;
+
+  const reachable = !!h.userId;
+
+  const send = async () => {
+    if (!requireAuth()) return;
+    const text = body.trim();
+    if (!text) { toast(t('Viết vài dòng cho chủ nhà trước khi gửi.')); return; }
+
+    setBusy(true);
+    try {
+      const thread = await api.sendMessage({ listingId, body: text });
+      set({ activeThread: thread });
+      closeOverlay();
+      go('/messages');
+    } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
 
   return (
     <Modal title={`${t('Nhắn tin cho')} ${h.name}`} size="narrow">
       <p style={{ fontSize: 14, color: 'var(--ink-muted)', lineHeight: 1.6, margin: '0 0 16px' }}>
         {h.name} {t('thường phản hồi')} {h.responseTime} · {t('tỉ lệ phản hồi')} {h.responseRate}.
       </p>
-      <label className="form-field">
-        <span className="cap">{t('Tin nhắn', 'field')}</span>
-        <textarea rows={5} placeholder={`${t('Chào')} ${h.name}, ${t('mình muốn hỏi về...')}`}
-                  style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
-      </label>
-      <button className="btn btn-primary btn-block"
-              onClick={() => toast(t('Bản demo — chức năng này chưa kết nối dịch vụ thật.'))}>{t('Gửi tin nhắn')}</button>
+
+      {reachable ? <>
+        <label className="form-field">
+          <span className="cap">{t('Tin nhắn', 'field')}</span>
+          <textarea rows={5} value={body} onChange={e => setBody(e.target.value)}
+                    placeholder={`${t('Chào')} ${h.name}, ${t('mình muốn hỏi về...')}`}
+                    style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
+        </label>
+        <button className="btn btn-primary btn-block" onClick={send} disabled={busy}>
+          {busy ? t('Đang gửi…') : t('Gửi tin nhắn')}
+        </button>
+      </> : (
+        <p style={{ fontSize: 14, color: 'var(--ink-muted)', lineHeight: 1.6, margin: 0 }}>
+          {t('Chủ nhà này chưa mở hộp thư trên StayHost. Bạn đặt chỗ trước, rồi nhắn qua trang chuyến đi.')}
+        </p>
+      )}
     </Modal>
   );
 }

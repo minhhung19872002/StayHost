@@ -21,7 +21,8 @@ const MONTH = () => dateFormat({ month: 'long', year: 'numeric' });
 
 const CATEGORIES = [
   ['', 'Tất cả'], ['chef', 'Đầu bếp'], ['photo', 'Chụp ảnh'], ['massage', 'Massage'],
-  ['transfer', 'Đưa đón'], ['luggage', 'Giữ hành lý'], ['groceries', 'Đi chợ hộ']
+  ['transfer', 'Đưa đón'], ['luggage', 'Giữ hành lý'], ['groceries', 'Đi chợ hộ'],
+  ['car', 'Thuê xe']
 ];
 
 /** The category as a guest reads it, for the "Đầu bếp ở Quận 1" line. */

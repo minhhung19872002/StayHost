@@ -3,9 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
   loadDetail, toggleFavorite, totalGuests, guestLabel, bumpTotalGuests,
-  clearDates, openOverlay, openReport, requireAuth, toast, set, setRoom, shareListing
+  clearDates, openOverlay, openReport, requireAuth, set, setRoom, shareListing
 } from '../lib/store.js';
-import { api } from '../lib/api.js';
 import { money, longDate, nightsBetween, monthLabel, dateTime } from '../lib/format.js';
 import { Avatar } from '../components/Avatar.jsx';
 import { Card } from '../components/Card.jsx';
@@ -74,6 +73,12 @@ export function Detail() {
             <span className="dot">·</span>
             <u onClick={() => openOverlay('reviews')}>{d.reviews.length} {t('đánh giá')}</u>
             {c.isSuperhost && <><span className="dot">·</span><span>{t('Siêu chủ nhà')}</span></>}
+            {/* docs/01 TĐ-23 — only when the calendar backs it up; the reason is
+                the tooltip so the claim is checkable against the picker below. */}
+            {d.rareFind && <>
+              <span className="dot">·</span>
+              <span className="rare-find" title={d.rareFind.reason}>{t(d.rareFind.label)}</span>
+            </>}
             <span className="dot">·</span>
             <u onClick={() => scrollTo('section-location')}>{c.city}, {c.country}</u>
           </div>
@@ -87,7 +92,7 @@ export function Detail() {
       </div>
 
       <Gallery card={c} />
-      <SubNav />
+      <SubNav detail={d} />
 
       <div className="detail-body">
         <div className="detail-main">
@@ -100,6 +105,7 @@ export function Detail() {
           <CalendarSection nights={nights} city={c.city} />
           <Reviews detail={d} card={c} />
           <Location card={c} landmarks={d.landmarks} />
+          <Guidebook detail={d} />
           <HostProfile detail={d} />
           <ThingsToKnow detail={d} />
         </div>
@@ -184,10 +190,12 @@ function Gallery({ card }) {
 }
 
 /** Sticky in-page nav, mirroring airbnb.com's NAV_DEFAULT section. */
-function SubNav() {
+function SubNav({ detail }) {
   const links = [
     ['section-photos', t('Ảnh')], ['section-amenities', t('Tiện nghi')],
-    ['section-reviews', t('Đánh giá')], ['section-location', t('Vị trí')]
+    ['section-reviews', t('Đánh giá')], ['section-location', t('Vị trí')],
+    // Only when the host wrote one — a link to an absent section scrolls nowhere.
+    ...(detail.guidebook?.length ? [['section-guidebook', t('Cẩm nang')]] : [])
   ];
   return (
     <nav className="detail-nav" aria-label={t('Mục trong trang')}>
@@ -521,21 +529,52 @@ function Location({ card, landmarks }) {
   );
 }
 
+/**
+ * docs/01 TĐ-22 — the host's own local guidebook.
+ *
+ * Everything here is written by a person, so it goes through TranslatedText
+ * rather than the interface dictionary: only the headings are ours to translate,
+ * and those already arrive as Vietnamese keys the dictionary knows.
+ */
+function Guidebook({ detail }) {
+  const groups = detail.guidebook;
+  if (!groups?.length) return null;
+
+  return (
+    <section className="detail-section" id="section-guidebook">
+      <h2>{t('Cẩm nang của chủ nhà')}</h2>
+      {/* No name inside this sentence: Korean and Japanese put the object before
+          the verb, and a name spliced mid-clause lands in the wrong place. */}
+      <p style={{ margin: '-8px 0 18px', fontSize: 14.5, color: 'var(--ink-muted)' }}>
+        {t('Những chỗ chủ nhà thật sự hay lui tới, không phải danh sách chép trên mạng.')}
+      </p>
+
+      <div className="guidebook">
+        {groups.map(g => (
+          <div className="guidebook-group" key={g.category}>
+            <h3>{t(g.label)}</h3>
+            <ul>
+              {g.places.map(p => (
+                <li key={p.id}>
+                  <div className="guidebook-place">
+                    <TranslatedText as="b" text={p.name} />
+                    {p.distance && <span className="guidebook-far">{p.distance}</span>}
+                  </div>
+                  {p.note && <TranslatedText as="p" className="guidebook-note" text={p.note} />}
+                  {p.address && <span className="guidebook-addr">{p.address}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function HostProfile({ detail }) {
   const h = detail.host;
   const navigate = useNavigate();
-
-  const message = async () => {
-    if (!requireAuth()) return;
-    try {
-      const thread = await api.sendMessage({
-        listingId: detail.card.id,
-        body: 'Chào bạn, mình muốn hỏi thêm về chỗ nghỉ.'
-      });
-      set({ activeThread: thread });
-      navigate('/messages');
-    } catch (err) { toast(err.message); }
-  };
 
   return (
     <section className="detail-section" id="section-host">
@@ -569,11 +608,15 @@ function HostProfile({ detail }) {
         {!!h.languages?.length && <div>{t('Ngôn ngữ:')} <b>{h.languages.map(l => t(l)).join(', ')}</b></div>}
         {!!h.coHosts?.length && <div>{t('Đồng quản lý:')} <b>{h.coHosts.join(', ')}</b></div>}
       </div>
-      {h.userId
-        ? <button className="btn btn-outline btn-sm" style={{ marginTop: 18 }} onClick={message}>{t('Nhắn tin cho')} {h.name}</button>
-        : <button className="btn btn-outline btn-sm" style={{ marginTop: 18 }} onClick={() => openOverlay('contact-host')}>
-            {t('Nhắn tin cho chủ nhà')}
-          </button>}
+      {/* One door for both cases (docs/01 TN-01). This used to fork: reachable
+          hosts got a button that sent a sentence the guest never wrote, and the
+          rest got a dialog that threw the message away. The dialog does the
+          sending now, and it is the only way in. The label carries no name —
+          Korean and Japanese would put it on the wrong side of the verb. */}
+      <button className="btn btn-outline btn-sm" style={{ marginTop: 18 }}
+              onClick={() => openOverlay('contact-host')}>
+        {t('Nhắn tin cho chủ nhà')}
+      </button>
     </section>
   );
 }

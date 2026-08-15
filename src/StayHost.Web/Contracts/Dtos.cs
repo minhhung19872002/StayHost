@@ -1025,7 +1025,47 @@ public record ListingDetailDto(
     /// <summary>docs/01 TĐ-13 — nearest landmarks, closest first.</summary>
     IReadOnlyList<LandmarkDto>? Landmarks = null,
     /// <summary>docs/01 ĐG-12 — public notes about host cancellations in the last year.</summary>
-    IReadOnlyList<string>? CancellationNotes = null);
+    IReadOnlyList<string>? CancellationNotes = null,
+    /// <summary>docs/01 TĐ-22 — the host's local guidebook, grouped and in display order.</summary>
+    IReadOnlyList<GuidebookGroupDto>? Guidebook = null,
+    /// <summary>
+    /// docs/01 TĐ-23 — set only when <see cref="StayHost.Domain.Scarcity"/> says the
+    /// near calendar is full enough to say so. Null is the ordinary case.
+    /// </summary>
+    RareFindDto? RareFind = null);
+
+/// <summary>docs/01 TĐ-22 — one heading of a guidebook and what is under it.</summary>
+public record GuidebookGroupDto(string Category, string Label, IReadOnlyList<GuidebookPlaceDto> Places);
+
+public record GuidebookPlaceDto(
+    int Id,
+    string Category,
+    string Name,
+    string? Note,
+    string? Address,
+    double? Latitude,
+    double? Longitude,
+    /// <summary>"1,2 km" from the listing, or null when the entry carries no pin.</summary>
+    string? Distance,
+    int SortOrder);
+
+/// <summary>docs/01 TĐ-23 — the badge and the sentence that justifies it.</summary>
+public record RareFindDto(string Label, string Reason, int FreeNights, int WindowNights);
+
+/// <summary>
+/// docs/01 TĐ-22 — what a host posts when writing one guidebook entry.
+///
+/// <c>Category</c> travels as its enum name, the way it comes back in
+/// <see cref="GuidebookPlaceDto"/>; the controller parses it, so an unknown
+/// value is a bad request rather than a silent zero.
+/// </summary>
+public record GuidebookPlaceRequest(
+    string Category,
+    string Name,
+    string? Note,
+    string? Address,
+    double? Latitude,
+    double? Longitude);
 
 public record HotelRoomDto(
     int Id,

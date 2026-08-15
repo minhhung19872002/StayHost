@@ -154,7 +154,19 @@ public static class ServiceSeeder
             null, 0.03m,
             ["https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg",
              "https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg",
-             "https://images.pexels.com/photos/2544829/pexels-photo-2544829.jpeg"])
+             "https://images.pexels.com/photos/2544829/pexels-photo-2544829.jpeg"]),
+
+        // The "car" category existed in the host editor from the start with nothing
+        // on sale under it, so a guest browsing services never saw the heading.
+        new("Thuê xe 4 chỗ có tài theo ngày", "car", "Đà Nẵng",
+            "Xe và tài xế trọn ngày, đi trong bán kính 120km",
+            "Tài xế nói được tiếng Anh cơ bản, xe 4 chỗ đời 2022 trở lên, đã gồm xăng và phí cầu " +
+            "đường trong 120km đầu. Vượt quá tính thêm theo km. Đón trả tận nơi bạn ở.",
+            ServicePricing.PerOrder, 1_200_000m, 1, 2, 480, true, 120, 16.0544, 108.2022, 5, 21,
+            "Đà Nẵng Car Rental", 0.10m,
+            ["https://images.pexels.com/photos/136739/pexels-photo-136739.jpeg",
+             "https://images.pexels.com/photos/1008155/pexels-photo-1008155.jpeg",
+             "https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg"])
     ];
 
     private static string Slugify(string title, int n)

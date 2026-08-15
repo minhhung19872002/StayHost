@@ -95,6 +95,7 @@ builder.Services.AddScoped<PaymentCompletion>();
 builder.Services.AddScoped<CardAuthSweeper>();
 builder.Services.AddScoped<BankTransferService>();
 builder.Services.AddScoped<SavedSearchSweeper>();
+builder.Services.AddScoped<ScarcitySweeper>();
 builder.Services.AddScoped<AdminGate>();
 builder.Services.AddScoped<ThreadMessenger>();
 builder.Services.AddScoped<AdminAudit>();

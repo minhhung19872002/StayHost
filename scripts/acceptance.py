@@ -1,7 +1,11 @@
 # The ten acceptance scenarios at the end of docs/04, run against a live server.
+import os
 import json, urllib.request, urllib.parse, http.cookiejar, threading, queue, datetime, subprocess, time
 
-B = "http://localhost:5199"
+# The port is only a default. Another app on this machine may already hold 5199,
+# and a script that hard-codes it then talks to the wrong server and reports
+# failures that are not ours. Override with STAYHOST_URL.
+B = os.environ.get("STAYHOST_URL", "http://localhost:5199").rstrip("/")
 results = []
 
 

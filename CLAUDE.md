@@ -41,7 +41,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (13/08/2026).** 963 test nghiệp vụ · **10/10** kịch bản của `docs/04`
+**Toàn bộ xanh (15/08/2026).** 982 test nghiệp vụ · **10/10** kịch bản của `docs/04`
 (`scripts/acceptance.py`) · **10/10** kịch bản quản trị của `docs/08 §13`
 (`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
 (`scripts/doc09_acceptance.py`, gồm cả 12 tình huống bắt buộc của `docs/09 §9`).
@@ -92,6 +92,8 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Đa ngôn ngữ | 8 thứ tiếng (vi/en/ja/ko/zh/fr/de/es), **2149 khoá mỗi thứ, không thiếu khoá nào**. Dịch cả **chữ do server sinh** (trạng thái, dòng hoá đơn, tiện nghi, nhóm tiện nghi, loại chỗ ở, lời khuyên chủ nhà) nhờ từ điển khoá bằng chính chuỗi tiếng Việt. Ngày/giờ/số theo ngôn ngữ đang chọn. Nội dung **người dùng tự viết** (tên tin, mô tả, đánh giá, tiểu sử, nội quy chủ nhà tự gõ) được **máy dịch tự động** kèm dòng "Đã dịch tự động · Xem bản gốc" |
 | Máy dịch | `libretranslate` tự host trong cả hai compose — **không cần khoá API, không tính tiền theo ký tự**. Đủ 8 thứ tiếng, trùng khít danh sách giao diện. Kết quả cache trong `translation_caches`, mỗi (chuỗi × ngôn ngữ) chỉ dịch một lần |
 | Hạn dùng số dư | `docs/07 §16` đã chốt (11/08/2026): bù đắp / giới thiệu bạn / hoàn khi huỷ **12 tháng**, thẻ quà tặng **không hết hạn**. Hạn đóng dấu **lúc cấp**, nên đổi tham số về sau không với ngược lại số dư khách đang giữ |
+| Cẩm nang chủ nhà (`TĐ-22`) | Chủ nhà tự viết danh sách chỗ nên đi cho từng tin: tám nhóm (quán ăn / cà phê / tham quan / thiên nhiên / mua sắm / về đêm / đi lại / lời khuyên), mỗi mục có lý do giới thiệu, địa chỉ và toạ độ tuỳ chọn. Toạ độ **phải đủ cả hai nửa** (`Guidebooks.HasPin`) — nửa vĩ độ đơn độc rơi xuống biển ngoài châu Phi. Chữ do người viết nên đi qua `TranslatedText`, không vào từ điển giao diện |
+| Hiếm có & sắp hết phòng | `Scarcity.cs` là **một ngưỡng cho hai chỗ**: dấu "Hiếm có" trên trang chi tiết (`TĐ-23`) và thông báo "sắp hết phòng" cho chỗ đã lưu (`YT-08`). Dưới 25% đêm trống trong 60 ngày tới, và bỏ qua khi cửa sổ chưa đủ 14 đêm — tin mới khoá sạch lịch là *trống*, không phải *đắt khách*. `ScarcitySweeper` chỉ báo **lúc vượt ngưỡng**, cột `LowAvailabilityNotifiedAt` xoá về null khi lịch mở lại |
 
 ---
 
@@ -207,6 +209,21 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   đường hoàn số dư khi huỷ đơn trong `BookingsController` tự `new CreditEntry` nên bỏ
   qua bước đó, và số dư hoàn lại **không bao giờ hết hạn** dù cấu hình nói 12 tháng.
   Giờ mọi dòng số dư đi qua `CreditLedger.Grant`, có test chặn.
+- **Một nửa yêu cầu vẫn bị đếm là cả yêu cầu.** `YT-08` viết "báo khi chỗ đã lưu
+  giảm giá **hoặc sắp hết phòng**". Nửa giảm giá có sự kiện rõ ràng (chủ nhà lưu giá
+  thấp hơn) nên làm xong từ 10/08 và mã được tick; nửa "sắp hết phòng" **không có sự
+  kiện nào để móc vào** — lịch kín là do người khác đặt — nên bị bỏ quên suốt, mà
+  `PLAN.md` vẫn ghi 201/201. Soát mã có chữ "hoặc"/"và" thì soát **từng vế**.
+- **`Wishlists.jsx` chưa từng import bản đồ nào** dù `YT-04` nói "xem danh sách trên
+  bản đồ", và `ResultsMap` không dùng lại được vì nó đọc thẳng `state.results`.
+  Giờ có `CardsMap` nhận thẳng danh sách thẻ. Đây là **lần thứ tư** `PLAN.md §9`
+  đếm lệch — trước khi tin con số, `grep` tên component ở chỗ đáng lẽ phải dùng nó.
+- **Một cổng đang rảnh hôm qua không có nghĩa hôm nay còn rảnh.** Ba script nghiệm
+  thu đóng cứng `localhost:5199`, và cổng đó đã bị **một project khác** (`BlueOne.Web`)
+  chiếm. Nó là SPA nên trả **200 cho mọi đường dẫn**, thành ra cả bước "chờ server
+  sẵn sàng" lẫn script đều tưởng đang nói chuyện với StayHost. Giờ cả ba đọc
+  `STAYHOST_URL`, và bước chờ phải kiểm tra **nội dung** (`"categories"` trong
+  `/api/listings/meta`), không phải mã 200.
 
 ---
 
