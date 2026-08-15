@@ -314,7 +314,9 @@ public class CatalogService(StayHostDbContext db)
         if (q.SuperhostOnly) query = query.Where(l => l.IsSuperhost);
         if (q.GuestFavoriteOnly) query = query.Where(l => l.IsGuestFavorite);
         if (q.InstantBookOnly) query = query.Where(l => l.InstantBook);
-        // Only Flexible and Moderate may be advertised as free cancellation (docs/03 §4).
+        // docs/03 §4 — the same two tiers Cancellation.HasFreeCancellation names.
+        // Spelled out rather than called because this has to translate to SQL,
+        // so the two must be kept in step; CancellationTests holds them to it.
         if (q.FreeCancellationOnly)
             query = query.Where(l =>
                 l.CancellationTier == CancellationTier.Flexible || l.CancellationTier == CancellationTier.Moderate);
@@ -902,7 +904,10 @@ public class CatalogService(StayHostDbContext db)
         l.CleaningFee,
         pricer?.Total(l),
         pricer?.Window(l).CheckIn,
-        pricer?.Window(l).CheckOut);
+        pricer?.Window(l).CheckOut,
+        // docs/03 §4 — both come off the listing's own tier, never a constant.
+        Cancellation.HasFreeCancellation(l.CancellationTier),
+        Cancellation.Headline(l.CancellationTier));
 
     public async Task<ListingDetailDto?> GetDetailAsync(
         string idOrSlug, string sessionId, DateOnly? checkIn, DateOnly? checkOut, int guests, CancellationToken ct)

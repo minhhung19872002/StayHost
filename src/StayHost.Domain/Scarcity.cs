@@ -41,13 +41,14 @@ public static class Scarcity
     public static bool IsRareFind(Reading r) =>
         r.TotalNights >= MinNightsForSignal && r.FreeShare < RareBelowFreeShare;
 
-    /// <summary>
-    /// docs/01 YT-08 — the notice is worth sending only on the crossing. A place
-    /// that was already scarce when the guest saved it has no news in it, and
-    /// resending on every sweep would train people to ignore the channel.
-    /// </summary>
-    public static bool ShouldWarnLowAvailability(Reading before, Reading after) =>
-        !IsRareFind(before) && IsRareFind(after);
+    /*
+     * There was a ShouldWarnLowAvailability(before, after) here, saying the
+     * notice is only worth sending on the crossing. That is the right rule, but
+     * ScarcitySweeper has no "before" reading to give it — it remembers the
+     * crossing as a mark on the listing instead — so the method was tested and
+     * never called. It has been removed rather than left as a second, unused
+     * statement of the same rule that could drift away from the real one.
+     */
 
     /// <summary>What the badge says. Vietnamese, because it is shown as written.</summary>
     public const string RareFindLabel = "Hiếm có";

@@ -421,6 +421,25 @@ public static class Shield
         return Round(Math.Max(0m, nightlyRate) * Math.Clamp(nightsCancelled, 0, s.LostIncomeNights));
     }
 
+    /// <summary>
+    /// docs/06 §8 row "Bất khả kháng" — the guest is refunded in full and the
+    /// host, who did nothing wrong and still lost the dates, is compensated
+    /// <c>Q-A</c> of the booking value out of the fund.
+    ///
+    /// "Giá trị đơn" is read as the booking total, the number both sides saw at
+    /// checkout, rather than the host's own payout — the parameter was agreed
+    /// against the figure on the order, not against a net the guest never sees.
+    ///
+    /// Nothing here is a claim: no case is opened, no deductible applies, and
+    /// the host does not have to ask. It is the one payout in docs/06 that the
+    /// platform owes without anybody filing for it.
+    /// </summary>
+    public static decimal ForceMajeureHostAward(decimal bookingTotal, ShieldSettings? settings = null)
+    {
+        var s = settings ?? ShieldSettings.Current;
+        return Round(Math.Max(0m, bookingTotal) * s.ForceMajeureHostRate);
+    }
+
     /* --------------------------------------------------------------- §6 */
 
     /// <summary>docs/06 §6 — how fast the platform promised to answer.</summary>

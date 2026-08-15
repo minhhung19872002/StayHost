@@ -41,18 +41,6 @@ public class ScarcityTests
         Assert.False(Scarcity.IsRareFind(nothing));
     }
 
-    [Fact]
-    public void The_notice_fires_on_the_crossing_and_only_the_crossing()
-    {
-        Assert.True(Scarcity.ShouldWarnLowAvailability(Free(30), Free(5)));
-
-        // Already scarce when we last looked: no news in it.
-        Assert.False(Scarcity.ShouldWarnLowAvailability(Free(5), Free(3)));
-
-        // Opening up again is not a warning either.
-        Assert.False(Scarcity.ShouldWarnLowAvailability(Free(5), Free(40)));
-        Assert.False(Scarcity.ShouldWarnLowAvailability(Free(40), Free(30)));
-    }
 
     [Fact]
     public void The_reason_carries_the_numbers_a_guest_can_check()
@@ -76,17 +64,18 @@ public class ScarcityTests
     }
 
     [Fact]
-    public void The_badge_and_the_notice_agree_because_they_share_one_threshold()
+    public void The_threshold_is_monotonic_so_the_badge_never_flickers()
     {
-        // Whatever the badge would show, the sweep must be willing to announce
-        // for a listing that has just arrived at it — otherwise a guest clicks
-        // through from one and finds the other missing.
-        for (var free = 0; free <= Scarcity.WindowDays; free++)
+        // Both the badge and the sweep ask IsRareFind and nothing else. Fewer
+        // free nights must never make a place *less* scarce, or a guest could
+        // click through from the notice and find no badge waiting.
+        var seenRare = false;
+        for (var free = Scarcity.WindowDays; free >= 0; free--)
         {
-            var after = Free(free);
-            Assert.Equal(
-                Scarcity.IsRareFind(after),
-                Scarcity.ShouldWarnLowAvailability(Free(Scarcity.WindowDays), after));
+            var rare = Scarcity.IsRareFind(Free(free));
+            if (seenRare) Assert.True(rare, $"{free} free nights un-did the badge");
+            seenRare |= rare;
         }
+        Assert.True(seenRare);
     }
 }

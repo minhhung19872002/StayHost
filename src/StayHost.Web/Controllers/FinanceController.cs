@@ -305,6 +305,82 @@ public class FinanceController(
     }
 
     /// <summary>
+    /// docs/03 §4 and docs/06 §8 — an admin recognises force majeure on a
+    /// booking: a typhoon, a flood, an order closing the area.
+    ///
+    /// Nothing could reach this before. <c>Cancellation</c> has had a
+    /// force-majeure pre-rule since it was written and <c>CancelledBy</c> has had
+    /// the value, but every call site passed Host, Guest or Platform, so the
+    /// branch was unreachable and so was Q-A behind it. The guest is refunded in
+    /// full and the host is paid Q-A of the booking out of the fund, neither of
+    /// which anybody has to file for.
+    /// </summary>
+    [HttpPost("bookings/{id:int}/force-majeure")]
+    public async Task<ActionResult<TransactionDto>> ForceMajeure(
+        int id, [FromBody] ForceMajeureRequest req, CancellationToken ct)
+    {
+        var admin = await RequireAsync(ct);
+        if (admin is null) return this.Denied();
+
+        var reason = (req.Reason ?? "").Trim();
+        if (reason.Length < 8)
+            return BadRequest(new { message = "Ghi rõ sự kiện bất khả kháng (tối thiểu 8 ký tự)." });
+
+        var booking = await db.Bookings
+            .Include(b => b.Payment).Include(b => b.GuestUser)
+            .Include(b => b.Listing!).ThenInclude(l => l.Host)
+            .FirstOrDefaultAsync(b => b.Id == id, ct);
+        if (booking is null) return NotFound();
+
+        // Force majeure lands on the host's side of the ledger (docs/03 §4), so
+        // it has to be a legal move to CancelledByHost — the same gate the host's
+        // own cancel button passes through.
+        if (!BookingLifecycle.CanTransition(booking.Status, BookingStatus.CancelledByHost))
+            return BadRequest(new
+            {
+                message = $"Đơn đang ở trạng thái \"{BookingLifecycle.Label(booking.Status)}\" nên không huỷ được."
+            });
+
+        var outcome = Cancellation.Refund(new Cancellation.Context
+        {
+            Booking = booking,
+            Now = DateTime.UtcNow,
+            By = CancelledBy.ForceMajeure
+        });
+
+        BookingsController.PostCancellation(
+            db, booking, outcome, CancelledBy.ForceMajeure, $"Bất khả kháng: {reason}");
+
+        audit.Record(admin, "finance.force-majeure", $"booking:{booking.Reference}",
+            BookingLifecycle.Label(BookingStatus.Confirmed),
+            BookingLifecycle.Label(booking.Status), reason);
+
+        await db.SaveChangesAsync(ct);
+
+        if (booking.GuestUser is not null)
+            await notifications.QueueWithEmailAsync(booking.GuestUser, NotificationKind.RefundIssued,
+                "Chuyến đi bị huỷ vì bất khả kháng",
+                $"Đơn {booking.Reference} đã được huỷ và hoàn 100%. Lý do: {reason}.",
+                $"/trips/{booking.Id}", ct);
+
+        // docs/06 §8 — the host is told what they are owed and why, because they
+        // did nothing wrong and nobody asked them.
+        var hostUserId = booking.Listing?.Host?.UserId;
+        var award = Shield.ForceMajeureHostAward(booking.Total);
+        if (hostUserId is { } hostId && award > 0
+            && await db.Users.FirstOrDefaultAsync(u => u.Id == hostId, ct) is { } hostUser)
+        {
+            await notifications.QueueWithEmailAsync(hostUser, NotificationKind.System,
+                "Đền bù bất khả kháng",
+                $"Đơn {booking.Reference} bị huỷ vì {reason}. Bạn được đền bù " +
+                $"{award:#,##0}₫ từ quỹ StayShield, không cần mở hồ sơ.",
+                "/hosting", ct);
+        }
+
+        return Ok(await OneAsync(booking.Id, ct));
+    }
+
+    /// <summary>
     /// docs/07 §15 TC-A-02 — "điều chỉnh khoản chuyển". Lifts a hold, or puts one
     /// on, on a host's payout. It never changes the amount: that is what the
     /// host earned, and moving it would take the ledger out of step.
@@ -524,6 +600,49 @@ public class FinanceController(
         if (Domain.Chargebacks.HostBearsLoss(c) && c.Booking?.Listing?.Host is { } host)
         {
             host.OwedToPlatform += c.Amount;
+        }
+
+        /*
+         * docs/07 §11 step 6 — "Tài khoản khách có nhiều lần khiếu nại vô căn cứ
+         * → gắn cờ, yêu cầu xác minh cho các đơn sau."
+         *
+         * Chargebacks.GuestNeedsWatching had held the threshold since the rule
+         * was written and had never been called from anywhere, so however many
+         * times an account went to its bank and was found wrong, nothing
+         * followed. A loss the host was at fault for is not the guest's pattern
+         * and is left out of the count.
+         */
+        if (!req.Won && !c.HostAtFault && c.Booking?.GuestUserId is { } guestId)
+        {
+            // Every *other* one, plus the one being decided right now. Counting
+            // straight from the table would miss it: the status above is still
+            // only in memory until SaveChangesAsync below, so two disputes in a
+            // row each counted one and the threshold of two was never reached.
+            var lost = 1 + await db.Chargebacks
+                .CountAsync(x => x.Id != c.Id
+                                 && x.Booking!.GuestUserId == guestId
+                                 && !x.HostAtFault
+                                 && (x.Status == ChargebackStatus.Lost
+                                     || x.Status == ChargebackStatus.Expired), ct);
+
+            var already = await db.RiskFlags.AnyAsync(
+                f => f.UserId == guestId
+                     && f.Kind == RiskKind.RepeatChargebacks
+                     && f.Status == RiskFlagStatus.Open, ct);
+
+            if (Domain.Chargebacks.GuestNeedsWatching(lost) && !already)
+            {
+                db.RiskFlags.Add(new RiskFlag
+                {
+                    UserId = guestId,
+                    BookingId = c.BookingId,
+                    Kind = RiskKind.RepeatChargebacks,
+                    Severity = RiskSeverity.Review,
+                    Summary = $"{lost} lần khiếu nại ngân hàng bị xử thua",
+                    Detail = "Các đơn sau của tài khoản này cần xác minh danh tính trước khi đặt "
+                             + "(docs/07 §11 bước 6)."
+                });
+            }
         }
 
         audit.Record(admin, "finance.chargeback-decide", $"chargeback:{c.Id}",

@@ -2394,4 +2394,27 @@ export default {
   "Lời khuyên": "Tips",
   "Hiếm có": "Rare find",
   "Thuê xe": "Car hire",
+
+  // Deep audit 15/08/2026: provider jobs (docs/09 §3.5), DV-D,
+  // and the cancellation copy that now comes from the real tier.
+  "Đơn bạn nhận được": "Jobs you have been booked for",
+  "Giờ hẹn, địa chỉ và ghi chú bắt buộc của khách.": "The time, the address, and the note the guest had to write.",
+  "Khách dặn:": "Guest's note:",
+  "Điện thoại:": "Phone:",
+  "Không đủ điều kiện tại chỗ": "Site not as declared",
+  "Thiếu gì ở nơi làm việc? (không bắt buộc)": "What was missing at the site? (optional)",
+  "Đã ghi nhận. Bạn được trả một nửa giá trị đơn cho công đi lại.": "Recorded. You are paid half the order for the trip you made.",
+  "Đã gồm phí và thuế": "Fees and taxes included",
+  "Huỷ trước 7 ngày": "Cancel 7 days ahead",
+  "hoàn toàn bộ; trước 24 giờ hoàn 50%": "for a full refund; 50% up to 24 hours before",
+  "Huỷ miễn phí đến 24 giờ trước khi nhận phòng": "Free cancellation up to 24 hours before check-in",
+  "Huỷ miễn phí đến 5 ngày trước khi nhận phòng": "Free cancellation up to 5 days before check-in",
+  "Hoàn 100% nếu huỷ trước 30 ngày": "100% refund if you cancel 30 days ahead",
+  "Hoàn 50% nếu huỷ trước 7 ngày": "50% refund if you cancel 7 days ahead",
+  "Không hoàn tiền phòng, đổi lại giá rẻ hơn 10%": "No room refund, in exchange for 10% off",
+  "Kỳ ở dài: hoàn 100% nếu huỷ trước 30 ngày": "Long stay: 100% refund if you cancel 30 days ahead",
+
+  // docs/09 §2.8 — the real refund ladder, said in every place.
+  "Huỷ trước 7 ngày hoàn toàn bộ, trước 24 giờ hoàn 50%.": "Full refund 7 days ahead, 50% up to 24 hours before.",
+  "người trước 48 giờ sẽ bị huỷ và hoàn tiền toàn bộ. Bạn tự huỷ thì theo bậc 7 ngày / 24 giờ ở trên.": "guests 48 hours ahead is cancelled and refunded in full. Cancelling yourself follows the 7-day / 24-hour ladder above.",
 };

@@ -863,7 +863,15 @@ public record ListingCardDto(
     /// the top of the page.
     /// </summary>
     DateOnly? StayCheckIn = null,
-    DateOnly? StayCheckOut = null);
+    DateOnly? StayCheckOut = null,
+    /// <summary>
+    /// docs/03 §4 — whether this place may be advertised as free cancellation.
+    /// The card used to print "Huỷ miễn phí" on every result, including the
+    /// non-refundable ones, so the flag has to travel with the card.
+    /// </summary>
+    bool FreeCancellation = false,
+    /// <summary>The one-line promise from <c>Cancellation.Headline</c>.</summary>
+    string CancellationHeadline = "");
 
 public record HomeSectionDto(
     string Key,
@@ -1051,6 +1059,52 @@ public record GuidebookPlaceDto(
 
 /// <summary>docs/01 TĐ-23 — the badge and the sentence that justifies it.</summary>
 public record RareFindDto(string Label, string Reason, int FreeNights, int WindowNights);
+
+/// <summary>
+/// docs/03 §4 — the event an admin is recognising. Free text and required: a
+/// full refund plus a payout from the fund should never rest on a dropdown
+/// nobody had to think about.
+/// </summary>
+public record ForceMajeureRequest(string? Reason);
+
+/// <summary>
+/// docs/09 §3.6 (DV-D) — what the provider says about a site that was not what
+/// the guest declared. The note is optional: arriving to no kitchen is the whole
+/// report, and demanding an essay would only delay it.
+/// </summary>
+public record MisdeclaredConditionsRequest(string? Note);
+
+/// <summary>
+/// docs/09 §3.5 — one job as the person doing it needs to see it.
+///
+/// This did not exist. A provider could post a service, be booked, be paid and
+/// never once be shown who had booked them, where to go, or the allergy note
+/// docs/09 §3.5 makes the guest fill in *for them*. The guest-facing
+/// <see cref="ServiceBookingDto"/> is no use here: it carries neither the guest
+/// nor what the provider actually earns.
+/// </summary>
+public record ProviderJobDto(
+    int Id,
+    string Reference,
+    string OfferingTitle,
+    string GuestName,
+    DateTime StartsAt,
+    DateTime EndsAt,
+    int Quantity,
+    string Unit,
+    string Address,
+    /// <summary>The mandatory note for the categories of docs/09 §3.5, when there is one.</summary>
+    string? Note,
+    /// <summary>Only after the job is confirmed, per docs/03 §10 — same gate as a stay.</summary>
+    string? GuestPhone,
+    decimal Total,
+    decimal ProviderPayout,
+    string Status,
+    string StatusLabel,
+    string StatusBadge,
+    string? CancelReason,
+    /// <summary>Whether docs/09 §3.6 (DV-D) may still be reported on this job.</summary>
+    bool CanReportMisdeclared);
 
 /// <summary>
 /// docs/01 TĐ-22 — what a host posts when writing one guidebook entry.

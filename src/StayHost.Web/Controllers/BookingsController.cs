@@ -88,10 +88,20 @@ public class BookingsController(
         if (req.OfferId is null)
         {
             var hasRules = !string.IsNullOrWhiteSpace(listing.HouseRules);
+
+            // docs/07 §11 step 6 — "gắn cờ, yêu cầu xác minh cho các đơn sau".
+            // The flag is raised when arbitration lands; this is the "các đơn
+            // sau" half, which had nowhere to live until now.
+            var flaggedForChargebacks = await db.RiskFlags.AnyAsync(
+                f => f.UserId == user.Id
+                     && f.Kind == RiskKind.RepeatChargebacks
+                     && f.Status == RiskFlagStatus.Open, ct);
+
             var precheck = BookingPreconditions.Check(
                 listing.RequireGuestPhoto, listing.RequireVerifiedToBook,
                 !string.IsNullOrWhiteSpace(user.AvatarUrl), user.IsIdentityVerified,
-                hasRules, req.AgreedToRules);
+                hasRules, req.AgreedToRules,
+                platformRequiresVerified: flaggedForChargebacks);
             if (!precheck.Ok) return BadRequest(new { message = precheck.Error });
         }
 
@@ -998,6 +1008,26 @@ public class BookingsController(
         {
             booking.BalanceDue = 0;
             booking.BalanceStatus = BalanceStatus.Failed;
+        }
+
+        /*
+         * docs/06 §8, the "Bất khả kháng" row — the guest gets everything back
+         * and the fund carries the loss, but the host is owed Q-A of the booking
+         * value as well. That half was never written: ForceMajeureHostRate sat
+         * in ShieldSettings with no reader anywhere, so for a locked parameter
+         * the customer signed off on, the host got nothing.
+         *
+         * Only when money actually moved. Cancelling a booking nobody had paid
+         * for costs the fund nothing to undo, and paying compensation out of it
+         * for a stay that was never captured would take real money out of the
+         * fund against a loss that never happened.
+         */
+        if (by == CancelledBy.ForceMajeure)
+        {
+            var award = Shield.ForceMajeureHostAward(booking.Total);
+            if (award > 0)
+                db.LedgerEntries.AddRange(
+                    Ledger.CompensateHostFromShield(booking, award, DateTime.UtcNow));
         }
     }
 

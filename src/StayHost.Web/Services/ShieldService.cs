@@ -57,6 +57,27 @@ public class ShieldService(
 
         var claimed = side == ShieldSide.Host ? items.Sum(i => i.Allowed) : 0m;
 
+        /*
+         * docs/06 §10 C-D — lost income is capped at five nights.
+         *
+         * A C3 case travels through the same free-text item list as C1 and C2,
+         * so before this it was only ever held to the high-value *item* ceiling,
+         * which is about a stolen camera and has nothing to say about nights.
+         * Shield.LostIncome existed and was tested from the day the parameter
+         * was locked; nothing called it, so a host could enter any figure at all
+         * under "mất thu nhập" and the cap the customer signed off on did
+         * nothing.
+         *
+         * Nights are valued at what this booking actually earned per night —
+         * room money only, since a cancelled stay costs no cleaning.
+         */
+        if (kind == ShieldCase.C3 && booking.Nights > 0)
+        {
+            var perNight = Math.Max(0m, booking.Subtotal - booking.CleaningFee) / booking.Nights;
+            var ceiling = Shield.LostIncome(perNight, ShieldSettings.Current.LostIncomeNights);
+            claimed = Math.Min(claimed, ceiling);
+        }
+
         // Talking to the other side first is a rule, and it has to be in this
         // inbox — docs/06 §2.2 does not count what happened elsewhere.
         var contactedAt = await FirstMessageAtAsync(booking, user.Id, ct);

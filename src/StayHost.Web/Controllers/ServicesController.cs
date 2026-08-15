@@ -64,6 +64,38 @@ public class ServicesController(AuthService auth, ServiceMarketService market) :
     }
 
     /// <summary>
+    /// docs/09 §3.5 — the jobs this provider has been booked for, newest first.
+    /// Above the catch-all detail route so "jobs" is not read as a slug.
+    /// </summary>
+    [HttpGet("jobs")]
+    public async Task<ActionResult<IReadOnlyList<ProviderJobDto>>> Jobs(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        return Ok(await market.JobsAsync(user.Id, ct));
+    }
+
+    /// <summary>
+    /// docs/09 §3.6 (DV-D) — the provider reports that the site was not what the
+    /// guest declared. Half the order goes back to the guest and half stays to
+    /// pay for the wasted trip, so the person who travelled is not left with
+    /// nothing.
+    /// </summary>
+    [HttpPost("bookings/{id:int}/misdeclared")]
+    public async Task<ActionResult<ServiceBookingDto>> Misdeclared(
+        int id, [FromBody] MisdeclaredConditionsRequest? req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var error = await market.ReportMisdeclaredAsync(user.Id, id, req?.Note, ct);
+        if (error is not null) return BadRequest(new { message = error });
+
+        return Ok(await market.BookingDtoAsync(id, ct));
+    }
+
+    /// <summary>
     /// docs/09 §5 — the four service headings, written once the job is over.
     /// Placed above the catch-all detail route only for readability; the two
     /// segments make it the more specific match either way.

@@ -222,6 +222,25 @@ public static class Cancellation
         tier is CancellationTier.Flexible or CancellationTier.Moderate;
 
     /// <summary>
+    /// The one-line promise a card or a listing header may make about cancelling.
+    ///
+    /// It exists because the header used to be the fixed string "Huỷ miễn phí
+    /// trước 48 giờ" on every listing — a number that is not any of the six
+    /// policies, printed directly above the sentence that contradicted it. A
+    /// promise shown to a guest has to come from the same switch the refund
+    /// does, so a tier added later cannot quietly keep the old promise.
+    /// </summary>
+    public static string Headline(CancellationTier tier) => tier switch
+    {
+        CancellationTier.Flexible => "Huỷ miễn phí đến 24 giờ trước khi nhận phòng",
+        CancellationTier.Moderate => "Huỷ miễn phí đến 5 ngày trước khi nhận phòng",
+        CancellationTier.Strict => "Hoàn 100% nếu huỷ trước 30 ngày",
+        CancellationTier.SuperStrict => "Hoàn 50% nếu huỷ trước 7 ngày",
+        CancellationTier.NonRefundable => "Không hoàn tiền phòng, đổi lại giá rẻ hơn 10%",
+        _ => "Kỳ ở dài: hoàn 100% nếu huỷ trước 30 ngày"
+    };
+
+    /// <summary>
     /// The exact moment free cancellation stops, so the UI can say
     /// "Huỷ miễn phí trước 14:00 ngày 12/09" rather than a vague number of days.
     /// </summary>

@@ -6,7 +6,7 @@ import {
   previewHostCancel
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
-import { money, longDate, todayIso, dateFormat } from '../lib/format.js';
+import { money, longDate, todayIso, dateFormat, dateTime } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 import { Icon } from '../components/Icon.jsx';
 import { Today } from './hosting/Today.jsx';
@@ -453,6 +453,7 @@ function HostServices() {
                 </div>
               </article>
             ))}
+            <ProviderJobs />
           </div>
         ) : (
           <div className="empty-state" style={{ marginTop: 20 }}>
@@ -463,6 +464,78 @@ function HostServices() {
           </div>
         )}
     </div>
+  );
+}
+
+/**
+ * docs/09 §3.5, §3.6 — the jobs somebody has actually been booked for.
+ *
+ * The console used to show only the services on sale, so the note docs/09 §3.5
+ * forces a guest to write — food allergies, what to avoid in a massage — was
+ * collected and then shown to nobody. It leads this list for that reason.
+ */
+function ProviderJobs() {
+  const [jobs, setJobs] = useState(null);
+  const [busy, setBusy] = useState(0);
+
+  const load = () => api.serviceJobs().then(setJobs).catch(() => setJobs([]));
+  useEffect(() => { load(); }, []);
+
+  // docs/09 §3.6 (DV-D) — the guest keeps half, the provider keeps half. It ends
+  // the job, so it asks first.
+  const misdeclared = async job => {
+    const note = prompt(t('Thiếu gì ở nơi làm việc? (không bắt buộc)'));
+    if (note === null) return;
+    setBusy(job.id);
+    try {
+      await api.reportMisdeclared(job.id, note.trim() || null);
+      await load();
+      toast(t('Đã ghi nhận. Bạn được trả một nửa giá trị đơn cho công đi lại.'));
+    } catch (err) { toast(err.message); }
+    finally { setBusy(0); }
+  };
+
+  if (!jobs?.length) return null;
+
+  return (
+    <section style={{ marginTop: 10 }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 800 }}>{t('Đơn bạn nhận được')}</h3>
+      <p className="section-sub" style={{ marginBottom: 12 }}>
+        {t('Giờ hẹn, địa chỉ và ghi chú bắt buộc của khách.')}
+      </p>
+
+      <div style={{ display: 'grid', gap: 10 }}>
+        {jobs.map(j => (
+          <article className="host-booking" key={j.id}>
+            <div style={{ minWidth: 0 }}>
+              <h3>{j.offeringTitle}</h3>
+              <div className="meta">
+                {j.guestName} · {dateTime(j.startsAt)} · {j.quantity} {t(j.unit)}
+              </div>
+              <div className="meta">{j.address}</div>
+              {/* The whole reason this list exists. */}
+              {j.note && (
+                <div className="meta" style={{ marginTop: 6, color: 'var(--ink)', fontWeight: 700 }}>
+                  {t('Khách dặn:')} {j.note}
+                </div>
+              )}
+              {j.guestPhone && <div className="meta">{t('Điện thoại:')} {j.guestPhone}</div>}
+              <div className="meta">
+                {money(j.total)} · {t('bạn nhận')} <b style={{ color: 'var(--ink)' }}>{money(j.providerPayout)}</b>
+              </div>
+              <span className={`badge ${j.statusBadge}`} style={{ marginTop: 8 }}>{t(j.statusLabel)}</span>
+              {j.cancelReason && <div className="meta" style={{ marginTop: 6 }}>{j.cancelReason}</div>}
+            </div>
+            {j.canReportMisdeclared && (
+              <div className="host-booking-actions">
+                <button className="btn btn-outline btn-sm" disabled={busy === j.id}
+                        onClick={() => misdeclared(j)}>{t('Không đủ điều kiện tại chỗ')}</button>
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 

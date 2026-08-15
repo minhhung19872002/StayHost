@@ -17,11 +17,19 @@ public static class BookingPreconditions
     public static Result Check(
         bool requirePhoto, bool requireVerified,
         bool guestHasPhoto, bool guestVerified,
-        bool hasHouseRules, bool agreedToRules)
+        bool hasHouseRules, bool agreedToRules,
+        bool platformRequiresVerified = false)
     {
         if (requirePhoto && !guestHasPhoto)
             return new(false, "Chủ nhà yêu cầu khách có ảnh đại diện trước khi đặt. "
                               + "Hãy thêm ảnh trong phần Hồ sơ.");
+
+        // docs/07 §11 step 6 — this one is the platform's demand, not the host's,
+        // so it must not be phrased as "chủ nhà yêu cầu": the guest would go and
+        // argue with a host who had nothing to do with it.
+        if (platformRequiresVerified && !guestVerified)
+            return new(false, "Tài khoản của bạn cần xác minh danh tính trước khi đặt tiếp. "
+                              + "Hãy xác minh trong phần Tài khoản.");
 
         if (requireVerified && !guestVerified)
             return new(false, "Chủ nhà yêu cầu khách xác minh danh tính trước khi đặt. "

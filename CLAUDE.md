@@ -41,10 +41,12 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (15/08/2026).** 982 test nghiệp vụ · **10/10** kịch bản của `docs/04`
+**Toàn bộ xanh (16/08/2026).** 998 test nghiệp vụ · **10/10** kịch bản của `docs/04`
 (`scripts/acceptance.py`) · **10/10** kịch bản quản trị của `docs/08 §13`
 (`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
-(`scripts/doc09_acceptance.py`, gồm cả 12 tình huống bắt buộc của `docs/09 §9`).
+(`scripts/doc09_acceptance.py`, gồm cả 12 tình huống bắt buộc của `docs/09 §9`) ·
+**7/7** kịch bản của `scripts/unwired_acceptance.py` (`docs/PLAN.md §9.6` — các
+quy tắc từng có mã mà không đường nào gọi tới).
 Sổ sách lệch 0. Cả 201 mã của `docs/01` đã làm xong (`docs/PLAN.md §9`).
 
 > **`acceptance.py` cần DB sạch.** Nó ra 8/10 trên DB đã chạy nhiều lần — **không phải
@@ -218,12 +220,40 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   bản đồ", và `ResultsMap` không dùng lại được vì nó đọc thẳng `state.results`.
   Giờ có `CardsMap` nhận thẳng danh sách thẻ. Đây là **lần thứ tư** `PLAN.md §9`
   đếm lệch — trước khi tin con số, `grep` tên component ở chỗ đáng lẽ phải dùng nó.
+- **Soát "có ai gọi không" phải soát cả hai tầng.** Liệt kê thành viên `public static`
+  của `StayHost.Domain` rồi hỏi cái nào không được `StayHost.Web`/`Infrastructure`
+  gọi **mà cũng không được gọi từ chỗ khác trong Domain** — lần đầu chạy ra 112 cái,
+  gần hết là hàm nội bộ (`Ranking.Nearness`, `Quality`…) nên vô nghĩa; lọc thêm vế
+  thứ hai còn **36**, và **sáu trong đó là lỗi thật**. Ngược lại, **không phải hàm
+  nào không ai gọi cũng là lỗi**: `Sanctions.BanBlocks` nhìn như `docs/08 §5.4` bỏ
+  sót "tài khoản nhận tiền", nhưng chỗ đó đã chặn ở `HostOperationsController` lúc
+  đặt tài khoản. Phải đi xem chỗ khác có làm việc đó không rồi mới kết luận.
+- **Tham số khách đã chốt vẫn có thể chỉ là chữ trên trang điều khoản.** Trong 14
+  tham số của `docs/06 §10`, sáu cái chỉ xuất hiện ở `ShieldController` để **in ra
+  cho khách đọc**; enforcement nằm trong `Shield.SettleHost`/`SettleGuest`. Hai cái
+  thì không có gì thật cả: `LostIncomeNights` (C-D) có `Shield.LostIncome` mà không
+  ai gọi, và `ForceMajeureHostRate` (Q-A) **không có một chỗ đọc nào**. Muốn biết
+  một tham số có sống không thì truy: tham số → hàm domain đọc nó → có app code gọi
+  hàm đó không.
+- **Một `enum` có giá trị không có nghĩa là có đường sinh ra giá trị đó.**
+  `CancelledBy.ForceMajeure` tồn tại, `Cancellation.Refund` có sẵn nhánh hoàn 100%
+  cho nó, `PostCancellation` map nó sang `CancelledByHost` — nhưng **cả ba call site
+  chỉ truyền `Host`/`Guest`/`Platform`**, nên toàn bộ nhánh bất khả kháng chưa bao
+  giờ chạy được. Thêm mã vào một `enum` thì phải hỏi luôn "ai bấm nút này?".
+- **Nhà cung cấp dịch vụ từng không có màn hình nào xem đơn của mình.** Console chủ
+  nhà chỉ liệt kê dịch vụ **đang bán**. Ghi chú **bắt buộc** của `docs/09 §3.5` (dị
+  ứng đồ ăn, vùng cần tránh khi massage) được thu vào DB rồi không hiện cho đúng
+  người cần đọc. Khi bắt khách nhập gì đó "cho bên kia", kiểm luôn bên kia có chỗ
+  đọc chưa.
 - **Một cổng đang rảnh hôm qua không có nghĩa hôm nay còn rảnh.** Ba script nghiệm
   thu đóng cứng `localhost:5199`, và cổng đó đã bị **một project khác** (`BlueOne.Web`)
   chiếm. Nó là SPA nên trả **200 cho mọi đường dẫn**, thành ra cả bước "chờ server
   sẵn sàng" lẫn script đều tưởng đang nói chuyện với StayHost. Giờ cả ba đọc
-  `STAYHOST_URL`, và bước chờ phải kiểm tra **nội dung** (`"categories"` trong
-  `/api/listings/meta`), không phải mã 200.
+  `STAYHOST_URL`, và bước chờ phải kiểm tra **nội dung**, không phải mã 200.
+  Route đúng là **`/api/meta`** (`ListingsController` gắn `[Route("api")]`, không
+  phải `api/listings`) — chờ ở `/api/listings/meta` thì nhận 404 vĩnh viễn và vòng
+  lặp không bao giờ thoát:
+  `until curl -s $URL/api/meta | grep -q '"categories"'; do sleep 5; done`
 
 ---
 

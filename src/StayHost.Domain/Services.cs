@@ -25,7 +25,15 @@ public enum ServiceBookingStatus
     /// </summary>
     AwaitingPayment = 5,
     /// <summary>The transfer window ran out and the slot went back.</summary>
-    PaymentExpired = 6
+    PaymentExpired = 6,
+
+    /// <summary>
+    /// docs/09 §3.6 (DV-D) — the provider turned up and the place was not what
+    /// the guest declared: no kitchen for the chef, nowhere to set up. The job
+    /// does not happen, but it is not a cancellation by either side and must not
+    /// be recorded as one: the provider travelled and turned other work away.
+    /// </summary>
+    ConditionsMisdeclared = 7
 }
 
 /// <summary>
@@ -316,6 +324,20 @@ public static class ServiceRules
 
     public static decimal ProviderShareOnMisdeclared(decimal total) =>
         Math.Round(total * MisdeclaredShare, 0, MidpointRounding.AwayFromZero);
+
+    /// <summary>
+    /// What goes back to the guest when they misdeclared the site: everything
+    /// the provider's half does not account for.
+    ///
+    /// The reading of DV-D here is that <see cref="MisdeclaredShare"/> of the
+    /// order value stays on the provider's side of the deal and settles the
+    /// ordinary way — the provider keeps their payout share of it, the platform
+    /// its cut, the state its tax. If the customer meant the provider should
+    /// net 50% of the order value after the platform cut, this is the one line
+    /// to change, and <c>ServiceRulesTests</c> will show what moves with it.
+    /// </summary>
+    public static decimal GuestRefundOnMisdeclared(decimal total) =>
+        Math.Max(0m, total - ProviderShareOnMisdeclared(total));
 
     /// <summary>Kept for the older call sites that ask "is this still free?".</summary>
     public static readonly TimeSpan FreeCancellation = TimeSpan.FromHours(72);
@@ -642,6 +664,7 @@ public static class ServiceRules
         ServiceBookingStatus.CancelledByGuest => "Khách đã huỷ",
         ServiceBookingStatus.AwaitingPayment => "Chờ chuyển khoản",
         ServiceBookingStatus.PaymentExpired => "Hết hạn chờ chuyển khoản",
+        ServiceBookingStatus.ConditionsMisdeclared => "Không đủ điều kiện tại chỗ",
         _ => "Bên cung cấp đã huỷ"
     };
 

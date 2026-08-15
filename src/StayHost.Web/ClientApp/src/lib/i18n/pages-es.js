@@ -2216,4 +2216,27 @@ export default {
   "Lời khuyên": "Consejos",
   "Hiếm có": "Difícil de encontrar",
   "Thuê xe": "Alquiler de coche",
+
+  // Deep audit 15/08/2026: provider jobs (docs/09 §3.5), DV-D,
+  // and the cancellation copy that now comes from the real tier.
+  "Đơn bạn nhận được": "Trabajos que has recibido",
+  "Giờ hẹn, địa chỉ và ghi chú bắt buộc của khách.": "La hora, la dirección y la nota que el huésped tuvo que escribir.",
+  "Khách dặn:": "Nota del huésped:",
+  "Điện thoại:": "Teléfono:",
+  "Không đủ điều kiện tại chỗ": "Condiciones distintas a lo indicado",
+  "Thiếu gì ở nơi làm việc? (không bắt buộc)": "¿Qué faltaba en el lugar? (opcional)",
+  "Đã ghi nhận. Bạn được trả một nửa giá trị đơn cho công đi lại.": "Registrado. Recibes la mitad del importe por el desplazamiento.",
+  "Đã gồm phí và thuế": "Tasas e impuestos incluidos",
+  "Huỷ trước 7 ngày": "Cancela con 7 días",
+  "hoàn toàn bộ; trước 24 giờ hoàn 50%": "para reembolso total; 50% hasta 24 horas antes",
+  "Huỷ miễn phí đến 24 giờ trước khi nhận phòng": "Cancelación gratuita hasta 24 horas antes de la llegada",
+  "Huỷ miễn phí đến 5 ngày trước khi nhận phòng": "Cancelación gratuita hasta 5 días antes de la llegada",
+  "Hoàn 100% nếu huỷ trước 30 ngày": "Reembolso del 100% si cancelas 30 días antes",
+  "Hoàn 50% nếu huỷ trước 7 ngày": "Reembolso del 50% si cancelas 7 días antes",
+  "Không hoàn tiền phòng, đổi lại giá rẻ hơn 10%": "Sin reembolso del alojamiento, a cambio de un 10% menos",
+  "Kỳ ở dài: hoàn 100% nếu huỷ trước 30 ngày": "Estancia larga: reembolso del 100% si cancelas 30 días antes",
+
+  // docs/09 §2.8 — the real refund ladder, said in every place.
+  "Huỷ trước 7 ngày hoàn toàn bộ, trước 24 giờ hoàn 50%.": "Reembolso total con 7 días, 50% hasta 24 horas antes.",
+  "người trước 48 giờ sẽ bị huỷ và hoàn tiền toàn bộ. Bạn tự huỷ thì theo bậc 7 ngày / 24 giờ ở trên.": "personas 48 horas antes se cancela y se reembolsa por completo. Si cancelas tú, se aplica la escala de 7 días / 24 horas de arriba.",
 };

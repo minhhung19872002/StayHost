@@ -503,6 +503,10 @@ export const api = {
   serviceReviews: id => request(`/api/services/${id}/reviews`),
   /* docs/09 §3.2–§3.4 MR-S-01 — the provider's own services and the listing form. */
   myServices: () => request('/api/services/mine'),
+  /* docs/09 §3.5 — the jobs a provider has been booked for, and §3.6 DV-D. */
+  serviceJobs: () => request('/api/services/jobs'),
+  reportMisdeclared: (id, note) =>
+    request(`/api/services/bookings/${id}/misdeclared`, { method: 'POST', body: JSON.stringify({ note }) }),
   saveService: body => request('/api/services', { method: 'POST', body: JSON.stringify(body) }),
 
   /* docs/01 ĐP-07 — one booking, up to sixteen payers. */

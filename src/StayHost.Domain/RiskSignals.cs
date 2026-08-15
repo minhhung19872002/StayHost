@@ -9,7 +9,15 @@ public enum RiskKind
     /// <summary>A run of cancellations.</summary>
     ManyCancellations = 2,
     /// <summary>Bookings piling up faster than a person travels.</summary>
-    RapidBookings = 3
+    RapidBookings = 3,
+
+    /// <summary>
+    /// docs/07 §11 step 6 — an account that has gone to its bank about StayHost
+    /// more than once and been found wrong. Unlike the others, this one is not
+    /// raised by the periodic sweep: it is raised the moment arbitration lands,
+    /// because that is when the fact becomes true.
+    /// </summary>
+    RepeatChargebacks = 4
 }
 
 public enum RiskSeverity

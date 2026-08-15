@@ -288,10 +288,10 @@ function Detail({ slug }) {
               <Know icon="users" title={t('Số người')}
                     body={`${x.minGuests}–${x.maxGroup} ${t('người mỗi suất')}`} />
               <Know icon="calendar" title={t('Chính sách huỷ')}
-                    body={t('Huỷ trước 24 giờ được hoàn toàn bộ.')} />
+                    body={t('Huỷ trước 7 ngày hoàn toàn bộ, trước 24 giờ hoàn 50%.')} />
             </div>
             <p style={{ fontSize: 13.5, color: 'var(--ink-muted)', marginTop: 14, lineHeight: 1.6 }}>
-              {t('Suất không đủ')} {x.minGuests} {t('người trước 48 giờ sẽ bị huỷ và hoàn tiền toàn bộ. Bạn huỷ trước 24 giờ cũng được hoàn đủ.')}
+              {t('Suất không đủ')} {x.minGuests} {t('người trước 48 giờ sẽ bị huỷ và hoàn tiền toàn bộ. Bạn tự huỷ thì theo bậc 7 ngày / 24 giờ ở trên.')}
             </p>
           </section>
         </div>
@@ -309,8 +309,15 @@ function Detail({ slug }) {
             <span className="per">/ {t('người')}</span>
           </div>
 
+          {/*
+            * docs/09 §2.8 — the real ladder is 7 days 100%, 24h–7 days 50%,
+            * under 24h nothing. This line used to promise "trước 24 giờ được
+            * hoàn toàn bộ", which is the hour a guest drops to half, not the
+            * hour they still get everything. Same mistake the services page
+            * made with 24h vs 72h.
+            */}
           <p style={{ margin: '10px 0 14px', fontSize: 14, color: 'var(--ink-body)' }}>
-            <b style={{ color: 'var(--brand)' }}>{t('Huỷ miễn phí')}</b> · {t('trước 24 giờ được hoàn toàn bộ')}
+            <b style={{ color: 'var(--brand)' }}>{t('Huỷ trước 7 ngày')}</b> · {t('hoàn toàn bộ; trước 24 giờ hoàn 50%')}
           </p>
 
           <button className="btn btn-primary" style={{ width: '100%' }}
@@ -557,7 +564,7 @@ export function ExperienceCheckout() {
               </div>}
             <p className="pay-demo" style={{ marginBottom: 14 }}>
               <Icon name="shield" size={16} />
-              {t('Huỷ trước 24 giờ được hoàn toàn bộ.')}
+              {t('Huỷ trước 7 ngày hoàn toàn bộ, trước 24 giờ hoàn 50%.')}
             </p>
             <button className="btn btn-primary" style={{ width: '100%' }}
                     disabled={busy || !quote || !quote.canBook} onClick={book}>

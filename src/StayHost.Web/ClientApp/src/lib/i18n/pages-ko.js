@@ -2216,4 +2216,27 @@ export default {
   "Lời khuyên": "팁",
   "Hiếm có": "귀한 숙소",
   "Thuê xe": "차량 렌트",
+
+  // Deep audit 15/08/2026: provider jobs (docs/09 §3.5), DV-D,
+  // and the cancellation copy that now comes from the real tier.
+  "Đơn bạn nhận được": "받은 예약",
+  "Giờ hẹn, địa chỉ và ghi chú bắt buộc của khách.": "예약 시간, 주소, 그리고 게스트가 반드시 적은 메모입니다.",
+  "Khách dặn:": "게스트 메모:",
+  "Điện thoại:": "전화:",
+  "Không đủ điều kiện tại chỗ": "현장 조건이 다름",
+  "Thiếu gì ở nơi làm việc? (không bắt buộc)": "현장에 무엇이 없었나요? (선택)",
+  "Đã ghi nhận. Bạn được trả một nửa giá trị đơn cho công đi lại.": "접수했습니다. 방문한 대가로 주문 금액의 절반을 지급합니다.",
+  "Đã gồm phí và thuế": "수수료·세금 포함",
+  "Huỷ trước 7 ngày": "7일 전 취소",
+  "hoàn toàn bộ; trước 24 giờ hoàn 50%": "시 전액 환불, 24시간 전까지는 50% 환불",
+  "Huỷ miễn phí đến 24 giờ trước khi nhận phòng": "체크인 24시간 전까지 무료 취소",
+  "Huỷ miễn phí đến 5 ngày trước khi nhận phòng": "체크인 5일 전까지 무료 취소",
+  "Hoàn 100% nếu huỷ trước 30 ngày": "30일 전 취소 시 100% 환불",
+  "Hoàn 50% nếu huỷ trước 7 ngày": "7일 전 취소 시 50% 환불",
+  "Không hoàn tiền phòng, đổi lại giá rẻ hơn 10%": "숙박비 환불 없음, 대신 10% 저렴",
+  "Kỳ ở dài: hoàn 100% nếu huỷ trước 30 ngày": "장기 숙박: 30일 전 취소 시 100% 환불",
+
+  // docs/09 §2.8 — the real refund ladder, said in every place.
+  "Huỷ trước 7 ngày hoàn toàn bộ, trước 24 giờ hoàn 50%.": "7일 전까지 전액 환불, 24시간 전까지 50% 환불.",
+  "người trước 48 giờ sẽ bị huỷ và hoàn tiền toàn bộ. Bạn tự huỷ thì theo bậc 7 ngày / 24 giờ ở trên.": "명에 미달하면 48시간 전에 취소되고 전액 환불됩니다. 직접 취소하시면 위의 7일/24시간 단계를 따릅니다.",
 };

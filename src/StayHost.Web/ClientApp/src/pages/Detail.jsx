@@ -268,9 +268,13 @@ function Highlights({ detail, card }) {
       ic: 'selfcheckin', title: t('Tự nhận phòng'),
       sub: t('Bạn có thể tự nhận phòng bằng khoá số ở cửa.')
     },
-    // docs/03 §4 — the policy sentence is composed by Cancellation.Summary, one
-    // of six fixed texts, so the dictionary carries all six.
-    { ic: 'heart', title: t('Huỷ miễn phí trước 48 giờ'), sub: t(detail.cancellationPolicy) },
+    /*
+     * docs/03 §4 — the headline and the sentence under it both come from the
+     * listing's own tier. This used to hard-code "Huỷ miễn phí trước 48 giờ",
+     * which is not one of the six policies, and printed it directly above the
+     * sentence saying the place was non-refundable.
+     */
+    { ic: 'heart', title: t(card.cancellationHeadline), sub: t(detail.cancellationPolicy) },
     card.amenityKeys.includes('workspace') && {
       ic: 'workspace', title: t('Không gian riêng để làm việc'),
       sub: t('Phòng có bàn làm việc và wifi tốc độ cao, phù hợp làm việc từ xa.')

@@ -27,7 +27,10 @@ public class ServiceMarketService(
     [
         ServiceBookingStatus.CancelledByGuest,
         ServiceBookingStatus.CancelledByProvider,
-        ServiceBookingStatus.PaymentExpired
+        ServiceBookingStatus.PaymentExpired,
+        // The provider went, so the hour is spent — but the job is over, and the
+        // slot must not keep blocking the calendar behind it.
+        ServiceBookingStatus.ConditionsMisdeclared
     ];
 
     public async Task<IReadOnlyList<ServiceCardDto>> BrowseAsync(
@@ -124,10 +127,35 @@ public class ServiceMarketService(
             o.Host?.IsSuperhost ?? false, o.Host?.UserId);
     }
 
+    /// <summary>
+    /// The hour a request asked for, as an instant.
+    ///
+    /// The browser's picker sends <c>toISOString()</c>, which carries a Z and
+    /// binds as UTC, so this never bit a guest. Anything else — a partner, a
+    /// mobile client, curl — sends "2026-08-17T02:00:00", which binds as
+    /// <see cref="DateTimeKind.Unspecified"/>, and the first EF query holding it
+    /// threw <c>ArgumentException</c> out of the controller: an HTTP 500 with a
+    /// stack trace where a booking should have been. Somebody had already met
+    /// this and pinned the Kind on the row being *written*, but the availability
+    /// check reads first, so the fix never ran.
+    ///
+    /// Unspecified is read as UTC because that is what every other clock in this
+    /// codebase means; the provider's own opening hours are converted from it by
+    /// <c>ServiceRules.LocalTime</c>.
+    /// </summary>
+    private static DateTime AsInstant(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+    };
+
     public async Task<ServiceQuoteDto?> QuoteAsync(int offeringId, QuoteServiceRequest req, CancellationToken ct)
     {
         var offering = await db.ServiceOfferings.FirstOrDefaultAsync(o => o.Id == offeringId, ct);
         if (offering is null) return null;
+
+        req = req with { StartsAt = AsInstant(req.StartsAt) };
 
         var check = ServiceRules.CanBook(await BuildCheckAsync(offering, req.StartsAt, req.Quantity,
             req.Address, req.Latitude, req.Longitude, ct, req.ConditionsConfirmed));
@@ -337,6 +365,9 @@ public class ServiceMarketService(
         var offering = await db.ServiceOfferings.FirstOrDefaultAsync(o => o.Id == offeringId, ct);
         if (offering is null) return (null, "Không tìm thấy dịch vụ này.");
 
+        // Before the first query touches it — see AsInstant.
+        req = req with { StartsAt = AsInstant(req.StartsAt) };
+
         var check = ServiceRules.CanBook(await BuildCheckAsync(
             offering, req.StartsAt, req.Quantity, req.Address, req.Latitude, req.Longitude, ct,
             req.ConditionsConfirmed));
@@ -375,7 +406,8 @@ public class ServiceMarketService(
             Reference = $"SV{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}",
             OfferingId = offering.Id,
             GuestUserId = user.Id,
-            StartsAt = DateTime.SpecifyKind(req.StartsAt, DateTimeKind.Utc),
+            // Already an instant by the time it gets here (AsInstant, above).
+            StartsAt = req.StartsAt,
             DurationMinutes = offering.DurationMinutes,
             Quantity = price.Quantity,
             Address = (req.Address ?? "").Trim(),
@@ -505,6 +537,119 @@ public class ServiceMarketService(
 
         db.LedgerEntries.AddRange(Ledger.RefundService(booking, refund, DateTime.UtcNow));
         await db.SaveChangesAsync(ct);
+
+        return null;
+    }
+
+    /// <summary>
+    /// docs/09 §3.5 — the jobs somebody has been booked for.
+    ///
+    /// The provider console listed the services they *sell* and nothing about
+    /// the work itself, so the mandatory allergy and health notes a guest is
+    /// forced to write went into the database and were never read by the person
+    /// they were written for.
+    ///
+    /// The guest's phone follows the same gate as a stay (docs/03 §10): it
+    /// appears once the job is confirmed, not while it is still a request or
+    /// waiting on a transfer.
+    /// </summary>
+    public async Task<IReadOnlyList<ProviderJobDto>> JobsAsync(int providerUserId, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+
+        var rows = await db.ServiceBookings
+            .Where(b => b.Offering!.Host!.UserId == providerUserId)
+            .OrderByDescending(b => b.StartsAt)
+            .Take(200)
+            .Select(b => new
+            {
+                b.Id, b.Reference, b.StartsAt, b.DurationMinutes, b.Quantity,
+                b.Address, b.Note, b.Total, b.ProviderPayout, b.Status, b.CancelReason,
+                Title = b.Offering!.Title,
+                Pricing = b.Offering.Pricing,
+                Guest = b.GuestUser!.DisplayName ?? b.GuestUser.FullName ?? "Khách",
+                Phone = b.GuestUser.Phone
+            })
+            .ToListAsync(ct);
+
+        return rows.Select(r =>
+        {
+            var confirmed = r.Status == ServiceBookingStatus.Confirmed;
+            return new ProviderJobDto(
+                r.Id, r.Reference, r.Title, r.Guest,
+                r.StartsAt, r.StartsAt.AddMinutes(r.DurationMinutes),
+                r.Quantity, ServiceRules.UnitLabel(r.Pricing),
+                r.Address, r.Note,
+                confirmed ? r.Phone : null,
+                r.Total, r.ProviderPayout,
+                r.Status.ToString(),
+                ServiceRules.StatusLabel(r.Status),
+                ServiceRules.StatusBadge(r.Status),
+                r.CancelReason,
+                // The same three conditions ReportMisdeclaredAsync enforces, so a
+                // button is never offered that the server would then refuse.
+                CanReportMisdeclared:
+                r.Status is ServiceBookingStatus.Confirmed or ServiceBookingStatus.Requested
+                && now >= r.StartsAt);
+        }).ToList();
+    }
+
+    /// <summary>
+    /// docs/09 §3.6 (DV-D) — the provider arrived and the site was not what the
+    /// guest declared. "Đầu bếp tới nơi mới biết nhà không có bếp thì không được
+    /// để họ mất trắng."
+    ///
+    /// This had no way in at all: <c>ProviderShareOnMisdeclared</c> was written
+    /// and tested when the parameter was locked, and nothing ever called it, so
+    /// the one case the document singles out ended with the provider paid
+    /// nothing or the guest charged in full, depending on who cancelled first.
+    ///
+    /// Only the provider may report it, only once the hour has started — before
+    /// that they cannot have seen the place — and only on a job that was paid
+    /// for. Their word settles it here; a guest who disagrees has the resolution
+    /// centre, which is where a dispute belongs.
+    /// </summary>
+    public async Task<string?> ReportMisdeclaredAsync(
+        int providerUserId, int bookingId, string? note, CancellationToken ct)
+    {
+        var booking = await db.ServiceBookings
+            .Include(b => b.Offering).ThenInclude(o => o!.Host)
+            .FirstOrDefaultAsync(b => b.Id == bookingId, ct);
+        if (booking is null) return "Không tìm thấy đơn dịch vụ này.";
+
+        if (booking.Offering?.Host?.UserId != providerUserId)
+            return "Bạn không phải người nhận đơn này.";
+
+        if (booking.Status is not (ServiceBookingStatus.Confirmed or ServiceBookingStatus.Requested))
+            return "Đơn này không còn hiệu lực.";
+
+        var now = DateTime.UtcNow;
+        if (now < booking.StartsAt)
+            return "Chỉ báo được sau giờ hẹn — trước đó bạn chưa tới nơi.";
+
+        var refund = ServiceRules.GuestRefundOnMisdeclared(booking.Total);
+
+        booking.Status = ServiceBookingStatus.ConditionsMisdeclared;
+        booking.RefundedAmount = refund;
+        booking.CancelReason = string.IsNullOrWhiteSpace(note)
+            ? "Điều kiện tại chỗ không đúng như khách khai."
+            : $"Điều kiện tại chỗ không đúng như khách khai: {note.Trim()}";
+        booking.CancelledAt = now;
+
+        // Half the order goes back; the half that stays settles the ordinary way,
+        // so the provider is paid out of it by the usual sweep rather than by a
+        // second, special path that could disagree with the first.
+        db.LedgerEntries.AddRange(Ledger.RefundService(booking, refund, now));
+        await db.SaveChangesAsync(ct);
+
+        await notifications.QueueWithEmailAsync(
+            await db.Users.FirstAsync(u => u.Id == booking.GuestUserId, ct),
+            NotificationKind.System,
+            "Dịch vụ không thực hiện được tại chỗ",
+            $"Nhà cung cấp đến nơi nhưng điều kiện không như bạn khai cho đơn {booking.Reference}. " +
+            $"Bạn được hoàn {refund:#,##0}₫; phần còn lại trả cho công đi lại của họ. " +
+            "Nếu bạn thấy chưa đúng, mở khiếu nại ở trung tâm giải quyết.",
+            "/services/bookings", ct);
 
         return null;
     }

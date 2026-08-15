@@ -641,6 +641,61 @@ vụ không bao giờ thấy mục này.
 
 **Đếm lại: 203 mã, 203 xong.** Ai thêm mã mới thì sửa con số này ngay tại đây.
 
+### 9.6. Soát sâu: quy tắc có mà không ai gọi (15/08/2026)
+
+`§9.5` soát từ mặt sản phẩm vào. Lượt này soát ngược: liệt kê **506 thành viên
+`public static` của `StayHost.Domain`** rồi hỏi cái nào **không được gọi từ
+`StayHost.Web`/`StayHost.Infrastructure` mà cũng không được gọi từ chỗ khác
+trong chính Domain**. Ra **36 cái**. Đây đúng là bẫy `SuspensionImpact` của
+`CLAUDE.md §4`, chỉ khác là ở tầng sâu hơn: mã chạy, test xanh, không có đường
+tới người dùng.
+
+Phần lớn 36 cái là vô hại (hàm bọc, hằng số nhãn). **Sáu cái là lỗi thật:**
+
+| Việc | Mã / tài liệu | Hậu quả trước khi sửa |
+|---|---|---|
+| **`Q-A` — đền bù chủ nhà 25% khi bất khả kháng** | `docs/06 §8`, tham số chốt 06/08 | `ForceMajeureHostRate` nằm trong `ShieldSettings` **không có một chỗ đọc nào**. Khách được hoàn 100%, chủ nhà mất trắng cả tiền lẫn ngày |
+| **`C-D` — trần 5 đêm mất thu nhập** | `docs/06 §10`, tham số chốt 06/08 | Hồ sơ C3 đi chung đường khai tự do với C1/C2 nên chỉ bị chặn bởi **trần mỗi món đồ giá trị cao** — thứ nói về cái máy ảnh bị mất, không nói gì về số đêm. `Shield.LostIncome` có sẵn từ ngày chốt tham số, không ai gọi |
+| **`DV-D` — NCC nhận 50% khi khách khai sai điều kiện** | `docs/09 §3.6`, tham số chốt | **Không có API, không có màn hình.** Đúng tình huống tài liệu nhấn mạnh "đầu bếp tới nơi mới biết nhà không có bếp thì không được để họ mất trắng" |
+| **Nhà cung cấp không có chỗ nào xem đơn của mình** | `docs/09 §3.5` | Console chủ nhà chỉ liệt kê **dịch vụ đang bán**. Ghi chú **bắt buộc** về dị ứng đồ ăn / vùng cần tránh khi massage được thu rồi **không hiện cho đúng người cần đọc** |
+| **Khách thua khiếu nại ngân hàng nhiều lần không bị gắn cờ** | `docs/07 §11 bước 6` | `Chargebacks.GuestNeedsWatching` giữ ngưỡng từ ngày viết luật, không ai gọi. Đi bao nhiêu lần cũng không có gì xảy ra |
+| **Thẻ chết → hoàn vào số dư** | `docs/07 §10` | `Refunds.Redirect` không ai gọi. Chưa sửa: cổng thanh toán mô phỏng **chưa có sự kiện "hoàn tiền bị trả về"** để sinh ra nhánh này. Ghi lại ở đây thay vì làm một đường không bao giờ chạy |
+
+**Ba lời hứa sai trên màn hình** (đúng bài học "chữ trên màn hình phải khớp luật
+đang chạy", tưởng đã học xong sau vụ dịch vụ 24h/72h):
+
+- Thẻ kết quả tìm kiếm ghi "Đã gồm phí · **Huỷ miễn phí**" cho **mọi** tin, kể cả
+  tin `NonRefundable`. Giờ theo `Cancellation.HasFreeCancellation`.
+- Trang chi tiết ghi "**Huỷ miễn phí trước 48 giờ**" cho mọi tin — 48 giờ **không
+  phải** bất kỳ chính sách nào trong sáu chính sách, và nó nằm ngay trên dòng phụ
+  nói tin đó không hoàn tiền. Giờ lấy từ `Cancellation.Headline`.
+- Trang trải nghiệm ghi "trước **24 giờ** được hoàn toàn bộ". Thật ra 24 giờ là
+  mốc tụt xuống **50%**; 100% là **7 ngày**. Câu này nằm ở **ba chỗ** (thẻ giá,
+  ô "Chính sách huỷ", hộp thanh toán); sửa một chỗ xong vẫn còn hai chỗ hứa sai —
+  chỉ lộ ra khi mở trang thật bằng trình duyệt và đọc từng dòng có chữ "hoàn".
+
+**Hai lỗi nữa lộ ra trong lúc kiểm chứng, không nằm trong danh sách ban đầu:**
+
+- **`POST /api/services/{id}/book` trả HTTP 500 kèm stack trace** khi nhận giờ
+  **không có múi giờ** (`2026-08-17T02:00:00`): Npgsql từ chối `DateTimeKind.Unspecified`.
+  Picker của web gửi `toISOString()` nên khách không gặp, nhưng mọi client khác
+  đều gặp. Đáng chú ý: đã có người từng gặp và ghim `SpecifyKind` ở chỗ **ghi**
+  (dòng 381) — mà bước **đọc** lịch bận chạy trước nên bản vá không bao giờ tới.
+  Giờ chuẩn hoá một lần ở cửa vào (`ServiceMarketService.AsInstant`).
+- **Đếm chargeback trước khi lưu.** Bản đầu của chính đợt sửa này đếm số lần thua
+  từ **bảng**, trong khi dòng đang xử lý mới chỉ đổi trong bộ nhớ — hai lần liên
+  tiếp mỗi lần đếm được 1, không bao giờ chạm ngưỡng 2. Test `unwired_acceptance`
+  bắt được ngay trong lần chạy đầu.
+
+**Một phát hiện bị rút lại.** `Sanctions.BanBlocks` không có ai gọi, nhìn như
+`docs/08 §5.4` bỏ sót "tài khoản nhận tiền". Kiểm tra tận nơi thì **đã chặn đủ
+cả bốn** — email/SĐT/thiết bị chặn lúc đăng ký, tài khoản nhận tiền chặn lúc
+đặt tài khoản. Không phải mọi hàm không ai gọi đều là lỗi; phải xem chỗ khác có
+làm việc đó không rồi mới kết luận.
+
+**Đếm lại: 203 mã, 203 xong** — sáu việc trên là *chỗ chưa nối dây* của mã đã
+tick, không phải mã mới.
+
 ---
 
 ## Kiểm chứng
@@ -650,9 +705,12 @@ vụ không bao giờ thấy mục này.
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199.
-# Cổng bận thì đổi bằng STAYHOST_URL — cả ba script đều đọc biến này.
+# Cổng bận thì đổi bằng STAYHOST_URL — cả bốn script đều đọc biến này.
 python scripts/acceptance.py
 STAYHOST_URL=http://localhost:5200 python scripts/acceptance.py
+
+# 7 kịch bản của §9.6 — các quy tắc từng có mã mà không ai gọi
+python scripts/unwired_acceptance.py
 ```
 
 ## Ghi chú về quy mô

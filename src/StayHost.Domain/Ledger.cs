@@ -312,6 +312,20 @@ public static class Ledger
     }
 
     /// <summary>
+    /// docs/06 §8 — the force-majeure compensation. It comes out of the same
+    /// fund a case would, but there is no case: nobody filed, so there is no
+    /// <see cref="ShieldClaim"/> to hang it on and <see cref="PayFromShield"/>
+    /// cannot be used.
+    /// </summary>
+    public static List<LedgerEntry> CompensateHostFromShield(Booking booking, decimal amount, DateTime at) =>
+        amount <= 0
+            ? []
+            : Post("shield-force-majeure", booking.Id, at,
+                new Leg(LedgerAccount.ShieldFund, LedgerDirection.Debit, amount,
+                    $"Đền bù bất khả kháng đơn {booking.Reference}"),
+                new Leg(LedgerAccount.HostPayable, LedgerDirection.Credit, amount, "Trả chủ nhà"));
+
+    /// <summary>
     /// docs/06 §3.3 for a C4 case: what the guest is made to pay goes straight to
     /// the injured party rather than to the host, who was never out of pocket.
     /// </summary>

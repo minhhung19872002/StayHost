@@ -2216,4 +2216,27 @@ export default {
   "Lời khuyên": "アドバイス",
   "Hiếm có": "希少",
   "Thuê xe": "車のレンタル",
+
+  // Deep audit 15/08/2026: provider jobs (docs/09 §3.5), DV-D,
+  // and the cancellation copy that now comes from the real tier.
+  "Đơn bạn nhận được": "受けた依頼",
+  "Giờ hẹn, địa chỉ và ghi chú bắt buộc của khách.": "予約時間、住所、そしてゲストが必ず書いた注意事項。",
+  "Khách dặn:": "ゲストの注意事項：",
+  "Điện thoại:": "電話：",
+  "Không đủ điều kiện tại chỗ": "現地の条件が違う",
+  "Thiếu gì ở nơi làm việc? (không bắt buộc)": "現地に何が足りませんでしたか？（任意）",
+  "Đã ghi nhận. Bạn được trả một nửa giá trị đơn cho công đi lại.": "受け付けました。出向いた分として注文額の半分をお支払いします。",
+  "Đã gồm phí và thuế": "手数料・税込み",
+  "Huỷ trước 7 ngày": "7日前までのキャンセル",
+  "hoàn toàn bộ; trước 24 giờ hoàn 50%": "で全額返金、24時間前までなら50%返金",
+  "Huỷ miễn phí đến 24 giờ trước khi nhận phòng": "チェックイン24時間前まで無料キャンセル",
+  "Huỷ miễn phí đến 5 ngày trước khi nhận phòng": "チェックイン5日前まで無料キャンセル",
+  "Hoàn 100% nếu huỷ trước 30 ngày": "30日前までの取消で全額返金",
+  "Hoàn 50% nếu huỷ trước 7 ngày": "7日前までの取消で50%返金",
+  "Không hoàn tiền phòng, đổi lại giá rẻ hơn 10%": "返金なし、その代わり10%割引",
+  "Kỳ ở dài: hoàn 100% nếu huỷ trước 30 ngày": "長期滞在：30日前までの取消で全額返金",
+
+  // docs/09 §2.8 — the real refund ladder, said in every place.
+  "Huỷ trước 7 ngày hoàn toàn bộ, trước 24 giờ hoàn 50%.": "7日前までなら全額返金、24時間前までなら50%返金。",
+  "người trước 48 giờ sẽ bị huỷ và hoàn tiền toàn bộ. Bạn tự huỷ thì theo bậc 7 ngày / 24 giờ ở trên.": "名に満たない場合、48時間前に中止となり全額返金されます。ご自身でキャンセルする場合は上記の7日／24時間の段階に従います。",
 };

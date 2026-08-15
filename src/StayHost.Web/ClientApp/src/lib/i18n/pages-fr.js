@@ -2216,4 +2216,27 @@ export default {
   "Lời khuyên": "Conseils",
   "Hiếm có": "Rare",
   "Thuê xe": "Location de voiture",
+
+  // Deep audit 15/08/2026: provider jobs (docs/09 §3.5), DV-D,
+  // and the cancellation copy that now comes from the real tier.
+  "Đơn bạn nhận được": "Vos missions",
+  "Giờ hẹn, địa chỉ và ghi chú bắt buộc của khách.": "L'heure, l'adresse et la note que le voyageur a dû écrire.",
+  "Khách dặn:": "Note du voyageur :",
+  "Điện thoại:": "Téléphone :",
+  "Không đủ điều kiện tại chỗ": "Conditions non conformes",
+  "Thiếu gì ở nơi làm việc? (không bắt buộc)": "Qu'est-ce qui manquait sur place ? (facultatif)",
+  "Đã ghi nhận. Bạn được trả một nửa giá trị đơn cho công đi lại.": "Enregistré. La moitié du montant vous est versée pour le déplacement.",
+  "Đã gồm phí và thuế": "Frais et taxes inclus",
+  "Huỷ trước 7 ngày": "Annulation 7 jours avant",
+  "hoàn toàn bộ; trước 24 giờ hoàn 50%": "pour un remboursement intégral ; 50 % jusqu'à 24 heures avant",
+  "Huỷ miễn phí đến 24 giờ trước khi nhận phòng": "Annulation gratuite jusqu'à 24 heures avant l'arrivée",
+  "Huỷ miễn phí đến 5 ngày trước khi nhận phòng": "Annulation gratuite jusqu'à 5 jours avant l'arrivée",
+  "Hoàn 100% nếu huỷ trước 30 ngày": "Remboursement à 100 % si vous annulez 30 jours avant",
+  "Hoàn 50% nếu huỷ trước 7 ngày": "Remboursement à 50 % si vous annulez 7 jours avant",
+  "Không hoàn tiền phòng, đổi lại giá rẻ hơn 10%": "Chambre non remboursable, en échange de 10 % de réduction",
+  "Kỳ ở dài: hoàn 100% nếu huỷ trước 30 ngày": "Long séjour : remboursement à 100 % si vous annulez 30 jours avant",
+
+  // docs/09 §2.8 — the real refund ladder, said in every place.
+  "Huỷ trước 7 ngày hoàn toàn bộ, trước 24 giờ hoàn 50%.": "Remboursement intégral 7 jours avant, 50 % jusqu'à 24 heures avant.",
+  "người trước 48 giờ sẽ bị huỷ và hoàn tiền toàn bộ. Bạn tự huỷ thì theo bậc 7 ngày / 24 giờ ở trên.": "personnes 48 heures avant est annulée et intégralement remboursée. Si vous annulez vous-même, le barème 7 jours / 24 heures ci-dessus s'applique.",
 };
