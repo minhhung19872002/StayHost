@@ -62,7 +62,7 @@ Một đơn có thể trả bằng nhiều nguồn. **Thứ tự trừ cố đ�
 
 Quy tắc:
 - Chỉ được chọn **một** phương thức thanh toán bên ngoài cho phần còn lại. Không cho chia hai thẻ (trừ trường hợp chia hoá đơn ở §9).
-- Nếu số dư đủ trả toàn bộ thì vẫn **bắt buộc gắn một phương thức dự phòng**, dùng khi có phát sinh (đổi lịch, bồi thường).
+- Nếu số dư đủ trả toàn bộ thì vẫn **bắt buộc gắn một phương thức dự phòng**, dùng khi có phát sinh — **đổi lịch**, và phần chênh khi khách đổi sang chỗ đắt hơn. **Không dùng để thu tiền bồi thường**: từ 17/08/2026 bồi thường là chuyện khách và chủ nhà tự thoả thuận bằng tiền mặt lúc trả phòng (`docs/06 §3.3`), sàn không thu.
 - Bảng giá phải hiển thị từng nguồn thành dòng riêng, khách nhìn là hiểu tiền ở đâu ra.
 
 ---

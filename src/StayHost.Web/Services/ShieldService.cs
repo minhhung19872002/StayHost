@@ -337,12 +337,18 @@ public class ShieldService(
                         && c.Booking!.Listing!.Host!.UserId == hostUserId)
             .SumAsync(c => (decimal?)c.Approved, ct) ?? 0m;
 
-        // docs/06 §3.3 — deposit first, then the guest, then the fund. Never reordered.
-        var approvedByGuest = Math.Max(0m, req.RecoverFromGuest ?? 0m);
+        // docs/06 §3.3 — what the guest and the host settled between themselves
+        // first, then the fund for whatever is left.
+        //
+        // The customer settled this on 17/08/2026: damage is paid in cash at the
+        // door, host to guest, while the guest is still there. So this number is
+        // a record of a conversation the platform was not part of, not money it
+        // collected — and the ledger below must not pretend otherwise.
+        var paidInCash = Math.Max(0m, req.RecoverFromGuest ?? 0m);
         var thirdParty = Shield.IsThirdParty(claim.Kind);
 
         var outcome = Shield.SettleHost(
-            req.ApprovedAmount ?? claim.Claimed, req.DepositAvailable ?? 0m, approvedByGuest, paidThisYear,
+            req.ApprovedAmount ?? claim.Claimed, req.DepositAvailable ?? 0m, paidInCash, paidThisYear,
             thirdParty: thirdParty);
 
         claim.Approved = outcome.Approved;
@@ -350,12 +356,20 @@ public class ShieldService(
         claim.RecoveredFromCounterparty = outcome.FromDeposit + outcome.FromGuest;
         claim.PaidFromFund = outcome.FromFund;
 
-        // docs/06 §3.1 C4 — the host is bringing the case, but the money is owed
-        // to whoever was actually damaged, so it never lands on host payables.
-        if (claim.RecoveredFromCounterparty > 0)
-            db.LedgerEntries.AddRange(thirdParty
-                ? Ledger.ChargeForThirdParty(claim, claim.RecoveredFromCounterparty, now)
-                : Ledger.ChargeCounterparty(claim, claim.RecoveredFromCounterparty, now));
+        // Cash that passed from one person to another at a front door is not a
+        // movement on this platform's books, and posting it would be inventing
+        // one: ChargeCounterparty debits GuestFunds — money StayHost is holding —
+        // and by checkout there is none of it left to debit. Recording it here
+        // would have credited the host a second time for money they already had
+        // in their hand.
+        //
+        // A third party's claim (C4) is different and still runs through the
+        // platform: the injured party is not on the booking, has no way to be
+        // paid at the door, and the money comes from the fund rather than from
+        // the guest's pocket.
+        if (thirdParty && claim.RecoveredFromCounterparty > 0)
+            db.LedgerEntries.AddRange(
+                Ledger.ChargeForThirdParty(claim, claim.RecoveredFromCounterparty, now));
 
         if (outcome.FromFund > 0)
         {

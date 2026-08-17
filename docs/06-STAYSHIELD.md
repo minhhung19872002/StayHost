@@ -96,7 +96,7 @@ Không tìm được chỗ thay thế, hoặc khách chọn về sớm:
 - **Tiền trả thẳng cho bên bị thiệt hại**, không đi qua khoản phải trả chủ nhà — chủ nhà không mất gì nên cũng không nhận gì.
 - **Không trừ mức tự chịu `[C-C]`.** Mức đó là chủ nhà tự gánh phần đầu thiệt hại *của chính mình*; ở đây thiệt hại là của người khác.
 - **Hạn mức `[C-A]`, `[C-B]` vẫn áp dụng** — hai hạn mức đó tính theo hồ sơ và theo chủ nhà, không theo loại thiệt hại.
-- **Không áp mốc "trước khi khách tiếp theo nhận phòng"** của §3.4. Lý do của mốc đó là không xác định được ai gây ra thiệt hại *bên trong* chỗ ở; xe hàng xóm hay sảnh chung không có vấn đề đó. Mốc 14 ngày vẫn giữ.
+- **Không áp mốc "trước khi khách tiếp theo nhận phòng"** của §3.4, và **không áp mốc 24 giờ** của C1/C2: thiệt hại của người ngoài không phải thứ khách trả tiền mặt ở cửa lúc trả phòng. Mốc 14 ngày vẫn giữ.
 - Hồ sơ bắt buộc ghi **tên và liên hệ của bên bị thiệt hại**.
 
 ### 3.2. Hạn mức và mức tự chịu
@@ -109,23 +109,40 @@ Không tìm được chỗ thay thế, hoặc khách chọn về sớm:
 | Hạn mức riêng cho C3 (mất thu nhập) | tối đa **`[THAM SỐ C-D]`** đêm bị huỷ |
 | Hạn mức riêng cho đồ giá trị cao | **`[THAM SỐ C-E]`** mỗi món, phải khai báo trước trong tin đăng |
 
-### 3.3. Thứ tự thu tiền — không được đảo
+### 3.3. Ai trả — chốt lại 17/08/2026
+
+**Khách đền trực tiếp cho chủ nhà, bằng tiền mặt, lúc trả phòng. Sàn không thu
+tiền của khách.**
 
 ```
-1. Trừ vào tiền đặt cọc của khách (nếu chủ nhà có đặt cọc)
-2. Thu từ phương thức thanh toán của khách — nếu khách đồng ý, hoặc quản trị phân xử buộc khách chịu
-3. Phần còn thiếu → chi từ quỹ StayShield
+1. Chủ nhà báo cho khách NGAY LÚC TRẢ PHÒNG, khách còn ở đó
+2. Hai bên tự thoả thuận, khách đưa tiền mặt cho chủ nhà
+3. Phần hai bên không tự giải quyết được → chi từ quỹ StayShield
 ```
 
-Sàn chỉ chi quỹ ở bước 3. Nếu sau đó thu hồi được từ khách thì hoàn lại quỹ.
+Người trực **ghi lại** khách đã đưa bao nhiêu — đó là con số quỹ trừ đi trước khi
+chi phần còn lại. Nó là **biên bản của một cuộc nói chuyện sàn không tham gia**,
+không phải một lần thu tiền: tiền mặt trao tay ở cửa nhà không đi qua sổ của sàn,
+và ghi bút toán cho nó là bịa ra một chuyển động không có thật.
 
-### 3.4. Cửa sổ khiếu nại
+> **Vì sao bỏ bước "thu từ thẻ khách" của bản cũ.** Hai lý do, một nghiệp vụ một
+> kỹ thuật. Nghiệp vụ: chủ nhà nhìn thấy hư hỏng lúc khách còn đứng đó thì phải
+> nói ngay — báo sau vài ngày là tước mất quyền đối chất của khách. Kỹ thuật:
+> từ `docs/07 §13` thẻ do cổng thanh toán giữ, và **cổng không cho sàn tự trừ
+> thẻ khi khách không có mặt bấm xác nhận**. Bước đó trong bản cũ chưa từng chạy
+> được — trong mã nó chỉ là một dòng sổ do admin gõ tay.
 
-Chủ nhà phải mở yêu cầu trong khoảng **sớm hơn** của hai mốc:
-- **14 ngày** kể từ ngày khách trả phòng
-- Trước khi khách tiếp theo nhận phòng
+### 3.4. Cửa sổ khiếu nại — không giống nhau cho bốn nhóm
 
-Lý do mốc thứ hai: sau khi khách khác vào ở thì không xác định được ai gây ra.
+| Nhóm | Hạn mở hồ sơ | Vì sao |
+|---|---|---|
+| **C1** hư hỏng · **C2** chi phí khắc phục | **24 giờ** kể từ khi khách trả phòng | Đây là thứ khách trả tiền mặt tại chỗ. Quá 24 giờ thì khách đã đi, không ai đối chất được, và chủ nhà cũng không chứng minh được ai gây ra |
+| **C3** mất thu nhập | 14 ngày | Chỉ biết được khi đơn kế tiếp bị huỷ |
+| **C4** bên thứ ba | 14 ngày | Hàng xóm phát hiện lúc nào thì báo lúc đó |
+
+Với C1 và C2 còn một mốc nữa, lấy mốc nào đến trước: **trước khi khách tiếp theo
+nhận phòng.** Sau khi khách khác vào ở thì không xác định được ai gây ra. Mốc này
+không áp cho C4 — xe hàng xóm hay sảnh chung không có vấn đề đó.
 
 ### 3.5. Bằng chứng bắt buộc
 

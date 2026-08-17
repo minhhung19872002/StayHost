@@ -25,13 +25,17 @@ thì **code sai**, không phải tài liệu sai.
 
 ---
 
-## 2. Ba việc khách đã quyết (06/08/2026)
+## 2. Những việc khách đã quyết
 
 1. **Giữ tên StayHost OS**, giữ danh hiệu "Siêu chủ nhà" / "Khách yêu thích".
    Không đổi sang StayHub.
 2. **Phí dịch vụ 14% khách / 3% chủ nhà** theo `docs/03 §1`, để trong cấu hình
    `Pricing:` chứ không rải hằng số khắp nơi.
-3. **14 tham số StayShield** của `docs/06 §10` đã chốt: bù đổi chỗ 40%, tặng số dư
+3. **Bồi thường hư hỏng không đi qua sàn** (17/08/2026). Chủ nhà phải báo cho khách
+   **lúc khách trả phòng**, khách đưa **tiền mặt** tại chỗ. Sàn ra phán quyết và ghi
+   nhận, **không thu tiền của khách và không chuyển tiền cho chủ nhà**. Cửa sổ mở hồ
+   sơ hư hỏng vì thế rút từ 14 ngày xuống **24 giờ**. Xem `docs/06 §3.3`, `§3.4`.
+4. **14 tham số StayShield** của `docs/06 §10` đã chốt: bù đổi chỗ 40%, tặng số dư
    10%, trần chi phí phát sinh 3 triệu; chủ nhà 75 triệu/đơn, 350 triệu/năm, tự chịu
    500k, 5 đêm mất thu nhập, 15 triệu mỗi món giá trị cao; quỹ trích 5% phí dịch vụ,
    cảnh báo ở 80%, gắn cờ từ hồ sơ thứ 4. **Có trực 24/7**, **có làm nhánh C4**.
@@ -41,7 +45,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (17/08/2026).** 1064 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (17/08/2026).** 1065 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **23/23** kịch bản chuyển tiền cho chủ nhà (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
@@ -95,6 +99,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Bảo mật tài khoản | Xác minh danh tính có người duyệt, bảo mật 2 lớp bằng mã 6 số, ma trận thông báo loại × kênh, tải toàn bộ dữ liệu cá nhân |
 | Danh hiệu | Siêu chủ nhà xét mỗi quý, Khách chọn xét hằng tuần — cấp và thu hồi tự động. Ngưỡng chỉ nằm trong `Badges.cs` |
 | Xếp hạng | Điểm tổng hợp 7 yếu tố của `docs/03 §6` trong `Ranking.cs`, có trừ điểm và đa dạng hoá 12 kết quả đầu ≤ 2 chỗ mỗi chủ nhà |
+| Bồi thường hư hỏng | **Khách đền trực tiếp chủ nhà bằng tiền mặt lúc trả phòng — sàn không thu** (khách chốt 17/08/2026, `docs/06 §3.3`). Cửa sổ mở hồ sơ **C1/C2 chỉ 24 giờ** sau trả phòng (`Shield.DamageReportWindow`) — quá đó khách đã đi, không ai đối chất được; C3/C4 vẫn 14 ngày. Ô "thu từ khách" ở màn hình quản trị giờ là **biên bản khách đã đưa bao nhiêu tiền mặt**, quỹ chỉ bù phần còn thiếu, và **không ghi bút toán nào** cho khoản đó. Trung tâm giải quyết cũng vậy: `claim-to-host` không còn ghi sổ — nó từng trừ `GuestFunds` là **tiền của khách khác** |
 | StayShield | Hai nhánh K1–K4 / C1–C4 (kể cả bên thứ ba), cửa sổ khiếu nại, thứ tự thu tiền, quỹ trích từ phí dịch vụ, khiếu nại một lần do người khác xét |
 | Mở rộng | Khách sạn (nhiều loại phòng có tồn kho), thẻ quà tặng, số dư, giới thiệu bạn bè |
 | Trải nghiệm (`docs/09`) | Thẩm định có người duyệt + phân loại rủi ro theo danh mục, hàng chờ kiểm duyệt, suất lặp lại và chặn chồng giờ, **giữ chỗ 10 phút**, nhiều đơn chung một suất, thuê trọn nhóm, tự huỷ khi thiếu người + gợi ý suất khác, điểm danh, huỷ theo bậc 7 ngày/50%, đánh giá 4 tiêu chí riêng |
@@ -277,6 +282,12 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   ra **trùng mã**, ràng buộc duy nhất ném, và vì ném trong tick của worker nên
   **các vòng quét phía sau chết theo, im lặng**. Đổi nghĩa một cột thì grep hết chỗ
   đọc nó.
+- **Trừ vào `GuestFunds` sau khi khách đã trả phòng là tiêu tiền của khách khác.**
+  `Ledger.SettleClaim(toHost:)` và `Shield.ChargeCounterparty` đều trừ tài khoản gộp
+  "tiền sàn giữ hộ khách" để trả chủ nhà. Đến lúc phân xử xong thì tiền của **chính** khách
+  đó đã chuyển cho chủ nhà từ lâu, nên khoản trừ ấy ăn vào số dư của người khác và không
+  bao giờ có ai thu lại. Sổ vẫn cân nên không có gì kêu. Trước khi ghi một bút toán trừ
+  tài khoản gộp, hỏi "tiền của **ai** đang nằm ở đó lúc này?".
 - **VNPay trả 403 cho request không có `User-Agent`.** `merchant_webapi` đáp lại bằng
   **HTML 403** cho mọi request thiếu header đó, mà `HttpClient` mặc định không gửi. Log chỉ
   nói "không parse được JSON" — không giống lỗi chữ ký, không giống lỗi gì cả. Nó âm thầm
@@ -461,7 +472,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 1064 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1065 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09

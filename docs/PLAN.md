@@ -701,6 +701,34 @@ JSON".
 
 `scripts/refund_acceptance.py` (11/11) trả tiền thật rồi hoàn thật.
 
+### 9.4e. Bồi thường hư hỏng ra khỏi sàn (17/08/2026)
+
+Khách chốt: **bồi thường là chuyện khách và chủ nhà tự thoả thuận bằng tiền mặt
+lúc trả phòng, sàn không thu.** Chủ nhà phải báo ngay lúc đó chứ không phải vài
+ngày sau.
+
+Soát ra hai chỗ đang **ghi bút toán cho tiền không có thật**:
+
+- `Shield.ChargeCounterparty` và `Ledger.SettleClaim(toHost:)` đều trừ
+  `GuestFunds` — tài khoản gộp "tiền sàn giữ hộ khách" — rồi cộng cho chủ nhà.
+  Đến lúc phân xử xong thì tiền của **chính khách đó** đã chuyển cho chủ nhà từ
+  lâu, nên khoản trừ ấy ăn vào số dư của **khách khác** và không ai thu lại. Sổ
+  vẫn cân nên chưa từng có gì kêu.
+- Và bước "thu từ thẻ khách" của `docs/06 §3.3` **chưa từng chạy được**: trong mã
+  nó chỉ là một con số admin gõ tay, không có lần gọi cổng nào.
+
+Đã làm: bỏ cả hai bút toán, cửa sổ mở hồ sơ C1/C2 rút xuống **24 giờ**
+(`Shield.DamageReportWindow`), C3/C4 giữ 14 ngày, ô nhập đổi nghĩa thành "khách
+đã đưa bao nhiêu tiền mặt", và `docs/06 §3.3`/`§3.4` + `docs/07 §3` viết lại cho
+khớp. Kịch bản 10 của `docs/04` giờ khẳng định thêm: **không có bút toán
+`claim-to-host` nào**.
+
+**Còn để ngỏ, khách chưa nói:** khách từ chối đưa tiền rồi đi thẳng thì chủ nhà
+còn đường nào; và hư hỏng chỉ phát hiện được sau 24 giờ (vết bẩn dưới thảm, thiết
+bị không ai bật) thì xử lý ra sao. Hiện quỹ StayShield vẫn bù phần còn thiếu, tức
+sàn gánh — với hạn mức 75 triệu/đơn và quỹ trích 5% phí dịch vụ, chỗ này cần
+khách nhìn lại.
+
 ### 9.5. Soát lại đối chiếu airbnb.com (15/08/2026)
 
 Lượt soát này đi từ ngoài vào: lấy mặt sản phẩm của Airbnb (kể cả bản phát hành

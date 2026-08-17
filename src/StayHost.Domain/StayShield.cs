@@ -145,8 +145,40 @@ public static class Shield
     /// <summary>docs/06 §2.2 — how long a guest has to report K2, K3 or K4.</summary>
     public static readonly TimeSpan GuestReportWindow = TimeSpan.FromHours(72);
 
-    /// <summary>docs/06 §3.4 — and how long a host has after checkout.</summary>
+    /// <summary>
+    /// docs/06 §3.4 — how long a host has after checkout, for the two kinds that
+    /// are not about damage the guest could have paid for at the door.
+    ///
+    /// Lost income (C3) is only knowable once the next booking is cancelled, and
+    /// a neighbour's claim (C4) arrives when the neighbour notices. Neither is
+    /// something a guest settles in cash on their way out.
+    /// </summary>
     public static readonly TimeSpan HostReportWindow = TimeSpan.FromDays(14);
+
+    /// <summary>
+    /// docs/06 §3.4 — damage and cleaning have to be raised **while the guest is
+    /// still standing there** (customer's rule, 17/08/2026): "chủ nhà phải báo
+    /// cho khách lúc khách trả phòng, chứ không phải vài ngày sau mới báo, thì
+    /// lúc trả phòng khách trả tiền mặt cho chủ luôn."
+    ///
+    /// So the platform allows the checkout day and no more. A host who finds the
+    /// television broken a week later has lost the only moment when the person
+    /// who broke it was in the room — and the guest has lost the only moment
+    /// when they could see the damage they are being charged for. The short
+    /// window protects both, which is why it is short rather than generous.
+    /// </summary>
+    public static readonly TimeSpan DamageReportWindow = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// True for the two kinds settled face to face: property damage and the
+    /// cleaning it needs. Lost income and a third party's claim are not.
+    /// </summary>
+    public static bool SettledAtCheckout(ShieldCase kind) =>
+        kind is ShieldCase.C1 or ShieldCase.C2;
+
+    /// <summary>How long this kind of case has, which is not the same for all four.</summary>
+    public static TimeSpan ReportWindow(ShieldCase kind) =>
+        SettledAtCheckout(kind) ? DamageReportWindow : HostReportWindow;
 
     /// <summary>docs/06 §2.2 — how long to give the host before the platform steps in.</summary>
     public static TimeSpan WaitOnHost(ShieldCase kind) =>
@@ -290,9 +322,18 @@ public static class Shield
             return Check.Fail(Refusal.NextGuestArrived,
                 "Khách tiếp theo đã nhận phòng nên không xác định được ai gây ra.");
 
-        return req.Now - req.CheckOutAt <= HostReportWindow
+        // docs/06 §3.4 — damage is settled face to face on the day, so the window
+        // for it is the checkout day and not a fortnight. Lost income and a
+        // neighbour's claim keep the fortnight: neither is something a guest
+        // could have paid for on their way out.
+        var window = ReportWindow(req.Kind);
+
+        return req.Now - req.CheckOutAt <= window
             ? Check.Pass
-            : Check.Fail(Refusal.WindowClosed, "Đã quá 14 ngày kể từ ngày khách trả phòng.");
+            : Check.Fail(Refusal.WindowClosed, SettledAtCheckout(req.Kind)
+                ? "Hư hỏng phải báo cho khách lúc trả phòng, trong vòng 24 giờ. " +
+                  "Quá hạn này thì khách đã đi và không còn ai đối chất được."
+                : "Đã quá 14 ngày kể từ ngày khách trả phòng.");
     }
 
     /* ------------------------------------------------------------- §2.3 */

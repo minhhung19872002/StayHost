@@ -827,7 +827,11 @@ function ShieldPanel() {
       const amount = prompt(`Duyệt bao nhiêu trong ${money(claim.claimed)}?`,
         String(Math.round(claim.claimed)));
       body.approvedAmount = Number((amount ?? '').replace(/\D/g, '')) || 0;
-      const fromGuest = prompt('Thu được bao nhiêu từ khách?', '0');
+      // docs/06 §3.3 (chốt 17/08/2026) — khách đền trực tiếp cho chủ nhà bằng tiền
+      // mặt lúc trả phòng. Con số này là biên bản của việc đã xảy ra rồi, không
+      // phải lệnh thu: quỹ chỉ chi phần còn thiếu sau nó.
+      const fromGuest = prompt(
+        'Khách đã đưa cho chủ nhà bao nhiêu tiền mặt lúc trả phòng? (quỹ chỉ bù phần còn thiếu)', '0');
       body.recoverFromGuest = Number((fromGuest ?? '').replace(/\D/g, '')) || 0;
       body.depositAvailable = 0;
     }

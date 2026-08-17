@@ -365,10 +365,20 @@ st10b, disputed = call(guest, f"/api/resolutions/{case_id}/respond",
 st10c, decided = call(admin, f"/api/resolutions/{case_id}/decide",
                       {"amountAwarded": 500000, "decision": "Chia đôi trách nhiệm theo bằng chứng hai bên."})
 _, ov10 = call(admin, "/api/admin/overview")
-record(10, "Bồi thường, chủ nhà phản đối, admin phân xử, tiền chia đúng",
+# docs/06 §3.3 (chốt 17/08/2026) — the platform rules on a host's damage claim
+# and does not move the money: the two of them settle it in cash. So the award
+# must be recorded and the ledger must show no claim-to-host entry for it.
+claim_rows = int(subprocess.run(
+    ["docker", "exec", "stayhost-db", "psql", "-U", "stayhost", "-d", "stayhost", "-t", "-A",
+     "-c", "select count(*) from ledger_entries where \"TransactionKind\"='claim-to-host'"],
+    capture_output=True, text=True).stdout.strip() or 0)
+
+record(10, "Bồi thường: sàn phân xử, hai bên tự thanh toán, sàn không chuyển tiền",
        st10a == 201 and st10b == 200 and st10c == 200
-       and decided['amountAwarded'] == 500000 and ov10['ledger']['imbalance'] == 0,
+       and decided['amountAwarded'] == 500000 and ov10['ledger']['imbalance'] == 0
+       and claim_rows == 0,
        f"yêu cầu {kase['amountClaimed']:,.0f}₫ → phân xử {decided['amountAwarded']:,.0f}₫, "
+       f"bút toán chuyển cho chủ nhà: {claim_rows}, "
        f"sổ lệch {ov10['ledger']['imbalance']}, nhật ký {len(ov10['auditLog'])} dòng")
 
 passed = sum(1 for r in results if r[2])

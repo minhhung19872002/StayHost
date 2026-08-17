@@ -222,16 +222,30 @@ public class ResolutionController(
         kase.DecidedAt = DateTime.UtcNow;
 
         db.ResolutionEvents.Add(Resolutions.Transition(kase, ResolutionStatus.Resolved,
-            $"admin:{admin.Id}", $"Phân xử: chuyển {awarded:#,##0}₫. {decision}"));
+            $"admin:{admin.Id}",
+            kase.OpenedByHost
+                ? $"Phân xử: khách phải đền chủ nhà {awarded:#,##0}₫. {decision}"
+                : $"Phân xử: chuyển {awarded:#,##0}₫. {decision}"));
 
-        // A host's damage claim takes money from the guest's side; anything the
-        // guest claims comes out of the host's.
-        if (awarded > 0)
-        {
-            db.LedgerEntries.AddRange(kase.OpenedByHost
-                ? Ledger.SettleClaim(booking, toGuest: 0m, toHost: awarded, DateTime.UtcNow)
-                : Ledger.SettleClaim(booking, toGuest: awarded, toHost: 0m, DateTime.UtcNow));
-        }
+        /*
+         * docs/06 §3.3, chốt 17/08/2026 — a host's damage claim is settled
+         * between the two of them, in cash. The platform rules on it and does
+         * not move the money.
+         *
+         * It used to post SettleClaim(toHost:), which debits GuestFunds — the
+         * pooled account of money StayHost is holding for guests. By the time a
+         * damage case is decided the guest's own money has long since gone to
+         * the host as payout, so that debit was against other guests' balances
+         * and nothing ever collected it back. A ruling nobody can enforce is
+         * still a ruling; a ledger entry against somebody else's money is a
+         * mistake.
+         *
+         * The other direction is unchanged and is not the same case: when a host
+         * owes a guest, the platform genuinely holds that host's money.
+         */
+        if (awarded > 0 && !kase.OpenedByHost)
+            db.LedgerEntries.AddRange(
+                Ledger.SettleClaim(booking, toGuest: awarded, toHost: 0m, DateTime.UtcNow));
 
         db.AdminAudit.Add(new AdminAuditEntry
         {
@@ -245,14 +259,21 @@ public class ResolutionController(
 
         await db.SaveChangesAsync(ct);
 
+        // Saying "chuyển" for a host's damage claim would promise a transfer that
+        // is not going to happen: the two of them settle it (docs/06 §3.3). What
+        // the platform decided is a number, and both sides are told it plainly.
+        var ruling = kase.OpenedByHost
+            ? $"khách phải đền chủ nhà {awarded:#,##0}₫, hai bên tự thanh toán với nhau"
+            : $"chuyển {awarded:#,##0}₫";
+
         var opener = await db.Users.FirstOrDefaultAsync(u => u.Id == kase.OpenedByUserId, ct);
         await notifications.QueueWithEmailAsync(opener, NotificationKind.System,
             "Hồ sơ đã được phân xử",
-            $"Hồ sơ {kase.Reference}: StayHost quyết định chuyển {awarded:#,##0}₫. {decision}",
+            $"Hồ sơ {kase.Reference}: StayHost quyết định {ruling}. {decision}",
             "/resolutions", ct);
 
         await messenger.PostAsync(booking,
-            $"Hồ sơ {kase.Reference} đã được StayHost phân xử: chuyển {awarded:#,##0}₫. {decision}", ct);
+            $"Hồ sơ {kase.Reference} đã được StayHost phân xử: {ruling}. {decision}", ct);
 
         await db.SaveChangesAsync(ct);
         return Ok(ToDto((await LoadAsync(id, ct))!, admin));

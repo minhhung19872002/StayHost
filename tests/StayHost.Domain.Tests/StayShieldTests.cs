@@ -107,30 +107,57 @@ public class StayShieldTests
 
     /* ------------------------------------------------------------- §3.4 */
 
+    /// <summary>
+    /// docs/06 §3.4, as the customer settled it on 17/08/2026: damage is raised
+    /// while the guest is still at the door and paid in cash there. Two days
+    /// later used to be fine and is not any more — by then the person who broke
+    /// it is gone and the guest cannot see what they are being charged for.
+    /// </summary>
     [Fact]
-    public void A_host_files_after_checkout_and_within_a_fortnight()
+    public void Damage_is_raised_on_the_day_or_not_at_all()
     {
         var contacted = CheckOut.AddHours(1);
 
-        Assert.True(Shield.CanFile(Ask(ShieldCase.C1, CheckOut.AddDays(2), contacted: contacted)).Ok);
+        Assert.True(Shield.CanFile(Ask(ShieldCase.C1, CheckOut.AddHours(2), contacted: contacted)).Ok);
         Assert.Equal(
             Shield.Refusal.TooEarly,
             Shield.CanFile(Ask(ShieldCase.C1, CheckOut.AddHours(-1), contacted: contacted)).Reason);
         Assert.Equal(
             Shield.Refusal.WindowClosed,
-            Shield.CanFile(Ask(ShieldCase.C1, CheckOut.AddDays(15), contacted: contacted)).Reason);
+            Shield.CanFile(Ask(ShieldCase.C1, CheckOut.AddDays(2), contacted: contacted)).Reason);
+    }
+
+    /// <summary>
+    /// The fortnight survives for the two kinds nobody could have settled at the
+    /// door: income lost when the next booking is cancelled, and a neighbour who
+    /// only notices later.
+    /// </summary>
+    [Fact]
+    public void Lost_income_and_a_neighbours_claim_keep_the_fortnight()
+    {
+        var contacted = CheckOut.AddHours(1);
+
+        Assert.True(Shield.CanFile(Ask(ShieldCase.C3, CheckOut.AddDays(10), contacted: contacted)).Ok);
+        Assert.True(Shield.CanFile(Ask(ShieldCase.C4, CheckOut.AddDays(10), contacted: contacted)).Ok);
+        Assert.Equal(
+            Shield.Refusal.WindowClosed,
+            Shield.CanFile(Ask(ShieldCase.C3, CheckOut.AddDays(15), contacted: contacted)).Reason);
+
+        Assert.Equal(Shield.DamageReportWindow, Shield.ReportWindow(ShieldCase.C1));
+        Assert.Equal(Shield.HostReportWindow, Shield.ReportWindow(ShieldCase.C3));
     }
 
     [Fact]
     public void Once_the_next_guest_is_in_nobody_can_say_who_did_it()
     {
-        var now = CheckOut.AddDays(3);
+        // Inside the damage window, so the refusal below is about the next guest
+        // and not about the clock.
+        var now = CheckOut.AddHours(6);
 
         Assert.Equal(
             Shield.Refusal.NextGuestArrived,
             Shield.CanFile(Ask(ShieldCase.C1, now, contacted: CheckOut, nextGuest: now.AddHours(-1))).Reason);
 
-        // Still inside the window while the next guest is yet to arrive.
         Assert.True(Shield.CanFile(Ask(ShieldCase.C1, now, contacted: CheckOut, nextGuest: now.AddDays(1))).Ok);
     }
 
@@ -229,8 +256,9 @@ public class StayShieldTests
                 Shield.Refusal.BranchOff,
                 Shield.CanFile(Ask(ShieldCase.C4, CheckOut.AddDays(2), contacted: CheckOut)).Reason);
 
-            // Everything else carries on regardless.
-            Assert.True(Shield.CanFile(Ask(ShieldCase.C1, CheckOut.AddDays(2), contacted: CheckOut)).Ok);
+            // Everything else carries on regardless — inside C1's own window,
+            // which is the checkout day rather than the fortnight.
+            Assert.True(Shield.CanFile(Ask(ShieldCase.C1, CheckOut.AddHours(2), contacted: CheckOut)).Ok);
         }
         finally
         {
