@@ -514,3 +514,52 @@ docker exec stayhost-db psql -U stayhost -d stayhost -t \
 - Commit theo từng mốc có nghĩa, push lên `origin main`.
 
 Remote: **https://github.com/minhhung19872002/StayHost**
+
+---
+
+## 8. Làm tiếp từ đâu (chốt cuối phiên 17/08/2026)
+
+Cả ngày 17/08 làm **tiền thật**: nối ba cổng thanh toán, chuyển tiền cho chủ nhà,
+token hoá thẻ, hoàn tiền, và đưa bồi thường ra khỏi sàn theo quyết định của khách.
+Tám commit, từ `a8ee0a3` tới `904cce2`. Mọi bộ nghiệm thu xanh.
+
+### 8.1. Đang chờ khách
+
+| Việc | Cần gì |
+|---|---|
+| **VNPay lên prod** | Hợp đồng chính thức + giấy phép kinh doanh. Hiện chỉ có sandbox (`TmnCode GLQWM7J8`, khoá nằm trong `dotnet user-secrets`, **không ở trong repo**) |
+| **Quỹ có còn bù C3 (mất thu nhập) không** | Khách đã chốt bỏ quỹ cho C1/C2 (hư hỏng, dọn dẹp). **C3 và C4 em giữ nguyên quỹ vì khách chưa nói tới.** Nếu khách muốn bỏ luôn C3 thì sửa một dòng: `Shield.FundCovers` |
+| **Bật MoMo/ZaloPay prod** | Hợp đồng riêng với từng bên. Sandbox của họ là khoá công khai, nằm trong `appsettings.Development.json` |
+
+### 8.2. Việc còn lại, theo thứ tự
+
+1. **Đối chiếu sao kê ngân hàng với lệnh chuyển tiền** (`docs/07 §15.4`). Hiện người
+   trực bấm *"Đã chuyển"* và **không ai kiểm lại** — đó là nút duy nhất ghi bút toán
+   trả chủ nhà, nên nó xứng đáng có một vế thứ hai đối chiếu, đúng tinh thần `§7`.
+2. **`token_remove`** (`docs/07 §15.5`). Khách xoá thẻ ở sàn thì token vẫn còn bên
+   VNPay. Nhỏ, một lần gọi API.
+3. **Trả góp qua thẻ** (`docs/07 §2.3`, nhóm P2). Chưa ai yêu cầu.
+
+### 8.3. Đừng làm lại những thứ này
+
+- **Không có API tra cứu riêng cho giao dịch hoàn của VNPay.** `querydr` chỉ trả về
+  **giao dịch thanh toán gốc** — nó báo `TransactionType=01, Status=00` kể cả sau khi
+  đã hoàn. Bằng chứng hoàn tiền là **câu trả lời của chính lệnh refund**, đã lưu ở
+  `payment_sessions.RefundCode` / `RefundTxnId`. Đã mất một vòng vì tưởng sản phẩm sai.
+- **`token_pay` là một lần chuyển hướng**, không phải server-to-server. Nên nó **không
+  dùng để thu tiền khi khách không có mặt** — và đó cũng là lý do bồi thường phải là
+  tiền mặt tại chỗ (`§2` mục 3).
+- Ba script cần Playwright (`vnpay_browser_acceptance.py`, `refund_acceptance.py` gọi
+  nó): `pip install playwright && playwright install chromium`. Đã cài trên máy này.
+
+### 8.4. Trước khi chạy lại
+
+```bash
+docker ps                      # stayhost-web đang DỪNG — cố ý, xem §4
+docker compose up -d db
+ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/StayHost.Web --urls http://localhost:5199
+```
+
+**Đừng bật lại container `stayhost-web`** cùng lúc với `dotnet run`: nó chạy bản
+Release cũ trên **cùng một database** và cũng chạy vòng quét mỗi phút — xem bài học
+ở `§4`. Mất một tiếng mới tin nổi chuyện đó.
