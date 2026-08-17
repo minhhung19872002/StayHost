@@ -2272,4 +2272,9 @@ export default {
   "Đã tải, chờ ngân hàng": "已下载，等待银行",
   "Ngân hàng đã chuyển": "银行已执行",
   "Ngân hàng từ chối": "银行已拒绝",
+
+  // docs/07 §4 with §14.2 — a card the gateway keeps, not us.
+  "Lưu thẻ này cho lần sau": "保存此卡以便下次使用",
+  "Thẻ do cổng thanh toán giữ. StayHost chỉ thấy 4 số cuối, dùng để hoàn tiền và nhắc khi thẻ hết hạn.": "卡片由支付网关保管。StayHost 只能看到后四位，用于退款和到期提醒。",
+  "Do cổng thanh toán giữ": "由支付网关保管",
 };

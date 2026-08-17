@@ -128,6 +128,13 @@ services:
       Psp__Vnpay__HashSecret: ${VNPAY_HASH_SECRET:-}
       Psp__Vnpay__PayUrl: ${VNPAY_PAY_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
       Psp__Vnpay__ApiUrl: ${VNPAY_API_URL:-https://sandbox.vnpayment.vn/merchant_webapi/api/transaction}
+      # docs/07 §4, §15.5 — keeping a card at VNPay. Off unless they have enabled
+      # the token feature for this merchant: a "lưu thẻ này" tick their gateway
+      # then refuses is worse than no tick at all. It is also the only way this
+      # platform ever learns a card's last four digits.
+      Psp__Vnpay__Tokens: ${VNPAY_TOKENS:-false}
+      Psp__Vnpay__CreateTokenUrl: ${VNPAY_CREATE_TOKEN_URL:-https://sandbox.vnpayment.vn/token_ui/pay-create-token.html}
+      Psp__Vnpay__TokenPayUrl: ${VNPAY_TOKEN_PAY_URL:-https://sandbox.vnpayment.vn/token_ui/payment-token.html}
       Psp__Momo__PartnerCode: ${MOMO_PARTNER_CODE:-}
       Psp__Momo__AccessKey: ${MOMO_ACCESS_KEY:-}
       Psp__Momo__SecretKey: ${MOMO_SECRET_KEY:-}

@@ -660,6 +660,27 @@ lặng.
 **Chưa làm:** tự đối chiếu sao kê ngân hàng với lệnh đã chuyển, và mẫu file riêng
 cho từng ngân hàng.
 
+### 9.4c. Token hoá thẻ và một giao dịch trả thật (17/08/2026)
+
+`§9.4` bỏ lại một chỗ mất: cổng thật thì khách gõ thẻ ở trang VNPay, nên sàn
+không còn biết bốn số cuối, và ba luật đọc cột đó mất chỗ dựa. API token của
+VNPay là đường duy nhất lấy lại — khách tick "Lưu thẻ này" thì đơn đi qua
+`pay_and_create`, và họ trả về số thẻ đã che cùng một token. Chi tiết ở
+`docs/07 §15.5`, mã `TC-P-15`. Vẫn không phải mã mới của `docs/01`.
+
+Quy tắc ký của API token **không có trong tài liệu VNPay**. Xác định bằng thực
+nghiệm: gửi sandbox mỗi kiểu một lần, sorted-query vào được trang thanh toán,
+hai biến thể pipe-joined rơi vào `error.html`.
+
+Và lần đầu tiên có một bộ nghiệm thu mà **VNPay ký câu trả lời chứ không phải
+sàn tự ký**: `scripts/vnpay_browser_acceptance.py` mở trình duyệt thật, gõ thẻ
+thử NCB của VNPay, qua modal điều khoản, nhập OTP, quay về — 14/14, đơn
+`Confirmed`, `CardLast4` đúng, sổ lệch 0.
+
+**Chưa làm:** `token_pay` là một lần chuyển hướng nữa nên vẫn cần khách có mặt —
+không thu được tiền bồi thường sau này như `docs/06 §3.3` mong; và `token_remove`
+chưa nối.
+
 ### 9.5. Soát lại đối chiếu airbnb.com (15/08/2026)
 
 Lượt soát này đi từ ngoài vào: lấy mặt sản phẩm của Airbnb (kể cả bản phát hành
@@ -790,9 +811,15 @@ STAYHOST_URL=http://localhost:5200 python scripts/acceptance.py
 # 7 kịch bản của §9.6 — các quy tắc từng có mã mà không ai gọi
 python scripts/unwired_acceptance.py
 
-# 19 kịch bản của §9.4 — cổng thanh toán thật. Gọi ra sandbox MoMo/ZaloPay
+# 30 kịch bản của §9.4 — cổng thanh toán thật. Gọi ra sandbox VNPay/MoMo/ZaloPay
 # ngoài đời, nên cần mạng và cần server chạy ở Development.
 python scripts/gateway_acceptance.py
+
+# 23 kịch bản của §9.4b — chuyển tiền cho chủ nhà, gồm cả file .csv cho ngân hàng
+python scripts/payout_acceptance.py
+
+# 14 kịch bản của §9.4c — trả tiền THẬT trên trang VNPay, cần playwright
+python scripts/vnpay_browser_acceptance.py
 ```
 
 ## Ghi chú về quy mô

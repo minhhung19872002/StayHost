@@ -124,19 +124,30 @@ public static class Psp
     /// rebuild — they were not part of what was signed — and so is anything
     /// outside the <c>vnp_</c> family, because a caller who appends
     /// <c>?anything=1</c> to the return URL must not be able to break the check.
+    ///
+    /// Both spellings of the hash field are accepted because VNPay uses both:
+    /// the payment API sends <c>vnp_SecureHash</c> and the token API
+    /// <c>vnp_secure_hash</c>. The rule for building the string is the same for
+    /// both — established by asking their sandbox, which accepted the sorted
+    /// query and answered <c>error.html</c> to every pipe-joined variant.
     /// </summary>
     public static bool VnPayVerify(IReadOnlyDictionary<string, string> query, string secret)
     {
-        if (!query.TryGetValue("vnp_SecureHash", out var given) || string.IsNullOrWhiteSpace(given))
-            return false;
+        var given = query.GetValueOrDefault("vnp_SecureHash")
+                    ?? query.GetValueOrDefault("vnp_secure_hash");
+
+        if (string.IsNullOrWhiteSpace(given)) return false;
 
         var signed = query
             .Where(p => p.Key.StartsWith("vnp_", StringComparison.Ordinal)
-                        && p.Key is not ("vnp_SecureHash" or "vnp_SecureHashType"))
+                        && !IsHashField(p.Key))
             .ToDictionary(p => p.Key, p => p.Value);
 
         return Same(VnPaySign(signed, secret), given);
     }
+
+    private static bool IsHashField(string key) =>
+        key is "vnp_SecureHash" or "vnp_SecureHashType" or "vnp_secure_hash" or "vnp_secure_hash_type";
 
     /// <summary>VNPay counts in đồng × 100 and refuses a decimal point.</summary>
     public static long VnPayAmount(decimal dong) => (long)Math.Round(dong, MidpointRounding.AwayFromZero) * 100;
@@ -172,6 +183,50 @@ public static class Psp
 
     /// <summary>A guest who pressed "huỷ" on VNPay's page did not fail; they left.</summary>
     public static bool VnPayCancelled(string? code) => code == "24";
+
+    /* -------------------------------------------------- §14.2, cards we never see */
+
+    /// <summary>
+    /// docs/07 §4 — VNPay's token API, which is how the platform gets a card's
+    /// last four digits back after §14.2 took the card form away.
+    ///
+    /// Two things about it differ from the payment API and both are easy to miss:
+    /// every parameter name is lower-case with underscores (<c>vnp_command</c>,
+    /// not <c>vnp_Command</c>), and it lives on its own host path. The checksum
+    /// rule is the same sorted query — not documented anywhere, established by
+    /// sending their sandbox one of each and seeing which reached a payment page.
+    /// </summary>
+    public const string VnPayCreateTokenCommand = "pay_and_create";
+
+    /// <summary>Charging a card the guest already saved. A redirect, not a server call.</summary>
+    public const string VnPayTokenPayCommand = "token_pay";
+
+    /// <summary>VNPay's own words for the two card families, on the token API only.</summary>
+    public static string VnPayCardType(string method) => method == "napas" ? "01" : "02";
+
+    /// <summary>
+    /// The last four digits out of the masked number VNPay hands back
+    /// (<c>vnp_card_number</c>, e.g. <c>970436xxxxxx1234</c>).
+    ///
+    /// This is the whole point of the exercise: with a real gateway the guest
+    /// types the card on VNPay's page, so nothing else in this platform ever
+    /// learns those four digits — and docs/07 §4's saved cards, the expiring-card
+    /// reminder and §10's closed-card refund branch all read exactly that field.
+    /// </summary>
+    public static string? Last4Of(string? maskedCardNumber)
+    {
+        var digits = new string((maskedCardNumber ?? "").Where(char.IsAsciiDigit).ToArray());
+        return digits.Length >= 4 ? digits[^4..] : null;
+    }
+
+    /// <summary>
+    /// The card family VNPay says it was, mapped onto the brands docs/07 §4
+    /// stores. Their token API answers only "domestic" or "international", so a
+    /// Visa and a Mastercard are indistinguishable here — which is honest: the
+    /// platform genuinely does not know, and guessing a brand from a masked
+    /// number's first digit would be a guess printed as fact.
+    /// </summary>
+    public static bool VnPayIsDomesticCard(string? cardType) => cardType == "01";
 
     /* --------------------------------------------------------------------- MoMo */
 

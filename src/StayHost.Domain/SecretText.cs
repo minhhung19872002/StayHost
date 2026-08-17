@@ -54,6 +54,19 @@ public static class SecretText
     /// <summary>A key to paste into configuration. Printed by nothing; used by tests and by hand.</summary>
     public static string NewKey() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(KeyBytes));
 
+    /// <summary>
+    /// A key of its own for each thing being protected, from the one key in
+    /// configuration.
+    ///
+    /// Two different secrets — a host's bank account and a guest's card token —
+    /// have no business sharing a key: a ciphertext lifted from one column could
+    /// otherwise be pasted into the other and would open. HKDF gives each purpose
+    /// an independent key with nothing more to configure and nothing more to lose.
+    /// </summary>
+    public static byte[] Derive(byte[] master, string purpose) =>
+        HKDF.DeriveKey(HashAlgorithmName.SHA256, master, KeyBytes,
+            info: Encoding.UTF8.GetBytes("stayhost:" + purpose));
+
     public static string Seal(string plain, byte[] key)
     {
         var nonce = RandomNumberGenerator.GetBytes(NonceBytes);

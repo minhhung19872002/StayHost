@@ -1260,7 +1260,15 @@ public record PayBookingRequest(
     /// docs/07 §5 — the OTP the guest read off their bank's page. Absent on the
     /// first request: that one is what sends them there.
     /// </summary>
-    string? AuthenticationCode = null);
+    string? AuthenticationCode = null,
+    /// <summary>
+    /// docs/07 §4 — keep this card for next time. With a licensed gateway it also
+    /// decides whether this platform ever learns the card's last four digits, so
+    /// it is not only a convenience (docs/07 §15.5).
+    /// </summary>
+    bool SaveCard = false,
+    /// <summary>A card the guest already saved, to pay with instead of a new one.</summary>
+    int? SavedCardId = null);
 
 /// <summary>
 /// docs/07 §5 — what the guest gets back when their bank wants a code. Carries
@@ -2369,7 +2377,13 @@ public record PaymentMethodDto(
     /// hiding the hand-written card fields, because on a live method the number
     /// is typed on the gateway's page and never on ours (docs/07 §14.2).
     /// </summary>
-    bool Live = false);
+    bool Live = false,
+    /// <summary>
+    /// docs/07 §4 — the gateway behind this method can keep a card for next time.
+    /// Off unless VNPay has enabled tokens for this merchant: offering a tick box
+    /// their gateway then refuses is worse than not offering it.
+    /// </summary>
+    bool Tokens = false);
 
 /// <summary>
 /// docs/07 §4 — everything the platform is allowed to show about a saved card.
@@ -2386,7 +2400,16 @@ public record SavedCardDto(
     bool IsExpired,
     bool ExpiringSoon,
     bool HasScheduledCharge,
-    bool HasOpenBooking);
+    bool HasOpenBooking,
+    /// <summary>
+    /// docs/07 §4 with §14.2 — true when a licensed gateway holds this card and
+    /// StayHost holds only four digits and a token. A card typed into the
+    /// stand-in cannot be charged at VNPay and the other way round, so the
+    /// checkout offers one kind or the other and never mixes them.
+    /// </summary>
+    bool GatewayHeld = false,
+    /// <summary>Which gateway holds it. Null for a card typed into the stand-in.</summary>
+    string? Provider = null);
 
 public record SaveCardRequest(
     string Number, int ExpiryMonth, int ExpiryYear, string? Nickname, bool MakeDefault = false);

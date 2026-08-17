@@ -366,6 +366,11 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.HasIndex(x => new { x.UserId, x.IsDefault });
             e.Property(x => x.Last4).HasMaxLength(4).IsRequired();
             e.Property(x => x.Nickname).HasMaxLength(60);
+            // docs/07 §4 with §14.2 — a card kept at a gateway is a token of
+            // theirs, sealed. AES-GCM output plus base64 on a 64-character token.
+            e.Property(x => x.GatewayTokenSealed).HasMaxLength(300);
+            e.Property(x => x.Provider).HasMaxLength(20);
+            e.Ignore(x => x.IsGatewayHeld);
             e.HasOne(x => x.User).WithMany()
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });

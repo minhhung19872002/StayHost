@@ -40,6 +40,24 @@ public class SavedCard
 
     /// <summary>Set when the expiry reminder of §4 has gone out, so it goes out once.</summary>
     public DateTime? ExpiryReminderSentAt { get; set; }
+
+    /// <summary>
+    /// docs/07 §4 with §14.2 — the gateway's own handle on this card, sealed.
+    ///
+    /// Once the card form belongs to VNPay rather than to this platform, a saved
+    /// card cannot be a number kept here; it is a token kept by them and a
+    /// reference kept by us. Null on a card typed into the built-in stand-in.
+    /// </summary>
+    public string? GatewayTokenSealed { get; set; }
+
+    /// <summary>Which gateway holds it — vnpay today, and null for a stand-in card.</summary>
+    public string? Provider { get; set; }
+
+    /// <summary>
+    /// True when the card lives at a gateway. Its expiry is theirs to know: the
+    /// token API returns a masked number and a family, and no expiry date at all.
+    /// </summary>
+    public bool IsGatewayHeld => !string.IsNullOrEmpty(GatewayTokenSealed);
 }
 
 /// <summary>docs/07 §4 — what may be kept about a card, and what may be done with it.</summary>
@@ -123,17 +141,28 @@ public static class SavedCards
             ? DateOnly.MinValue
             : new DateOnly(year, month, 1).AddMonths(1).AddDays(-1);
 
+    /// <summary>
+    /// A card held at a gateway has no expiry here to compare against — VNPay's
+    /// token API returns a masked number and a family and no date. Calling that
+    /// "expired" would hide a perfectly good card; the gateway refuses the token
+    /// when the card really has expired, and that refusal is what the guest sees.
+    /// </summary>
+    public static bool ExpiryKnown(SavedCard card) =>
+        !card.IsGatewayHeld && card.ExpiryMonth is >= 1 and <= 12 && card.ExpiryYear >= 2000;
+
     public static bool IsExpired(SavedCard card, DateOnly today) =>
-        today > ExpiresAfter(card.ExpiryMonth, card.ExpiryYear);
+        ExpiryKnown(card) && today > ExpiresAfter(card.ExpiryMonth, card.ExpiryYear);
 
     /// <summary>docs/07 §4 — "nhắc khách cập nhật trước 14 ngày".</summary>
     public const int ExpiryNoticeDays = 14;
 
     public static bool ExpiringSoon(SavedCard card, DateOnly today) =>
-        !IsExpired(card, today)
+        ExpiryKnown(card)
+        && !IsExpired(card, today)
         && ExpiresAfter(card.ExpiryMonth, card.ExpiryYear) <= today.AddDays(ExpiryNoticeDays);
 
-    public static string ExpiryLabel(SavedCard card) => $"{card.ExpiryMonth:00}/{card.ExpiryYear % 100:00}";
+    public static string ExpiryLabel(SavedCard card) =>
+        ExpiryKnown(card) ? $"{card.ExpiryMonth:00}/{card.ExpiryYear % 100:00}" : "Do cổng thanh toán giữ";
 
     public static string Display(SavedCard card) =>
         $"{BrandLabel(card.Brand)} •••• {card.Last4} · {ExpiryLabel(card)}";

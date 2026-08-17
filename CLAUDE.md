@@ -44,6 +44,8 @@ thì **code sai**, không phải tài liệu sai.
 **Toàn bộ xanh (17/08/2026).** 1051 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **23/23** kịch bản chuyển tiền cho chủ nhà (`scripts/payout_acceptance.py`) ·
+**14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
+(`scripts/vnpay_browser_acceptance.py`) ·
 **10/10** kịch bản của `docs/04`
 (`scripts/acceptance.py`) · **10/10** kịch bản quản trị của `docs/08 §13`
 (`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
@@ -78,6 +80,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Chủ nhà | Đăng tin theo bước, lịch nhiều tin, giá mùa/theo ngày, đồng bộ iCal hai chiều, co-host có phạm vi quyền |
 | Thanh toán | Trả đủ, trả một phần (cọc ≥50% + tự thu trước 14 ngày), chia hoá đơn tối đa 16 người |
 | Cổng thanh toán thật | `docs/07 §13` phương án A, `§15.3`. **VNPay** (thẻ quốc tế `INTCARD` + thẻ ATM nội địa `VNBANK`), **MoMo**, **ZaloPay**. Khách rời sang trang của cổng — sàn **không có ô nhập thẻ nào** khi cổng đã bật (`§14.2`). Ba đường báo tin về: khách quay lại (**không tin**), IPN có chữ ký, và `PspSweeper` mỗi phút tự hỏi lại cổng — cái đầu tiên có chữ ký thật thì thắng, hai cái sau không làm gì. **Chữ ký sai bị bỏ qua, không bị coi là thất bại**; số tiền cổng báo khác đơn thì không xác nhận. Khoá để trống = phương thức đó vẫn chạy bằng bản giả lập, y như cũ. Sandbox MoMo/ZaloPay nằm trong `appsettings.Development.json`; VNPay cần `TmnCode` từ **sandbox.vnpayment.vn/devreg/** (trang gốc là 404) |
+| Thẻ đã lưu với cổng thật | `docs/07 §4`, `§15.5`. Khách tick "Lưu thẻ này" thì đơn đi qua **API token của VNPay** (`pay_and_create`) — đường **duy nhất** sàn biết được bốn số cuối sau khi `§14.2` bỏ ô nhập thẻ. Token lưu **mã hoá** bằng khoá dẫn xuất riêng (`DataSecrets`), bốn số cuối lưu thường. Thẻ do cổng giữ **không có ngày hết hạn** ở đây — `SavedCards.ExpiryKnown` nói không biết thay vì bịa. Tắt mặc định (`Psp:Vnpay:Tokens`) vì VNPay bật tính năng này theo từng merchant |
 | Chuyển tiền cho chủ nhà | `docs/07 §13`, `§15.4`. Cổng trả **toàn bộ** tiền đơn về tài khoản sàn; phần chủ nhà sàn tự chuyển. Số tài khoản lưu **mã hoá** AES-GCM (`SecretText`, khoá `Payouts:AccountKey`) — trước đây chỉ giữ 4 số cuối nên **không chuyển được cho ai**. Vòng quét sinh `payout_batches` gom theo chủ nhà theo ngày, đơn ở `PayoutStatus.Sent`, **chưa ghi bút toán nào**; quản trị tải `.csv` sáu cột, đưa lên internet banking, rồi bấm *Đã chuyển* — **đó mới là lúc ghi sổ**. Bị từ chối thì quay lại thang thử lại 1/3/7 ngày, không có gì phải đảo |
 | Chuyển khoản VietQR | `docs/07 §2.3`, cả ba dòng đơn. Đơn ở trạng thái **chờ chuyển khoản** giữ ngày/ghế **2 giờ** (`BankTransfers.Window`) và **chưa ghi bút toán nào**; người trực dán sao kê ở trang quản trị, `BankTransfers.Judge` khớp mã đơn trong nội dung, rồi đơn đi qua **đúng đường xác nhận mà thẻ đang đi**. Sáu phán quyết, chỉ "khớp" và "đã nhập trước đó" là im lặng. Hết hạn thì trả lại chỗ, không có gì phải đảo. **Chỉ hiện khi có `BankTransfer:AccountNumber`; prod chưa bật** — xem `docs/PLAN.md §9.3` |
 | Đánh giá & tin nhắn | Đánh giá mù hai chiều, sửa trong 48h, gửi ảnh, thẻ đơn trong hội thoại, mẫu trả lời nhanh |
@@ -305,10 +308,22 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   `scripts/_gateway.py`, ký IPN đúng như VNPay ký, nên chạy được cả khi có lẫn khi
   không có cổng. Đổi cách thanh toán thì soát lại **cái mà script khẳng định**,
   đừng chỉ soát số PASS.
-- **Cổng thật thì sàn không biết bốn số cuối của thẻ.** Khách gõ thẻ ở trang VNPay,
-  nên `payments.CardLast4` là null — kéo theo `SavedCards`, nhắc thẻ sắp hết hạn,
-  và nhánh "thẻ đã đóng" của `Refunds.Redirect` **không có gì để đọc**. Chưa giải
-  quyết; `unwired_acceptance.py` tự đặt cột đó để vẫn thử được luật hoàn tiền.
+- **Cổng thật thì sàn không biết bốn số cuối của thẻ — trừ khi khách lưu thẻ.**
+  Khách gõ thẻ ở trang VNPay nên `payments.CardLast4` là null, kéo theo
+  `SavedCards`, nhắc thẻ sắp hết hạn, và nhánh "thẻ đã đóng" của `Refunds.Redirect`
+  **không có gì để đọc**. Đường duy nhất lấy lại là **API token** (`pay_and_create`,
+  `docs/07 §15.5`) — chỉ lúc đó VNPay mới nói cho sàn biết gì về cái thẻ. Khách
+  không tick lưu thẻ thì vẫn null, và `unwired_acceptance.py` tự đặt cột đó để
+  thử được luật hoàn tiền.
+- **API token của VNPay viết tên tham số kiểu khác.** `vnp_command` chứ không phải
+  `vnp_Command`, và đường dẫn riêng `/token_ui/`. Trộn hai kiểu thì nhận trang lỗi
+  trắng không nói field nào sai. Quy tắc ký thì **tài liệu của họ không nói** — đã
+  thử nghiệm ra: **sorted-query giống API thanh toán**, hai biến thể pipe-joined
+  đều rơi `error.html`. Đừng đoán, gửi thử rồi xem đáp lại gì.
+- **Khớp chuỗi con khi tự động hoá trang tiếng Việt là bấm nhầm nút.** Trong một
+  buổi dựng `vnpay_browser_acceptance.py` nó bấm **"Hủy thanh toán"** vì khớp
+  "Thanh toán", rồi bấm **"Không đồng ý"** vì khớp "Đồng ý" — hai lần chọn đúng cái
+  ngược lại. Loại trừ "hủy"/"không" trước khi khớp.
 - **`app_trans_id` của ZaloPay phải mang ngày của Việt Nam.** Lại đúng bảy tiếng cũ:
   một đơn mở lúc 18:00 UTC là 01:00 hôm sau ở TP.HCM, và ZaloPay từ chối mọi mã
   không mở đầu bằng ngày hôm nay của **họ**. `Psp.ZaloTransId` quy đổi, có test.
@@ -438,6 +453,7 @@ python scripts/admin_acceptance.py                 # 10 tình huống của docs
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
 python scripts/gateway_acceptance.py               # 30 kịch bản cổng thanh toán, gọi sandbox thật
 python scripts/payout_acceptance.py                # 23 kịch bản chuyển tiền cho chủ nhà (docs/07 §15.4)
+python scripts/vnpay_browser_acceptance.py         # 14 kịch bản: trả tiền THẬT trên trang VNPay (cần playwright)
 python scripts/i18n_audit.py                       # khoá dịch còn thiếu (phải ra 0)
 cd src/StayHost.Web/ClientApp && npm run build && npx oxlint src
 

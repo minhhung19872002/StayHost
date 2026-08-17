@@ -36,10 +36,19 @@ public class VnPayProvider(
         _ => ""
     };
 
+    /// <summary>docs/07 §4 — whether this build may offer to keep a card at VNPay.</summary>
+    public bool TokensEnabled => IsConfigured && Cfg.Tokens;
+
     public Task<PspStart> StartAsync(PspOrder order, CancellationToken ct)
     {
         if (!IsConfigured)
             return Task.FromResult(new PspStart(false, Error: "VNPay chưa được cấu hình."));
+
+        // docs/07 §4 — keeping a card, or paying with one already kept, is a
+        // different API on a different path with every parameter spelled
+        // differently. Same secret, same sorted-query checksum.
+        if (TokensEnabled && (order.SaveCard || order.Token is { Length: > 0 }))
+            return Task.FromResult(StartToken(order));
 
         var now = Psp.Vn(DateTime.UtcNow);
 
@@ -72,26 +81,85 @@ public class VnPayProvider(
         return Task.FromResult(new PspStart(true, $"{Cfg.PayUrl}?{query}&vnp_SecureHash={hash}"));
     }
 
+    /// <summary>
+    /// docs/07 §4 — pay, and keep the card at VNPay for next time. Or pay with
+    /// one already kept.
+    ///
+    /// Every parameter name here is lower-case with underscores. That is not a
+    /// typo carried over from somewhere: VNPay's token API genuinely spells them
+    /// differently from its payment API, and mixing the two gets a blank error
+    /// page with no reason on it. The checksum is the same sorted query — which
+    /// their documentation does not say, and which was settled by sending their
+    /// sandbox one request per candidate rule and seeing which reached a payment
+    /// page rather than <c>error.html</c>.
+    /// </summary>
+    private PspStart StartToken(PspOrder order)
+    {
+        var now = Psp.Vn(DateTime.UtcNow);
+        var back = $"{_psp.PublicUrl}/api/payments/vnpay/token-return";
+
+        var fields = new Dictionary<string, string>
+        {
+            ["vnp_version"] = "2.1.0",
+            ["vnp_command"] = order.Token is { Length: > 0 }
+                ? Psp.VnPayTokenPayCommand
+                : Psp.VnPayCreateTokenCommand,
+            ["vnp_tmn_code"] = Cfg.TmnCode,
+            ["vnp_app_user_id"] = order.UserRef ?? "guest",
+            ["vnp_locale"] = "vn",
+            ["vnp_card_type"] = Psp.VnPayCardType(order.Method),
+            ["vnp_txn_ref"] = order.OrderRef,
+            ["vnp_amount"] = Psp.VnPayAmount(order.Amount).ToString(),
+            ["vnp_curr_code"] = "VND",
+            ["vnp_txn_desc"] = order.Description,
+            ["vnp_return_url"] = back,
+            ["vnp_cancel_url"] = back,
+            ["vnp_ip_addr"] = order.ClientIp,
+            ["vnp_create_date"] = now.ToString("yyyyMMddHHmmss"),
+            ["vnp_store_token"] = "1"
+        };
+
+        if (order.Token is { Length: > 0 }) fields["vnp_token"] = order.Token;
+
+        var url = order.Token is { Length: > 0 } ? Cfg.TokenPayUrl : Cfg.CreateTokenUrl;
+
+        return new PspStart(true,
+            $"{url}?{Psp.VnPayQuery(fields)}&vnp_secure_hash={Psp.VnPaySign(fields, Cfg.HashSecret)}");
+    }
+
     public PspVerdict Read(IReadOnlyDictionary<string, string> payload)
     {
         if (!Psp.VnPayVerify(payload, Cfg.HashSecret))
         {
             log.LogWarning("VNPay callback for {Ref} failed its signature check.",
-                payload.GetValueOrDefault("vnp_TxnRef"));
+                payload.GetValueOrDefault("vnp_TxnRef") ?? payload.GetValueOrDefault("vnp_txn_ref"));
             return PspVerdict.Forged;
         }
 
-        var code = payload.GetValueOrDefault("vnp_ResponseCode") ?? "";
-        var status = payload.GetValueOrDefault("vnp_TransactionStatus") ?? code;
-        var txn = payload.GetValueOrDefault("vnp_TransactionNo");
+        // The token API answers in its own spelling, so every field is looked up
+        // under both. One Read for both APIs, because everything after the
+        // spelling is identical and two copies would drift.
+        string? Field(string pay, string token) =>
+            payload.GetValueOrDefault(pay) ?? payload.GetValueOrDefault(token);
+
+        var code = Field("vnp_ResponseCode", "vnp_response_code") ?? "";
+        var status = Field("vnp_TransactionStatus", "vnp_transaction_status") ?? code;
+        var txn = Field("vnp_TransactionNo", "vnp_transaction_no");
 
         // vnp_Amount comes back in the same ×100 unit it was sent in.
-        var amount = decimal.TryParse(payload.GetValueOrDefault("vnp_Amount"), out var raw)
+        var amount = decimal.TryParse(Field("vnp_Amount", "vnp_amount"), out var raw)
             ? raw / 100m
             : 0m;
 
+        // docs/07 §4 — the only place this platform ever learns four digits of a
+        // card, now that the number is typed on VNPay's page (§14.2).
+        var last4 = Psp.Last4Of(payload.GetValueOrDefault("vnp_card_number"));
+        var token = payload.GetValueOrDefault("vnp_token");
+        var cardType = payload.GetValueOrDefault("vnp_card_type");
+
         if (code == "00" && status == "00")
-            return new PspVerdict(PaymentSessionStatus.Paid, amount, txn, code);
+            return new PspVerdict(PaymentSessionStatus.Paid, amount, txn, code,
+                CardLast4: last4, CardToken: token, CardType: cardType);
 
         if (Psp.VnPayCancelled(code))
             return new PspVerdict(PaymentSessionStatus.Cancelled, amount, txn, code);

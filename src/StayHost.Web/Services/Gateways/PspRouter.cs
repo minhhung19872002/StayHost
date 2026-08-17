@@ -34,6 +34,15 @@ public class PspRouter(IOptions<PspSettings> options, IEnumerable<IPspProvider> 
     public bool IsLive(string? method) => For(method) is not null;
 
     /// <summary>
+    /// docs/07 §4 — whether the gateway behind this method can keep a card.
+    ///
+    /// Only VNPay does, and only when their token feature is switched on for the
+    /// merchant. A checkout that offered "lưu thẻ này" and then met a refusal
+    /// would be worse than one that never offered it.
+    /// </summary>
+    public bool KeepsCards(string? method) => For(method) is VnPayProvider { TokensEnabled: true };
+
+    /// <summary>
     /// Whether the public URL is one a gateway could reach. On a laptop it is
     /// not, so the IPN never arrives and the self-check of docs/07 §5 is the only
     /// thing that settles a payment. Worth saying out loud in the log rather than

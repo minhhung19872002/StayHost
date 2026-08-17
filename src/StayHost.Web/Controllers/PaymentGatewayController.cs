@@ -91,6 +91,29 @@ public class PaymentGatewayController(
         return Ok(new VnPayReply("00", "Confirm Success"));
     }
 
+    /// <summary>
+    /// docs/07 §4 — where a guest comes back from VNPay's token pages, whether
+    /// they were saving a card or paying with one they saved.
+    ///
+    /// A separate route from the ordinary return only because VNPay's token API
+    /// spells every parameter differently; everything after that is the same
+    /// path, the same signature check and the same settlement.
+    /// </summary>
+    [HttpGet("vnpay/token-return")]
+    public async Task<IActionResult> VnPayTokenReturn(CancellationToken ct)
+    {
+        var query = Query();
+        var session = await checkout.FindAsync(query.GetValueOrDefault("vnp_txn_ref"), ct);
+        if (session is null) return Redirect(Outcome(null, "unknown"));
+
+        var provider = router.ByKey(session.Provider);
+        var status = provider is null
+            ? session.Status
+            : await checkout.SettleAsync(session, provider.Read(query), "return", ct);
+
+        return Redirect(Outcome(session, Word(status)));
+    }
+
     /* ------------------------------------------------------------------- MoMo */
 
     [HttpGet("momo/return")]

@@ -16,7 +16,7 @@ namespace StayHost.Web.Services.Gateways;
 /// </summary>
 public class PspCheckout(
     StayHostDbContext db, PspRouter router, PaymentGateway gateway,
-    PaymentCompletion completion, ILogger<PspCheckout> log)
+    PaymentCompletion completion, DataSecrets secrets, ILogger<PspCheckout> log)
 {
     public sealed record Started(bool Ok, string? PayUrl = null, string? OrderRef = null, string? Error = null);
 
@@ -27,7 +27,8 @@ public class PspCheckout(
     /// </summary>
     public async Task<Started> StartAsync(
         Booking booking, string method, decimal amount, bool partial,
-        string attemptKey, string clientIp, CancellationToken ct)
+        string attemptKey, string clientIp, CancellationToken ct,
+        bool saveCard = false, string? cardToken = null)
     {
         var provider = router.For(method);
         if (provider is null) return new Started(false, Error: "Cách thanh toán này chưa nối cổng nào.");
@@ -63,7 +64,12 @@ public class PspCheckout(
         await db.SaveChangesAsync(ct);
 
         var start = await provider.StartAsync(
-            new PspOrder(orderRef, amount, $"StayHost {booking.Reference}", method, clientIp), ct);
+            new PspOrder(orderRef, amount, $"StayHost {booking.Reference}", method, clientIp,
+                SaveCard: saveCard,
+                // The gateway keeps its tokens per user of ours, so it needs a
+                // handle on the guest that survives them saving a second card.
+                UserRef: booking.GuestUserId is { } id ? $"stayhost-{id}" : null,
+                Token: cardToken), ct);
 
         if (!start.Ok || start.PayUrl is null)
         {
@@ -215,14 +221,86 @@ public class PspCheckout(
             return PaymentSessionStatus.Paid;
         }
 
+        // docs/07 §4 — VNPay's token API is the only thing that ever tells this
+        // platform four digits of a card, so when it does, they are kept: §10's
+        // closed-card refund branch and §4's expiry reminder both read that
+        // column and have had nothing to read since the card form went away.
+        await RememberCardAsync(session, verdict, booking, ct);
+
         await completion.ConfirmAsync(
             booking, price, session.Amount, session.Partial, DateOnly.FromDateTime(now),
-            booking.GuestUserId ?? 0, session.Method, null, ct);
+            booking.GuestUserId ?? 0, session.Method, verdict.CardLast4, ct);
 
         log.LogInformation("Đơn {Ref} đã xác nhận sau khi {Provider} thu {Amount} ({By}).",
             booking.Reference, session.Provider, session.Amount, settledBy);
 
         return PaymentSessionStatus.Paid;
+    }
+
+    /// <summary>
+    /// docs/07 §4 — keeps the card the guest asked to keep.
+    ///
+    /// The number is never here: what arrives is four digits VNPay chose to show
+    /// and a token only they can use. Saving the same card twice is a no-op, so a
+    /// guest who ticks the box on every booking ends up with one row, not ten.
+    /// </summary>
+    private async Task RememberCardAsync(
+        PaymentSession session, PspVerdict verdict, Booking booking, CancellationToken ct)
+    {
+        if (booking.GuestUserId is not { } userId) return;
+        if (verdict.CardToken is not { Length: > 0 } || verdict.CardLast4 is not { Length: 4 }) return;
+
+        var sealedToken = secrets.Seal(DataSecrets.CardToken, verdict.CardToken);
+
+        // No key, no storing it — the same rule the payout account follows. The
+        // last four digits are not a secret and are kept either way.
+        if (sealedToken is null)
+        {
+            log.LogWarning("Chưa có khoá mã hoá nên không lưu được thẻ của người dùng {UserId}.", userId);
+            return;
+        }
+
+        var brand = Psp.VnPayIsDomesticCard(verdict.CardType) ? CardBrand.Napas : CardBrand.Unknown;
+
+        var already = await db.SavedCards.FirstOrDefaultAsync(
+            c => c.UserId == userId && c.Last4 == verdict.CardLast4
+                 && c.Provider == session.Provider, ct);
+
+        if (already is not null)
+        {
+            // The token can be reissued for the same card; the newest one wins.
+            already.GatewayTokenSealed = sealedToken;
+            already.Brand = brand;
+            await db.SaveChangesAsync(ct);
+            return;
+        }
+
+        var cards = await db.SavedCards.Where(c => c.UserId == userId).ToListAsync(ct);
+
+        var card = new SavedCard
+        {
+            UserId = userId,
+            Brand = brand,
+            Last4 = verdict.CardLast4,
+            // VNPay's token API returns no expiry date at all — the card's
+            // expiry is theirs to know, and SavedCards.ExpiryKnown says so
+            // rather than this pretending to a month it was never told.
+            ExpiryMonth = 0,
+            ExpiryYear = 0,
+            Provider = session.Provider,
+            GatewayTokenSealed = sealedToken
+        };
+
+        db.SavedCards.Add(card);
+        await db.SaveChangesAsync(ct);
+
+        // The first card saved is the default, exactly as the typed-in path does.
+        cards.Add(card);
+        SavedCards.Reseat(cards);
+        await db.SaveChangesAsync(ct);
+
+        log.LogInformation("Đã lưu thẻ •••• {Last4} của người dùng {UserId} tại {Provider}.",
+            verdict.CardLast4, userId, session.Provider);
     }
 
     /// <summary>

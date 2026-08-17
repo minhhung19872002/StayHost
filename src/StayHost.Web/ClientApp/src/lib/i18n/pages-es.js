@@ -2272,4 +2272,9 @@ export default {
   "Đã tải, chờ ngân hàng": "Descargada, esperando al banco",
   "Ngân hàng đã chuyển": "Ejecutada por el banco",
   "Ngân hàng từ chối": "Rechazada por el banco",
+
+  // docs/07 §4 with §14.2 — a card the gateway keeps, not us.
+  "Lưu thẻ này cho lần sau": "Guardar esta tarjeta para la próxima vez",
+  "Thẻ do cổng thanh toán giữ. StayHost chỉ thấy 4 số cuối, dùng để hoàn tiền và nhắc khi thẻ hết hạn.": "La tarjeta la guarda la pasarela de pago. StayHost solo ve los cuatro últimos dígitos, para reembolsos y avisos de caducidad.",
+  "Do cổng thanh toán giữ": "La guarda la pasarela de pago",
 };

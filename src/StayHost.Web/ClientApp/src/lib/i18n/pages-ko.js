@@ -2272,4 +2272,9 @@ export default {
   "Đã tải, chờ ngân hàng": "내려받음 · 은행 대기",
   "Ngân hàng đã chuyển": "은행이 실행함",
   "Ngân hàng từ chối": "은행이 거절함",
+
+  // docs/07 §4 with §14.2 — a card the gateway keeps, not us.
+  "Lưu thẻ này cho lần sau": "이 카드를 다음에도 사용하도록 저장",
+  "Thẻ do cổng thanh toán giữ. StayHost chỉ thấy 4 số cuối, dùng để hoàn tiền và nhắc khi thẻ hết hạn.": "카드는 결제 게이트웨이가 보관합니다. StayHost는 마지막 네 자리만 보며, 환불과 만료 안내에 사용합니다.",
+  "Do cổng thanh toán giữ": "결제 게이트웨이가 보관",
 };

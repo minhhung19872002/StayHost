@@ -16,7 +16,7 @@ public class BookingsController(
     CatalogService catalog, BookingService rules, ReviewService reviews, ThreadMessenger messenger,
     PaymentGateway gateway, RiskWatch risk, WalletService wallet, PaymentCompletion completion,
     CouponService coupons, ExperienceService experiences, ServiceMarketService market,
-    PspRouter psp, PspCheckout pspCheckout)
+    PspRouter psp, PspCheckout pspCheckout, DataSecrets secrets)
     : ControllerBase
 {
     /// <summary>
@@ -575,9 +575,23 @@ public class BookingsController(
         {
             if (booking.Payment is not null) booking.Payment.CardLast4 = null;
 
+            // docs/07 §4 — a card the guest kept at the gateway. The token is
+            // theirs and sealed here, so it is opened for exactly this call and
+            // never leaves the server.
+            string? cardToken = null;
+
+            if (req?.SavedCardId is { } savedId)
+            {
+                var saved = await db.SavedCards
+                    .FirstOrDefaultAsync(c => c.Id == savedId && c.UserId == user.Id, ct);
+
+                cardToken = secrets.Open(DataSecrets.CardToken, saved?.GatewayTokenSealed);
+            }
+
             var handover = await pspCheckout.StartAsync(
                 booking, method, charged, partial, key,
-                Psp.ClientIp(HttpContext.Connection.RemoteIpAddress?.ToString()), ct);
+                Psp.ClientIp(HttpContext.Connection.RemoteIpAddress?.ToString()), ct,
+                saveCard: req?.SaveCard == true, cardToken: cardToken);
 
             if (!handover.Ok || handover.PayUrl is null)
                 return BadRequest(new { message = handover.Error, retryable = true });

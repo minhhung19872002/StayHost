@@ -304,6 +304,7 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
 | TC-A-04 | Báo cáo tài chính: doanh thu phí, tiền đang giữ hộ, thuế phải nộp, thất thoát — **đã làm** (đọc thẳng từ sổ ghi tiền) |
 | TC-P-13 | **VietQR** (§2.3): sinh mã, giữ chỗ chờ tiền, đọc sao kê, khớp về đơn — **đã làm 13/08/2026**, xem §15.2 |
 | TC-P-14 | **Cổng thanh toán có giấy phép** (§13 phương án A): VNPay / MoMo / ZaloPay — mở đơn, chuyển khách sang trang của họ, đọc IPN có chữ ký, tự hỏi lại kết quả — **đã làm 17/08/2026**, xem §15.3 |
+| TC-P-15 | **Token hoá thẻ** (§4 với §14.2): khách chọn lưu thẻ, cổng giữ thẻ và trả về bốn số cuối — thứ duy nhất khôi phục được `CardLast4` sau khi bỏ ô nhập thẻ — **đã làm 17/08/2026**, xem §15.5 |
 | TC-O-07 | **Lệnh chuyển tiền hàng loạt cho chủ nhà** (§13): lưu số tài khoản đã mã hoá, gom lệnh theo chủ nhà theo ngày, xuất file cho internet banking, xác nhận ngân hàng đã thực hiện rồi mới ghi sổ — **đã làm 17/08/2026**, xem §15.4 |
 
 ### 15.1. Hai chỗ của §3 cần khách xác nhận
@@ -470,6 +471,49 @@ vòng quét phía sau chết theo — im lặng.
 
 **Chưa làm:** lấy sao kê ngân hàng về để tự đối chiếu lệnh đã chuyển (giờ là người
 bấm), và mẫu file riêng cho từng ngân hàng.
+
+---
+
+### 15.5. Token hoá thẻ — lấy lại bốn số cuối (17/08/2026)
+
+`§15.3` để lại một chỗ mất: cổng thật thì khách gõ thẻ ở trang VNPay, nên
+`payments.CardLast4` là null, và ba thứ đọc cột đó mất chỗ dựa — thẻ đã lưu của
+`§4`, nhắc "thẻ sắp hết hạn còn lịch thu tự động", và nhánh "thẻ đã đóng" của
+`§10`. **API token của VNPay là đường duy nhất lấy lại nó**, vì đó là lần duy
+nhất họ nói cho sàn biết gì về cái thẻ.
+
+Khách tick **"Lưu thẻ này cho lần sau"** thì đơn đi qua `pay_and_create` thay vì
+`pay`. Trả về: `vnp_token` (chỉ VNPay dùng được), `vnp_card_number` **đã che**
+(`970419xxxxxx2198`), `vnp_card_type` (01 nội địa / 02 quốc tế). Sàn giữ bốn số
+cuối, và giữ token **đã mã hoá** — khoá riêng dẫn xuất từ khoá chung của `§14.3`,
+nên một ô lấy được từ bảng này không mở được ở bảng kia.
+
+**Hai thứ khác hẳn API thanh toán, và cả hai đều dễ sai im lặng:**
+
+1. **Tên tham số viết thường có gạch dưới** — `vnp_command`, không phải
+   `vnp_Command`. Trộn hai kiểu thì nhận một trang lỗi trắng không nói field nào.
+2. **Đường dẫn riêng** (`/token_ui/pay-create-token.html`).
+
+Quy tắc ký thì **tài liệu của họ không nói**. Đã xác định bằng cách gửi sandbox
+mỗi kiểu một lần: **sorted-query giống hệt API thanh toán** thì vào được trang
+thanh toán, còn hai biến thể pipe-joined đều rơi vào `error.html`.
+
+**Thẻ do cổng giữ thì không có ngày hết hạn ở đây.** API token không trả ngày
+nào cả, nên `SavedCards.ExpiryKnown` nói thẳng là không biết thay vì bịa một
+tháng; gọi nó "hết hạn" sẽ giấu mất một cái thẻ còn tốt. Khi thẻ hết hạn thật thì
+VNPay từ chối token, và lời từ chối đó là cái khách nhìn thấy.
+
+**Đã trả tiền thật, trên chính trang của VNPay.**
+`scripts/vnpay_browser_acceptance.py` mở trình duyệt thật, gõ thẻ thử NCB của
+VNPay, qua modal điều khoản, nhập OTP, và quay về: **14/14**. Đơn `Confirmed`,
+`CardLast4 = 2198`, thẻ đã lưu với token mã hoá, `ProviderTxnId` là mã giao dịch
+của chính VNPay, sổ lệch 0. Đây là bộ duy nhất mà **VNPay ký câu trả lời chứ
+không phải sàn tự ký**.
+
+**Chưa làm:** trả bằng token là một lần chuyển hướng nữa (`token_pay`), nên nó
+vẫn cần khách có mặt — **không dùng để thu tiền bồi thường sau này** như `docs/06
+§3.3` mong. Và `token_remove` chưa nối, nên xoá thẻ ở sàn thì token vẫn còn bên
+VNPay.
 
 ## 16. Tham số cần chốt
 

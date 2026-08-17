@@ -46,6 +46,23 @@ public class PspSettings
         public string HashSecret { get; set; } = "";
         public string PayUrl { get; set; } = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
         public string ApiUrl { get; set; } = "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction";
+
+        /// <summary>
+        /// docs/07 §4 — the token API, which is a different path and a different
+        /// parameter spelling from the payment one. Paying and creating a token
+        /// in one go; and paying with a token the guest saved earlier.
+        /// </summary>
+        public string CreateTokenUrl { get; set; } = "https://sandbox.vnpayment.vn/token_ui/pay-create-token.html";
+
+        public string TokenPayUrl { get; set; } = "https://sandbox.vnpayment.vn/token_ui/payment-token.html";
+
+        /// <summary>
+        /// Whether to offer keeping a card at all. Off by default: token creation
+        /// is a feature VNPay enables per merchant, and offering a tick box that
+        /// their gateway then refuses is worse than not offering it.
+        /// </summary>
+        public bool Tokens { get; set; }
+
         public bool IsConfigured => TmnCode.Length > 0 && HashSecret.Length > 0;
     }
 

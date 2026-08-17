@@ -9,7 +9,17 @@ public sealed record PspOrder(
     string Description,
     /// <summary>The method the guest picked, which decides the gateway's own sub-choice.</summary>
     string Method,
-    string ClientIp);
+    string ClientIp,
+    /// <summary>
+    /// docs/07 §4 — the guest asked to keep this card for next time. On VNPay it
+    /// selects the token API, which is also the only way this platform ever
+    /// learns the card's last four digits (§14.2 took the card form away).
+    /// </summary>
+    bool SaveCard = false,
+    /// <summary>Who is paying, as the gateway's token store will know them.</summary>
+    string? UserRef = null,
+    /// <summary>A card the guest already saved there, to charge instead of asking for a new one.</summary>
+    string? Token = null);
 
 /// <summary>Where to send the guest, or why they cannot go.</summary>
 public sealed record PspStart(bool Ok, string? PayUrl = null, string? Error = null);
@@ -24,7 +34,17 @@ public sealed record PspVerdict(
     decimal Amount = 0,
     string? TxnId = null,
     string? Code = null,
-    DeclineReason Decline = DeclineReason.Unknown)
+    DeclineReason Decline = DeclineReason.Unknown,
+    /// <summary>
+    /// docs/07 §4 — the card's last four digits, when the gateway told us. Null
+    /// on an ordinary payment: the number was typed on their page and they say
+    /// nothing about it unless a token was created.
+    /// </summary>
+    string? CardLast4 = null,
+    /// <summary>The gateway's handle on that card, to be sealed before it is stored.</summary>
+    string? CardToken = null,
+    /// <summary>"01" domestic, "02" international — as much as VNPay will say.</summary>
+    string? CardType = null)
 {
     public static readonly PspVerdict Unknown = new(PaymentSessionStatus.Pending);
 

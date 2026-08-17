@@ -2450,4 +2450,9 @@ export default {
   "Đã tải, chờ ngân hàng": "Downloaded, waiting on the bank",
   "Ngân hàng đã chuyển": "Executed by the bank",
   "Ngân hàng từ chối": "Refused by the bank",
+
+  // docs/07 §4 with §14.2 — a card the gateway keeps, not us.
+  "Lưu thẻ này cho lần sau": "Save this card for next time",
+  "Thẻ do cổng thanh toán giữ. StayHost chỉ thấy 4 số cuối, dùng để hoàn tiền và nhắc khi thẻ hết hạn.": "The card is held by the payment gateway. StayHost sees only the last four digits, used for refunds and expiry reminders.",
+  "Do cổng thanh toán giữ": "Held by the payment gateway",
 };

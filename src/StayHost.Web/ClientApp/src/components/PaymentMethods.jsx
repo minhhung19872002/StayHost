@@ -47,10 +47,13 @@ export function PaymentMethods({ idPrefix = 'card' }) {
     api.savedCards().then(setCards).catch(() => setCards([]));
   }, []);
 
-  const usable = cards.filter(c => !c.isExpired);
-
   // The method the guest picked, if a licensed gateway is wired behind it.
   const live = offered.find(m => m.key === state.payMethod && m.live) ?? null;
+
+  // A card typed into the stand-in cannot be charged at VNPay and the other way
+  // round — the gateway holds a token, this platform holds nothing. So the list
+  // only offers what the method the guest picked can actually use.
+  const usable = cards.filter(c => !c.isExpired && (live ? c.gatewayHeld : !c.gatewayHeld));
 
   return <>
     <div style={{ display: 'grid', gap: 10 }}>
@@ -63,10 +66,26 @@ export function PaymentMethods({ idPrefix = 'card' }) {
       ))}
     </div>
 
-    {/* docs/07 §4 — a guest who has saved a card should not retype it. Offered
-        only against the stand-in: a real gateway holds its own tokens, and a
-        card picked here would have to be typed again on their page anyway. */}
-    {state.payMethod === 'card' && !live && !!usable.length && (
+    {/* docs/07 §4 — the guest chooses whether the gateway keeps this card. It is
+        not only a convenience: with a live gateway this is also the only way
+        StayHost ever learns the card's last four digits (§14.2 means the number
+        is typed on their page), and §10's closed-card refund rule reads exactly
+        that field. So the wording says what it is for. */}
+    {live?.tokens && !state.payCardId && (
+      <label className="opt opt-row" style={{ marginTop: 12, cursor: 'pointer' }}>
+        <input type="checkbox" checked={!!state.paySaveCard} style={{ width: 18, height: 18 }}
+               onChange={e => set({ paySaveCard: e.target.checked })} />
+        <span className="opt-tx">
+          <b>{t('Lưu thẻ này cho lần sau')}</b>
+          <span>{t('Thẻ do cổng thanh toán giữ. StayHost chỉ thấy 4 số cuối, dùng để hoàn tiền và nhắc khi thẻ hết hạn.')}</span>
+        </span>
+      </label>
+    )}
+
+    {/* docs/07 §4 — a guest who has saved a card should not retype it. With a
+        live gateway the saved card is a token there, so picking one sends the
+        guest to that gateway's token page instead of its card form. */}
+    {state.payMethod === 'card' && (!live || live.tokens) && !!usable.length && (
       <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
         <span className="cap">{t('Thẻ đã lưu')}</span>
         {usable.map(c => (
@@ -75,7 +94,11 @@ export function PaymentMethods({ idPrefix = 'card' }) {
                   onClick={() => set({ payCardId: c.id, payCardLast4: c.last4 })}>
             <span className="opt-ic"><Icon name="card" size={22} /></span>
             <span className="opt-tx">
-              <b>{c.brandLabel} •••• {c.last4}</b><span>{t('Hết hạn')} {c.expiry}</span>
+              <b>{c.brandLabel} •••• {c.last4}</b>
+              {/* A gateway-held card has no expiry here to print — the server
+                  says so in words, and those words need translating like any
+                  other server-generated string. */}
+              <span>{c.gatewayHeld ? t(c.expiry) : `${t('Hết hạn')} ${c.expiry}`}</span>
             </span>
           </button>
         ))}

@@ -276,7 +276,12 @@ export function CheckoutModal() {
       depositAmount: state.payDeposit ? Math.ceil(q.total / 2) : null,
       // docs/07 §7 — the same key on a retry, so a lost reply cannot become a
       // second charge. New for each fresh attempt the guest makes themselves.
-      idempotencyKey: attemptKey.current
+      idempotencyKey: attemptKey.current,
+      // docs/07 §4 — keep this card at the gateway, or pay with one already
+      // kept there. With a live gateway the first is also how StayHost learns
+      // the card's last four digits at all (§14.2).
+      saveCard: !!state.paySaveCard,
+      savedCardId: state.payCardId ?? null
     };
 
     setBusy(true);

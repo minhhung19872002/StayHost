@@ -26,7 +26,8 @@ public class PaymentMethodsController(
     public ActionResult<PaymentCatalogueDto> Catalogue()
     {
         var offered = PaymentMethods.Available()
-            .Select(m => new PaymentMethodDto(m.Key, m.Group, m.Label, m.Hint, m.Savable, psp.IsLive(m.Key)))
+            .Select(m => new PaymentMethodDto(m.Key, m.Group, m.Label, m.Hint, m.Savable,
+                psp.IsLive(m.Key), psp.KeepsCards(m.Key)))
             .ToList();
 
         // docs/07 §2.3 — VietQR is a "later" method in the catalogue, so it is not
@@ -299,7 +300,9 @@ public class PaymentMethodsController(
                 SavedCards.IsExpired(card, today),
                 SavedCards.ExpiringSoon(card, today),
                 scheduled,
-                await HasOpenBookingAsync(userId, card.Last4, ct)));
+                await HasOpenBookingAsync(userId, card.Last4, ct),
+                card.IsGatewayHeld,
+                card.Provider));
         }
 
         return result;
