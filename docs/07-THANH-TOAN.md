@@ -303,6 +303,7 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
 | TC-A-03 | Bảng theo dõi gian lận theo §14.5 — **đã làm** (`RiskWatch`, bảng Cảnh báo bất thường) |
 | TC-A-04 | Báo cáo tài chính: doanh thu phí, tiền đang giữ hộ, thuế phải nộp, thất thoát — **đã làm** (đọc thẳng từ sổ ghi tiền) |
 | TC-P-13 | **VietQR** (§2.3): sinh mã, giữ chỗ chờ tiền, đọc sao kê, khớp về đơn — **đã làm 13/08/2026**, xem §15.2 |
+| TC-P-14 | **Cổng thanh toán có giấy phép** (§13 phương án A): VNPay / MoMo / ZaloPay — mở đơn, chuyển khách sang trang của họ, đọc IPN có chữ ký, tự hỏi lại kết quả — **đã làm 17/08/2026**, xem §15.3 |
 
 ### 15.1. Hai chỗ của §3 cần khách xác nhận
 
@@ -355,6 +356,54 @@ riêng chứ không tự khôi phục — chỗ đã cho người khác rồi.
 **Chưa làm:** đặt cọc bằng chuyển khoản (sẽ là hai lần chuyển, hai mã, một lịch đòi
 nốt — bị từ chối thẳng với câu giải thích), và tự động lấy sao kê từ ngân hàng.
 
+---
+
+### 15.3. Cổng thanh toán thật — §13 phương án A (17/08/2026)
+
+Cho tới hôm nay **toàn bộ tầng thanh toán là giả lập**: `PaymentGateway` nói "có"
+với mọi thẻ trừ thẻ thử `0000`, và ô nhập số thẻ là ô do sàn tự viết — trái thẳng
+§14.1–2. Giờ bốn phương thức của §2.1 đi qua đơn vị thu hộ có giấy phép.
+
+| Ô trên màn hình | Cổng | Vì sao |
+|---|---|---|
+| Thẻ tín dụng / ghi nợ | **VNPay** (`INTCARD`) | Visa / Mastercard / JCB / Amex |
+| Thẻ ATM nội địa | **VNPay** (`VNBANK`) | Cùng một cổng, khác danh sách ngân hàng — nên không phải ký hợp đồng hai nơi |
+| Ví MoMo | **MoMo** | |
+| ZaloPay | **ZaloPay** | |
+
+**Cổng nào chưa điền khoá thì phương thức đó vẫn chạy bằng bản giả lập** — đúng
+quy tắc của nút đăng nhập mạng xã hội và của VietQR: thà thiếu còn hơn có mà
+không chạy. Điền khoá vào là phương thức đó **thôi không bị trừ tiền ở đây nữa**,
+khách rời sang trang của cổng.
+
+**Ba đường có thể báo tin về, và không đường nào được tin một mình:**
+
+| Đường | Ai gọi | Tin được không |
+|---|---|---|
+| Khách quay lại (`/return`) | Trình duyệt | **Không.** §5 nói thẳng: không tin vào việc khách quay về trang nào. Nó chỉ là cách khách về tới trang kết quả |
+| IPN (`/ipn`, `/callback`) | Máy chủ của cổng | Có, **sau khi kiểm chữ ký** |
+| Sàn tự hỏi (`PspSweeper`, mỗi phút) | Sàn | Có. Đây là câu trả lời cuối cùng, và trên máy lập trình nó là **đường duy nhất** vì IPN không tới được `localhost` |
+
+Cái đầu tiên tới với chữ ký thật thì thắng; hai cái sau thấy phiên đã chốt rồi
+thì không làm gì. Đó là lý do ba đường chạy đua với nhau được — §7 gọi trừ tiền
+hai lần là lỗi nặng nhất module.
+
+**Chữ ký sai thì bị bỏ qua, không phải bị coi là thất bại.** Không có gì xác thực
+người gọi vào `/api/payments/momo/ipn`, nên nếu một callback không chữ ký đánh
+hỏng được phiên thì bất kỳ ai đoán ra mã đơn cũng giết được lượt thanh toán của
+người lạ — và người khách sau đó trả tiền thật sẽ quay về một đơn đã bị xoá sổ.
+Lỗi này **đã có thật** trong bản đầu và bị `scripts/gateway_acceptance.py` bắt.
+
+**Cổng báo số tiền khác với đơn thì không xác nhận**, dù chữ ký đúng: hoặc ai đó
+sửa địa chỉ, hoặc bên kia có lỗi, và cả hai đều không phải lý do để giao phòng.
+
+Sàn **không lưu số thẻ, không lưu CVV, không có ô nhập thẻ nào** khi cổng đã bật
+— §14.1–2. Với cổng chưa bật thì ô nhập cũ vẫn còn, và nó vẫn chỉ là bản demo.
+
+**Chưa làm:** hoàn tiền ngược về cổng (`Refunds` hiện đi qua bản giả lập), trả
+góp qua thẻ (§2.3), và đối soát cuối ngày lấy sao kê **từ cổng** thay vì từ bảng
+`gateway_charges` mà chính sàn ghi.
+
 ## 16. Tham số cần chốt
 
 | Mã | Tham số | Gợi ý | Giá trị chốt |
@@ -366,8 +415,8 @@ nốt — bị từ chối thẳng với câu giải thích), và tự động l
 | TC-07b | Thưởng giới thiệu bạn hết hạn sau bao lâu | 12 tháng | **12 tháng** (chốt 11/08/2026) |
 | TC-07c | Số dư hoàn lại khi huỷ đơn hết hạn sau bao lâu | 12 tháng | **12 tháng** (chốt 11/08/2026) |
 | TC-07d | Thẻ quà tặng hết hạn sau bao lâu | **không hết hạn** — khách đã trả tiền thật cho nó | **không hết hạn** (chốt 11/08/2026) |
-| — | Chọn phương án pháp lý A, B hay C (§13) | A | |
-| — | Cổng thanh toán chính | | |
+| — | Chọn phương án pháp lý A, B hay C (§13) | A | **A** (làm 17/08/2026, xem §15.3) |
+| — | Cổng thanh toán chính | VNPay (một cổng lo cả thẻ quốc tế lẫn thẻ nội địa) | **VNPay**, thêm MoMo và ZaloPay cho hai ô ví. Sandbox đã chạy thật; prod cần giấy phép kinh doanh + hợp đồng |
 | — | Có nhận khách quốc tế ngay từ đầu không? | không | |
 | — | Có làm ví nội bộ cho chủ nhà không? | không, giai đoạn đầu | |
 

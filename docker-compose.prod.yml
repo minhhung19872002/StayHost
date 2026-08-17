@@ -108,6 +108,27 @@ services:
       BankTransfer__BankName: ${BANK_NAME:-}
       BankTransfer__AccountNumber: ${BANK_ACCOUNT_NUMBER:-}
       BankTransfer__AccountName: ${BANK_ACCOUNT_NAME:-}
+      # docs/07 §13 phương án A — the licensed gateways. Each stays dormant until
+      # its keys arrive, and a dormant one means that payment method keeps running
+      # against the built-in stand-in rather than breaking. PSP_PUBLIC_URL has to
+      # be an address the gateway can reach: it is where the guest is sent back to
+      # and where the IPN is posted.
+      #
+      # Endpoints default to the sandboxes so a half-configured server cannot move
+      # real money by accident. Switching to production means setting all three.
+      Psp__PublicUrl: ${PSP_PUBLIC_URL:-}
+      Psp__Vnpay__TmnCode: ${VNPAY_TMN_CODE:-}
+      Psp__Vnpay__HashSecret: ${VNPAY_HASH_SECRET:-}
+      Psp__Vnpay__PayUrl: ${VNPAY_PAY_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      Psp__Vnpay__ApiUrl: ${VNPAY_API_URL:-https://sandbox.vnpayment.vn/merchant_webapi/api/transaction}
+      Psp__Momo__PartnerCode: ${MOMO_PARTNER_CODE:-}
+      Psp__Momo__AccessKey: ${MOMO_ACCESS_KEY:-}
+      Psp__Momo__SecretKey: ${MOMO_SECRET_KEY:-}
+      Psp__Momo__Endpoint: ${MOMO_ENDPOINT:-https://test-payment.momo.vn/v2/gateway/api}
+      Psp__Zalopay__AppId: ${ZALOPAY_APP_ID:-}
+      Psp__Zalopay__Key1: ${ZALOPAY_KEY1:-}
+      Psp__Zalopay__Key2: ${ZALOPAY_KEY2:-}
+      Psp__Zalopay__Endpoint: ${ZALOPAY_ENDPOINT:-https://sb-openapi.zalopay.vn/v2}
     # Nginx terminates TLS on the host and proxies here, so the port stays on loopback.
     ports:
       - "127.0.0.1:8090:8080"

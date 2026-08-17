@@ -92,6 +92,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<MoneyApproval> MoneyApprovals => Set<MoneyApproval>();
     public DbSet<GatewayCharge> GatewayCharges => Set<GatewayCharge>();
     public DbSet<CardAuthentication> CardAuthentications => Set<CardAuthentication>();
+    public DbSet<PaymentSession> PaymentSessions => Set<PaymentSession>();
     public DbSet<Chargeback> Chargebacks => Set<Chargeback>();
     public DbSet<ShieldClaim> ShieldClaims => Set<ShieldClaim>();
     public DbSet<ShieldEvidence> ShieldEvidence => Set<ShieldEvidence>();
@@ -222,6 +223,29 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Reference).HasMaxLength(160).IsRequired();
             e.Property(x => x.Amount).HasPrecision(12, 2);
             e.Property(x => x.Method).HasMaxLength(30);
+        });
+
+        // docs/07 §13 — one trip out to a licensed gateway. OrderRef is unique
+        // for the same reason payment_attempts.Key is: a gateway that sends its
+        // IPN twice, or sends it while the guest is coming back, must settle the
+        // same booking once.
+        b.Entity<PaymentSession>(e =>
+        {
+            e.ToTable("payment_sessions");
+            e.HasIndex(x => x.OrderRef).IsUnique();
+            e.HasIndex(x => x.AttemptKey);
+            e.HasIndex(x => new { x.Status, x.CreatedAt });
+            e.Property(x => x.OrderRef).HasMaxLength(40).IsRequired();
+            e.Property(x => x.AttemptKey).HasMaxLength(160).IsRequired();
+            e.Property(x => x.Provider).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Method).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Amount).HasPrecision(12, 2);
+            e.Property(x => x.PayUrl).HasMaxLength(2000);
+            e.Property(x => x.ProviderTxnId).HasMaxLength(80);
+            e.Property(x => x.ResponseCode).HasMaxLength(40);
+            e.Property(x => x.SettledBy).HasMaxLength(20);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
         });
 
         /* ------------------------------------------------------- docs/08 */

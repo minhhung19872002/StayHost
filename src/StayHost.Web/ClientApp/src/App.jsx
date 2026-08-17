@@ -25,6 +25,7 @@ import { Admin } from './pages/Admin.jsx';
 import { Help } from './pages/Help.jsx';
 import { Split } from './pages/Split.jsx';
 import { Transfer } from './pages/Transfer.jsx';
+import { PaymentResult } from './pages/PaymentResult.jsx';
 import { Experiences, ExperienceBookings, ExperienceCheckout } from './pages/Experiences.jsx';
 import { Services, ServiceBookings, ServiceCheckout } from './pages/Services.jsx';
 import { Wallet } from './pages/Wallet.jsx';
@@ -148,6 +149,8 @@ export function App() {
             <Route path="/split/:token" element={<Split />} />
             {/* docs/07 §2.3 — the QR a guest waits on after choosing bank transfer. */}
             <Route path="/chuyen-khoan/:reference" element={<Transfer />} />
+            {/* docs/07 §13 — where a licensed gateway sends the guest back to. */}
+            <Route path="/thanh-toan/ket-qua" element={<PaymentResult />} />
             <Route path="/users/:id" element={<UserProfile />} />
             {/* docs/08 §8 — quyết định về mình, và cửa khiếu nại cho cả người đã bị khoá */}
             <Route path="/account/sanctions" element={<MySanctions />} />

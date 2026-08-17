@@ -162,6 +162,60 @@ thành phán quyết "tiền về muộn" phải xử lý tay.
 **Tắt lại:** xoá dòng `BANK_ACCOUNT_NUMBER` (hoặc để trống) rồi `up -d web`. Đơn đang
 chờ chuyển khoản vẫn tự hết hạn và nhả chỗ như thường.
 
+## 2.5. Bật cổng thanh toán thật (VNPay / MoMo / ZaloPay)
+
+`docs/07 §13` phương án A, chi tiết ở `§15.3`. Mặc định **tắt cả ba**: cổng nào chưa
+có khoá thì phương thức đó vẫn chạy bằng bản giả lập trong mã, y như trước. Bật một
+cổng là phương thức của nó **thôi không bị trừ tiền trên máy chủ sàn nữa** — khách rời
+sang trang của cổng và tiền chạy thật.
+
+**Cần trước khi bật:** giấy phép kinh doanh + hợp đồng với cổng. Phí khoảng
+**1.1–1.65%** mỗi giao dịch với VNPay, **~2%** với MoMo, **1.5–2%** với ZaloPay. Sandbox
+thì miễn phí và không cần giấy tờ.
+
+```bash
+cat >> ~/deploy/stayhost.env <<'EOF'
+# Địa chỉ cổng gọi ngược về. Phải là tên miền thật, không phải localhost.
+PSP_PUBLIC_URL=https://staylio.bluestar.com.vn
+
+# VNPay — lo cả ô "Thẻ tín dụng / ghi nợ" lẫn ô "Thẻ ATM nội địa"
+VNPAY_TMN_CODE=<mã website>
+VNPAY_HASH_SECRET=<chuỗi bí mật>
+VNPAY_PAY_URL=https://vnpayment.vn/paymentv2/vpcpay.html
+VNPAY_API_URL=https://vnpayment.vn/merchant_webapi/api/transaction
+
+# MoMo
+MOMO_PARTNER_CODE=<...>
+MOMO_ACCESS_KEY=<...>
+MOMO_SECRET_KEY=<...>
+MOMO_ENDPOINT=https://payment.momo.vn/v2/gateway/api
+
+# ZaloPay
+ZALOPAY_APP_ID=<...>
+ZALOPAY_KEY1=<...>
+ZALOPAY_KEY2=<...>
+ZALOPAY_ENDPOINT=https://openapi.zalopay.vn/v2
+EOF
+
+cd ~/actions-runner/_work/StayHost/StayHost
+docker compose -p stayhost -f docker-compose.prod.yml --env-file ~/deploy/stayhost.env up -d web
+
+# Ô nào đã có cổng thật thì trả "live": true
+curl -s https://staylio.bluestar.com.vn/api/payment-methods/catalogue | python3 -m json.tool
+```
+
+- **Ba `*_ENDPOINT`/`*_URL` mặc định là sandbox**, cố ý: một server cấu hình dở dang
+  không được phép chuyển tiền thật vì quên một dòng. Lên prod phải đặt cả ba.
+- `VNPAY_HASH_SECRET`, `MOMO_SECRET_KEY`, `ZALOPAY_KEY1/KEY2` **là bí mật thật** — ai có
+  chúng thì ký được callback giả. Chỉ để trong env file trên máy chủ, quyền `600`.
+- Khai **địa chỉ IPN** ở trang quản trị của từng cổng:
+  `…/api/payments/vnpay/ipn`, `…/api/payments/momo/ipn`, `…/api/payments/zalopay/callback`.
+  Không khai cũng vẫn chạy — `PspSweeper` mỗi phút tự hỏi lại cổng (`docs/07 §5`) —
+  nhưng đơn sẽ được xác nhận chậm hơn một phút.
+
+**Tắt lại:** xoá khoá của cổng đó rồi `up -d web`. Phương thức quay về bản giả lập; các
+phiên đang chờ tự hết hạn sau 15 phút và nhả chỗ, chưa có bút toán nào phải đảo.
+
 ## 3. Các lệnh vận hành
 
 Tất cả chạy với user `hung`:

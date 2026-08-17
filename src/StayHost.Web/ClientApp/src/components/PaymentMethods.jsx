@@ -18,6 +18,12 @@ import { t } from '../lib/i18n.js';
  */
 const ICONS = { card: 'card', napas: 'bank', momo: 'wallet', zalopay: 'wallet' };
 
+/**
+ * docs/07 §13 — whose page the guest is about to land on. A brand name, so it is
+ * not translated; it is only ever shown, never matched against.
+ */
+const GATEWAY_NAME = { card: 'VNPay', napas: 'VNPay', momo: 'MoMo', zalopay: 'ZaloPay' };
+
 export function PaymentMethods({ idPrefix = 'card' }) {
   const state = useStore();
   const [offered, setOffered] = useState(FALLBACK_METHODS);
@@ -43,6 +49,9 @@ export function PaymentMethods({ idPrefix = 'card' }) {
 
   const usable = cards.filter(c => !c.isExpired);
 
+  // The method the guest picked, if a licensed gateway is wired behind it.
+  const live = offered.find(m => m.key === state.payMethod && m.live) ?? null;
+
   return <>
     <div style={{ display: 'grid', gap: 10 }}>
       {offered.map(m => (
@@ -54,8 +63,10 @@ export function PaymentMethods({ idPrefix = 'card' }) {
       ))}
     </div>
 
-    {/* docs/07 §4 — a guest who has saved a card should not retype it. */}
-    {state.payMethod === 'card' && !!usable.length && (
+    {/* docs/07 §4 — a guest who has saved a card should not retype it. Offered
+        only against the stand-in: a real gateway holds its own tokens, and a
+        card picked here would have to be typed again on their page anyway. */}
+    {state.payMethod === 'card' && !live && !!usable.length && (
       <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
         <span className="cap">{t('Thẻ đã lưu')}</span>
         {usable.map(c => (
@@ -78,7 +89,22 @@ export function PaymentMethods({ idPrefix = 'card' }) {
       </div>
     )}
 
-    {state.payMethod === 'card' && !state.payCardId && <>
+    {/* docs/07 §13 — a method with a licensed gateway behind it is paid for on
+        that gateway's own page. Saying so before the button is pressed matters:
+        the guest is about to leave the site, and a redirect nobody warned them
+        about reads as the checkout breaking. */}
+    {live && (
+      <p className="pay-demo">
+        <Icon name="shield" size={16} />
+        {t('Bạn sẽ được chuyển sang trang thanh toán của {} để hoàn tất. StayHost không nhìn thấy số thẻ của bạn.')
+          .replace('{}', GATEWAY_NAME[live.key] ?? t('cổng thanh toán'))}
+      </p>
+    )}
+
+    {/* docs/07 §14.2 — the card fields only exist for the built-in stand-in.
+        With a real gateway wired the number is typed on their page and this form
+        must not appear at all, let alone collect anything. */}
+    {state.payMethod === 'card' && !state.payCardId && !live && <>
       <div className="field-grid" style={{ marginTop: 18 }}>
         <label className="form-field" style={{ gridColumn: '1/-1' }}>
           <span className="cap">{t('Số thẻ')}</span>

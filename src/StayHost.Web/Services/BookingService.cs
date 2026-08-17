@@ -382,6 +382,14 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var authResult = await cardAuth.SweepAsync(stoppingToken);
                 if (authResult.Any) log.LogInformation("Xác thực thẻ: {Result}.", authResult);
 
+                // docs/07 §5, §13 — the same question asked of the real gateways.
+                // It runs here, ahead of the lifecycle sweep, for the same reason:
+                // a booking somebody paid for on VNPay must be recognised before
+                // its hold is expired out from under it.
+                var psp = scope.ServiceProvider.GetRequiredService<Gateways.PspSweeper>();
+                var pspResult = await psp.SweepAsync(stoppingToken);
+                if (pspResult.Any) log.LogInformation("Cổng thanh toán: {Result}.", pspResult);
+
                 var bookings = scope.ServiceProvider.GetRequiredService<BookingService>();
                 var result = await bookings.SweepAsync(stoppingToken);
                 if (result.Any) log.LogInformation("Vòng đời đơn: {Result}.", result);

@@ -41,7 +41,9 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (16/08/2026).** 1003 test nghiệp vụ · **10/10** kịch bản của `docs/04`
+**Toàn bộ xanh (17/08/2026).** 1024 test nghiệp vụ · **19/19** kịch bản cổng thanh
+toán thật (`scripts/gateway_acceptance.py`, gọi sandbox MoMo/ZaloPay ngoài đời) ·
+**10/10** kịch bản của `docs/04`
 (`scripts/acceptance.py`) · **10/10** kịch bản quản trị của `docs/08 §13`
 (`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
 (`scripts/doc09_acceptance.py`, gồm cả 12 tình huống bắt buộc của `docs/09 §9`) ·
@@ -74,6 +76,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Khám phá | Tìm không dấu, ngày là bộ lọc thật, ngày linh hoạt ±1–7, cuối tuần/tuần/tháng, chọn theo tháng |
 | Chủ nhà | Đăng tin theo bước, lịch nhiều tin, giá mùa/theo ngày, đồng bộ iCal hai chiều, co-host có phạm vi quyền |
 | Thanh toán | Trả đủ, trả một phần (cọc ≥50% + tự thu trước 14 ngày), chia hoá đơn tối đa 16 người |
+| Cổng thanh toán thật | `docs/07 §13` phương án A, `§15.3`. **VNPay** (thẻ quốc tế `INTCARD` + thẻ ATM nội địa `VNBANK`), **MoMo**, **ZaloPay**. Khách rời sang trang của cổng — sàn **không có ô nhập thẻ nào** khi cổng đã bật (`§14.2`). Ba đường báo tin về: khách quay lại (**không tin**), IPN có chữ ký, và `PspSweeper` mỗi phút tự hỏi lại cổng — cái đầu tiên có chữ ký thật thì thắng, hai cái sau không làm gì. **Chữ ký sai bị bỏ qua, không bị coi là thất bại**; số tiền cổng báo khác đơn thì không xác nhận. Khoá để trống = phương thức đó vẫn chạy bằng bản giả lập, y như cũ. Sandbox MoMo/ZaloPay nằm trong `appsettings.Development.json`; VNPay cần `TmnCode` từ sandbox.vnpayment.vn |
 | Chuyển khoản VietQR | `docs/07 §2.3`, cả ba dòng đơn. Đơn ở trạng thái **chờ chuyển khoản** giữ ngày/ghế **2 giờ** (`BankTransfers.Window`) và **chưa ghi bút toán nào**; người trực dán sao kê ở trang quản trị, `BankTransfers.Judge` khớp mã đơn trong nội dung, rồi đơn đi qua **đúng đường xác nhận mà thẻ đang đi**. Sáu phán quyết, chỉ "khớp" và "đã nhập trước đó" là im lặng. Hết hạn thì trả lại chỗ, không có gì phải đảo. **Chỉ hiện khi có `BankTransfer:AccountNumber`; prod chưa bật** — xem `docs/PLAN.md §9.3` |
 | Đánh giá & tin nhắn | Đánh giá mù hai chiều, sửa trong 48h, gửi ảnh, thẻ đơn trong hội thoại, mẫu trả lời nhanh |
 | An toàn | Trung tâm giải quyết, trung tâm trợ giúp 14 bài, phát hiện bất thường, nhật ký quản trị chỉ-thêm |
@@ -254,6 +257,21 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   phải `api/listings`) — chờ ở `/api/listings/meta` thì nhận 404 vĩnh viễn và vòng
   lặp không bao giờ thoát:
   `until curl -s $URL/api/meta | grep -q '"categories"'; do sleep 5; done`
+- **Callback sai chữ ký phải bị *bỏ qua*, không phải bị coi là *thất bại*.** Bản
+  đầu của `PspVerdict.Forged` mang `Status = Failed`, nên `SettleAsync` ghi phiên
+  thành hỏng. Không có gì xác thực người gọi vào `/api/payments/momo/ipn` — ai đoán
+  ra mã đơn cũng giết được lượt thanh toán của người lạ, và khách trả tiền thật sau
+  đó quay về một đơn đã bị xoá sổ. `scripts/gateway_acceptance.py` bắt được nhờ bắn
+  callback giả vào **một đơn thật đang chờ**, không phải vào mã bịa: kiểm chữ ký mà
+  chỉ từ chối được mã không tồn tại thì không kiểm gì cả.
+- **Cổng thanh toán ngoài đời không gọi được vào `localhost`.** IPN của VNPay /
+  MoMo / ZaloPay không bao giờ tới máy lập trình, nên trên máy mình **`PspSweeper`
+  là đường duy nhất chốt được một lượt thanh toán**. Đó cũng chính là lý do
+  `docs/07 §5` bắt sàn tự hỏi lại thay vì tin trình duyệt — nên đừng "sửa" bằng
+  cách tin trang khách quay về.
+- **`app_trans_id` của ZaloPay phải mang ngày của Việt Nam.** Lại đúng bảy tiếng cũ:
+  một đơn mở lúc 18:00 UTC là 01:00 hôm sau ở TP.HCM, và ZaloPay từ chối mọi mã
+  không mở đầu bằng ngày hôm nay của **họ**. `Psp.ZaloTransId` quy đổi, có test.
 
 ---
 
@@ -301,6 +319,27 @@ Không cấu hình gì thì `/api/translate/config` trả `enabled:false` và gi
 `Translation__Provider=google` + `Translation__ApiKey` (biến môi trường, không để trong
 `appsettings.json`).
 
+### Cổng thanh toán thật (`docs/07 §13`, `§15.3`)
+
+`appsettings.Development.json` đã có sẵn khoá **sandbox công khai của MoMo và
+ZaloPay** (do chính họ công bố trong tài liệu, chỉ chạy tiền giả), nên chạy với
+`ASPNETCORE_ENVIRONMENT=Development` là hai ô ví **đi ra cổng thật** ngay:
+
+```bash
+ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/StayHost.Web --urls http://localhost:5199
+python scripts/gateway_acceptance.py            # 19 kịch bản, gọi sandbox thật
+```
+
+**Hai ô thẻ vẫn dùng bản giả lập** cho tới khi có VNPay: đăng ký miễn phí ở
+sandbox.vnpayment.vn rồi đặt `Psp__Vnpay__TmnCode` và `Psp__Vnpay__HashSecret`.
+Không có khoá thì `/api/payment-methods/catalogue` trả `live: false` cho ô đó và
+mọi thứ chạy y như trước — đó là mặc định đúng, không phải lỗi.
+
+Lên prod: đổi ba `Endpoint`/`PayUrl`/`ApiUrl` sang bản không có `sandbox`/`test`,
+đặt `Psp:PublicUrl` thành tên miền thật (IPN phải gọi vào được), và **bí mật đặt
+bằng biến môi trường** — `Psp__Vnpay__HashSecret`, `Psp__Momo__SecretKey`,
+`Psp__Zalopay__Key1`, `Psp__Zalopay__Key2`.
+
 ### Thẻ thử nghiệm
 Mọi thẻ đều thành công, **trừ thẻ kết thúc `0000`** — thẻ đó luôn bị từ chối. Đó là cách
 duy nhất chạy được nhánh "thu lần hai thất bại" của `docs/03 §1`.
@@ -343,10 +382,11 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 963 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1024 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
+python scripts/gateway_acceptance.py               # 19 kịch bản cổng thanh toán, gọi sandbox thật
 python scripts/i18n_audit.py                       # khoá dịch còn thiếu (phải ra 0)
 cd src/StayHost.Web/ClientApp && npm run build && npx oxlint src
 

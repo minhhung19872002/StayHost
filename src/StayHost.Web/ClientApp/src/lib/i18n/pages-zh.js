@@ -2242,4 +2242,17 @@ export default {
 
   // docs/08 §6 — the frozen-balance line on the lock preview.
   "Số dư khuyến mãi bị đóng băng, không bị xoá.": "促销余额只会冻结，不会删除。",
+
+  // docs/07 §13 — paying on a licensed gateway's own page.
+  "Bạn sẽ được chuyển sang trang thanh toán của {} để hoàn tất. StayHost không nhìn thấy số thẻ của bạn.": "将跳转到 {} 的支付页面完成付款。StayHost 不会看到您的卡号。",
+  "cổng thanh toán": "支付网关",
+  "Thanh toán thành công": "支付成功",
+  "Đang xác nhận với cổng thanh toán…": "正在与支付网关确认…",
+  "Tiền có thể đã được trừ. Đừng thanh toán lại — StayHost đang đối chiếu và sẽ xác nhận đơn ngay khi có kết quả.": "款项可能已被扣除。请不要重复支付——StayHost 正在核对，一有结果就会确认订单。",
+  "Bạn đã huỷ ở trang thanh toán": "您在支付页面取消了付款",
+  "Chưa có khoản nào bị trừ. Chỗ vẫn đang được giữ trong ít phút — bạn có thể thử lại.": "没有扣除任何款项。房源仍会为您保留几分钟，可以再试一次。",
+  "Chưa thanh toán được": "支付未成功",
+  "Nếu tài khoản của bạn đã bị trừ tiền, đừng trả lại lần nữa — hãy liên hệ hỗ trợ kèm mã bên dưới.": "如果账户已被扣款，请不要再付一次，请携带下面的编号联系客服。",
+  "Không đọc được đơn": "无法读取订单",
+  "Xem chuyến của tôi": "查看我的行程",
 };

@@ -611,6 +611,29 @@ xuống container. Trước khi bật cần một tài khoản **của pháp nh�
 tài khoản cá nhân: `docs/07 §1` nói tiền khách phải do sàn giữ hộ, và §13 vẫn
 chưa chốt phương án pháp lý A/B/C.
 
+### 9.4. Việc ngoài 203 mã: cổng thanh toán thật (17/08/2026)
+
+`docs/07 §13` là lựa chọn pháp lý, không phải một mã của `docs/01`, nên **203 vẫn
+là 203**. Khách chọn **phương án A** — đi qua đơn vị thu hộ có giấy phép — và bốn
+ô của `§2.1` giờ có cổng thật đứng sau: **VNPay** cho cả hai ô thẻ (`INTCARD` cho
+thẻ quốc tế, `VNBANK` cho thẻ ATM nội địa), **MoMo** và **ZaloPay** cho hai ô ví.
+Chi tiết ở `docs/07 §15.3`, mã `TC-P-14`.
+
+Điều này sửa luôn một chỗ **trái spec từ đầu**: `§14.2` nói ô nhập thẻ phải là
+thành phần do cổng cung cấp, mà bản cũ tự vẽ ô nhập rồi cho `PaymentGateway` giả
+lập nói "có" với mọi thẻ trừ thẻ thử `0000`.
+
+**Đã chạy thật, không chỉ đọc mã.** `scripts/gateway_acceptance.py` mở đơn thật ở
+sandbox MoMo và ZaloPay, đi theo địa chỉ họ trả về, hỏi lại họ bằng API truy vấn,
+rồi chốt một đơn bằng callback ký đúng: 19/19, sổ lệch 0. Nó cũng bắt được một lỗi
+thật — callback **sai chữ ký** làm hỏng phiên thanh toán, tức ai đoán ra mã đơn
+cũng giết được lượt trả tiền của người lạ. Xem `CLAUDE.md §4`.
+
+**Chưa bật hai ô thẻ ở bản chạy thật.** VNPay cần đăng ký sandbox (miễn phí) để
+lấy `TmnCode`, và lên prod thì cần **giấy phép kinh doanh + hợp đồng**, phí
+khoảng 1.1–1.65% mỗi giao dịch. Khoá để trống thì ô đó vẫn chạy bằng bản giả lập,
+đúng quy tắc của VietQR và của nút đăng nhập mạng xã hội.
+
 ### 9.5. Soát lại đối chiếu airbnb.com (15/08/2026)
 
 Lượt soát này đi từ ngoài vào: lấy mặt sản phẩm của Airbnb (kể cả bản phát hành
@@ -730,16 +753,20 @@ rủi ro trôi lệch — hai bản của cùng một luật có thể lệch nh
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (982 test)
+# Test nghiệp vụ (1024 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199.
-# Cổng bận thì đổi bằng STAYHOST_URL — cả bốn script đều đọc biến này.
+# Cổng bận thì đổi bằng STAYHOST_URL — cả năm script đều đọc biến này.
 python scripts/acceptance.py
 STAYHOST_URL=http://localhost:5200 python scripts/acceptance.py
 
 # 7 kịch bản của §9.6 — các quy tắc từng có mã mà không ai gọi
 python scripts/unwired_acceptance.py
+
+# 19 kịch bản của §9.4 — cổng thanh toán thật. Gọi ra sandbox MoMo/ZaloPay
+# ngoài đời, nên cần mạng và cần server chạy ở Development.
+python scripts/gateway_acceptance.py
 ```
 
 ## Ghi chú về quy mô

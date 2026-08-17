@@ -2242,4 +2242,17 @@ export default {
 
   // docs/08 §6 — the frozen-balance line on the lock preview.
   "Số dư khuyến mãi bị đóng băng, không bị xoá.": "プロモーション残高は凍結されるだけで、削除されません。",
+
+  // docs/07 §13 — paying on a licensed gateway's own page.
+  "Bạn sẽ được chuyển sang trang thanh toán của {} để hoàn tất. StayHost không nhìn thấy số thẻ của bạn.": "お支払いを完了するため{}の決済ページへ移動します。StayHostがカード番号を見ることはありません。",
+  "cổng thanh toán": "決済ゲートウェイ",
+  "Thanh toán thành công": "お支払いが完了しました",
+  "Đang xác nhận với cổng thanh toán…": "決済ゲートウェイに確認しています…",
+  "Tiền có thể đã được trừ. Đừng thanh toán lại — StayHost đang đối chiếu và sẽ xác nhận đơn ngay khi có kết quả.": "すでに引き落とされている可能性があります。もう一度お支払いにならないでください。StayHostが照合しており、結果が分かり次第ご予約を確定します。",
+  "Bạn đã huỷ ở trang thanh toán": "決済ページでキャンセルされました",
+  "Chưa có khoản nào bị trừ. Chỗ vẫn đang được giữ trong ít phút — bạn có thể thử lại.": "引き落としはありません。お部屋は数分間確保されていますので、もう一度お試しいただけます。",
+  "Chưa thanh toán được": "お支払いできませんでした",
+  "Nếu tài khoản của bạn đã bị trừ tiền, đừng trả lại lần nữa — hãy liên hệ hỗ trợ kèm mã bên dưới.": "すでに引き落とされている場合は、再度お支払いにならず、下記の番号を添えてサポートへご連絡ください。",
+  "Không đọc được đơn": "予約を読み込めませんでした",
+  "Xem chuyến của tôi": "自分の旅行を見る",
 };

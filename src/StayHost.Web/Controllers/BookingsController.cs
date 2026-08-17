@@ -5,6 +5,7 @@ using StayHost.Infrastructure;
 using StayHost.Web.Contracts;
 using StayHost.Web.Infrastructure;
 using StayHost.Web.Services;
+using StayHost.Web.Services.Gateways;
 
 namespace StayHost.Web.Controllers;
 
@@ -14,7 +15,8 @@ public class BookingsController(
     StayHostDbContext db, AuthService auth, NotificationService notifications,
     CatalogService catalog, BookingService rules, ReviewService reviews, ThreadMessenger messenger,
     PaymentGateway gateway, RiskWatch risk, WalletService wallet, PaymentCompletion completion,
-    CouponService coupons, ExperienceService experiences, ServiceMarketService market)
+    CouponService coupons, ExperienceService experiences, ServiceMarketService market,
+    PspRouter psp, PspCheckout pspCheckout)
     : ControllerBase
 {
     /// <summary>
@@ -559,6 +561,36 @@ public class BookingsController(
         var key = req?.IdempotencyKey is not null
             ? replayKey
             : Payments.KeyFor(booking.Id, charged, method);
+
+        // docs/07 §13 phương án A — a method wired to a licensed gateway is not
+        // charged here at all. The guest leaves for VNPay / MoMo / ZaloPay, types
+        // their card on that gateway's own page (docs/07 §14.2 — never on one of
+        // ours), and the money moves before this platform hears anything.
+        //
+        // This has to sit above every line below it. The stand-in gateway says
+        // yes to anything that is not the declining test card, so falling through
+        // would confirm a stay whose money is still in the guest's account — the
+        // same trap docs/07 §2.3 spells out for the bank transfer.
+        if (psp.For(method) is not null)
+        {
+            if (booking.Payment is not null) booking.Payment.CardLast4 = null;
+
+            var handover = await pspCheckout.StartAsync(
+                booking, method, charged, partial, key,
+                HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1", ct);
+
+            if (!handover.Ok || handover.PayUrl is null)
+                return BadRequest(new { message = handover.Error, retryable = true });
+
+            // The booking is still PendingPayment and nothing has been posted to
+            // the ledger. The client's job is to send the guest to this address;
+            // the confirmation comes back through /api/payments/{provider}/....
+            return Ok(ToDto(booking) with
+            {
+                GatewayRedirectUrl = handover.PayUrl,
+                GatewayOrderRef = handover.OrderRef
+            });
+        }
 
         // docs/07 §5 — cards that need the bank's OTP go there first. The row is
         // created before the idempotency claim so a guest coming back with their

@@ -80,6 +80,28 @@ public class PaymentGateway(ILogger<PaymentGateway> log, StayHostDbContext db)
     }
 
     /// <summary>
+    /// docs/07 §13 — a charge a real gateway took on its own page, written into
+    /// the same book the stand-in writes into.
+    ///
+    /// It goes through this class rather than being inserted by the checkout
+    /// because <c>gateway_charges</c> is meant to be the gateway's record, not the
+    /// platform's, and the daily reconciliation of docs/07 §7 only means something
+    /// while business code stays out of it. Idempotent: a gateway that sends its
+    /// IPN twice must not double the day's total.
+    /// </summary>
+    public void RecordExternalCharge(string reference, decimal amount, string method)
+    {
+        if (amount <= 0) return;
+        if (_charged.ContainsKey(reference) || db.GatewayCharges.Any(c => c.Reference == reference)) return;
+
+        _charged[reference] = amount;
+        db.GatewayCharges.Add(new GatewayCharge { Reference = reference, Amount = amount, Method = method });
+        db.SaveChanges();
+
+        log.LogInformation("Cổng ngoài đã thu {Amount} qua {Method} ({Reference}).", amount, method, reference);
+    }
+
+    /// <summary>
     /// docs/07 §10 — a card ending in these four digits always hands the refund
     /// back: it stands for the expired or closed card of "Thẻ đã hết hạn hoặc đã
     /// đóng".

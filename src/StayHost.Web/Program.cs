@@ -3,6 +3,7 @@ using StayHost.Domain;
 using StayHost.Infrastructure;
 using StayHost.Web.Infrastructure;
 using StayHost.Web.Services;
+using StayHost.Web.Services.Gateways;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -110,6 +111,20 @@ builder.Services.AddScoped<CouponService>();
 builder.Services.AddScoped<ShieldService>();
 builder.Services.AddScoped<HostAccess>();
 builder.Services.AddScoped<CalendarSyncService>();
+
+// docs/07 §13 phương án A — the licensed gateways. Each stays dormant until its
+// keys are filled in, so an unconfigured build behaves exactly as it did: the
+// stand-in gateway keeps the demo checkout working (Psp:Methods decides which
+// method belongs to which gateway).
+builder.Services.Configure<PspSettings>(builder.Configuration.GetSection("Psp"));
+builder.Services.AddScoped<IPspProvider, VnPayProvider>();
+builder.Services.AddScoped<IPspProvider, MoMoProvider>();
+builder.Services.AddScoped<IPspProvider, ZaloPayProvider>();
+builder.Services.AddScoped<PspRouter>();
+builder.Services.AddScoped<PspCheckout>();
+builder.Services.AddScoped<PspSweeper>();
+builder.Services.AddHttpClient("psp", c => c.Timeout = TimeSpan.FromSeconds(20));
+
 builder.Services.AddHttpClient("ical");
 builder.Services.AddHostedService<CalendarSyncWorker>();
 builder.Services.AddHostedService<BookingLifecycleWorker>();

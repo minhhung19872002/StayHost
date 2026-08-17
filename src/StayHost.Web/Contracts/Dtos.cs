@@ -1376,7 +1376,16 @@ public record BookingDto(
     /// docs/01 CĐ-03 — null until the stay is confirmed (docs/03 §10), so an
     /// unanswered request never carries an address.
     /// </summary>
-    CheckInGuideDto? CheckInGuide = null);
+    CheckInGuideDto? CheckInGuide = null,
+    /// <summary>
+    /// docs/07 §13 — set only by the pay endpoint, and only when the method the
+    /// guest picked is served by a licensed gateway: where to send them so they
+    /// can pay on that gateway's own page. Null everywhere else, including on the
+    /// same booking read back a second later.
+    /// </summary>
+    string? GatewayRedirectUrl = null,
+    /// <summary>What the gateway will know that payment by.</summary>
+    string? GatewayOrderRef = null);
 
 public record BookingEventDto(
     string? FromStatus, string FromLabel, string ToStatus, string ToLabel,
@@ -2333,7 +2342,15 @@ public record PaymentCatalogueDto(
     IReadOnlyList<string> NotAccepted,
     string RefusalReason);
 
-public record PaymentMethodDto(string Key, string Group, string Label, string Hint, bool Savable);
+public record PaymentMethodDto(
+    string Key, string Group, string Label, string Hint, bool Savable,
+    /// <summary>
+    /// docs/07 §13 — true when a licensed gateway is wired behind this method, so
+    /// paying with it leaves the site. The checkout uses it for one thing only:
+    /// hiding the hand-written card fields, because on a live method the number
+    /// is typed on the gateway's page and never on ours (docs/07 §14.2).
+    /// </summary>
+    bool Live = false);
 
 /// <summary>
 /// docs/07 §4 — everything the platform is allowed to show about a saved card.

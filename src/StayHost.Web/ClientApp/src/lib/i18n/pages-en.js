@@ -2420,4 +2420,17 @@ export default {
 
   // docs/08 §6 — the frozen-balance line on the lock preview.
   "Số dư khuyến mãi bị đóng băng, không bị xoá.": "Promotional balance is frozen, not deleted.",
+
+  // docs/07 §13 — paying on a licensed gateway's own page.
+  "Bạn sẽ được chuyển sang trang thanh toán của {} để hoàn tất. StayHost không nhìn thấy số thẻ của bạn.": "You will be taken to {}'s payment page to finish. StayHost never sees your card number.",
+  "cổng thanh toán": "the payment gateway",
+  "Thanh toán thành công": "Payment successful",
+  "Đang xác nhận với cổng thanh toán…": "Confirming with the payment gateway…",
+  "Tiền có thể đã được trừ. Đừng thanh toán lại — StayHost đang đối chiếu và sẽ xác nhận đơn ngay khi có kết quả.": "Your account may already have been charged. Do not pay again — StayHost is checking with the gateway and will confirm the booking as soon as it knows.",
+  "Bạn đã huỷ ở trang thanh toán": "You cancelled on the payment page",
+  "Chưa có khoản nào bị trừ. Chỗ vẫn đang được giữ trong ít phút — bạn có thể thử lại.": "Nothing has been charged. Your dates are still held for a few minutes — you can try again.",
+  "Chưa thanh toán được": "Payment did not go through",
+  "Nếu tài khoản của bạn đã bị trừ tiền, đừng trả lại lần nữa — hãy liên hệ hỗ trợ kèm mã bên dưới.": "If your account was charged, do not pay again — contact support with the reference below.",
+  "Không đọc được đơn": "Could not read the booking",
+  "Xem chuyến của tôi": "See my trips",
 };

@@ -19,14 +19,14 @@ namespace StayHost.Web.Controllers;
 [Route("api/payment-methods")]
 public class PaymentMethodsController(
     StayHostDbContext db, AuthService auth, NotificationService notifications,
-    BankTransferSettings bank) : ControllerBase
+    BankTransferSettings bank, Services.Gateways.PspRouter psp) : ControllerBase
 {
     /// <summary>docs/07 §2 — the catalogue, so the payment page and this screen agree.</summary>
     [HttpGet("catalogue")]
     public ActionResult<PaymentCatalogueDto> Catalogue()
     {
         var offered = PaymentMethods.Available()
-            .Select(m => new PaymentMethodDto(m.Key, m.Group, m.Label, m.Hint, m.Savable))
+            .Select(m => new PaymentMethodDto(m.Key, m.Group, m.Label, m.Hint, m.Savable, psp.IsLive(m.Key)))
             .ToList();
 
         // docs/07 §2.3 — VietQR is a "later" method in the catalogue, so it is not

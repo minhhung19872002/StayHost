@@ -2242,4 +2242,17 @@ export default {
 
   // docs/08 §6 — the frozen-balance line on the lock preview.
   "Số dư khuyến mãi bị đóng băng, không bị xoá.": "Das Aktionsguthaben wird eingefroren, nicht gelöscht.",
+
+  // docs/07 §13 — paying on a licensed gateway's own page.
+  "Bạn sẽ được chuyển sang trang thanh toán của {} để hoàn tất. StayHost không nhìn thấy số thẻ của bạn.": "Sie werden zur Zahlungsseite von {} weitergeleitet, um abzuschließen. StayHost sieht Ihre Kartennummer nie.",
+  "cổng thanh toán": "das Zahlungsgateway",
+  "Thanh toán thành công": "Zahlung erfolgreich",
+  "Đang xác nhận với cổng thanh toán…": "Wird mit dem Zahlungsgateway abgeglichen…",
+  "Tiền có thể đã được trừ. Đừng thanh toán lại — StayHost đang đối chiếu và sẽ xác nhận đơn ngay khi có kết quả.": "Möglicherweise wurde bereits abgebucht. Zahlen Sie nicht erneut — StayHost gleicht gerade ab und bestätigt die Buchung, sobald das Ergebnis vorliegt.",
+  "Bạn đã huỷ ở trang thanh toán": "Sie haben auf der Zahlungsseite abgebrochen",
+  "Chưa có khoản nào bị trừ. Chỗ vẫn đang được giữ trong ít phút — bạn có thể thử lại.": "Es wurde nichts abgebucht. Die Daten bleiben noch einige Minuten reserviert — Sie können es erneut versuchen.",
+  "Chưa thanh toán được": "Zahlung nicht möglich",
+  "Nếu tài khoản của bạn đã bị trừ tiền, đừng trả lại lần nữa — hãy liên hệ hỗ trợ kèm mã bên dưới.": "Falls Ihr Konto belastet wurde, zahlen Sie nicht noch einmal — wenden Sie sich mit der untenstehenden Referenz an den Support.",
+  "Không đọc được đơn": "Buchung konnte nicht gelesen werden",
+  "Xem chuyến của tôi": "Meine Reisen ansehen",
 };

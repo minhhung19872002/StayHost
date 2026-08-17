@@ -302,7 +302,24 @@ export function CheckoutModal() {
       : await payHeld(payment);
     setBusy(false);
 
-    if (!result) return;
+    if (!result) {
+      // docs/07 §7 — the key exists so a lost reply cannot become a second
+      // charge, not so a guest who was refused is stuck with the refusal. A
+      // fresh press is a fresh attempt and gets a fresh key; the in-flight
+      // request was protected by `busy`.
+      attemptKey.current = null;
+      return;
+    }
+
+    // docs/07 §13 — the money for this method moves on a licensed gateway's own
+    // page, so the last thing this checkout does is send the guest there.
+    // Nothing has been charged and nothing is in the ledger yet; the booking is
+    // still holding its dates and the confirmation arrives from the gateway.
+    if (result.gatewayRedirectUrl) {
+      set({ held: null });
+      window.location.assign(result.gatewayRedirectUrl);
+      return;
+    }
 
     set({ bookingResult: result, held: null });
     closeOverlay();
