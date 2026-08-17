@@ -44,7 +44,13 @@ public sealed record PspVerdict(
     /// <summary>The gateway's handle on that card, to be sealed before it is stored.</summary>
     string? CardToken = null,
     /// <summary>"01" domestic, "02" international — as much as VNPay will say.</summary>
-    string? CardType = null)
+    string? CardType = null,
+    /// <summary>
+    /// When the gateway says it took the money, in the gateway's own format.
+    /// docs/07 §10 — VNPay's refund API asks for the original transaction's date
+    /// back, and our clock is not the same thing as theirs.
+    /// </summary>
+    string? PaidAt = null)
 {
     public static readonly PspVerdict Unknown = new(PaymentSessionStatus.Pending);
 
@@ -88,4 +94,42 @@ public interface IPspProvider
     /// không tin vào việc khách quay về trang nào." This is that question.
     /// </summary>
     Task<PspVerdict> QueryAsync(string orderRef, DateTime createdAtUtc, CancellationToken ct);
+
+    /// <summary>
+    /// docs/07 §10 — send the guest's money back the way it came.
+    ///
+    /// Until this existed a cancellation asked the stand-in gateway, which said
+    /// yes to everything: the booking was marked refunded, the ledger posted, the
+    /// guest told — and with a live gateway not a đồng actually moved.
+    /// </summary>
+    Task<PspRefundResult> RefundAsync(PspRefund refund, CancellationToken ct);
 }
+
+/// <summary>
+/// What the gateway answered about a refund.
+///
+/// The code and their transaction number are kept rather than thrown away
+/// because docs/07 §7's reconciliation has to be able to see a refund at all: a
+/// day where money went back and nothing recorded it is a day that will not
+/// balance, and nobody would know why.
+/// </summary>
+public sealed record PspRefundResult(
+    Psp.RefundOutcome Outcome, string? TxnId = null, string? Code = null);
+
+/// <summary>
+/// One refund, with everything the three gateways between them ask for about the
+/// payment it is reversing.
+/// </summary>
+public sealed record PspRefund(
+    string OrderRef,
+    decimal Amount,
+    /// <summary>What the whole payment was, so a gateway can be told full or partial.</summary>
+    decimal OriginalAmount,
+    /// <summary>The gateway's own transaction id from when the money came in.</summary>
+    string? ProviderTxnId,
+    /// <summary>When they said they took it, in their format. Null falls back to our clock.</summary>
+    string? PaidAt,
+    DateTime CreatedAtUtc,
+    string Reason,
+    /// <summary>Who asked — an admin's name, or the system. VNPay records it.</summary>
+    string By);

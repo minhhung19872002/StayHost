@@ -14,6 +14,7 @@ public class BalanceCollector(
     StayHostDbContext db,
     PaymentGateway gateway,
     NotificationService notifications,
+    RefundGateway refunds,
     ILogger<BalanceCollector> log)
 {
     public sealed class Result
@@ -121,8 +122,15 @@ public class BalanceCollector(
             ServiceFeeRefundsUsed = used
         });
 
+        // docs/07 §10 — ask the gateway before deciding where the money lands.
+        // This used to default to "the card took it" without asking anything,
+        // which was harmless until a real gateway held the money.
+        var sentBack = await refunds.SendAsync(
+            booking, outcome.Amount, "system", "Khong thu duoc phan con lai", ct);
+
         BookingsController.PostCancellation(
-            db, booking, outcome, CancelledBy.Guest, "Không thu được phần còn lại trong 72 giờ.");
+            db, booking, outcome, CancelledBy.Guest, "Không thu được phần còn lại trong 72 giờ.",
+            sentBack);
 
         log.LogInformation("Booking {Reference} cancelled: balance never collected.", booking.Reference);
 

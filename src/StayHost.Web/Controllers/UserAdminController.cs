@@ -19,7 +19,7 @@ namespace StayHost.Web.Controllers;
 [Route("api/admin/users")]
 public class UserAdminController(
     StayHostDbContext db, AdminGate gate, AdminAudit audit,
-    NotificationService notifications, AuthService auth) : ControllerBase
+    NotificationService notifications, AuthService auth, RefundGateway refunds) : ControllerBase
 {
     private ActionResult Refuse(AdminGate.Verdict v) =>
         StatusCode(v.Status ?? 403, new { message = v.Refusal });
@@ -568,8 +568,14 @@ public class UserAdminController(
                         By = by
                     });
 
+                    // docs/07 §10 — the money goes back through the gateway that
+                    // took it, or becomes balance. Not assumed either way.
+                    var sentBack = await refunds.SendAsync(
+                        booking, outcome.Amount, "system", "Tai khoan bi khoa", ct);
+
                     BookingsController.PostCancellation(db, booking, outcome, by,
-                        isHost ? "Sàn huỷ: tài khoản chủ nhà bị khoá." : "Sàn huỷ: tài khoản khách bị khoá.");
+                        isHost ? "Sàn huỷ: tài khoản chủ nhà bị khoá." : "Sàn huỷ: tài khoản khách bị khoá.",
+                        sentBack);
 
                     if (isHost && booking.GuestUser is not null)
                     {

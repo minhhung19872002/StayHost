@@ -20,7 +20,8 @@ namespace StayHost.Web.Controllers;
 [Route("api/admin/finance")]
 public class FinanceController(
     StayHostDbContext db, AdminAudit audit, AdminGate gate, PaymentGateway gateway,
-    NotificationService notifications)
+    NotificationService notifications, RefundGateway refunds,
+    Services.Gateways.GatewayStatement statements)
     : ControllerBase
 {
     private Task<User?> RequireAsync(CancellationToken ct) => audit.RequireAsync(AdminScope.Finance, ct);
@@ -144,7 +145,10 @@ public class FinanceController(
             .Select(a => new Reconciliation.Record(a.Key, a.Amount))
             .ToListAsync(ct);
 
-        var theirs = await gateway.StatementAsync(on, ct);
+        // docs/07 §7 — their list, from them. This used to read the same table
+        // the line above reads, so the report compared one of our records against
+        // another of our records and balanced every day by construction.
+        var theirs = await statements.ForAsync(on, ct);
 
         var report = Reconciliation.Compare(on, ours, theirs);
 
@@ -348,8 +352,14 @@ public class FinanceController(
             By = CancelledBy.ForceMajeure
         });
 
+        // docs/07 §10 — ask the gateway before deciding where the money lands.
+        // This used to default to "the card took it" without asking anything,
+        // which was harmless until a real gateway held the money.
+        var sentBack = await refunds.SendAsync(
+            booking, outcome.Amount, $"admin:{admin.Id}", reason, ct);
+
         BookingsController.PostCancellation(
-            db, booking, outcome, CancelledBy.ForceMajeure, $"Bất khả kháng: {reason}");
+            db, booking, outcome, CancelledBy.ForceMajeure, $"Bất khả kháng: {reason}", sentBack);
 
         audit.Record(admin, "finance.force-majeure", $"booking:{booking.Reference}",
             BookingLifecycle.Label(BookingStatus.Confirmed),

@@ -681,6 +681,26 @@ thử NCB của VNPay, qua modal điều khoản, nhập OTP, quay về — 14/1
 không thu được tiền bồi thường sau này như `docs/06 §3.3` mong; và `token_remove`
 chưa nối.
 
+### 9.4d. Hoàn tiền qua cổng thật, và đối soát đúng bên kia (17/08/2026)
+
+Bật cổng làm tiền **vào** được. Đường **ra** vẫn giả lập: huỷ đơn gọi
+`PaymentGateway.Refund`, hàm nói "được" với mọi thứ. Trong năm đường huỷ đơn chỉ
+một đường hỏi gì đó; bốn đường còn lại truyền `cardRefundAccepted: true` — mặc
+định vô hại khi chưa có tiền thật.
+
+Đã làm: `RefundGateway` cho cả năm đường, phân biệt **từ chối vĩnh viễn** (ca
+`docs/07 §10` → số dư) với **chưa biết** (thử lại cùng mã yêu cầu), lưu câu trả
+lời của cổng, và `GatewayStatement` dựng vế "danh sách của cổng" cho đối soát
+`§7` — trước đó cả hai vế đều đọc `gateway_charges`, tức sổ của chính sàn.
+Chi tiết `docs/07 §15.6`, mã `TC-P-16`.
+
+Chạy thật bắt được một bẫy đắt: **VNPay trả 403 cho request không có
+`User-Agent`**, mà `HttpClient` mặc định không gửi. Nó tắt âm thầm cả `refund`
+lẫn `querydr` — tức cả lưới an toàn của `§5` — và log chỉ nói "không parse được
+JSON".
+
+`scripts/refund_acceptance.py` (11/11) trả tiền thật rồi hoàn thật.
+
 ### 9.5. Soát lại đối chiếu airbnb.com (15/08/2026)
 
 Lượt soát này đi từ ngoài vào: lấy mặt sản phẩm của Airbnb (kể cả bản phát hành
@@ -800,7 +820,7 @@ rủi ro trôi lệch — hai bản của cùng một luật có thể lệch nh
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (1024 test)
+# Test nghiệp vụ (1064 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199.
@@ -820,6 +840,9 @@ python scripts/payout_acceptance.py
 
 # 14 kịch bản của §9.4c — trả tiền THẬT trên trang VNPay, cần playwright
 python scripts/vnpay_browser_acceptance.py
+
+# 11 kịch bản của §9.4d — hoàn tiền thật qua VNPay
+python scripts/refund_acceptance.py
 ```
 
 ## Ghi chú về quy mô

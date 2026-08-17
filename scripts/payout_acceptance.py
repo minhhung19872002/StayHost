@@ -282,16 +282,23 @@ print("\n5. Cùng chủ nhà, cùng ngày, hai lần tới hạn")
 
 second = None
 
-for week in range(0, 12):
+# The same listing, so both transfers go to the same host. A long-lived database
+# fills the near weeks up, so this looks a long way out and takes whatever is
+# free — the scenario is about two transfers on one day, not about which nights.
+for week in range(0, 40):
     at = 200 + week * 7
-    st, held = call(guest, "/api/bookings", {
-        "listingId": booking["listingId"], "checkIn": future(at), "checkOut": future(at + 2),
-        "guests": 1, "adults": 1, "children": 0, "infants": 0, "pets": 0,
-        "guestName": "Khách Demo", "guestEmail": "guest@stayhost.vn",
-        "agreedToRules": True, "paymentMethod": "card"})
-    if st == 201:
-        second = held
+    if second:
         break
+    for nights in (2, 1, 3):
+        st, held = call(guest, "/api/bookings", {
+            "listingId": booking["listingId"], "checkIn": future(at),
+            "checkOut": future(at + nights),
+            "guests": 1, "adults": 1, "children": 0, "infants": 0, "pets": 0,
+            "guestName": "Khách Demo", "guestEmail": "guest@stayhost.vn",
+            "agreedToRules": True, "paymentMethod": "card"})
+        if st == 201:
+            second = held
+            break
 
 if second is None:
     check("Đặt được đơn thứ hai cùng chủ nhà", False, "hết ngày trống")

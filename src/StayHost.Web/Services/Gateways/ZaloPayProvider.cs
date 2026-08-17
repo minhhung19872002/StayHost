@@ -160,6 +160,70 @@ public class ZaloPayProvider(
         }
     }
 
+    /// <summary>
+    /// docs/07 §10 — ZaloPay sends it back to the wallet it came from.
+    ///
+    /// Their refund is the one of the three that is genuinely asynchronous:
+    /// <c>return_code</c> 3 means "still working on it", which is neither a
+    /// refusal nor a completion and must not be read as either.
+    /// </summary>
+    public async Task<PspRefundResult> RefundAsync(PspRefund refund, CancellationToken ct)
+    {
+        if (!IsConfigured) return new PspRefundResult(Psp.RefundOutcome.Unknown);
+        if (string.IsNullOrWhiteSpace(refund.ProviderTxnId))
+            return new PspRefundResult(Psp.RefundOutcome.Unknown);
+
+        var amount = (long)Math.Round(refund.Amount, MidpointRounding.AwayFromZero);
+        var now = DateTime.UtcNow;
+        var refundId = Psp.ZaloRefundId(Cfg.AppId, refund.OrderRef, now);
+        var stamp = Psp.ZaloTime(now);
+
+        var form = new Dictionary<string, string>
+        {
+            ["app_id"] = Cfg.AppId,
+            ["m_refund_id"] = refundId,
+            ["zp_trans_id"] = refund.ProviderTxnId!,
+            ["amount"] = amount.ToString(),
+            ["timestamp"] = stamp.ToString(),
+            ["description"] = refund.Reason,
+            ["mac"] = Psp.ZaloRefundMac(Cfg.Key1, Cfg.AppId, refund.ProviderTxnId!, amount,
+                refund.Reason, stamp)
+        };
+
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            try
+            {
+                using var client = http.CreateClient("psp");
+                var res = await client.PostAsync($"{Cfg.Endpoint}/refund",
+                    new FormUrlEncodedContent(form), ct);
+                var json = await res.Content.ReadFromJsonAsync<JsonElement>(ct);
+                var code = Number(json, "return_code");
+
+                log.LogInformation("ZaloPay hoàn {Amount} cho {Ref}: mã {Code} {Message}.",
+                    refund.Amount, refund.OrderRef, code, Text(json, "return_message"));
+
+                // 1 done, 3 still processing — both mean the money is coming back.
+                if (code is 1 or 3)
+                    return new PspRefundResult(Psp.RefundOutcome.Accepted, refundId, code.ToString());
+                if (code == 2)
+                    return new PspRefundResult(Psp.RefundOutcome.Refused, Code: code.ToString());
+            }
+            catch (Exception ex)
+            {
+                log.LogWarning(ex, "Không gọi được ZaloPay để hoàn tiền {Ref} (lần {Attempt}).",
+                    refund.OrderRef, attempt);
+            }
+
+            if (attempt < 3) await Task.Delay(TimeSpan.FromSeconds(2 * attempt), ct);
+        }
+
+        log.LogError("Không biết ZaloPay đã hoàn {Amount} cho {Ref} hay chưa. Mã hoàn {RefundId}.",
+            refund.Amount, refund.OrderRef, refundId);
+
+        return new PspRefundResult(Psp.RefundOutcome.Unknown, Code: refundId);
+    }
+
     private static string Text(JsonElement json, string name) =>
         json.ValueKind == JsonValueKind.Object && json.TryGetProperty(name, out var v)
             ? v.ValueKind == JsonValueKind.Number ? v.ToString() : v.GetString() ?? ""

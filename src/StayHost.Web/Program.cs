@@ -96,6 +96,8 @@ builder.Services.AddScoped<PayoutService>();
 // the number is not stored and no transfer file can be produced; see DEPLOY.md.
 builder.Services.AddScoped<DataSecrets>();
 builder.Services.AddScoped<PayoutAccounts>();
+// docs/07 §10 — sending a guest's money back through whichever gateway took it.
+builder.Services.AddScoped<RefundGateway>();
 builder.Services.AddScoped<PaymentCompletion>();
 builder.Services.AddScoped<CardAuthSweeper>();
 builder.Services.AddScoped<BankTransferService>();
@@ -127,7 +129,20 @@ builder.Services.AddScoped<IPspProvider, ZaloPayProvider>();
 builder.Services.AddScoped<PspRouter>();
 builder.Services.AddScoped<PspCheckout>();
 builder.Services.AddScoped<PspSweeper>();
-builder.Services.AddHttpClient("psp", c => c.Timeout = TimeSpan.FromSeconds(20));
+// docs/07 §7 — the gateway's own half of the daily reconciliation.
+builder.Services.AddScoped<GatewayStatement>();
+builder.Services.AddHttpClient("psp", c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(20);
+
+    // VNPay's merchant API answers 403 with an HTML page to any request that
+    // carries no User-Agent, and HttpClient sends none. That is not a signature
+    // problem and does not look like one: it silently disabled both the refund
+    // call and the querydr self-check of docs/07 §5 — the safety net for a guest
+    // whose connection drops mid-payment — while every log line said only that
+    // the reply could not be parsed as JSON.
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("StayHost/1.0 (+https://staylio.bluestar.com.vn)");
+});
 
 builder.Services.AddHttpClient("ical");
 builder.Services.AddHostedService<CalendarSyncWorker>();

@@ -16,7 +16,7 @@ public class BookingsController(
     CatalogService catalog, BookingService rules, ReviewService reviews, ThreadMessenger messenger,
     PaymentGateway gateway, RiskWatch risk, WalletService wallet, PaymentCompletion completion,
     CouponService coupons, ExperienceService experiences, ServiceMarketService market,
-    PspRouter psp, PspCheckout pspCheckout, DataSecrets secrets)
+    PspRouter psp, PspCheckout pspCheckout, DataSecrets secrets, RefundGateway refunds)
     : ControllerBase
 {
     /// <summary>
@@ -1108,12 +1108,19 @@ public class BookingsController(
     private async Task ApplyCancellationAsync(
         Booking booking, Cancellation.Outcome outcome, CancelledBy by, string reason, CancellationToken ct)
     {
-        // docs/07 §10 — ask the bank before deciding where the money lands. A
-        // booking with nothing to send back, or one paid some other way, gets
-        // the ordinary answer without a round trip.
-        var accepted = outcome.Amount <= 0
-                       || gateway.Refund(outcome.Amount,
-                           booking.Payment?.Method ?? "card", booking.Payment?.CardLast4);
+        // docs/07 §10 — ask the gateway that took the money before deciding
+        // where it lands. RefundGateway picks the right one: a stay paid through
+        // VNPay is refunded at VNPay, and one paid through the stand-in still
+        // goes to the stand-in.
+        var who = by switch
+        {
+            CancelledBy.Host => "host",
+            CancelledBy.Platform or CancelledBy.ForceMajeure => "system",
+            _ => "guest"
+        };
+
+        var accepted = await refunds.SendAsync(
+            booking, outcome.Amount, who, $"Huy don {booking.Reference}", ct);
 
         PostCancellation(db, booking, outcome, by, reason, accepted);
         // docs/01 TC-09 — a cancelled stay hands its promo code back to the

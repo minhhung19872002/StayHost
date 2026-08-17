@@ -248,6 +248,10 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.ProviderTxnId).HasMaxLength(80);
             e.Property(x => x.ResponseCode).HasMaxLength(40);
             e.Property(x => x.SettledBy).HasMaxLength(20);
+            e.Property(x => x.ProviderPaidAt).HasMaxLength(20);
+            e.Property(x => x.RefundedAmount).HasPrecision(12, 2);
+            e.Property(x => x.RefundTxnId).HasMaxLength(80);
+            e.Property(x => x.RefundCode).HasMaxLength(40);
             e.HasOne(x => x.Booking).WithMany()
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
         });

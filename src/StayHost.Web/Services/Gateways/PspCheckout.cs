@@ -148,6 +148,7 @@ public class PspCheckout(
         session.ResponseCode = verdict.Code;
         session.CompletedAt = now;
         if (!string.IsNullOrWhiteSpace(verdict.TxnId)) session.ProviderTxnId = verdict.TxnId;
+        if (!string.IsNullOrWhiteSpace(verdict.PaidAt)) session.ProviderPaidAt = verdict.PaidAt;
 
         if (verdict.Status != PaymentSessionStatus.Paid)
         {

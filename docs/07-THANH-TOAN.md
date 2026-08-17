@@ -304,6 +304,7 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
 | TC-A-04 | Báo cáo tài chính: doanh thu phí, tiền đang giữ hộ, thuế phải nộp, thất thoát — **đã làm** (đọc thẳng từ sổ ghi tiền) |
 | TC-P-13 | **VietQR** (§2.3): sinh mã, giữ chỗ chờ tiền, đọc sao kê, khớp về đơn — **đã làm 13/08/2026**, xem §15.2 |
 | TC-P-14 | **Cổng thanh toán có giấy phép** (§13 phương án A): VNPay / MoMo / ZaloPay — mở đơn, chuyển khách sang trang của họ, đọc IPN có chữ ký, tự hỏi lại kết quả — **đã làm 17/08/2026**, xem §15.3 |
+| TC-P-16 | **Hoàn tiền qua cổng thật** (§10): VNPay/MoMo/ZaloPay, phân biệt từ chối vĩnh viễn với chưa biết, thử lại cùng mã yêu cầu, và đối soát hằng ngày hỏi đúng sổ của cổng — **đã làm 17/08/2026**, xem §15.6 |
 | TC-P-15 | **Token hoá thẻ** (§4 với §14.2): khách chọn lưu thẻ, cổng giữ thẻ và trả về bốn số cuối — thứ duy nhất khôi phục được `CardLast4` sau khi bỏ ô nhập thẻ — **đã làm 17/08/2026**, xem §15.5 |
 | TC-O-07 | **Lệnh chuyển tiền hàng loạt cho chủ nhà** (§13): lưu số tài khoản đã mã hoá, gom lệnh theo chủ nhà theo ngày, xuất file cho internet banking, xác nhận ngân hàng đã thực hiện rồi mới ghi sổ — **đã làm 17/08/2026**, xem §15.4 |
 
@@ -514,6 +515,55 @@ không phải sàn tự ký**.
 vẫn cần khách có mặt — **không dùng để thu tiền bồi thường sau này** như `docs/06
 §3.3` mong. Và `token_remove` chưa nối, nên xoá thẻ ở sàn thì token vẫn còn bên
 VNPay.
+
+---
+
+### 15.6. Hoàn tiền qua cổng thật (17/08/2026)
+
+`§15.3` mở đường cho tiền **vào**. Đường **ra** vẫn đi qua bản giả lập: huỷ đơn
+gọi `PaymentGateway.Refund`, hàm nói "được" với mọi thứ trừ thẻ thử `0009`. Đơn
+ghi "đã hoàn", sổ ghi bút toán, khách nhận thông báo — và **không đồng nào rời
+khỏi tài khoản sàn**. Đúng một lỗi soi gương với `§15.4`.
+
+Tệ hơn: trong **năm** đường huỷ đơn, chỉ một đường hỏi gì đó. Bốn đường còn lại
+truyền `cardRefundAccepted: true` — mặc định vô hại khi chưa có tiền thật, thành
+lời nói dối đúng ngày bật VNPay.
+
+Giờ cả năm đi qua `RefundGateway`, và cái nó phân biệt **không phải "được /
+không được"** mà là:
+
+| Cổng trả lời | Nghĩa | Sàn làm gì |
+|---|---|---|
+| `00` + trạng thái `00`/`05`/`06`, hoặc `94` | Đã nhận, tiền đang về | Ghi sổ hoàn về thẻ |
+| trạng thái `09`, hoặc mã `91`/`95` | **Từ chối vĩnh viễn** | Đúng ca `§10`: chuyển thành số dư, báo khách |
+| `02`/`03`/`97`/`99`, hoặc gọi không được | **Chưa biết** | Thử lại 3 lần **cùng một `vnp_RequestId`** (VNPay nhận ra là một, trả `94`) rồi mới chuyển số dư, kèm log `Error` có mã yêu cầu để đối chiếu tay |
+
+Trộn "chưa biết" vào "bị từ chối" là cách khách **được hoàn hai lần**: một lần
+vào số dư, một lần vào thẻ khi lệnh cũ vẫn kịp chạy.
+
+**Câu trả lời của cổng được lưu lại** (`payment_sessions.RefundCode`,
+`RefundTxnId`, `RefundedAmount`). Không có nó thì `§7` đối soát một ngày có hoàn
+tiền sẽ lệch mà không ai truy ra vì sao.
+
+**Bẫy `User-Agent`.** `merchant_webapi` của VNPay trả **403 kèm HTML** cho mọi
+request không có header `User-Agent`, và `HttpClient` mặc định không gửi. Nó
+không giống lỗi chữ ký và không giống lỗi gì cả — log chỉ nói "không parse được
+JSON". Nó đã âm thầm tắt **cả `refund` lẫn `querydr`**, tức cả lưới an toàn của
+`§5`. Xác định bằng thực nghiệm: cùng một request, có `User-Agent` thì 200, bỏ đi
+thì 403.
+
+**Đối soát giờ hỏi đúng bên kia.** `§7` nói so danh sách của sàn với **danh sách
+của cổng**; màn hình cũ đọc `gateway_charges` cho cả hai vế — tức so sổ của mình
+với sổ của mình, cân mỗi ngày và không chứng minh gì. `GatewayStatement` dựng vế
+kia bằng cách hỏi lại từng phiên đã chốt trong ngày.
+
+**Đã chạy thật:** `scripts/refund_acceptance.py` — **11/11**. Trả tiền thật trên
+trang VNPay, huỷ đơn, VNPay trả `ResponseCode 00` với mã giao dịch hoàn riêng,
+tiền **không** bị đẩy sang số dư, sổ lệch 0.
+
+**Chưa làm:** VNPay không có API tra cứu riêng cho giao dịch hoàn (`querydr` chỉ
+trả về giao dịch thanh toán gốc), nên trạng thái cuối của một khoản hoàn
+`05`/`06` phải xem ở cổng quản trị của họ.
 
 ## 16. Tham số cần chốt
 

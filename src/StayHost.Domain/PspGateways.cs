@@ -184,6 +184,112 @@ public static class Psp
     /// <summary>A guest who pressed "huỷ" on VNPay's page did not fail; they left.</summary>
     public static bool VnPayCancelled(string? code) => code == "24";
 
+    /* ------------------------------------------------------ §10, sending it back */
+
+    /// <summary>
+    /// docs/07 §10 — the checksum for a refund, which is a pipe-joined list in a
+    /// fixed order and <em>not</em> the sorted query the payment uses.
+    ///
+    /// The order is also not the order the parameters are documented in:
+    /// <c>vnp_TransactionNo</c> sits in the middle and <c>vnp_OrderInfo</c> comes
+    /// last. Their documentation writes it out, so it is copied here verbatim
+    /// rather than inferred:
+    ///
+    /// <code>
+    /// data = vnp_RequestId | vnp_Version | vnp_Command | vnp_TmnCode
+    ///      | vnp_TransactionType | vnp_TxnRef | vnp_Amount | vnp_TransactionNo
+    ///      | vnp_TransactionDate | vnp_CreateBy | vnp_CreateDate | vnp_IpAddr
+    ///      | vnp_OrderInfo
+    /// </code>
+    /// </summary>
+    public static string VnPayRefundSign(
+        string secret, string requestId, string version, string command, string tmnCode,
+        string transactionType, string txnRef, string amount, string transactionNo,
+        string transactionDate, string createBy, string createDate, string ipAddr, string orderInfo) =>
+        VnPayApiSign(secret, requestId, version, command, tmnCode, transactionType, txnRef,
+            amount, transactionNo, transactionDate, createBy, createDate, ipAddr, orderInfo);
+
+    /// <summary>Full or partial, in VNPay's own numbering.</summary>
+    public static string VnPayRefundType(decimal refunded, decimal original) =>
+        refunded >= original ? "02" : "03";
+
+    /// <summary>
+    /// What a gateway's answer to a refund actually means.
+    ///
+    /// The distinction that matters is not success versus failure but
+    /// <em>permanent</em> refusal versus <em>not knowing yet</em>. A permanent
+    /// refusal is docs/07 §10's case — the card is closed, so the money becomes
+    /// balance. Not knowing is a reason to ask again, and turning it into balance
+    /// would risk paying the guest twice.
+    /// </summary>
+    public enum RefundOutcome
+    {
+        /// <summary>The gateway took the request. The money is on its way back.</summary>
+        Accepted,
+        /// <summary>It will never happen: closed card, unknown transaction, rejected.</summary>
+        Refused,
+        /// <summary>No answer worth acting on. Ask again.</summary>
+        Unknown
+    }
+
+    /// <summary>
+    /// docs/07 §10 — reading VNPay's refund reply.
+    ///
+    /// <c>vnp_ResponseCode</c> answers "did you accept my request", not "did the
+    /// money move": 00 with a transaction status of 05 or 06 means they are still
+    /// working on it, and 09 means the bank said no. Treating 00 alone as done
+    /// would report a refund that was refused a second later.
+    /// </summary>
+    public static RefundOutcome VnPayRefundOutcome(string? responseCode, string? transactionStatus)
+    {
+        // 09 is the bank refusing, whatever the response code said.
+        if (transactionStatus == "09") return RefundOutcome.Refused;
+
+        return responseCode switch
+        {
+            // 00 accepted; 05 processing, 06 sent to the bank — all in flight.
+            "00" => transactionStatus is null or "00" or "05" or "06"
+                ? RefundOutcome.Accepted
+                : RefundOutcome.Unknown,
+
+            // Already being processed, from a retry of the same request id.
+            "94" => RefundOutcome.Accepted,
+
+            // Nothing to refund, or the original never succeeded. Neither will
+            // improve by asking again.
+            "91" or "95" => RefundOutcome.Refused,
+
+            // 02 bad TmnCode, 03 bad format, 97 bad checksum, 99 unexplained —
+            // all faults on this side or theirs, none of them the guest's card.
+            _ => RefundOutcome.Unknown
+        };
+    }
+
+    /// <summary>
+    /// The id a refund is known by at VNPay, derived rather than random so a
+    /// retry after a lost reply is recognised as the same request instead of
+    /// refunding a second time. Their rule is one per day, so the day is in it.
+    /// </summary>
+    public static string RefundRequestId(string orderRef, decimal amount, DateTime nowUtc) =>
+        $"r{Vn(nowUtc):yyMMdd}{orderRef[^10..]}{(long)Math.Round(amount) % 100000:D5}";
+
+    /// <summary>MoMo signs a refund over its own short list, alphabetical again.</summary>
+    public static string MoMoRefundSign(
+        string accessKey, string secretKey, long amount, string description,
+        string orderId, string partnerCode, string requestId, string transId) =>
+        Sha256Hex(secretKey,
+            $"accessKey={accessKey}&amount={amount}&description={description}&orderId={orderId}" +
+            $"&partnerCode={partnerCode}&requestId={requestId}&transId={transId}");
+
+    /// <summary>ZaloPay's refund mac: five fields, pipe-joined, signed with key1.</summary>
+    public static string ZaloRefundMac(
+        string key1, string appId, string zpTransId, long amount, string description, long timestampMs) =>
+        Sha256Hex(key1, $"{appId}|{zpTransId}|{amount}|{description}|{timestampMs}");
+
+    /// <summary>ZaloPay wants <c>m_refund_id</c> prefixed with today's date and the app id.</summary>
+    public static string ZaloRefundId(string appId, string orderRef, DateTime nowUtc) =>
+        $"{Vn(nowUtc):yyMMdd}_{appId}_{orderRef[^10..]}";
+
     /* -------------------------------------------------- §14.2, cards we never see */
 
     /// <summary>
@@ -412,8 +518,31 @@ public class PaymentSession
     /// <summary>Which of the three told us: the browser coming back, the IPN, or our own query.</summary>
     public string? SettledBy { get; set; }
 
+    /// <summary>
+    /// When the gateway says the money moved, in the gateway's own format
+    /// (VNPay: yyyyMMddHHmmss, GMT+7).
+    ///
+    /// Kept because docs/07 §10's refund asks for the original transaction's date
+    /// back, and the platform's own clock is not the same thing — a refund sent
+    /// with our timestamp is refused with a code that says nothing about why.
+    /// </summary>
+    public string? ProviderPaidAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAt { get; set; }
+
+    /* ---------------------------------------------- docs/07 §10, the way back */
+
+    /// <summary>How much of this payment the gateway has been asked to send back.</summary>
+    public decimal RefundedAmount { get; set; }
+
+    /// <summary>The gateway's own transaction number for the refund, which is not the payment's.</summary>
+    public string? RefundTxnId { get; set; }
+
+    /// <summary>Their raw answer code, kept for docs/07 §7's reconciliation. Never shown to a guest.</summary>
+    public string? RefundCode { get; set; }
+
+    public DateTime? RefundedAt { get; set; }
 
     /// <summary>How long a guest has on the gateway's page before the dates go back on sale.</summary>
     public static readonly TimeSpan Window = TimeSpan.FromMinutes(15);

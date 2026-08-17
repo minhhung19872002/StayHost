@@ -27,6 +27,7 @@ import hmac
 import io
 import json
 import os
+import subprocess
 import urllib.parse
 
 USER_SECRETS = os.path.join(
@@ -107,5 +108,23 @@ def pay(call, op, booking_id, body=None, amount=None):
         return st, dict(paid, gatewaySettled=False,
                         gatewayNote="IPN trả %s: %s" % (code, ipn))
 
+    # The IPN above was signed here, not by VNPay: they never saw this payment
+    # and have no transaction under that reference. Leaving the session row would
+    # send a later refund to a gateway that answers 91 — "no such transaction" —
+    # and the guest's money would divert to balance for a reason that is entirely
+    # this fixture's doing. Removing it puts refunds back on the stand-in, which
+    # is what these suites are actually testing.
+    _forget_session(booking_id)
+
     st2, after = call(op, "/api/bookings/%s" % booking_id)
     return (st2, after) if st2 == 200 else (st, paid)
+
+
+def _forget_session(booking_id):
+    try:
+        subprocess.run(
+            ["docker", "exec", "stayhost-db", "psql", "-U", "stayhost", "-d", "stayhost", "-c",
+             'delete from payment_sessions where "BookingId" = %s' % int(booking_id)],
+            capture_output=True, text=True, timeout=30)
+    except Exception:
+        pass

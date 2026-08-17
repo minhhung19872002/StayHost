@@ -159,7 +159,8 @@ public class VnPayProvider(
 
         if (code == "00" && status == "00")
             return new PspVerdict(PaymentSessionStatus.Paid, amount, txn, code,
-                CardLast4: last4, CardToken: token, CardType: cardType);
+                CardLast4: last4, CardToken: token, CardType: cardType,
+                PaidAt: Field("vnp_PayDate", "vnp_pay_date"));
 
         if (Psp.VnPayCancelled(code))
             return new PspVerdict(PaymentSessionStatus.Cancelled, amount, txn, code);
@@ -231,6 +232,86 @@ public class VnPayProvider(
             log.LogWarning(ex, "Không hỏi được VNPay về giao dịch {Ref}.", orderRef);
             return PspVerdict.Unknown;
         }
+    }
+
+    /// <summary>
+    /// docs/07 §10 — asks VNPay to send the money back to the card it came from.
+    ///
+    /// Retried on a lost reply rather than given up on, and retried under the
+    /// <em>same</em> request id: VNPay recognises a repeat and answers 94 rather
+    /// than refunding twice, which is what makes retrying safe at all.
+    /// </summary>
+    public async Task<PspRefundResult> RefundAsync(PspRefund refund, CancellationToken ct)
+    {
+        if (!IsConfigured) return new PspRefundResult(Psp.RefundOutcome.Unknown);
+
+        var now = Psp.Vn(DateTime.UtcNow);
+        var requestId = Psp.RefundRequestId(refund.OrderRef, refund.Amount, DateTime.UtcNow);
+        var amount = Psp.VnPayAmount(refund.Amount).ToString();
+        var type = Psp.VnPayRefundType(refund.Amount, refund.OriginalAmount);
+        var txnNo = refund.ProviderTxnId ?? "";
+        var paidAt = refund.PaidAt ?? Psp.Vn(refund.CreatedAtUtc).ToString("yyyyMMddHHmmss");
+        var created = now.ToString("yyyyMMddHHmmss");
+        const string version = "2.1.0";
+        const string command = "refund";
+        var info = refund.Reason;
+
+        var checksum = Psp.VnPayRefundSign(Cfg.HashSecret, requestId, version, command, Cfg.TmnCode,
+            type, refund.OrderRef, amount, txnNo, paidAt, refund.By, created, "127.0.0.1", info);
+
+        var body = new Dictionary<string, string>
+        {
+            ["vnp_RequestId"] = requestId,
+            ["vnp_Version"] = version,
+            ["vnp_Command"] = command,
+            ["vnp_TmnCode"] = Cfg.TmnCode,
+            ["vnp_TransactionType"] = type,
+            ["vnp_TxnRef"] = refund.OrderRef,
+            ["vnp_Amount"] = amount,
+            ["vnp_OrderInfo"] = info,
+            ["vnp_TransactionNo"] = txnNo,
+            ["vnp_TransactionDate"] = paidAt,
+            ["vnp_CreateBy"] = refund.By,
+            ["vnp_CreateDate"] = created,
+            ["vnp_IpAddr"] = "127.0.0.1",
+            ["vnp_SecureHash"] = checksum
+        };
+
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            try
+            {
+                using var client = http.CreateClient("psp");
+                var res = await client.PostAsJsonAsync(Cfg.ApiUrl, body, ct);
+                var json = await res.Content.ReadFromJsonAsync<JsonElement>(ct);
+
+                var code = Text(json, "vnp_ResponseCode");
+                var status = Text(json, "vnp_TransactionStatus");
+                var outcome = Psp.VnPayRefundOutcome(code, status);
+
+                log.LogInformation(
+                    "VNPay hoàn {Amount} cho {Ref}: mã {Code}, trạng thái {Status} → {Outcome}.",
+                    refund.Amount, refund.OrderRef, code, status, outcome);
+
+                if (outcome != Psp.RefundOutcome.Unknown)
+                    return new PspRefundResult(outcome, Text(json, "vnp_TransactionNo"), code);
+            }
+            catch (Exception ex)
+            {
+                log.LogWarning(ex, "Không gọi được VNPay để hoàn tiền {Ref} (lần {Attempt}).",
+                    refund.OrderRef, attempt);
+            }
+
+            if (attempt < 3) await Task.Delay(TimeSpan.FromSeconds(2 * attempt), ct);
+        }
+
+        // Every attempt carried the same request id, so a refund that did land is
+        // recorded at VNPay under it — which is what a person needs to look it up
+        // in the merchant portal.
+        log.LogError("Không biết VNPay đã hoàn {Amount} cho {Ref} hay chưa. Mã yêu cầu {RequestId}.",
+            refund.Amount, refund.OrderRef, requestId);
+
+        return new PspRefundResult(Psp.RefundOutcome.Unknown, Code: requestId);
     }
 
     private static string Text(JsonElement json, string name) =>

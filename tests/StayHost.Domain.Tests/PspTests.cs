@@ -209,6 +209,86 @@ public class PspTests
         Assert.False(Psp.VnPayCancelled("51"));
     }
 
+    /* ------------------------------------------------- §10, sending it back */
+
+    /// <summary>
+    /// The refund checksum is a pipe-joined list, not the sorted query the
+    /// payment uses — and its order is not the order the fields are documented
+    /// in either: the transaction number sits in the middle and the description
+    /// comes last. Reproduced from VNPay's own written formula.
+    /// </summary>
+    [Fact]
+    public void The_vnpay_refund_checksum_follows_their_written_field_order()
+    {
+        var signature = Psp.VnPayRefundSign(VnSecret,
+            "r2608170048120000", "2.1.0", "refund", "DEMOTMN1", "02",
+            "26081710300000481200", "452786100", "14260817", "20260817103500",
+            "system", "20260817110000", "127.0.0.1", "Hoan tien don SH1A2B3C4D");
+
+        var raw = "r2608170048120000|2.1.0|refund|DEMOTMN1|02|26081710300000481200|452786100" +
+                  "|14260817|20260817103500|system|20260817110000|127.0.0.1|Hoan tien don SH1A2B3C4D";
+
+        Assert.Equal(HmacHex(HMACSHA512.HashData(
+            Encoding.UTF8.GetBytes(VnSecret), Encoding.UTF8.GetBytes(raw))), signature);
+    }
+
+    /// <summary>
+    /// The distinction the whole refund path turns on. A response code of 00
+    /// says "request accepted", not "money moved": a transaction status of 09 is
+    /// the bank refusing a second later, and reading 00 alone as done would tell
+    /// a guest their money is coming back when it is not.
+    /// </summary>
+    [Theory]
+    [InlineData("00", "00", Psp.RefundOutcome.Accepted)]
+    [InlineData("00", "05", Psp.RefundOutcome.Accepted)]
+    [InlineData("00", "06", Psp.RefundOutcome.Accepted)]
+    [InlineData("00", "09", Psp.RefundOutcome.Refused)]
+    [InlineData("94", null, Psp.RefundOutcome.Accepted)]
+    [InlineData("91", null, Psp.RefundOutcome.Refused)]
+    [InlineData("95", null, Psp.RefundOutcome.Refused)]
+    [InlineData("97", null, Psp.RefundOutcome.Unknown)]
+    [InlineData("99", null, Psp.RefundOutcome.Unknown)]
+    public void A_refund_reply_is_read_as_accepted_refused_or_unknown(
+        string code, string? status, Psp.RefundOutcome expected)
+    {
+        Assert.Equal(expected, Psp.VnPayRefundOutcome(code, status));
+    }
+
+    /// <summary>
+    /// A refused refund is docs/07 §10's own case and becomes balance. Not
+    /// knowing must never be read as refused, or a guest gets balance for a
+    /// refund that then lands on their card as well.
+    /// </summary>
+    [Fact]
+    public void Not_knowing_is_not_the_same_as_being_refused()
+    {
+        Assert.NotEqual(Psp.RefundOutcome.Refused, Psp.VnPayRefundOutcome("99", null));
+        Assert.NotEqual(Psp.RefundOutcome.Accepted, Psp.VnPayRefundOutcome("99", null));
+    }
+
+    /// <summary>
+    /// Derived, not random: a retry after a lost reply has to be recognised as
+    /// the same request, or the guest is refunded twice.
+    /// </summary>
+    [Fact]
+    public void A_refund_request_id_is_the_same_on_a_retry()
+    {
+        var at = new DateTime(2026, 8, 17, 3, 30, 0, DateTimeKind.Utc);
+        var first = Psp.RefundRequestId("26081710300000481200", 4_527_861m, at);
+        var again = Psp.RefundRequestId("26081710300000481200", 4_527_861m, at.AddMinutes(20));
+
+        Assert.Equal(first, again);
+        Assert.InRange(first.Length, 1, 32);
+        Assert.NotEqual(first, Psp.RefundRequestId("26081710300000481200", 1_000_000m, at));
+    }
+
+    [Fact]
+    public void A_full_refund_and_a_partial_one_are_told_apart()
+    {
+        Assert.Equal("02", Psp.VnPayRefundType(4_527_861m, 4_527_861m));
+        Assert.Equal("03", Psp.VnPayRefundType(1_000_000m, 4_527_861m));
+    }
+
     /* ----------------------------------------------------------------- MoMo */
 
     /// <summary>

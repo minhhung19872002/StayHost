@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using StayHost.Infrastructure;
@@ -11,9 +12,11 @@ using StayHost.Infrastructure;
 namespace StayHost.Infrastructure.Migrations
 {
     [DbContext(typeof(StayHostDbContext))]
-    partial class StayHostDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260817083322_PaymentSessionPaidAt")]
+    partial class PaymentSessionPaidAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3243,21 +3246,6 @@ namespace StayHost.Infrastructure.Migrations
                     b.Property<string>("ProviderTxnId")
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
-
-                    b.Property<string>("RefundCode")
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)");
-
-                    b.Property<string>("RefundTxnId")
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)");
-
-                    b.Property<decimal>("RefundedAmount")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)");
-
-                    b.Property<DateTime?>("RefundedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ResponseCode")
                         .HasMaxLength(40)

@@ -19,7 +19,7 @@ namespace StayHost.Web.Controllers;
 public class HostOperationsController(
     StayHostDbContext db, AuthService auth, HostAccess access, ShieldService shield,
     BadgeService badges, NotificationService notifications, PaymentGateway gateway,
-    CatalogService catalog, PayoutAccounts payoutAccounts,
+    CatalogService catalog, PayoutAccounts payoutAccounts, RefundGateway refunds,
     ILogger<HostOperationsController> log) : ControllerBase
 {
     /// <summary>
@@ -255,9 +255,15 @@ public class HostOperationsController(
             ServiceFeeRefundsUsed = 0
         });
 
+        // docs/07 §10 — ask the gateway before deciding where the money lands.
+        // This used to default to "the card took it" without asking anything,
+        // which was harmless until a real gateway held the money.
+        var sentBack = await refunds.SendAsync(
+            booking, outcome.Amount, "host", "Chu nha huy don", ct);
+
         BookingsController.PostCancellation(
             db, booking, outcome, CancelledBy.Host,
-            (req?.Reason ?? "Chủ nhà huỷ đơn").Trim());
+            (req?.Reason ?? "Chủ nhà huỷ đơn").Trim(), sentBack);
 
         // docs/01 ĐG-12 — a public note on the listing, so the next guest sees the
         // host has pulled out of a confirmed stay before. Not a review: no rating,

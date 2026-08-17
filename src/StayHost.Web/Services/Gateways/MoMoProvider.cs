@@ -157,6 +157,71 @@ public class MoMoProvider(
         }
     }
 
+    /// <summary>
+    /// docs/07 §10 — MoMo sends it back to the wallet it came from.
+    ///
+    /// The refund carries a new <c>orderId</c> of its own but reuses the original
+    /// <c>transId</c>, and the id is derived rather than random so a retry after
+    /// a lost reply is the same refund rather than a second one.
+    /// </summary>
+    public async Task<PspRefundResult> RefundAsync(PspRefund refund, CancellationToken ct)
+    {
+        if (!IsConfigured) return new PspRefundResult(Psp.RefundOutcome.Unknown);
+        if (string.IsNullOrWhiteSpace(refund.ProviderTxnId))
+            return new PspRefundResult(Psp.RefundOutcome.Unknown);
+
+        var amount = (long)Math.Round(refund.Amount, MidpointRounding.AwayFromZero);
+        var refundId = Psp.RefundRequestId(refund.OrderRef, refund.Amount, DateTime.UtcNow);
+        var transId = long.TryParse(refund.ProviderTxnId, out var t) ? t : 0;
+
+        var signature = Psp.MoMoRefundSign(Cfg.AccessKey, Cfg.SecretKey, amount, refund.Reason,
+            refundId, Cfg.PartnerCode, refundId, transId.ToString());
+
+        var body = new Dictionary<string, object>
+        {
+            ["partnerCode"] = Cfg.PartnerCode,
+            ["orderId"] = refundId,
+            ["requestId"] = refundId,
+            ["amount"] = amount,
+            ["transId"] = transId,
+            ["lang"] = "vi",
+            ["description"] = refund.Reason,
+            ["signature"] = signature
+        };
+
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            try
+            {
+                using var client = http.CreateClient("psp");
+                var res = await client.PostAsJsonAsync($"{Cfg.Endpoint}/refund", body, ct);
+                var json = await res.Content.ReadFromJsonAsync<JsonElement>(ct);
+                var code = Number(json, "resultCode");
+
+                log.LogInformation("MoMo hoàn {Amount} cho {Ref}: mã {Code} {Message}.",
+                    refund.Amount, refund.OrderRef, code, Text(json, "message"));
+
+                // 0 done. 1002/1004/1080 are refusals that will not improve.
+                if (code == 0)
+                    return new PspRefundResult(Psp.RefundOutcome.Accepted, Text(json, "transId"), code.ToString());
+                if (code is 1002 or 1004 or 1080 or 1081)
+                    return new PspRefundResult(Psp.RefundOutcome.Refused, Code: code.ToString());
+            }
+            catch (Exception ex)
+            {
+                log.LogWarning(ex, "Không gọi được MoMo để hoàn tiền {Ref} (lần {Attempt}).",
+                    refund.OrderRef, attempt);
+            }
+
+            if (attempt < 3) await Task.Delay(TimeSpan.FromSeconds(2 * attempt), ct);
+        }
+
+        log.LogError("Không biết MoMo đã hoàn {Amount} cho {Ref} hay chưa. Mã yêu cầu {RefundId}.",
+            refund.Amount, refund.OrderRef, refundId);
+
+        return new PspRefundResult(Psp.RefundOutcome.Unknown, Code: refundId);
+    }
+
     private static string Text(JsonElement json, string name) =>
         json.ValueKind == JsonValueKind.Object && json.TryGetProperty(name, out var v)
             ? v.ValueKind == JsonValueKind.Number ? v.ToString() : v.GetString() ?? ""
