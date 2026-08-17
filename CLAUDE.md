@@ -76,7 +76,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Khám phá | Tìm không dấu, ngày là bộ lọc thật, ngày linh hoạt ±1–7, cuối tuần/tuần/tháng, chọn theo tháng |
 | Chủ nhà | Đăng tin theo bước, lịch nhiều tin, giá mùa/theo ngày, đồng bộ iCal hai chiều, co-host có phạm vi quyền |
 | Thanh toán | Trả đủ, trả một phần (cọc ≥50% + tự thu trước 14 ngày), chia hoá đơn tối đa 16 người |
-| Cổng thanh toán thật | `docs/07 §13` phương án A, `§15.3`. **VNPay** (thẻ quốc tế `INTCARD` + thẻ ATM nội địa `VNBANK`), **MoMo**, **ZaloPay**. Khách rời sang trang của cổng — sàn **không có ô nhập thẻ nào** khi cổng đã bật (`§14.2`). Ba đường báo tin về: khách quay lại (**không tin**), IPN có chữ ký, và `PspSweeper` mỗi phút tự hỏi lại cổng — cái đầu tiên có chữ ký thật thì thắng, hai cái sau không làm gì. **Chữ ký sai bị bỏ qua, không bị coi là thất bại**; số tiền cổng báo khác đơn thì không xác nhận. Khoá để trống = phương thức đó vẫn chạy bằng bản giả lập, y như cũ. Sandbox MoMo/ZaloPay nằm trong `appsettings.Development.json`; VNPay cần `TmnCode` từ sandbox.vnpayment.vn |
+| Cổng thanh toán thật | `docs/07 §13` phương án A, `§15.3`. **VNPay** (thẻ quốc tế `INTCARD` + thẻ ATM nội địa `VNBANK`), **MoMo**, **ZaloPay**. Khách rời sang trang của cổng — sàn **không có ô nhập thẻ nào** khi cổng đã bật (`§14.2`). Ba đường báo tin về: khách quay lại (**không tin**), IPN có chữ ký, và `PspSweeper` mỗi phút tự hỏi lại cổng — cái đầu tiên có chữ ký thật thì thắng, hai cái sau không làm gì. **Chữ ký sai bị bỏ qua, không bị coi là thất bại**; số tiền cổng báo khác đơn thì không xác nhận. Khoá để trống = phương thức đó vẫn chạy bằng bản giả lập, y như cũ. Sandbox MoMo/ZaloPay nằm trong `appsettings.Development.json`; VNPay cần `TmnCode` từ **sandbox.vnpayment.vn/devreg/** (trang gốc là 404) |
 | Chuyển khoản VietQR | `docs/07 §2.3`, cả ba dòng đơn. Đơn ở trạng thái **chờ chuyển khoản** giữ ngày/ghế **2 giờ** (`BankTransfers.Window`) và **chưa ghi bút toán nào**; người trực dán sao kê ở trang quản trị, `BankTransfers.Judge` khớp mã đơn trong nội dung, rồi đơn đi qua **đúng đường xác nhận mà thẻ đang đi**. Sáu phán quyết, chỉ "khớp" và "đã nhập trước đó" là im lặng. Hết hạn thì trả lại chỗ, không có gì phải đảo. **Chỉ hiện khi có `BankTransfer:AccountNumber`; prod chưa bật** — xem `docs/PLAN.md §9.3` |
 | Đánh giá & tin nhắn | Đánh giá mù hai chiều, sửa trong 48h, gửi ảnh, thẻ đơn trong hội thoại, mẫu trả lời nhanh |
 | An toàn | Trung tâm giải quyết, trung tâm trợ giúp 14 bài, phát hiện bất thường, nhật ký quản trị chỉ-thêm |
@@ -331,7 +331,9 @@ python scripts/gateway_acceptance.py            # 19 kịch bản, gọi sandbox
 ```
 
 **Hai ô thẻ vẫn dùng bản giả lập** cho tới khi có VNPay: đăng ký miễn phí ở
-sandbox.vnpayment.vn rồi đặt `Psp__Vnpay__TmnCode` và `Psp__Vnpay__HashSecret`.
+**`https://sandbox.vnpayment.vn/devreg/`** — đường dẫn `devreg` là một phần của
+địa chỉ, **gõ mỗi tên miền thì ra 404** — rồi đặt `Psp__Vnpay__TmnCode` và
+`Psp__Vnpay__HashSecret`.
 Không có khoá thì `/api/payment-methods/catalogue` trả `live: false` cho ô đó và
 mọi thứ chạy y như trước — đó là mặc định đúng, không phải lỗi.
 

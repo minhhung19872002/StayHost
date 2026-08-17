@@ -173,6 +173,11 @@ sang trang của cổng và tiền chạy thật.
 **1.1–1.65%** mỗi giao dịch với VNPay, **~2%** với MoMo, **1.5–2%** với ZaloPay. Sandbox
 thì miễn phí và không cần giấy tờ.
 
+> **Đăng ký sandbox VNPay:** `https://sandbox.vnpayment.vn/devreg/`. Đường dẫn `devreg`
+> là một phần của địa chỉ — gõ mỗi `sandbox.vnpayment.vn` sẽ ra trang 404 của VNPAY.
+> Form hỏi tên website, địa chỉ URL, email, mật khẩu; `TmnCode` và `HashSecret` được
+> gửi về email đó, và cổng quản trị sandbox ở `https://sandbox.vnpayment.vn/merchantv2/`.
+
 ```bash
 cat >> ~/deploy/stayhost.env <<'EOF'
 # Địa chỉ cổng gọi ngược về. Phải là tên miền thật, không phải localhost.
