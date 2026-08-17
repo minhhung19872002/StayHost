@@ -41,8 +41,9 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (17/08/2026).** 1024 test nghiệp vụ · **19/19** kịch bản cổng thanh
-toán thật (`scripts/gateway_acceptance.py`, gọi sandbox MoMo/ZaloPay ngoài đời) ·
+**Toàn bộ xanh (17/08/2026).** 1031 test nghiệp vụ · **30/30** kịch bản cổng thanh
+toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
+đời) ·
 **10/10** kịch bản của `docs/04`
 (`scripts/acceptance.py`) · **10/10** kịch bản quản trị của `docs/08 §13`
 (`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
@@ -269,6 +270,31 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   là đường duy nhất chốt được một lượt thanh toán**. Đó cũng chính là lý do
   `docs/07 §5` bắt sàn tự hỏi lại thay vì tin trình duyệt — nên đừng "sửa" bằng
   cách tin trang khách quay về.
+- **Trả lời IPN bằng `new { RspCode = … }` là VNPay không đọc được.** App này
+  serialise theo camelCase, nên `RspCode` ra dây là `rspCode`; VNPay tìm đúng tên
+  hoa, không thấy, và theo tài liệu của họ **retry 10 lần cách nhau 5 phút** — cho
+  *mọi* giao dịch thành công, im lặng, trong khi đơn đã xác nhận và phía mình
+  không có gì trông sai cả. Giờ là record `VnPayReply` có `[JsonPropertyName]`.
+  ZaloPay thoát nạn vì `return_code` vốn đã thường.
+- **`vnp_IpAddr` phải dài 7–45 ký tự.** Kestrel trả `::1` cho mọi thứ chạy cùng
+  máy, VNPay đáp lại bằng trang lỗi trắng **không nói field nào sai** — đọc y hệt
+  như sai chữ ký. `Psp.ClientIp` quy đổi, có test.
+- **VNPay cần cookie phiên; curl không có cookie thì báo lỗi giả.** `vpcpay.html`
+  cấp token rồi 302 sang `PaymentMethod.html`; không giữ cookie thì trang đó đá
+  sang `Payment/Error.html`. Chữ ký đúng hoàn toàn. Dấu hiệu phân biệt: **có tới
+  được `PaymentMethod.html?token=…` hay không** — tới được nghĩa là VNPay đã nhận
+  chữ ký, lỗi sau đó là chuyện khác.
+- **Bật một cổng thật là bẻ gãy mọi script nghiệm thu trả tiền bằng thẻ.** `/pay`
+  không còn xác nhận đơn nữa mà trả về địa chỉ chuyển hướng, và **`acceptance.py`
+  vẫn báo 10/10** vì kịch bản 3 chỉ kiểm `st == 200` chứ không kiểm đơn đã
+  `Confirmed` — một bộ nghiệm thu xanh mà đơn chưa ai trả tiền. Giờ ba bộ đi qua
+  `scripts/_gateway.py`, ký IPN đúng như VNPay ký, nên chạy được cả khi có lẫn khi
+  không có cổng. Đổi cách thanh toán thì soát lại **cái mà script khẳng định**,
+  đừng chỉ soát số PASS.
+- **Cổng thật thì sàn không biết bốn số cuối của thẻ.** Khách gõ thẻ ở trang VNPay,
+  nên `payments.CardLast4` là null — kéo theo `SavedCards`, nhắc thẻ sắp hết hạn,
+  và nhánh "thẻ đã đóng" của `Refunds.Redirect` **không có gì để đọc**. Chưa giải
+  quyết; `unwired_acceptance.py` tự đặt cột đó để vẫn thử được luật hoàn tiền.
 - **`app_trans_id` của ZaloPay phải mang ngày của Việt Nam.** Lại đúng bảy tiếng cũ:
   một đơn mở lúc 18:00 UTC là 01:00 hôm sau ở TP.HCM, và ZaloPay từ chối mọi mã
   không mở đầu bằng ngày hôm nay của **họ**. `Psp.ZaloTransId` quy đổi, có test.
@@ -330,12 +356,20 @@ ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/StayHost.Web --urls 
 python scripts/gateway_acceptance.py            # 19 kịch bản, gọi sandbox thật
 ```
 
-**Hai ô thẻ vẫn dùng bản giả lập** cho tới khi có VNPay: đăng ký miễn phí ở
-**`https://sandbox.vnpayment.vn/devreg/`** — đường dẫn `devreg` là một phần của
-địa chỉ, **gõ mỗi tên miền thì ra 404** — rồi đặt `Psp__Vnpay__TmnCode` và
-`Psp__Vnpay__HashSecret`.
-Không có khoá thì `/api/payment-methods/catalogue` trả `live: false` cho ô đó và
-mọi thứ chạy y như trước — đó là mặc định đúng, không phải lỗi.
+**Hai ô thẻ đi qua VNPay và khoá nằm ngoài repo.** `HashSecret` của VNPay là của
+một người chứ không phải khoá vendor công bố, nên nó ở `dotnet user-secrets`
+(`UserSecretsId` = `stayhost-web-psp`), tự nạp ở Development:
+
+```bash
+cd src/StayHost.Web
+dotnet user-secrets set Psp:Vnpay:TmnCode <mã website>
+dotnet user-secrets set Psp:Vnpay:HashSecret <chuỗi bí mật>
+```
+
+Máy mới thì đăng ký ở **`https://sandbox.vnpayment.vn/devreg/`** — đường dẫn
+`devreg` là một phần của địa chỉ, **gõ mỗi tên miền thì ra 404**. Không có khoá
+thì `/api/payment-methods/catalogue` trả `live: false` cho ô đó và mọi thứ chạy y
+như trước — đó là mặc định đúng, không phải lỗi.
 
 Lên prod: đổi ba `Endpoint`/`PayUrl`/`ApiUrl` sang bản không có `sandbox`/`test`,
 đặt `Psp:PublicUrl` thành tên miền thật (IPN phải gọi vào được), và **bí mật đặt
@@ -384,11 +418,11 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 1024 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1031 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
-python scripts/gateway_acceptance.py               # 19 kịch bản cổng thanh toán, gọi sandbox thật
+python scripts/gateway_acceptance.py               # 30 kịch bản cổng thanh toán, gọi sandbox thật
 python scripts/i18n_audit.py                       # khoá dịch còn thiếu (phải ra 0)
 cd src/StayHost.Web/ClientApp && npm run build && npx oxlint src
 

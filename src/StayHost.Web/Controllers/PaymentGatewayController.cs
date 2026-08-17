@@ -43,9 +43,29 @@ public class PaymentGatewayController(
     }
 
     /// <summary>
+    /// VNPay's reply, spelled the way VNPay reads it.
+    ///
+    /// It cannot be an anonymous object: this application serialises with the
+    /// camelCase policy, so <c>RspCode</c> goes out as <c>rspCode</c> and VNPay,
+    /// which looks for the exact name, sees no answer at all. Their documented
+    /// behaviour then is to retry the IPN ten times at five-minute intervals —
+    /// for every successful payment, quietly, with the booking already confirmed
+    /// and nothing on this side looking wrong.
+    /// </summary>
+    public sealed record VnPayReply(
+        [property: System.Text.Json.Serialization.JsonPropertyName("RspCode")] string RspCode,
+        [property: System.Text.Json.Serialization.JsonPropertyName("Message")] string Message);
+
+    /// <summary>
     /// VNPay's server-to-server confirmation. It expects a small JSON body with
     /// its own reason codes, and it will keep retrying until it gets one — so
     /// every branch answers, including the ones that refuse.
+    ///
+    /// Their table: 00 and 02 mean "recorded, stop"; 01, 04, 97 and 99 mean
+    /// "try again". So a signature this side cannot verify asks for a retry
+    /// rather than closing the matter, which is the right way round — the
+    /// alternative is telling VNPay to stop asking about a payment nobody
+    /// understood.
     /// </summary>
     [HttpGet("vnpay/ipn")]
     public async Task<IActionResult> VnPayIpn(CancellationToken ct)
@@ -53,22 +73,22 @@ public class PaymentGatewayController(
         var query = Query();
         var session = await checkout.FindAsync(query.GetValueOrDefault("vnp_TxnRef"), ct);
 
-        if (session is null) return Ok(new { RspCode = "01", Message = "Order not found" });
+        if (session is null) return Ok(new VnPayReply("01", "Order not found"));
 
         var provider = router.ByKey(session.Provider);
-        if (provider is null) return Ok(new { RspCode = "99", Message = "Unknown error" });
+        if (provider is null) return Ok(new VnPayReply("99", "Unknown error"));
 
         var verdict = provider.Read(query);
-        if (verdict.Code == PspVerdict.Signature) return Ok(new { RspCode = "97", Message = "Invalid signature" });
+        if (verdict.Code == PspVerdict.Signature) return Ok(new VnPayReply("97", "Invalid signature"));
 
         if (verdict.Amount > 0 && !Psp.AmountMatches(session.Amount, verdict.Amount))
-            return Ok(new { RspCode = "04", Message = "Invalid amount" });
+            return Ok(new VnPayReply("04", "Invalid amount"));
 
         if (session.Status != PaymentSessionStatus.Pending)
-            return Ok(new { RspCode = "02", Message = "Order already confirmed" });
+            return Ok(new VnPayReply("02", "Order already confirmed"));
 
         await checkout.SettleAsync(session, verdict, "ipn", ct);
-        return Ok(new { RspCode = "00", Message = "Confirm Success" });
+        return Ok(new VnPayReply("00", "Confirm Success"));
     }
 
     /* ------------------------------------------------------------------- MoMo */

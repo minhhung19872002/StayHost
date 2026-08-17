@@ -2,6 +2,12 @@
 import os
 import json, urllib.request, urllib.parse, http.cookiejar, threading, queue, datetime, subprocess, time
 
+# The four suites live in this directory; a script run from the repo root has to
+# say so before it can import the shared gateway helper.
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import _gateway as gateway
+
 # The port is only a default. Another app on this machine may already hold 5199,
 # and a script that hard-codes it then talks to the wrong server and reports
 # failures that are not ours. Override with STAYHOST_URL.
@@ -121,7 +127,11 @@ def book_and_pay(op, listing, offset, nights=3):
     st, held = call(op, "/api/bookings", body_for(listing, offset, nights))
     if st != 201:
         return st, held
-    return call(op, f"/api/bookings/{held['id']}/pay", {})
+    # docs/07 §13 — with a licensed gateway wired to the card row, /pay hands back
+    # an address rather than a confirmation, and every scenario below this one
+    # needs a booking that was really paid for. _gateway.pay carries it the rest
+    # of the way through the same signed IPN VNPay would send.
+    return gateway.pay(call, op, held["id"])
 
 
 anon = opener()

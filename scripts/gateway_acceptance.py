@@ -1,19 +1,27 @@
 """docs/07 §13 — the licensed gateways, against the real sandboxes.
 
-Everything here talks to somebody else's server. It opens a genuine order at
-MoMo and at ZaloPay, follows the address they hand back, and then asks them what
-they think happened — which is the check docs/07 §5 says the platform must make
-rather than believing the browser.
+Everything here talks to somebody else's server. It opens genuine orders at
+VNPay, MoMo and ZaloPay, follows the addresses they hand back — VNPay's all the
+way onto their own payment page, which is the only proof that every one of the
+fifteen signed parameters was acceptable — and then asks each of them what it
+thinks happened, the check docs/07 §5 says the platform must make rather than
+believing the browser.
 
-What it does not do is finish a payment: that needs a human with the MoMo app.
-So the last scenario proves the other half instead, the half that costs money if
-it is wrong — that a callback nobody signed cannot confirm a booking.
+What it does not do is finish a payment: that needs a human with a card or the
+MoMo app. So the confirming half is proved by signing a callback the way the
+gateway signs it, which exercises the whole production path from the signature
+check to the ledger. And the half that costs money if it is wrong — that an
+unsigned callback confirms nothing and, just as importantly, breaks nothing —
+is proved against a real pending order rather than an invented reference.
 
     STAYHOST_URL=http://localhost:5199 python scripts/gateway_acceptance.py
 
-The server must run with ASPNETCORE_ENVIRONMENT=Development, which is where the
-sandbox credentials live (appsettings.Development.json). Without them the
-gateways report themselves not live and the run says so instead of failing.
+The server must run with ASPNETCORE_ENVIRONMENT=Development. MoMo's and
+ZaloPay's sandbox keys are published by the vendors and live in
+appsettings.Development.json; VNPay's belong to a person, so they live in
+`dotnet user-secrets` and this script reads the HashSecret from there (or from
+VNPAY_HASH_SECRET) only to sign the IPN it pretends to be. A gateway with no
+keys reports itself not live and the run says so rather than failing.
 """
 import datetime
 import hashlib
@@ -27,12 +35,18 @@ import re
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 BASE = os.environ.get("STAYHOST_URL", "http://localhost:5199").rstrip("/")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEV_SETTINGS = os.path.join(HERE, os.pardir, "src", "StayHost.Web", "appsettings.Development.json")
+
+
+USER_SECRETS = os.path.join(
+    os.environ.get("APPDATA", os.path.expanduser("~/.microsoft/usersecrets")),
+    "Microsoft", "UserSecrets", "stayhost-web-psp", "secrets.json")
 
 
 def dev_key2():
@@ -48,6 +62,49 @@ def dev_key2():
         return json.loads(text).get("Psp", {}).get("Zalopay", {}).get("Key2")
     except (OSError, ValueError):
         return None
+
+
+def vnpay_secret():
+    """VNPay's HashSecret, from wherever this machine keeps it.
+
+    Unlike MoMo's and ZaloPay's, this one belongs to a person rather than being
+    published by the vendor, so it lives in user-secrets outside the repo
+    (`dotnet user-secrets`, see StayHost.Web.csproj). The environment wins, for a
+    CI box that has no such store.
+    """
+    if os.environ.get("VNPAY_HASH_SECRET"):
+        return os.environ["VNPAY_HASH_SECRET"]
+
+    try:
+        with io.open(USER_SECRETS, encoding="utf-8-sig") as f:
+            return json.load(f).get("Psp:Vnpay:HashSecret")
+    except (OSError, ValueError):
+        return None
+
+
+def vnpay_sign(fields, secret):
+    """docs/07 §15.3 — sorted, URL-encoded, HMAC-SHA512, exactly as VNPay does it.
+
+    Written out again here rather than imported, on purpose: a test that reuses
+    the code under test proves the two agree with each other and nothing else.
+    """
+    query = "&".join(
+        "%s=%s" % (urllib.parse.quote_plus(k), urllib.parse.quote_plus(v))
+        for k, v in sorted(fields.items()) if v != "")
+    return hmac.new(secret.encode(), query.encode(), hashlib.sha512).hexdigest()
+
+
+def browser():
+    """A caller that keeps cookies, which VNPay's payment pages require.
+
+    Without a cookie jar their gateway hands out a token and then answers its own
+    error page — which reads exactly like a rejected checksum and is not one.
+    Cost a wrong diagnosis; hence the comment.
+    """
+    op = urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    op.addheaders = [("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126")]
+    return op
 
 
 def ledger_total():
@@ -159,6 +216,55 @@ if st != 200:
 momo_ref = momo_booking = None
 zalo_ref = zalo_booking = None
 zalo_amount = 0
+
+# --- 0b: VNPay carries both card rows ----------------------------------------
+# The two rows at the top of the checkout. Unlike the wallets these are followed
+# all the way to VNPay's own payment page, because that is the only thing that
+# proves every one of the fifteen signed parameters was acceptable — a rejected
+# one gets no page, just their error screen with no reason on it.
+print("0b. VNPay nhận đơn cho cả hai ô thẻ")
+vnpay_refs = {}
+
+for key, label, expect in [("card", "Thẻ tín dụng / ghi nợ", "Thẻ thanh to&#225;n quốc tế"),
+                           ("napas", "Thẻ ATM nội địa", None)]:
+    if not live.get(key):
+        check("VNPay đang bật cho ô %s" % label, False, "chưa cấu hình TmnCode")
+        continue
+
+    held, code = hold(guest, key)
+    if held is None:
+        check("Giữ chỗ được cho ô %s" % label, False, "HTTP %s" % code)
+        continue
+
+    st, paid = call(guest, "/api/bookings/%d/pay" % held["id"], {"paymentMethod": key})
+    url = (paid or {}).get("gatewayRedirectUrl") or ""
+
+    check("%s: nhận địa chỉ của VNPay" % label,
+          st == 200 and "vnpayment.vn" in url, url[:70] or "HTTP %s: %s" % (st, paid))
+
+    if not url:
+        continue
+
+    vnpay_refs[key] = ((paid or {}).get("gatewayOrderRef"), held["id"], (paid or {}).get("total"))
+
+    # The bank code decides which of the two lists VNPay opens with, so the two
+    # rows are not the same button wearing different words.
+    check("%s: đi đúng nhánh %s" % (label, "INTCARD" if key == "card" else "VNBANK"),
+          ("INTCARD" if key == "card" else "VNBANK") in url, url[:110])
+
+    try:
+        with browser().open(url, timeout=30) as res:
+            landed = res.geturl()
+            body = res.read().decode("utf-8", "replace")
+    except urllib.error.URLError as e:
+        landed, body = "", str(e)
+
+    check("%s: VNPay nhận chữ ký và mở trang thanh toán" % label,
+          "Error.html" not in landed and "PaymentMethod" in landed, landed[-70:])
+
+    if expect:
+        check("%s: VNPay mở đúng danh sách thẻ quốc tế" % label, expect in body,
+              "không thấy nhãn của họ trên trang")
 
 # --- 1: MoMo opens a real order ---------------------------------------------
 print("1. MoMo mở đơn thật và trả về địa chỉ của chính họ")
@@ -284,7 +390,7 @@ if live.get("zalopay") and zalo_ref:
     else:
         data = json.dumps({
             "app_id": 2553,
-            "app_trans_id": "%s_%s" % (datetime.datetime.utcnow().strftime("%y%m%d"), zalo_ref),
+            "app_trans_id": "%s_%s" % (datetime.datetime.now(datetime.timezone.utc).strftime("%y%m%d"), zalo_ref),
             "app_time": 0, "app_user": "stayhost", "amount": int(zalo_amount),
             "zp_trans_id": random.randint(10 ** 11, 10 ** 12)
         }, separators=(",", ":"))
@@ -308,6 +414,59 @@ if live.get("zalopay") and zalo_ref:
         after = ledger_total()
         check("Gọi lại callback không ghi thêm bút toán nào", before == after,
               "%s → %s" % (before, after))
+
+# --- 5b: VNPay's IPN, signed the way VNPay signs it --------------------------
+# The wallets prove the redirect; this proves the confirmation. VNPay retries its
+# IPN until it gets one of the codes that means "stop", so the reply codes matter
+# as much as the booking does.
+print("\n5b. IPN của VNPay: ký đúng thì xác nhận đơn, và trả đúng mã cho họ")
+secret = vnpay_secret()
+
+if not vnpay_refs.get("card"):
+    check("Có đơn VNPay để thử IPN", False, "chưa mở được đơn nào")
+elif not secret:
+    check("Đọc được HashSecret để ký thay VNPay", False,
+          "đặt VNPAY_HASH_SECRET hoặc dotnet user-secrets")
+else:
+    ref, booking_id, amount = vnpay_refs["card"]
+
+    def ipn(**over):
+        fields = {
+            "vnp_Amount": str(int(round(amount)) * 100), "vnp_BankCode": "NCB",
+            "vnp_BankTranNo": "VNP" + ref[-8:], "vnp_CardType": "ATM",
+            "vnp_OrderInfo": "StayHost", "vnp_PayDate": ref[:12] + "00",
+            "vnp_ResponseCode": "00", "vnp_TmnCode": "GLQWM7J8",
+            "vnp_TransactionNo": "14" + ref[-6:], "vnp_TransactionStatus": "00",
+            "vnp_TxnRef": ref,
+        }
+        fields.update(over)
+        fields["vnp_SecureHash"] = vnpay_sign(fields, secret)
+        return call(anon, "/api/payments/vnpay/ipn?" + urllib.parse.urlencode(fields))
+
+    # A tampered amount must be refused even though everything else is genuine —
+    # the signature is over the tampered value, so this is not a forgery test, it
+    # is the "gateway and booking disagree" test of docs/07 §7.
+    st, res = ipn(vnp_Amount="100")
+    check("Số tiền lệch bị từ chối bằng mã 04", (res or {}).get("RspCode") == "04",
+          json.dumps(res, ensure_ascii=False)[:70])
+
+    st, res = ipn()
+    check("Ký đúng thì VNPay nhận mã 00", (res or {}).get("RspCode") == "00",
+          json.dumps(res, ensure_ascii=False)[:70])
+
+    _, mine = call(guest, "/api/bookings")
+    row = next((b for b in (mine or []) if b["id"] == booking_id), None)
+    check("Đơn đã được xác nhận", row is not None and row["status"] == "Confirmed",
+          str(row and row["status"]))
+
+    # VNPay retries until it is told to stop, so the second delivery must not
+    # post the ledger again — and must say 02, their code for "already done".
+    before = ledger_total()
+    st, res = ipn()
+    after = ledger_total()
+    check("Gửi lại IPN trả mã 02 và không ghi sổ lần nữa",
+          (res or {}).get("RspCode") == "02" and before == after,
+          "%s · %s → %s" % ((res or {}).get("RspCode"), before, after))
 
 # --- 6: the books still balance ----------------------------------------------
 print("\n6. Sổ sách vẫn cân")

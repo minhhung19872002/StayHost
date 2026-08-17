@@ -13,6 +13,12 @@ import time
 import urllib.error
 import urllib.request
 
+# The four suites live in this directory; a script run from the repo root has to
+# say so before it can import the shared gateway helper.
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import _gateway as gateway
+
 B = os.environ.get("STAYHOST_URL", "http://localhost:5199").rstrip("/")
 PW = "stayhost123"
 RUN = str(int(time.time()))[-6:]
@@ -119,10 +125,26 @@ def book_and_pay(op, slug, days_out=20, nights=3, card_last4="4242"):
         return None, f"book {st} {res}"
 
     bid = res["id"]
-    st, pay = call(op, f"/api/bookings/{bid}/pay",
-                   {"paymentMethod": "card", "cardLast4": card_last4})
+    # docs/07 §13 — the card row goes out to VNPay when one is configured, so the
+    # payment is carried the rest of the way through their signed IPN. With no
+    # gateway wired this is the same single request it always was.
+    st, pay = gateway.pay(call, op, bid,
+                          {"paymentMethod": "card", "cardLast4": card_last4})
     if st not in (200, 201):
         return None, f"pay {st} {pay}"
+    if pay.get("gatewaySettled") is False:
+        return None, f"gateway {pay.get('gatewayNote')}"
+
+    # A real gateway never tells the platform the last four digits — the guest
+    # typed them on VNPay's page, not on ours — so a booking paid that way has no
+    # card on file. Scenarios 8 and 9 are about the *refund* rules, which still
+    # run through the stand-in and read exactly that field, so the fixture puts
+    # there what the gateway cannot. Nothing about the rule under test is faked;
+    # only the card the rule reads.
+    if card_last4 and not sql(
+            f'select coalesce("CardLast4", \'\') from payments where "BookingId"={bid}'):
+        sql(f'update payments set "CardLast4"=\'{card_last4}\' where "BookingId"={bid}')
+
     return bid, None
 
 

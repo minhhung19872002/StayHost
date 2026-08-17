@@ -63,6 +63,34 @@ public static class Psp
     /// <summary>Vietnam is what every one of these gateways timestamps in.</summary>
     public static DateTime Vn(DateTime utc) => utc.AddHours(7);
 
+    /// <summary>
+    /// The guest's address in a shape VNPay will accept: their spec says
+    /// <c>vnp_IpAddr</c> is alphanumeric of length 7 to 45.
+    ///
+    /// Kestrel hands back <c>::1</c> for anything on the same machine, which is
+    /// three characters and full of colons — VNPay answers a blank error page
+    /// with no reason given, and the natural conclusion is that the signature is
+    /// wrong. It is not; the address is. An IPv4 address behind an IPv6 socket
+    /// arrives as <c>::ffff:203.0.113.5</c> and has to be unwrapped for the same
+    /// reason.
+    /// </summary>
+    public static string ClientIp(string? raw)
+    {
+        var ip = (raw ?? "").Trim();
+
+        if (ip.Length == 0 || ip is "::1" or "0.0.0.0" or "::") return "127.0.0.1";
+
+        // ::ffff:203.0.113.5 — an IPv4 address wearing an IPv6 coat.
+        const string mapped = "::ffff:";
+        if (ip.StartsWith(mapped, StringComparison.OrdinalIgnoreCase))
+            ip = ip[mapped.Length..];
+
+        // A real IPv6 address is longer than 45 characters only in exotic cases,
+        // but a truncated one would be a lie; anything unusable becomes the
+        // loopback rather than a value the gateway will silently choke on.
+        return ip.Length is >= 7 and <= 45 ? ip : "127.0.0.1";
+    }
+
     /* -------------------------------------------------------------------- VNPay */
 
     /// <summary>

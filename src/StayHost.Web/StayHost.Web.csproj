@@ -26,6 +26,15 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Somewhere to keep a developer's own gateway keys that is not this repo.
+         docs/07 §14.4: a VNPay HashSecret signs money, and one belonging to a
+         person rather than published by a vendor has no business in git history.
+         Loaded automatically in Development, ignored everywhere else — production
+         reads the same settings from environment variables (docker-compose.prod).
+         Set one with: dotnet user-secrets set Psp:Vnpay:HashSecret <value>
+         (an XML comment may not contain a double hyphen, so the flags are not
+         spelled out here; run the command from src/StayHost.Web). -->
+    <UserSecretsId>stayhost-web-psp</UserSecretsId>
   </PropertyGroup>
 
 </Project>

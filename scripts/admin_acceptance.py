@@ -17,6 +17,12 @@ import time
 import urllib.error
 import urllib.request
 
+# The four suites live in this directory; a script run from the repo root has to
+# say so before it can import the shared gateway helper.
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import _gateway as gateway
+
 # The port is only a default; another app may already hold 5199. See STAYHOST_URL.
 B = os.environ.get("STAYHOST_URL", "http://localhost:5199").rstrip("/")
 PW = "stayhost123"
@@ -180,8 +186,12 @@ for i, lid in enumerate(listing_ids):
         "guestName": "Khách Test", "guestEmail": f"lockguest{RUN}@stayhost.vn",
         "paymentMethod": "card", "cardLast4": "4242", "agreedToRules": True})
     if st in (200, 201):
-        call(guest_op, f"/api/bookings/{bk['id']}/pay",
-             {"paymentMethod": "card", "cardLast4": "4242", "idempotencyKey": f"lock{RUN}-{i}"})
+        # docs/07 §13 — the card row leaves for VNPay when one is wired, and §6's
+        # table is about what a lock does to *paid* stays, so the payment is
+        # carried through the gateway's own signed IPN rather than left hanging.
+        gateway.pay(call, guest_op, bk["id"],
+                    {"paymentMethod": "card", "cardLast4": "4242",
+                     "idempotencyKey": f"lock{RUN}-{i}"})
         booked.append(bk["id"])
 
 # The first stay is under way: somebody is in that house tonight.
@@ -390,8 +400,8 @@ st, done_booking = call(erase_op, "/api/bookings", {
     "paymentMethod": "card", "cardLast4": "4242", "agreedToRules": True})
 
 if st in (200, 201):
-    call(erase_op, f"/api/bookings/{done_booking['id']}/pay",
-         {"paymentMethod": "card", "cardLast4": "4242", "idempotencyKey": f"erase{RUN}"})
+    gateway.pay(call, erase_op, done_booking["id"],
+                {"paymentMethod": "card", "cardLast4": "4242", "idempotencyKey": f"erase{RUN}"})
     sql_ok(f'update bookings set "Status"=4 where "Id"={done_booking["id"]}')
 
 ledger_before = sql_ok(f'select count(*) from ledger_entries where "BookingId"={done_booking["id"]}')

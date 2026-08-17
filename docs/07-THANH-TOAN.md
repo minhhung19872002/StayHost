@@ -400,9 +400,26 @@ sửa địa chỉ, hoặc bên kia có lỗi, và cả hai đều không phải
 Sàn **không lưu số thẻ, không lưu CVV, không có ô nhập thẻ nào** khi cổng đã bật
 — §14.1–2. Với cổng chưa bật thì ô nhập cũ vẫn còn, và nó vẫn chỉ là bản demo.
 
+**Trả lời IPN phải đúng từng chữ hoa.** Bảng mã của VNPay: `00` và `02` là "đã
+ghi nhận, thôi hỏi"; `01`, `04`, `97`, `99` là "hỏi lại". Nên chữ ký mà bên này
+không kiểm được thì trả `97` — **xin hỏi lại**, chứ không đóng sổ một khoản tiền
+chưa ai hiểu.
+
+**Đã chạy thật (17/08/2026).** `scripts/gateway_acceptance.py`: **30/30**. VNPay
+sandbox nhận cả hai ô thẻ và mở đúng trang *"Thẻ thanh toán quốc tế"* / danh sách
+ngân hàng nội địa; MoMo và ZaloPay mở đơn thật; IPN ký đúng xác nhận đơn, gửi lại
+lần hai trả `02` và không ghi sổ thêm dòng nào; sổ lệch **0**.
+
+**Cái mất khi bật cổng thật: sàn không còn biết bốn số cuối của thẻ.** Khách gõ
+thẻ trên trang của VNPay, nên `payments.CardLast4` là null. Ba thứ đọc cột đó và
+đều mất chỗ dựa: thẻ đã lưu của §4, lời nhắc "thẻ sắp hết hạn còn lịch thu tự
+động", và nhánh "thẻ đã đóng" của §10 (`Refunds.Redirect`). Khắc phục đúng cách là
+dùng **token hoá** của cổng — VNPay có, nhưng phải đăng ký riêng — chứ không phải
+lưu con số khách khai. Chưa làm.
+
 **Chưa làm:** hoàn tiền ngược về cổng (`Refunds` hiện đi qua bản giả lập), trả
-góp qua thẻ (§2.3), và đối soát cuối ngày lấy sao kê **từ cổng** thay vì từ bảng
-`gateway_charges` mà chính sàn ghi.
+góp qua thẻ (§2.3), token hoá thẻ, và đối soát cuối ngày lấy sao kê **từ cổng**
+thay vì từ bảng `gateway_charges` mà chính sàn ghi.
 
 ## 16. Tham số cần chốt
 

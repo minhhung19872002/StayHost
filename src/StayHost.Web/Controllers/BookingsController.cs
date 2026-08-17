@@ -577,7 +577,7 @@ public class BookingsController(
 
             var handover = await pspCheckout.StartAsync(
                 booking, method, charged, partial, key,
-                HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1", ct);
+                Psp.ClientIp(HttpContext.Connection.RemoteIpAddress?.ToString()), ct);
 
             if (!handover.Ok || handover.PayUrl is null)
                 return BadRequest(new { message = handover.Error, retryable = true });

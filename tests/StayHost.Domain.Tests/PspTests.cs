@@ -69,6 +69,30 @@ public class PspTests
         Assert.Null(Psp.BookingOf("2608170330000048"));   // too short
     }
 
+    /* ------------------------------------------------------------ the caller */
+
+    /// <summary>
+    /// VNPay wants <c>vnp_IpAddr</c> to be 7 to 45 characters. Kestrel says
+    /// <c>::1</c> for anything local, VNPay answers a blank error page, and the
+    /// page says nothing about which field it disliked — so it reads exactly like
+    /// a bad signature. Cost a debugging session; hence the test.
+    /// </summary>
+    [Theory]
+    [InlineData("::1", "127.0.0.1")]
+    [InlineData("", "127.0.0.1")]
+    [InlineData(null, "127.0.0.1")]
+    [InlineData("::", "127.0.0.1")]
+    [InlineData("::ffff:203.0.113.5", "203.0.113.5")]
+    [InlineData("203.0.113.5", "203.0.113.5")]
+    [InlineData("2001:0db8:85a3:0000:0000:8a2e:0370:7334", "2001:0db8:85a3:0000:0000:8a2e:0370:7334")]
+    public void The_callers_address_is_given_in_a_shape_vnpay_accepts(string? raw, string expected)
+    {
+        var ip = Psp.ClientIp(raw);
+
+        Assert.Equal(expected, ip);
+        Assert.InRange(ip.Length, 7, 45);
+    }
+
     /* ---------------------------------------------------------------- VNPay */
 
     private static Dictionary<string, string> VnFields() => new()
