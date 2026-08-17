@@ -221,6 +221,48 @@ curl -s https://staylio.bluestar.com.vn/api/payment-methods/catalogue | python3 
 **Tắt lại:** xoá khoá của cổng đó rồi `up -d web`. Phương thức quay về bản giả lập; các
 phiên đang chờ tự hết hạn sau 15 phút và nhả chỗ, chưa có bút toán nào phải đảo.
 
+## 2.6. Bật chuyển tiền cho chủ nhà
+
+`docs/07 §13`, `§15.4`. Cổng thanh toán trả **toàn bộ** tiền đơn về tài khoản StayHost.
+Phần của chủ nhà — phần lớn nhất — sàn phải tự chuyển đi. Không có API nào cho việc đó:
+mỗi ngày một người tải file, đưa lên internet banking, rồi quay lại nói ngân hàng có
+thực hiện hay không.
+
+**Bắt buộc trước khi nhận tiền thật:** khoá mã hoá số tài khoản chủ nhà (`§14.3`).
+Không có nó thì số tài khoản **không được lưu**, và sàn thu tiền của khách mà không có
+gì để chuyển cho ai.
+
+```bash
+# 32 byte. Giữ cùng chỗ với bản sao lưu cơ sở dữ liệu.
+openssl rand -base64 32
+
+cat >> ~/deploy/stayhost.env <<'EOF'
+PAYOUTS_ACCOUNT_KEY=<chuỗi vừa sinh>
+EOF
+
+cd ~/actions-runner/_work/StayHost/StayHost
+docker compose -p stayhost -f docker-compose.prod.yml --env-file ~/deploy/stayhost.env up -d web
+```
+
+> **Đổi khoá này là mọi số tài khoản đã lưu không đọc được nữa**, và mọi chủ nhà thành
+> không chuyển tiền được cho tới khi họ khai lại. Nó không xoay vòng được, hãy coi nó
+> như một phần của cơ sở dữ liệu.
+
+**Việc hằng ngày của người có quyền `Finance`:**
+
+1. Trang quản trị → *Chuyển tiền cho chủ nhà* → **Tải file chuyển tiền (.csv)**.
+2. Mở file, chuyển sáu cột (`SoTaiKhoan`, `TenNguoiHuong`, `NganHang`, `SoTien`,
+   `NoiDung`) sang mẫu chuyển khoản hàng loạt của ngân hàng đang dùng, rồi tải lên
+   internet banking. **Giữ nguyên `NoiDung`** — đó là mã đối chiếu khi chủ nhà hỏi.
+3. Ngân hàng thực hiện xong thì quay lại bấm **Đã chuyển** trên từng lệnh. *Đây mới là
+   lúc sổ sách ghi "đã trả chủ nhà"* — trước đó tiền vẫn là tiền sàn đang giữ hộ.
+4. Lệnh nào ngân hàng từ chối thì bấm **Bị từ chối**: đơn quay lại hàng chờ theo thang
+   thử lại 1/3/7 ngày của `§12.5`, và chủ nhà được báo.
+
+File cố ý **không** theo mẫu riêng của một ngân hàng nào. Đoán sai mẫu thì file vẫn tải
+lên được và trả tiền cho nhầm người; sáu cột này là phần chung của mọi mẫu, người vận
+hành ánh xạ một lần.
+
 ## 3. Các lệnh vận hành
 
 Tất cả chạy với user `hung`:

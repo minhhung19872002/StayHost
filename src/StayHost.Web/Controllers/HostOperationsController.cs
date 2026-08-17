@@ -19,7 +19,8 @@ namespace StayHost.Web.Controllers;
 public class HostOperationsController(
     StayHostDbContext db, AuthService auth, HostAccess access, ShieldService shield,
     BadgeService badges, NotificationService notifications, PaymentGateway gateway,
-    CatalogService catalog) : ControllerBase
+    CatalogService catalog, PayoutAccounts payoutAccounts,
+    ILogger<HostOperationsController> log) : ControllerBase
 {
     /// <summary>
     /// docs/01 CĐ-06, docs/04 QT-4 — the host answers a guest's request to change
@@ -855,8 +856,21 @@ public class HostOperationsController(
 
         profile.PayoutBankName = req.BankName?.Trim();
         profile.PayoutAccountName = req.AccountName?.Trim();
-        // Only the tail is ever stored: the full number is not ours to keep.
         profile.PayoutAccountLast4 = newTail;
+
+        // docs/07 §14.3 — sealed here, masked everywhere it is shown. This build
+        // used to keep only the tail, on the reading that the number "is not ours
+        // to keep"; the rule actually says encrypted at rest, and without the
+        // number the platform collects a guest's payment and has no way to
+        // forward the host's share (§13 option A splits by bank transfer).
+        if (digits.Length >= 6)
+        {
+            profile.PayoutAccountSealed = payoutAccounts.Seal(digits);
+
+            if (!payoutAccounts.CanStore)
+                log.LogWarning("Chủ nhà {HostId} khai tài khoản nhận tiền nhưng chưa có khoá mã hoá.",
+                    profile.Id);
+        }
 
         if (changed && profile.PayoutAccountLast4 is not null)
         {

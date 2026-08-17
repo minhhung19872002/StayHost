@@ -2255,4 +2255,21 @@ export default {
   "Nếu tài khoản của bạn đã bị trừ tiền, đừng trả lại lần nữa — hãy liên hệ hỗ trợ kèm mã bên dưới.": "Si te han cobrado, no vuelvas a pagar: contacta con soporte con la referencia de abajo.",
   "Không đọc được đơn": "No se pudo leer la reserva",
   "Xem chuyến của tôi": "Ver mis viajes",
+
+  // docs/07 §13 — the bulk transfer that actually pays the hosts.
+  "Chuyển tiền cho chủ nhà": "Pagar a los anfitriones",
+  "Cổng thanh toán trả toàn bộ tiền đơn về tài khoản StayHost. Phần của chủ nhà phải chuyển đi bằng lệnh hàng loạt, và chỉ được ghi sổ khi ngân hàng đã thực hiện.": "La pasarela ingresa el importe completo de la reserva en la cuenta de StayHost. La parte del anfitrión tiene que salir como transferencia masiva, y solo se contabiliza cuando el banco la ha ejecutado.",
+  "Chưa tạo được lệnh chuyển tiền": "No se han podido preparar transferencias",
+  "lệnh đang chờ ngân hàng": "transferencias esperando al banco",
+  "Tải file chuyển tiền (.csv)": "Descargar el fichero de transferencias (.csv)",
+  "Mã chuyển": "Ref. transferencia",
+  "Chưa có lệnh chuyển nào.": "Todavía no hay transferencias.",
+  "Ngân hàng đã chuyển khoản này. Ghi lại mã giao dịch hoặc ghi chú:": "El banco ha ejecutado esta transferencia. Anota la referencia bancaria o una nota:",
+  "Ngân hàng từ chối khoản này. Ghi rõ lý do:": "El banco ha rechazado esta transferencia. Indica el motivo:",
+  "Đã ghi nhận ngân hàng chuyển thành công.": "Registrada como ejecutada por el banco.",
+  "Đã ghi nhận ngân hàng từ chối.": "Registrada como rechazada por el banco.",
+  "Chờ tải file": "Esperando descarga",
+  "Đã tải, chờ ngân hàng": "Descargada, esperando al banco",
+  "Ngân hàng đã chuyển": "Ejecutada por el banco",
+  "Ngân hàng từ chối": "Rechazada por el banco",
 };

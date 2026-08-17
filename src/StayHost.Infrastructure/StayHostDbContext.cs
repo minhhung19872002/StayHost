@@ -93,6 +93,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<GatewayCharge> GatewayCharges => Set<GatewayCharge>();
     public DbSet<CardAuthentication> CardAuthentications => Set<CardAuthentication>();
     public DbSet<PaymentSession> PaymentSessions => Set<PaymentSession>();
+    public DbSet<PayoutBatch> PayoutBatches => Set<PayoutBatch>();
     public DbSet<Chargeback> Chargebacks => Set<Chargeback>();
     public DbSet<ShieldClaim> ShieldClaims => Set<ShieldClaim>();
     public DbSet<ShieldEvidence> ShieldEvidence => Set<ShieldEvidence>();
@@ -110,6 +111,9 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.PayoutBankName).HasMaxLength(120);
             e.Property(x => x.PayoutAccountName).HasMaxLength(120);
             e.Property(x => x.PayoutAccountLast4).HasMaxLength(4);
+            // docs/07 §14.3 — AES-GCM, nonce and tag packed in, base64. Never a
+            // number anyone can read out of a database dump.
+            e.Property(x => x.PayoutAccountSealed).HasMaxLength(200);
             e.Property(x => x.OwedToPlatform).HasPrecision(12, 2);
             e.HasOne(x => x.User).WithOne(u => u.HostProfile)
                 .HasForeignKey<HostProfile>(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
@@ -246,6 +250,29 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.SettledBy).HasMaxLength(20);
             e.HasOne(x => x.Booking).WithMany()
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // docs/07 §13 — one bank transfer out to a host. Reference is unique for
+        // the same reason every other reference here is: an operator who confirms
+        // the same file twice must not pay anybody twice.
+        b.Entity<PayoutBatch>(e =>
+        {
+            e.ToTable("payout_batches");
+            e.HasIndex(x => x.Reference).IsUnique();
+            e.HasIndex(x => new { x.Status, x.DueOn });
+            e.Property(x => x.Reference).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Amount).HasPrecision(12, 2);
+            e.Property(x => x.Deducted).HasPrecision(12, 2);
+            e.Property(x => x.BankName).HasMaxLength(120);
+            e.Property(x => x.AccountName).HasMaxLength(160);
+            // The number itself. It is here rather than read back from the host
+            // because the transfer must carry the details it was decided with,
+            // not the ones the host has today (docs/07 §12.2).
+            e.Property(x => x.AccountNumber).HasMaxLength(40);
+            e.Property(x => x.SettledBy).HasMaxLength(60);
+            e.Property(x => x.Note).HasMaxLength(400);
+            e.HasOne(x => x.Host).WithMany()
+                .HasForeignKey(x => x.HostId).OnDelete(DeleteBehavior.Cascade);
         });
 
         /* ------------------------------------------------------- docs/08 */

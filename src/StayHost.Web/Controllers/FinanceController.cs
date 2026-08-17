@@ -756,6 +756,142 @@ public class FinanceController(
         return Ok(new { ok = true });
     }
 
+    /* ------------------------------------------ docs/07 §13, paying the hosts */
+
+    /// <summary>
+    /// The transfers the platform owes and where each one has got to.
+    ///
+    /// This screen exists because option A of §13 has no API behind it: a
+    /// licensed gateway settles every guest's payment into the platform's own
+    /// account, and splitting that between hosts is a file somebody uploads to
+    /// internet banking. What the platform can do is decide the transfers
+    /// exactly, write them down, and refuse to call any of them paid until a
+    /// person says the bank took it.
+    ///
+    /// Account numbers are masked here. They are in the clear only in the file,
+    /// which is a separate action and is audited.
+    /// </summary>
+    [HttpGet("payout-batches")]
+    public async Task<ActionResult<PayoutBatchesDto>> PayoutBatches(
+        [FromServices] PayoutAccounts accounts, CancellationToken ct)
+    {
+        var admin = await RequireAsync(ct);
+        if (admin is null) return this.Denied();
+
+        var rows = await db.PayoutBatches
+            .Include(b => b.Host)
+            .OrderByDescending(b => b.Status == PayoutBatchStatus.Pending)
+            .ThenByDescending(b => b.Id)
+            .Take(200)
+            .ToListAsync(ct);
+
+        var waiting = rows.Where(b => b.Status is PayoutBatchStatus.Pending or PayoutBatchStatus.Exported)
+                          .ToList();
+
+        return Ok(new PayoutBatchesDto(
+            rows.Select(b => new PayoutBatchDto(
+                b.Id, b.Reference, b.Host?.Name ?? "", b.AccountName, b.BankName,
+                PayoutFiles.Mask(b.AccountNumber), b.Amount, b.Deducted, b.BookingCount,
+                b.Status.ToString(), StatusLabel(b.Status), b.DueOn, b.SettledAt, b.Note)).ToList(),
+            waiting.Count,
+            waiting.Sum(b => b.Amount),
+            // The one thing an operator needs told loudly: with no key the sweep
+            // cannot even write these rows, so an empty screen would look like
+            // "nothing to pay" when it means "cannot pay anyone".
+            accounts.CanStore ? null : PayoutAccounts.NoKeyNotice));
+    }
+
+    private static string StatusLabel(PayoutBatchStatus status) => status switch
+    {
+        PayoutBatchStatus.Pending => "Chờ tải file",
+        PayoutBatchStatus.Exported => "Đã tải, chờ ngân hàng",
+        PayoutBatchStatus.Settled => "Ngân hàng đã chuyển",
+        _ => "Ngân hàng từ chối"
+    };
+
+    /// <summary>
+    /// docs/07 §13 — the file itself, in the six columns every Vietnamese bank's
+    /// bulk template is built from.
+    ///
+    /// Downloading it marks the transfers exported, which is not the same as
+    /// paid: it only records that the numbers have left this building. The
+    /// account numbers are in the clear here because internet banking cannot use
+    /// them any other way, so the action is audited by name.
+    /// </summary>
+    [HttpGet("payout-batches/file")]
+    public async Task<IActionResult> PayoutFile(CancellationToken ct)
+    {
+        var v = await gate.AllowAsync(AdminAction.RunPayoutTransfers,
+            "Tải file chuyển tiền hàng loạt", ct);
+        if (!v.Ok) return Refuse(v);
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var due = await db.PayoutBatches
+            .Where(b => b.Status == PayoutBatchStatus.Pending || b.Status == PayoutBatchStatus.Exported)
+            .OrderBy(b => b.Id)
+            .ToListAsync(ct);
+
+        if (due.Count == 0)
+            return BadRequest(new { message = "Không có lệnh chuyển nào đang chờ." });
+
+        var csv = PayoutFiles.Csv(due);
+        var now = DateTime.UtcNow;
+
+        foreach (var batch in due.Where(b => b.Status == PayoutBatchStatus.Pending))
+        {
+            batch.Status = PayoutBatchStatus.Exported;
+            batch.ExportedAt = now;
+        }
+
+        audit.Record(v.Admin!, "finance.payout-file", $"batches:{due.Count}", null,
+            $"Tải file chuyển tiền {due.Count} lệnh, tổng {due.Sum(b => b.Amount):#,##0}₫");
+
+        await db.SaveChangesAsync(ct);
+
+        return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv; charset=utf-8",
+            PayoutFiles.FileName(today));
+    }
+
+    /// <summary>
+    /// A person saw the bank execute it. This is what posts the payout to the
+    /// ledger — nothing earlier does, because nothing earlier moved money.
+    /// </summary>
+    [HttpPost("payout-batches/{id:long}/settled")]
+    public async Task<IActionResult> SettleBatch(
+        long id, [FromBody] ResolveCreditRequest req,
+        [FromServices] PayoutService payouts, CancellationToken ct)
+    {
+        var v = await gate.AllowAsync(AdminAction.RunPayoutTransfers, req.Note, ct);
+        if (!v.Ok) return Refuse(v);
+
+        if (!await payouts.SettleAsync(id, $"admin:{v.Admin!.Id}", req.Note, ct))
+            return BadRequest(new { message = "Không tìm thấy lệnh chuyển, hoặc đã xác nhận rồi." });
+
+        audit.Record(v.Admin!, "finance.payout-settled", $"batch:{id}", null, req.Note!.Trim());
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new { ok = true });
+    }
+
+    /// <summary>The bank refused it. Nothing is reversed, because nothing was posted.</summary>
+    [HttpPost("payout-batches/{id:long}/failed")]
+    public async Task<IActionResult> FailBatch(
+        long id, [FromBody] ResolveCreditRequest req,
+        [FromServices] PayoutService payouts, CancellationToken ct)
+    {
+        var v = await gate.AllowAsync(AdminAction.RunPayoutTransfers, req.Note, ct);
+        if (!v.Ok) return Refuse(v);
+
+        if (!await payouts.FailAsync(id, $"admin:{v.Admin!.Id}", req.Note, ct))
+            return BadRequest(new { message = "Không tìm thấy lệnh chuyển, hoặc đã chốt rồi." });
+
+        audit.Record(v.Admin!, "finance.payout-failed", $"batch:{id}", null, req.Note!.Trim());
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new { ok = true });
+    }
+
     private static TransactionDto ToDto(Booking b) => new(
         b.Id,
         b.Reference,

@@ -41,9 +41,9 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (17/08/2026).** 1031 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (17/08/2026).** 1051 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
-đời) ·
+đời) · **23/23** kịch bản chuyển tiền cho chủ nhà (`scripts/payout_acceptance.py`) ·
 **10/10** kịch bản của `docs/04`
 (`scripts/acceptance.py`) · **10/10** kịch bản quản trị của `docs/08 §13`
 (`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
@@ -78,6 +78,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Chủ nhà | Đăng tin theo bước, lịch nhiều tin, giá mùa/theo ngày, đồng bộ iCal hai chiều, co-host có phạm vi quyền |
 | Thanh toán | Trả đủ, trả một phần (cọc ≥50% + tự thu trước 14 ngày), chia hoá đơn tối đa 16 người |
 | Cổng thanh toán thật | `docs/07 §13` phương án A, `§15.3`. **VNPay** (thẻ quốc tế `INTCARD` + thẻ ATM nội địa `VNBANK`), **MoMo**, **ZaloPay**. Khách rời sang trang của cổng — sàn **không có ô nhập thẻ nào** khi cổng đã bật (`§14.2`). Ba đường báo tin về: khách quay lại (**không tin**), IPN có chữ ký, và `PspSweeper` mỗi phút tự hỏi lại cổng — cái đầu tiên có chữ ký thật thì thắng, hai cái sau không làm gì. **Chữ ký sai bị bỏ qua, không bị coi là thất bại**; số tiền cổng báo khác đơn thì không xác nhận. Khoá để trống = phương thức đó vẫn chạy bằng bản giả lập, y như cũ. Sandbox MoMo/ZaloPay nằm trong `appsettings.Development.json`; VNPay cần `TmnCode` từ **sandbox.vnpayment.vn/devreg/** (trang gốc là 404) |
+| Chuyển tiền cho chủ nhà | `docs/07 §13`, `§15.4`. Cổng trả **toàn bộ** tiền đơn về tài khoản sàn; phần chủ nhà sàn tự chuyển. Số tài khoản lưu **mã hoá** AES-GCM (`SecretText`, khoá `Payouts:AccountKey`) — trước đây chỉ giữ 4 số cuối nên **không chuyển được cho ai**. Vòng quét sinh `payout_batches` gom theo chủ nhà theo ngày, đơn ở `PayoutStatus.Sent`, **chưa ghi bút toán nào**; quản trị tải `.csv` sáu cột, đưa lên internet banking, rồi bấm *Đã chuyển* — **đó mới là lúc ghi sổ**. Bị từ chối thì quay lại thang thử lại 1/3/7 ngày, không có gì phải đảo |
 | Chuyển khoản VietQR | `docs/07 §2.3`, cả ba dòng đơn. Đơn ở trạng thái **chờ chuyển khoản** giữ ngày/ghế **2 giờ** (`BankTransfers.Window`) và **chưa ghi bút toán nào**; người trực dán sao kê ở trang quản trị, `BankTransfers.Judge` khớp mã đơn trong nội dung, rồi đơn đi qua **đúng đường xác nhận mà thẻ đang đi**. Sáu phán quyết, chỉ "khớp" và "đã nhập trước đó" là im lặng. Hết hạn thì trả lại chỗ, không có gì phải đảo. **Chỉ hiện khi có `BankTransfer:AccountNumber`; prod chưa bật** — xem `docs/PLAN.md §9.3` |
 | Đánh giá & tin nhắn | Đánh giá mù hai chiều, sửa trong 48h, gửi ảnh, thẻ đơn trong hội thoại, mẫu trả lời nhanh |
 | An toàn | Trung tâm giải quyết, trung tâm trợ giúp 14 bài, phát hiện bất thường, nhật ký quản trị chỉ-thêm |
@@ -258,6 +259,19 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   phải `api/listings`) — chờ ở `/api/listings/meta` thì nhận 404 vĩnh viễn và vòng
   lặp không bao giờ thoát:
   `until curl -s $URL/api/meta | grep -q '"categories"'; do sleep 5; done`
+- **Một container `docker compose` cũ vẫn chạy vòng quét trên cùng cơ sở dữ liệu.**
+  `stayhost-web` từ lần `docker compose up -d --build` trước đó vẫn sống, chạy bản
+  **Release cũ**, và mỗi phút vẫn quét đơn/chi trả trên đúng DB mà `dotnet run`
+  đang dùng. Nó ghi thông báo bằng chữ **không còn tồn tại trong mã nguồn** — mất
+  một lúc lâu mới tin nổi. Trước khi kết luận "code không chạy", chạy
+  `docker ps` và `Get-Process StayHost.Web`; và `TaskStop` chỉ giết `dotnet run`,
+  tiến trình `StayHost.Web.exe` con có thể sống tiếp (chính nó khoá DLL gây `MSB3027`).
+- **Đếm số thứ tự theo một cột vừa đổi nghĩa là hỏng ngay.** Mã lệnh chuyển tiền
+  đếm `PaidOutAt` để ra số thứ tự trong ngày. Khi `PaidOutAt` chuyển nghĩa thành
+  "ngân hàng đã thực hiện" (null với lệnh còn chờ), hai lệnh cùng chủ nhà cùng ngày
+  ra **trùng mã**, ràng buộc duy nhất ném, và vì ném trong tick của worker nên
+  **các vòng quét phía sau chết theo, im lặng**. Đổi nghĩa một cột thì grep hết chỗ
+  đọc nó.
 - **Callback sai chữ ký phải bị *bỏ qua*, không phải bị coi là *thất bại*.** Bản
   đầu của `PspVerdict.Forged` mang `Status = Failed`, nên `SettleAsync` ghi phiên
   thành hỏng. Không có gì xác thực người gọi vào `/api/payments/momo/ipn` — ai đoán
@@ -418,11 +432,12 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 1031 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1051 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
 python scripts/gateway_acceptance.py               # 30 kịch bản cổng thanh toán, gọi sandbox thật
+python scripts/payout_acceptance.py                # 23 kịch bản chuyển tiền cho chủ nhà (docs/07 §15.4)
 python scripts/i18n_audit.py                       # khoá dịch còn thiếu (phải ra 0)
 cd src/StayHost.Web/ClientApp && npm run build && npx oxlint src
 

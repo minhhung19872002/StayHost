@@ -239,8 +239,19 @@ public enum PaymentStatus
 public enum PayoutStatus
 {
     Scheduled = 0,
+    /// <summary>The bank executed the transfer. Only this means the host has the money.</summary>
     Paid = 1,
-    OnHold = 2
+    OnHold = 2,
+    /// <summary>
+    /// docs/07 §13 — lined up in a <see cref="PayoutBatch"/> and waiting on a
+    /// person to put the file through internet banking.
+    ///
+    /// It is a state of its own rather than an early <see cref="Paid"/> because
+    /// the difference is whether the money is still the platform's. A booking
+    /// here has been decided and not yet sent, so nothing is posted to the ledger
+    /// for it and the host is told "đã lên lệnh", not "đã chuyển".
+    /// </summary>
+    Sent = 3
 }
 
 /// <summary>

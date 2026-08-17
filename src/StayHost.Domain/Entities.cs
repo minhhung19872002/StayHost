@@ -105,8 +105,24 @@ public class HostProfile
     // --- docs/01 QL-20: where the money goes and how often.
     public string? PayoutBankName { get; set; }
     public string? PayoutAccountName { get; set; }
-    /// <summary>Stored masked; only the last four digits are ever displayed.</summary>
+    /// <summary>Only the last four digits are ever displayed (docs/07 §14.3).</summary>
     public string? PayoutAccountLast4 { get; set; }
+
+    /// <summary>
+    /// docs/07 §14.3 — the whole account number, sealed with <see cref="SecretText"/>.
+    ///
+    /// It has to be kept, or the platform collects a guest's money and has no way
+    /// to forward the host's share: §13's option A settles into the platform's own
+    /// account and leaves the splitting to a bulk bank transfer. "Encrypted at
+    /// rest, masked on screen" is the rule; for a while this build did the second
+    /// half by discarding the number, which also discarded the ability to pay
+    /// anyone.
+    ///
+    /// Null when no encryption key is configured — nothing is ever written here
+    /// in the clear, and a payout with nothing to open says so rather than
+    /// guessing.
+    /// </summary>
+    public string? PayoutAccountSealed { get; set; }
     public PayoutSchedule PayoutSchedule { get; set; } = PayoutSchedule.PerBooking;
 
     /// <summary>

@@ -2255,4 +2255,21 @@ export default {
   "Nếu tài khoản của bạn đã bị trừ tiền, đừng trả lại lần nữa — hãy liên hệ hỗ trợ kèm mã bên dưới.": "Si votre compte a été débité, ne payez pas une seconde fois : contactez le support avec la référence ci-dessous.",
   "Không đọc được đơn": "Impossible de lire la réservation",
   "Xem chuyến của tôi": "Voir mes voyages",
+
+  // docs/07 §13 — the bulk transfer that actually pays the hosts.
+  "Chuyển tiền cho chủ nhà": "Payer les hôtes",
+  "Cổng thanh toán trả toàn bộ tiền đơn về tài khoản StayHost. Phần của chủ nhà phải chuyển đi bằng lệnh hàng loạt, và chỉ được ghi sổ khi ngân hàng đã thực hiện.": "La passerelle verse la totalité de la réservation sur le compte de StayHost. La part de l'hôte doit sortir par virement groupé, et elle n'est comptabilisée qu'une fois la banque l'ayant exécuté.",
+  "Chưa tạo được lệnh chuyển tiền": "Aucun virement n'a pu être préparé",
+  "lệnh đang chờ ngân hàng": "virements en attente de la banque",
+  "Tải file chuyển tiền (.csv)": "Télécharger le fichier de virement (.csv)",
+  "Mã chuyển": "Réf. virement",
+  "Chưa có lệnh chuyển nào.": "Aucun virement pour l'instant.",
+  "Ngân hàng đã chuyển khoản này. Ghi lại mã giao dịch hoặc ghi chú:": "La banque a exécuté ce virement. Notez la référence bancaire ou une remarque :",
+  "Ngân hàng từ chối khoản này. Ghi rõ lý do:": "La banque a refusé ce virement. Indiquez pourquoi :",
+  "Đã ghi nhận ngân hàng chuyển thành công.": "Enregistré comme exécuté par la banque.",
+  "Đã ghi nhận ngân hàng từ chối.": "Enregistré comme refusé par la banque.",
+  "Chờ tải file": "En attente de téléchargement",
+  "Đã tải, chờ ngân hàng": "Téléchargé, en attente de la banque",
+  "Ngân hàng đã chuyển": "Exécuté par la banque",
+  "Ngân hàng từ chối": "Refusé par la banque",
 };

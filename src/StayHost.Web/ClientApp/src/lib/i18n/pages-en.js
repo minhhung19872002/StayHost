@@ -2433,4 +2433,21 @@ export default {
   "Nếu tài khoản của bạn đã bị trừ tiền, đừng trả lại lần nữa — hãy liên hệ hỗ trợ kèm mã bên dưới.": "If your account was charged, do not pay again — contact support with the reference below.",
   "Không đọc được đơn": "Could not read the booking",
   "Xem chuyến của tôi": "See my trips",
+
+  // docs/07 §13 — the bulk transfer that actually pays the hosts.
+  "Chuyển tiền cho chủ nhà": "Paying hosts",
+  "Cổng thanh toán trả toàn bộ tiền đơn về tài khoản StayHost. Phần của chủ nhà phải chuyển đi bằng lệnh hàng loạt, và chỉ được ghi sổ khi ngân hàng đã thực hiện.": "The gateway settles the whole booking into StayHost's account. The host's share has to go out as a bulk transfer, and it is only posted to the books once the bank has executed it.",
+  "Chưa tạo được lệnh chuyển tiền": "No transfers could be prepared",
+  "lệnh đang chờ ngân hàng": "transfers waiting on the bank",
+  "Tải file chuyển tiền (.csv)": "Download transfer file (.csv)",
+  "Mã chuyển": "Transfer ref",
+  "Chưa có lệnh chuyển nào.": "No transfers yet.",
+  "Ngân hàng đã chuyển khoản này. Ghi lại mã giao dịch hoặc ghi chú:": "The bank executed this transfer. Note the bank's reference or a remark:",
+  "Ngân hàng từ chối khoản này. Ghi rõ lý do:": "The bank refused this transfer. Say why:",
+  "Đã ghi nhận ngân hàng chuyển thành công.": "Recorded as executed by the bank.",
+  "Đã ghi nhận ngân hàng từ chối.": "Recorded as refused by the bank.",
+  "Chờ tải file": "Waiting to be downloaded",
+  "Đã tải, chờ ngân hàng": "Downloaded, waiting on the bank",
+  "Ngân hàng đã chuyển": "Executed by the bank",
+  "Ngân hàng từ chối": "Refused by the bank",
 };

@@ -269,6 +269,15 @@ export const api = {
     request(`/api/admin/finance/transactions/${bookingId}/refund`, { method: 'POST', body: JSON.stringify(body) }),
   adminAdjustPayout: (bookingId, body) =>
     request(`/api/admin/finance/payouts/${bookingId}/adjust`, { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/07 §13 — the transfers the platform owes hosts, and the file for them.
+     The file is a download rather than JSON, so it does not go through request(). */
+  payoutBatches: () => request('/api/admin/finance/payout-batches'),
+  payoutFileUrl: '/api/admin/finance/payout-batches/file',
+  settlePayoutBatch: (id, body) =>
+    request(`/api/admin/finance/payout-batches/${id}/settled`, { method: 'POST', body: JSON.stringify(body) }),
+  failPayoutBatch: (id, body) =>
+    request(`/api/admin/finance/payout-batches/${id}/failed`, { method: 'POST', body: JSON.stringify(body) }),
+
   chargebacks: () => request('/api/admin/finance/chargebacks'),
   openChargeback: body => request('/api/admin/finance/chargebacks', { method: 'POST', body: JSON.stringify(body) }),
   chargebackEvidence: (id, body) =>

@@ -1926,6 +1926,25 @@ public record BankImportResultDto(
 
 public record ResolveCreditRequest(string? Note);
 
+/// <summary>
+/// docs/07 §13 — one bank transfer the platform owes a host.
+///
+/// The account number is masked; the whole number exists only in the file, which
+/// is a separate and audited action (docs/07 §14.3).
+/// </summary>
+public record PayoutBatchDto(
+    long Id, string Reference, string HostName, string AccountName, string BankName,
+    string AccountMasked, decimal Amount, decimal Deducted, int BookingCount,
+    string Status, string StatusLabel, DateOnly DueOn, DateTime? SettledAt, string? Note);
+
+/// <summary>
+/// <paramref name="Blocked"/> is the sentence to put at the top when the server
+/// cannot produce transfers at all — an empty list otherwise reads as "nothing
+/// to pay" when it means "cannot pay anybody".
+/// </summary>
+public record PayoutBatchesDto(
+    IReadOnlyList<PayoutBatchDto> Batches, int Waiting, decimal WaitingAmount, string? Blocked);
+
 /// <summary>docs/09 §5 — one guest's word on one job, on the four service headings.</summary>
 public record ServiceReviewDto(
     int Id, string AuthorName, string? AuthorAvatarUrl,

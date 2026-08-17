@@ -108,6 +108,13 @@ services:
       BankTransfer__BankName: ${BANK_NAME:-}
       BankTransfer__AccountNumber: ${BANK_ACCOUNT_NUMBER:-}
       BankTransfer__AccountName: ${BANK_ACCOUNT_NAME:-}
+      # docs/07 §14.3 — the key that seals hosts' bank account numbers at rest.
+      # Empty and the number is not stored, which means the platform collects a
+      # guest's payment and has nothing to forward the host's share to: §13's
+      # option A splits by bulk bank transfer and that file needs real numbers.
+      # 32 bytes, base64. Changing it makes every stored account unreadable, so
+      # it belongs with the database backups. See DEPLOY.md §2.6.
+      Payouts__AccountKey: ${PAYOUTS_ACCOUNT_KEY:-}
       # docs/07 §13 phương án A — the licensed gateways. Each stays dormant until
       # its keys arrive, and a dormant one means that payment method keeps running
       # against the built-in stand-in rather than breaking. PSP_PUBLIC_URL has to

@@ -2255,4 +2255,21 @@ export default {
   "Nếu tài khoản của bạn đã bị trừ tiền, đừng trả lại lần nữa — hãy liên hệ hỗ trợ kèm mã bên dưới.": "계좌에서 이미 출금되었다면 다시 결제하지 마시고 아래 번호와 함께 고객지원에 문의해 주세요.",
   "Không đọc được đơn": "예약을 불러오지 못했습니다",
   "Xem chuyến của tôi": "내 여행 보기",
+
+  // docs/07 §13 — the bulk transfer that actually pays the hosts.
+  "Chuyển tiền cho chủ nhà": "호스트에게 송금",
+  "Cổng thanh toán trả toàn bộ tiền đơn về tài khoản StayHost. Phần của chủ nhà phải chuyển đi bằng lệnh hàng loạt, và chỉ được ghi sổ khi ngân hàng đã thực hiện.": "결제 게이트웨이는 예약 금액 전액을 StayHost 계좌로 입금합니다. 호스트 몫은 일괄 이체로 내보내야 하며, 은행이 실행한 뒤에야 장부에 기록됩니다.",
+  "Chưa tạo được lệnh chuyển tiền": "이체 지시를 만들지 못했습니다",
+  "lệnh đang chờ ngân hàng": "건이 은행 처리를 기다리는 중",
+  "Tải file chuyển tiền (.csv)": "이체 파일 내려받기 (.csv)",
+  "Mã chuyển": "이체 번호",
+  "Chưa có lệnh chuyển nào.": "아직 이체 지시가 없습니다.",
+  "Ngân hàng đã chuyển khoản này. Ghi lại mã giao dịch hoặc ghi chú:": "은행이 이 이체를 실행했습니다. 은행 거래번호나 메모를 적어 주세요:",
+  "Ngân hàng từ chối khoản này. Ghi rõ lý do:": "은행이 이 이체를 거절했습니다. 사유를 적어 주세요:",
+  "Đã ghi nhận ngân hàng chuyển thành công.": "은행이 실행한 것으로 기록했습니다.",
+  "Đã ghi nhận ngân hàng từ chối.": "은행이 거절한 것으로 기록했습니다.",
+  "Chờ tải file": "내려받기 대기",
+  "Đã tải, chờ ngân hàng": "내려받음 · 은행 대기",
+  "Ngân hàng đã chuyển": "은행이 실행함",
+  "Ngân hàng từ chối": "은행이 거절함",
 };

@@ -634,6 +634,32 @@ lấy `TmnCode`, và lên prod thì cần **giấy phép kinh doanh + hợp đ�
 khoảng 1.1–1.65% mỗi giao dịch. Khoá để trống thì ô đó vẫn chạy bằng bản giả lập,
 đúng quy tắc của VietQR và của nút đăng nhập mạng xã hội.
 
+### 9.4b. Chuyển tiền cho chủ nhà (17/08/2026)
+
+Bật cổng thật xong thì lộ ra vế còn lại của `docs/07 §13`: cổng trả **toàn bộ**
+tiền đơn về tài khoản sàn, và phần của chủ nhà — phần lớn nhất — sàn phải tự
+chuyển. Bản dựng cũ không làm được, theo ba cách:
+
+- **Không lưu số tài khoản chủ nhà** (`HostOperationsController` chỉ giữ 4 số
+  cuối), nên không có gì để chuyển tiền tới. `docs/07 §14.3` nói *mã hoá khi lưu*,
+  không nói *đừng lưu*.
+- Chi trả gọi `PaymentGateway.Charge(..., "bank-transfer", ...)` — **bản giả lập**.
+- Và ghi sổ *"đã trả chủ nhà"* ngay lúc đó, trong khi tiền còn nguyên ở tài khoản
+  sàn.
+
+Đã làm: số tài khoản mã hoá AES-GCM, bảng `payout_batches`, file `.csv` sáu cột
+cho internet banking, và bút toán **chỉ ghi khi người trực xác nhận ngân hàng đã
+thực hiện**. Chi tiết ở `docs/07 §15.4`, mã `TC-O-07`. Không phải mã mới của
+`docs/01` — **203 vẫn là 203**.
+
+`scripts/payout_acceptance.py` (23/23) bắt được một lỗi thật trong lượt chạy: hai
+lệnh cho cùng một chủ nhà trong cùng một ngày sinh trùng mã, ràng buộc duy nhất
+ném, và vì ném trong tick của worker nên các vòng quét sau chết theo trong im
+lặng.
+
+**Chưa làm:** tự đối chiếu sao kê ngân hàng với lệnh đã chuyển, và mẫu file riêng
+cho từng ngân hàng.
+
 ### 9.5. Soát lại đối chiếu airbnb.com (15/08/2026)
 
 Lượt soát này đi từ ngoài vào: lấy mặt sản phẩm của Airbnb (kể cả bản phát hành

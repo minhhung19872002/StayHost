@@ -304,6 +304,7 @@ Phát sinh thêm: thu ngoại tệ, chuyển tiền ra nước ngoài cho chủ 
 | TC-A-04 | Báo cáo tài chính: doanh thu phí, tiền đang giữ hộ, thuế phải nộp, thất thoát — **đã làm** (đọc thẳng từ sổ ghi tiền) |
 | TC-P-13 | **VietQR** (§2.3): sinh mã, giữ chỗ chờ tiền, đọc sao kê, khớp về đơn — **đã làm 13/08/2026**, xem §15.2 |
 | TC-P-14 | **Cổng thanh toán có giấy phép** (§13 phương án A): VNPay / MoMo / ZaloPay — mở đơn, chuyển khách sang trang của họ, đọc IPN có chữ ký, tự hỏi lại kết quả — **đã làm 17/08/2026**, xem §15.3 |
+| TC-O-07 | **Lệnh chuyển tiền hàng loạt cho chủ nhà** (§13): lưu số tài khoản đã mã hoá, gom lệnh theo chủ nhà theo ngày, xuất file cho internet banking, xác nhận ngân hàng đã thực hiện rồi mới ghi sổ — **đã làm 17/08/2026**, xem §15.4 |
 
 ### 15.1. Hai chỗ của §3 cần khách xác nhận
 
@@ -420,6 +421,55 @@ lưu con số khách khai. Chưa làm.
 **Chưa làm:** hoàn tiền ngược về cổng (`Refunds` hiện đi qua bản giả lập), trả
 góp qua thẻ (§2.3), token hoá thẻ, và đối soát cuối ngày lấy sao kê **từ cổng**
 thay vì từ bảng `gateway_charges` mà chính sàn ghi.
+
+---
+
+### 15.4. Chuyển tiền cho chủ nhà — cái §13 gọi là "sàn phải tự làm" (17/08/2026)
+
+Phương án A chỉ giải quyết vế thu. Cổng trả **toàn bộ** tiền đơn về tài khoản
+sàn, và §13 nói thẳng phần còn lại: *"việc chia tiền cho chủ nhà sàn phải tự làm
+bằng chuyển khoản hàng loạt"*. Không có API nào sau câu đó.
+
+Trước hôm nay bản dựng làm ba việc sai với chính câu ấy:
+
+1. **Không lưu số tài khoản chủ nhà.** `SavePayout` đọc §14.3 thành "đừng giữ" và
+   chỉ giữ bốn số cuối. Đúng là an toàn tuyệt đối, và cũng có nghĩa sàn thu tiền
+   của khách rồi **không có gì để chuyển cho ai**. §14.3 nói *mã hoá khi lưu*,
+   *chỉ hiện 4 số cuối* — hai việc khác nhau.
+2. **Gọi `PaymentGateway.Charge(..., "bank-transfer", ...)`** — tức bản giả lập —
+   rồi coi như đã chuyển.
+3. **Ghi sổ "đã trả chủ nhà" ngay lúc đó.** Sổ nói tiền đã ra khỏi sàn trong khi
+   nó vẫn nằm nguyên ở tài khoản sàn.
+
+Giờ đường đi là:
+
+| Bước | Ai làm | Trạng thái | Sổ sách |
+|---|---|---|---|
+| Tới hạn, đủ điều kiện §12.4 | Máy | Lệnh `payout_batches` **Chờ tải file**, đơn `Sent` | **Chưa ghi gì** |
+| Tải file `.csv` | Người, quyền `Finance` | **Đã tải, chờ ngân hàng** | Chưa ghi gì |
+| Ngân hàng thực hiện xong → bấm *Đã chuyển* | Người | **Ngân hàng đã chuyển**, đơn `Paid` | **Ghi bút toán ở đây** |
+| Ngân hàng từ chối → bấm *Bị từ chối* | Người | **Ngân hàng từ chối** | Không có gì phải đảo |
+
+`PayoutStatus.Sent` là một trạng thái riêng chứ không phải `Paid` sớm, vì khác
+biệt giữa hai cái là **tiền còn là của sàn hay không**. Chủ nhà cũng đọc đúng chữ
+đó: "đã lên lệnh chuyển", không phải "đã chuyển".
+
+**File cố ý không theo mẫu riêng của ngân hàng nào.** Mỗi ngân hàng công bố mẫu
+chuyển khoản hàng loạt của riêng họ và không mẫu nào giống nhau; đoán sai một mẫu
+thì file vẫn tải lên được và **trả tiền cho nhầm người**. Sáu cột là phần chung
+của mọi mẫu, người vận hành ánh xạ một lần. Số tài khoản để trong dấu nháy — một
+bảng tính đọc `0123456789` thành số sẽ ăn mất số 0 và chuyển cho một tài khoản có
+thật của người khác. File có BOM, vì Excel đọc CSV UTF-8 không BOM thành
+Windows-1252 và làm hỏng mọi tên tiếng Việt trên đúng màn hình mà tên phải đúng.
+
+**Đã chạy thật:** `scripts/payout_acceptance.py`, **23/23** — gồm cả ca đã bắt
+được một lỗi thật: hai lệnh cho **cùng một chủ nhà trong cùng một ngày** từng
+sinh trùng mã (số thứ tự đếm theo `PaidOutAt`, cột giờ chỉ được đặt lúc ngân hàng
+xác nhận), ràng buộc duy nhất ném lỗi, và vì nó ném trong tick của worker nên các
+vòng quét phía sau chết theo — im lặng.
+
+**Chưa làm:** lấy sao kê ngân hàng về để tự đối chiếu lệnh đã chuyển (giờ là người
+bấm), và mẫu file riêng cho từng ngân hàng.
 
 ## 16. Tham số cần chốt
 

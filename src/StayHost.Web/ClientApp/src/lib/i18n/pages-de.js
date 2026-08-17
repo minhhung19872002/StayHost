@@ -2255,4 +2255,21 @@ export default {
   "Nếu tài khoản của bạn đã bị trừ tiền, đừng trả lại lần nữa — hãy liên hệ hỗ trợ kèm mã bên dưới.": "Falls Ihr Konto belastet wurde, zahlen Sie nicht noch einmal — wenden Sie sich mit der untenstehenden Referenz an den Support.",
   "Không đọc được đơn": "Buchung konnte nicht gelesen werden",
   "Xem chuyến của tôi": "Meine Reisen ansehen",
+
+  // docs/07 §13 — the bulk transfer that actually pays the hosts.
+  "Chuyển tiền cho chủ nhà": "Gastgeber auszahlen",
+  "Cổng thanh toán trả toàn bộ tiền đơn về tài khoản StayHost. Phần của chủ nhà phải chuyển đi bằng lệnh hàng loạt, và chỉ được ghi sổ khi ngân hàng đã thực hiện.": "Die Zahlungsschnittstelle zahlt den vollen Buchungsbetrag auf das Konto von StayHost. Der Anteil des Gastgebers muss per Sammelüberweisung hinausgehen und wird erst gebucht, wenn die Bank sie ausgeführt hat.",
+  "Chưa tạo được lệnh chuyển tiền": "Es konnten keine Überweisungen erstellt werden",
+  "lệnh đang chờ ngân hàng": "Überweisungen warten auf die Bank",
+  "Tải file chuyển tiền (.csv)": "Überweisungsdatei herunterladen (.csv)",
+  "Mã chuyển": "Überweisungsnr.",
+  "Chưa có lệnh chuyển nào.": "Noch keine Überweisungen.",
+  "Ngân hàng đã chuyển khoản này. Ghi lại mã giao dịch hoặc ghi chú:": "Die Bank hat diese Überweisung ausgeführt. Notieren Sie die Bankreferenz oder eine Bemerkung:",
+  "Ngân hàng từ chối khoản này. Ghi rõ lý do:": "Die Bank hat diese Überweisung abgelehnt. Bitte den Grund angeben:",
+  "Đã ghi nhận ngân hàng chuyển thành công.": "Als von der Bank ausgeführt vermerkt.",
+  "Đã ghi nhận ngân hàng từ chối.": "Als von der Bank abgelehnt vermerkt.",
+  "Chờ tải file": "Wartet auf Download",
+  "Đã tải, chờ ngân hàng": "Heruntergeladen, wartet auf die Bank",
+  "Ngân hàng đã chuyển": "Von der Bank ausgeführt",
+  "Ngân hàng từ chối": "Von der Bank abgelehnt",
 };

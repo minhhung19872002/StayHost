@@ -2255,4 +2255,21 @@ export default {
   "Nếu tài khoản của bạn đã bị trừ tiền, đừng trả lại lần nữa — hãy liên hệ hỗ trợ kèm mã bên dưới.": "すでに引き落とされている場合は、再度お支払いにならず、下記の番号を添えてサポートへご連絡ください。",
   "Không đọc được đơn": "予約を読み込めませんでした",
   "Xem chuyến của tôi": "自分の旅行を見る",
+
+  // docs/07 §13 — the bulk transfer that actually pays the hosts.
+  "Chuyển tiền cho chủ nhà": "ホストへの送金",
+  "Cổng thanh toán trả toàn bộ tiền đơn về tài khoản StayHost. Phần của chủ nhà phải chuyển đi bằng lệnh hàng loạt, và chỉ được ghi sổ khi ngân hàng đã thực hiện.": "決済ゲートウェイは予約代金の全額をStayHostの口座に入金します。ホストの取り分は一括送金で出す必要があり、銀行が実行して初めて帳簿に記帳されます。",
+  "Chưa tạo được lệnh chuyển tiền": "送金指示を作成できませんでした",
+  "lệnh đang chờ ngân hàng": "件が銀行の実行待ち",
+  "Tải file chuyển tiền (.csv)": "送金ファイルをダウンロード (.csv)",
+  "Mã chuyển": "送金番号",
+  "Chưa có lệnh chuyển nào.": "送金指示はまだありません。",
+  "Ngân hàng đã chuyển khoản này. Ghi lại mã giao dịch hoặc ghi chú:": "この送金を銀行が実行しました。銀行の照会番号かメモを記入してください：",
+  "Ngân hàng từ chối khoản này. Ghi rõ lý do:": "この送金を銀行が拒否しました。理由を記入してください：",
+  "Đã ghi nhận ngân hàng chuyển thành công.": "銀行が実行したものとして記録しました。",
+  "Đã ghi nhận ngân hàng từ chối.": "銀行が拒否したものとして記録しました。",
+  "Chờ tải file": "ダウンロード待ち",
+  "Đã tải, chờ ngân hàng": "ダウンロード済み・銀行待ち",
+  "Ngân hàng đã chuyển": "銀行が実行済み",
+  "Ngân hàng từ chối": "銀行が拒否",
 };

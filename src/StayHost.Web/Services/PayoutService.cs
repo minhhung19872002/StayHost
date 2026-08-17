@@ -14,7 +14,8 @@ namespace StayHost.Web.Services;
 /// decision around it is real.
 /// </summary>
 public class PayoutService(
-    StayHostDbContext db, PaymentGateway gateway, NotificationService notifications, ILogger<PayoutService> log)
+    StayHostDbContext db, PayoutAccounts accounts, NotificationService notifications,
+    ILogger<PayoutService> log)
 {
     public sealed record Result(int Paid, int Held, int Failed)
     {
@@ -85,18 +86,53 @@ public class PayoutService(
         foreach (var (hostId, batch) in payable)
         {
             var (host, payments) = batch;
+
             // A host normally gets one transfer a day; anything that only became
-            // payable after the first sweep is a transfer of its own.
-            var soFar = await db.Payments
-                .Where(p => p.PaidOutAt != null && p.PayoutLastAttemptOn == today
-                            && p.Booking!.Listing!.HostId == hostId)
-                .Select(p => p.PayoutReference)
-                .Distinct()
-                .CountAsync(ct);
+            // payable after the first sweep is a transfer of its own, and must
+            // not borrow the first one's reference.
+            //
+            // Counted off the batch table rather than off PaidOutAt. That column
+            // used to be set the moment a transfer was decided, so it worked as a
+            // tally; it now means "a bank executed this", which for a transfer
+            // still waiting is null. Counting it gave every same-day transfer the
+            // same reference, the unique index refused the second one, and because
+            // that throw happens inside the worker's tick it took the sweeps after
+            // it down too — silently, until somebody read the log.
+            var soFar = await db.PayoutBatches
+                .CountAsync(b => b.HostId == hostId && b.DueOn == today, ct);
 
             var reference = Payouts.BatchReference(hostId, today, soFar + 1);
             var gross = payments.Sum(p => p.HostPayout);
             var deduction = Payouts.Deduct(gross, host.OwedToPlatform);
+
+            // docs/07 §14.3 — the number the transfer actually needs. Kept sealed
+            // and opened here, once, for the one job that requires it.
+            var accountNumber = accounts.Open(host.PayoutAccountSealed);
+            var missing = PayoutFiles.Missing(host.PayoutBankName, host.PayoutAccountName, accountNumber);
+
+            if (missing is not null)
+            {
+                // Nowhere to send it. Not a failure of the transfer — it was never
+                // attempted — so it waits rather than burning a retry, and the
+                // host is told what is missing. This is also what a host sees when
+                // the server has no encryption key at all.
+                held += payments.Count;
+
+                foreach (var payment in payments)
+                {
+                    if (payment.PayoutStatus == PayoutStatus.OnHold) continue;
+                    payment.PayoutStatus = PayoutStatus.OnHold;
+                    payment.PayoutHoldReason = PayoutHoldReason.None;
+
+                    await notifications.QueueWithEmailAsync(host.User, NotificationKind.PayoutSent,
+                        "Chưa chuyển tiền được cho bạn",
+                        accounts.CanStore ? missing : PayoutAccounts.NoKeyNotice, "/hosting", ct);
+                }
+
+                log.LogWarning("Chủ nhà {HostId}: {Count} đơn đã tới hạn chuyển nhưng {Reason}",
+                    hostId, payments.Count, missing);
+                continue;
+            }
 
             foreach (var payment in payments)
             {
@@ -104,27 +140,23 @@ public class PayoutService(
                 payment.PayoutLastAttemptOn = today;
             }
 
-            // One transfer for the batch — the fee is charged per transfer, not
-            // per booking, which is the whole reason for grouping.
-            var transfer = gateway.Charge(deduction.Transfer, "bank-transfer", host.PayoutAccountLast4);
-
-            if (!transfer.Ok)
+            // docs/07 §13 option A — one transfer for the batch, because the bank
+            // charges per transfer and that is the whole reason for grouping. It
+            // is written down rather than executed: nothing here can move money,
+            // and pretending otherwise is what the old call to the stand-in
+            // gateway did.
+            db.PayoutBatches.Add(new PayoutBatch
             {
-                failed += payments.Count;
-
-                foreach (var payment in payments)
-                {
-                    payment.PayoutStatus = PayoutStatus.OnHold;
-                    payment.PayoutHoldReason = PayoutHoldReason.None;
-                }
-
-                if (payments.Any(p => Payouts.OutOfAttempts(p.PayoutAttempts)))
-                {
-                    await notifications.QueueWithEmailAsync(host.User, NotificationKind.PayoutSent,
-                        "Không chuyển được tiền cho bạn", Payouts.ExhaustedNotice(), "/hosting", ct);
-                }
-                continue;
-            }
+                Reference = reference,
+                HostId = hostId,
+                Amount = deduction.Transfer,
+                Deducted = deduction.Applied,
+                BookingCount = payments.Count,
+                BankName = host.PayoutBankName ?? "",
+                AccountName = host.PayoutAccountName ?? "",
+                AccountNumber = accountNumber!,
+                DueOn = today
+            });
 
             // The debt comes off the batch as a whole, so it is spread across the
             // bookings in it — otherwise the first booking of the day would wear
@@ -133,18 +165,16 @@ public class PayoutService(
 
             foreach (var payment in payments)
             {
-                payment.PayoutStatus = PayoutStatus.Paid;
+                // Sent, not Paid. The ledger entries and PaidOutAt belong to the
+                // moment a bank executed the file, which is Settle() below.
+                payment.PayoutStatus = PayoutStatus.Sent;
                 payment.PayoutHoldReason = PayoutHoldReason.None;
-                payment.PaidOutAt = now;
                 payment.PayoutReference = reference;
 
                 var share = payment == payments[^1] ? left : Math.Min(left,
                     Math.Round(deduction.Applied * payment.HostPayout / gross, 0, MidpointRounding.AwayFromZero));
                 left -= share;
                 payment.PayoutDeducted = share;
-
-                db.LedgerEntries.AddRange(Ledger.RecoverFromHost(payment.Booking!, share, now));
-                db.LedgerEntries.AddRange(Ledger.PayoutHost(payment.Booking!, payment.HostPayout - share, now));
                 paid++;
             }
 
@@ -162,9 +192,8 @@ public class PayoutService(
                 : "";
 
             await notifications.QueueWithEmailAsync(host.User, NotificationKind.PayoutSent,
-                "Đã chuyển tiền cho bạn",
-                $"{deduction.Transfer:#,##0}₫ cho {what} đang trên đường về tài khoản của bạn " +
-                $"(mã chuyển {reference}).{note}",
+                "Đã lên lệnh chuyển tiền cho bạn",
+                PayoutFiles.QueuedNotice(deduction.Transfer, what, reference) + note,
                 "/hosting/earnings", ct);
         }
 
@@ -214,34 +243,64 @@ public class PayoutService(
             var reason = Payouts.HoldReason(await ConditionsAsync(booking, host, inst.Amount, ct), now);
             if (reason != PayoutHoldReason.None) { held++; continue; }
 
+            var accountNumber = accounts.Open(host.PayoutAccountSealed);
+            if (PayoutFiles.Missing(host.PayoutBankName, host.PayoutAccountName, accountNumber) is not null)
+            {
+                held++;
+                continue;
+            }
+
             inst.Attempts++;
             inst.LastAttemptOn = today;
 
             var deduction = Payouts.Deduct(inst.Amount, host.OwedToPlatform);
-            var transfer = gateway.Charge(deduction.Transfer, "bank-transfer", host.PayoutAccountLast4);
-            if (!transfer.Ok) { failed++; continue; }
+
+            // Same as an ordinary payout: the instalment is lined up in a batch of
+            // its own and the ledger waits for a bank. A monthly stay that pretends
+            // to have paid is no better than a daily one that does.
+            //
+            // The sequence is counted, not derived from the instalment id: two
+            // instalments for one host on one day would otherwise be able to land
+            // on the same reference, and the unique index turns that into a throw
+            // that takes the rest of the tick with it.
+            var soFar = await db.PayoutBatches
+                .CountAsync(x => x.HostId == host.Id && x.DueOn == today, ct);
+
+            var reference = Payouts.BatchReference(host.Id, today, soFar + 1);
+
+            db.PayoutBatches.Add(new PayoutBatch
+            {
+                Reference = reference,
+                HostId = host.Id,
+                Amount = deduction.Transfer,
+                Deducted = deduction.Applied,
+                BookingCount = 1,
+                BankName = host.PayoutBankName ?? "",
+                AccountName = host.PayoutAccountName ?? "",
+                AccountNumber = accountNumber!,
+                DueOn = today,
+                Note = $"Đợt tháng · đơn {booking.Reference}"
+            });
 
             host.OwedToPlatform = deduction.StillOwed;
             inst.Paid = true;
             inst.PaidAt = now;
-
-            db.LedgerEntries.AddRange(Ledger.RecoverFromHost(booking, deduction.Applied, now));
-            db.LedgerEntries.AddRange(Ledger.PayoutHost(booking, inst.Amount - deduction.Applied, now));
             paid++;
 
-            // When the final instalment lands, the payment itself is settled so the
-            // finance report stops showing this stay as still-to-pay.
+            // When the final instalment is lined up, the payment itself stops
+            // showing as still-to-pay; it becomes Paid when its batch settles.
             var remaining = await db.PayoutInstallments
                 .CountAsync(x => x.BookingId == booking.Id && !x.Paid && x.Id != inst.Id, ct);
             if (remaining == 0 && booking.Payment is not null)
             {
-                booking.Payment.PayoutStatus = PayoutStatus.Paid;
-                booking.Payment.PaidOutAt = now;
+                booking.Payment.PayoutStatus = PayoutStatus.Sent;
+                booking.Payment.PayoutReference = reference;
             }
 
             await notifications.QueueWithEmailAsync(host.User, NotificationKind.PayoutSent,
-                "Đã chuyển đợt tiền theo tháng",
-                $"{deduction.Transfer:#,##0}₫ cho đơn {booking.Reference} (đơn dài, trả theo tháng).",
+                "Đã lên lệnh chuyển đợt tiền theo tháng",
+                PayoutFiles.QueuedNotice(deduction.Transfer,
+                    $"đơn {booking.Reference} (đơn dài, trả theo tháng)", reference),
                 "/hosting/earnings", ct);
         }
 
@@ -253,6 +312,149 @@ public class PayoutService(
         }
 
         return new Result(paid, held, failed);
+    }
+
+    /* ------------------------------------------------ docs/07 §13, the bank */
+
+    /// <summary>
+    /// A person put the file through internet banking and the bank took it.
+    ///
+    /// This is the only place a payout is posted to the ledger, because it is the
+    /// only moment the money stopped being the platform's. Everything before it —
+    /// deciding the transfer, writing the file, downloading it — moves no money,
+    /// and the books have to agree with that or the daily reconciliation of
+    /// docs/07 §7 is comparing one fiction against another.
+    /// </summary>
+    public async Task<bool> SettleAsync(long batchId, string actor, string? note, CancellationToken ct)
+    {
+        var batch = await db.PayoutBatches
+            .Include(b => b.Host!).ThenInclude(h => h.User)
+            .FirstOrDefaultAsync(b => b.Id == batchId, ct);
+
+        if (batch is null || batch.Status == PayoutBatchStatus.Settled) return false;
+
+        var now = DateTime.UtcNow;
+
+        var payments = await db.Payments
+            .Where(p => p.PayoutReference == batch.Reference)
+            .Include(p => p.Booking)
+            .ToListAsync(ct);
+
+        foreach (var payment in payments)
+        {
+            if (payment.PayoutStatus == PayoutStatus.Paid) continue;
+
+            payment.PayoutStatus = PayoutStatus.Paid;
+            payment.PaidOutAt = now;
+
+            db.LedgerEntries.AddRange(Ledger.RecoverFromHost(payment.Booking!, payment.PayoutDeducted, now));
+            db.LedgerEntries.AddRange(
+                Ledger.PayoutHost(payment.Booking!, payment.HostPayout - payment.PayoutDeducted, now));
+        }
+
+        // docs/09 §4 — experiences and services are paid out of the same file and
+        // through the same confirmation. They carry their own reference columns
+        // (XP…, SV…) because ledger_entries.BookingId is a foreign key to stays.
+        foreach (var ticket in await db.ExperienceBookings
+                     .Where(b => b.PayoutReference == batch.Reference
+                                 && b.PayoutStatus != PayoutStatus.Paid)
+                     .ToListAsync(ct))
+        {
+            ticket.PayoutStatus = PayoutStatus.Paid;
+            ticket.PaidOutAt = now;
+            db.LedgerEntries.AddRange(Ledger.PayoutExperience(ticket, ticket.HostPayout, now));
+        }
+
+        foreach (var job in await db.ServiceBookings
+                     .Where(b => b.PayoutReference == batch.Reference
+                                 && b.PayoutStatus != PayoutStatus.Paid)
+                     .ToListAsync(ct))
+        {
+            job.PayoutStatus = PayoutStatus.Paid;
+            job.PaidOutAt = now;
+            db.LedgerEntries.AddRange(Ledger.PayoutService(job, job.ProviderPayout, now));
+        }
+
+        batch.Status = PayoutBatchStatus.Settled;
+        batch.SettledAt = now;
+        batch.SettledBy = actor;
+        if (!string.IsNullOrWhiteSpace(note)) batch.Note = note.Trim();
+
+        var what = batch.BookingCount == 1 ? "1 đơn" : $"{batch.BookingCount} đơn";
+
+        await notifications.QueueWithEmailAsync(batch.Host?.User, NotificationKind.PayoutSent,
+            "Đã chuyển tiền cho bạn",
+            PayoutFiles.SettledNotice(batch.Amount, what, batch.Reference), "/hosting/earnings", ct);
+
+        await db.SaveChangesAsync(ct);
+
+        log.LogInformation("Lệnh chuyển {Reference} đã được ngân hàng thực hiện ({Amount}).",
+            batch.Reference, batch.Amount);
+
+        return true;
+    }
+
+    /// <summary>
+    /// The bank refused it, or the operator found the row wrong.
+    ///
+    /// Nothing is reversed because nothing was posted. The bookings go back to
+    /// the retry ladder of docs/07 §12.5 and the debt that was recovered against
+    /// this transfer is handed back to the host's balance, or the platform would
+    /// collect it twice on the retry.
+    /// </summary>
+    public async Task<bool> FailAsync(long batchId, string actor, string? note, CancellationToken ct)
+    {
+        var batch = await db.PayoutBatches
+            .Include(b => b.Host!).ThenInclude(h => h.User)
+            .FirstOrDefaultAsync(b => b.Id == batchId, ct);
+
+        if (batch is null || batch.Status is PayoutBatchStatus.Settled or PayoutBatchStatus.Failed)
+            return false;
+
+        var payments = await db.Payments
+            .Where(p => p.PayoutReference == batch.Reference)
+            .ToListAsync(ct);
+
+        foreach (var payment in payments)
+        {
+            payment.PayoutStatus = PayoutStatus.Scheduled;
+            payment.PayoutReference = null;
+            payment.PayoutDeducted = 0;
+        }
+
+        foreach (var ticket in await db.ExperienceBookings
+                     .Where(b => b.PayoutReference == batch.Reference).ToListAsync(ct))
+        {
+            ticket.PayoutStatus = PayoutStatus.Scheduled;
+            ticket.PayoutReference = null;
+        }
+
+        foreach (var job in await db.ServiceBookings
+                     .Where(b => b.PayoutReference == batch.Reference).ToListAsync(ct))
+        {
+            job.PayoutStatus = PayoutStatus.Scheduled;
+            job.PayoutReference = null;
+        }
+
+        if (batch.Deducted > 0 && batch.Host is not null)
+            batch.Host.OwedToPlatform += batch.Deducted;
+
+        batch.Status = PayoutBatchStatus.Failed;
+        batch.SettledAt = DateTime.UtcNow;
+        batch.SettledBy = actor;
+        if (!string.IsNullOrWhiteSpace(note)) batch.Note = note.Trim();
+
+        await notifications.QueueWithEmailAsync(batch.Host?.User, NotificationKind.PayoutSent,
+            "Chuyển tiền không thành công", PayoutFiles.RefusedNotice(batch.Reference), "/hosting", ct);
+
+        if (payments.Any(p => Payouts.OutOfAttempts(p.PayoutAttempts)))
+        {
+            await notifications.QueueWithEmailAsync(batch.Host?.User, NotificationKind.PayoutSent,
+                "Không chuyển được tiền cho bạn", Payouts.ExhaustedNotice(), "/hosting", ct);
+        }
+
+        await db.SaveChangesAsync(ct);
+        return true;
     }
 
     /// <summary>docs/07 §12.4 — the five questions, answered from live data.</summary>
@@ -319,17 +521,24 @@ public class PayoutService(
             var exp = b.Slot!.Experience!;
             if (!Payouts.SessionPayoutReady(b.Slot!.StartsAt, exp.DurationMinutes, now)) continue;
 
-            switch (Pay(exp.Host, b.HostPayout, $"xp-payout-{b.Id}", () => Ledger.PayoutExperience(b, b.HostPayout, now)))
+            var reference = $"XP{b.Id:D6}";
+
+            switch (Queue(exp.Host, b.HostPayout, reference, $"Trải nghiệm · đơn {b.Reference}", now))
             {
-                case PayResult.Paid:
+                case PayResult.Nothing:
                     b.PayoutStatus = PayoutStatus.Paid;
                     b.PaidOutAt = now;
-                    b.PayoutReference = $"XP{b.Id:D6}";
+                    b.PayoutReference = reference;
                     paid++;
-                    if (exp.Host?.User is { } u && b.HostPayout > 0)
+                    break;
+                case PayResult.Queued:
+                    b.PayoutStatus = PayoutStatus.Sent;
+                    b.PayoutReference = reference;
+                    paid++;
+                    if (exp.Host?.User is { } u)
                         await notifications.QueueWithEmailAsync(u, NotificationKind.PayoutSent,
-                            "Đã chuyển tiền trải nghiệm",
-                            $"{b.HostPayout:#,##0}₫ cho đơn {b.Reference} đang trên đường về tài khoản của bạn.",
+                            "Đã lên lệnh chuyển tiền trải nghiệm",
+                            PayoutFiles.QueuedNotice(b.HostPayout, $"đơn {b.Reference}", reference),
                             "/hosting/earnings", ct);
                     break;
                 case PayResult.Held: held++; break;
@@ -349,17 +558,24 @@ public class PayoutService(
         {
             if (!Payouts.SessionPayoutReady(b.StartsAt, b.DurationMinutes, now)) continue;
 
-            switch (Pay(b.Offering!.Host, b.ProviderPayout, $"sv-payout-{b.Id}", () => Ledger.PayoutService(b, b.ProviderPayout, now)))
+            var reference = $"SV{b.Id:D6}";
+
+            switch (Queue(b.Offering!.Host, b.ProviderPayout, reference, $"Dịch vụ · đơn {b.Reference}", now))
             {
-                case PayResult.Paid:
+                case PayResult.Nothing:
                     b.PayoutStatus = PayoutStatus.Paid;
                     b.PaidOutAt = now;
-                    b.PayoutReference = $"SV{b.Id:D6}";
+                    b.PayoutReference = reference;
                     paid++;
-                    if (b.Offering!.Host?.User is { } u && b.ProviderPayout > 0)
+                    break;
+                case PayResult.Queued:
+                    b.PayoutStatus = PayoutStatus.Sent;
+                    b.PayoutReference = reference;
+                    paid++;
+                    if (b.Offering!.Host?.User is { } u)
                         await notifications.QueueWithEmailAsync(u, NotificationKind.PayoutSent,
-                            "Đã chuyển tiền dịch vụ",
-                            $"{b.ProviderPayout:#,##0}₫ cho đơn {b.Reference} đang trên đường về tài khoản của bạn.",
+                            "Đã lên lệnh chuyển tiền dịch vụ",
+                            PayoutFiles.QueuedNotice(b.ProviderPayout, $"đơn {b.Reference}", reference),
                             "/hosting/earnings", ct);
                     break;
                 case PayResult.Held: held++; break;
@@ -376,17 +592,45 @@ public class PayoutService(
         return new Result(paid, held, failed);
     }
 
-    private enum PayResult { Paid, Held, Failed }
-
-    /// <summary>Sends one provider their money and posts the ledger, or says why not.</summary>
-    private PayResult Pay(HostProfile? host, decimal amount, string key, Func<List<LedgerEntry>> ledger)
+    private enum PayResult
     {
-        if (amount <= 0) return PayResult.Paid;                    // nothing owed
-        if (host is null || string.IsNullOrWhiteSpace(host.PayoutAccountLast4))
-            return PayResult.Held;                                  // no account on file yet
-        if (!gateway.Charge(amount, "bank-transfer", host.PayoutAccountLast4, key).Ok)
-            return PayResult.Failed;
-        db.LedgerEntries.AddRange(ledger());
-        return PayResult.Paid;
+        /// <summary>Nothing was owed, so there is nothing to transfer and nothing to wait for.</summary>
+        Nothing,
+        /// <summary>Lined up in a batch. The ledger waits for a bank (docs/07 §13).</summary>
+        Queued,
+        Held,
+        Failed
+    }
+
+    /// <summary>
+    /// Writes down one transfer to a provider, or says why it cannot be written.
+    ///
+    /// It posts nothing to the ledger. That used to happen here, on the word of
+    /// the stand-in gateway; it now happens in <see cref="SettleAsync"/>, when a
+    /// person has seen a bank execute the file.
+    /// </summary>
+    private PayResult Queue(HostProfile? host, decimal amount, string reference, string note, DateTime now)
+    {
+        if (amount <= 0) return PayResult.Nothing;
+        if (host is null) return PayResult.Held;
+
+        var accountNumber = accounts.Open(host.PayoutAccountSealed);
+        if (PayoutFiles.Missing(host.PayoutBankName, host.PayoutAccountName, accountNumber) is not null)
+            return PayResult.Held;
+
+        db.PayoutBatches.Add(new PayoutBatch
+        {
+            Reference = reference,
+            HostId = host.Id,
+            Amount = amount,
+            BookingCount = 1,
+            BankName = host.PayoutBankName ?? "",
+            AccountName = host.PayoutAccountName ?? "",
+            AccountNumber = accountNumber!,
+            DueOn = DateOnly.FromDateTime(now),
+            Note = note
+        });
+
+        return PayResult.Queued;
     }
 }

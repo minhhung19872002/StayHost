@@ -2255,4 +2255,21 @@ export default {
   "Nếu tài khoản của bạn đã bị trừ tiền, đừng trả lại lần nữa — hãy liên hệ hỗ trợ kèm mã bên dưới.": "如果账户已被扣款，请不要再付一次，请携带下面的编号联系客服。",
   "Không đọc được đơn": "无法读取订单",
   "Xem chuyến của tôi": "查看我的行程",
+
+  // docs/07 §13 — the bulk transfer that actually pays the hosts.
+  "Chuyển tiền cho chủ nhà": "向房东付款",
+  "Cổng thanh toán trả toàn bộ tiền đơn về tài khoản StayHost. Phần của chủ nhà phải chuyển đi bằng lệnh hàng loạt, và chỉ được ghi sổ khi ngân hàng đã thực hiện.": "支付网关会把整笔订单款项结算到 StayHost 的账户。房东那部分必须通过批量转账支付，并且只有银行实际执行后才会记入账簿。",
+  "Chưa tạo được lệnh chuyển tiền": "无法生成转账指令",
+  "lệnh đang chờ ngân hàng": "笔转账等待银行处理",
+  "Tải file chuyển tiền (.csv)": "下载转账文件 (.csv)",
+  "Mã chuyển": "转账编号",
+  "Chưa có lệnh chuyển nào.": "还没有转账指令。",
+  "Ngân hàng đã chuyển khoản này. Ghi lại mã giao dịch hoặc ghi chú:": "银行已执行这笔转账。请填写银行流水号或备注：",
+  "Ngân hàng từ chối khoản này. Ghi rõ lý do:": "银行拒绝了这笔转账。请说明原因：",
+  "Đã ghi nhận ngân hàng chuyển thành công.": "已记录为银行执行成功。",
+  "Đã ghi nhận ngân hàng từ chối.": "已记录为银行拒绝。",
+  "Chờ tải file": "等待下载",
+  "Đã tải, chờ ngân hàng": "已下载，等待银行",
+  "Ngân hàng đã chuyển": "银行已执行",
+  "Ngân hàng từ chối": "银行已拒绝",
 };

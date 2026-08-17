@@ -32,7 +32,17 @@ public enum AdminAction
     Impersonate = 21,
     MergeAccounts = 22,
     EraseData = 23,
-    ManageAdmins = 24
+    ManageAdmins = 24,
+
+    /// <summary>
+    /// docs/07 §13 — downloading the day's bulk transfer file, and saying
+    /// afterwards whether the bank executed it.
+    ///
+    /// It decides, and it is sensitive: the file carries hosts' account numbers
+    /// in the clear because internet banking needs them that way, and confirming
+    /// one is what posts a payout to the ledger.
+    /// </summary>
+    RunPayoutTransfers = 25
 }
 
 /// <summary>
@@ -90,7 +100,9 @@ public static class AdminActions
             AdminScope.Support, Decides: true, Sensitive: true),
         new(AdminAction.MergeAccounts, "Hợp nhất tài khoản trùng", AdminScope.None, Decides: true),
         new(AdminAction.EraseData, "Xoá dữ liệu theo yêu cầu người dùng", AdminScope.None, Decides: true),
-        new(AdminAction.ManageAdmins, "Tạo và phân quyền tài khoản admin", AdminScope.None, Decides: true)
+        new(AdminAction.ManageAdmins, "Tạo và phân quyền tài khoản admin", AdminScope.None, Decides: true),
+        new(AdminAction.RunPayoutTransfers, "Tải lệnh chuyển tiền và xác nhận ngân hàng đã chuyển",
+            AdminScope.Finance, Decides: true, Sensitive: true)
     ];
 
     public static Rule Of(AdminAction action) => Matrix.First(r => r.Action == action);

@@ -4,6 +4,130 @@ import { toast } from '../../lib/store.js';
 import { money, longDate } from '../../lib/format.js';
 import { t } from '../../lib/i18n.js';
 
+/**
+ * docs/07 §13 — the transfers StayHost owes hosts, and the file that pays them.
+ *
+ * This screen exists because option A has no API behind it: a licensed gateway
+ * settles every guest's payment into the platform's own account and the split
+ * between hosts is a file somebody puts through internet banking. So the honest
+ * shape is three columns of work — decided, downloaded, confirmed — and only the
+ * last one posts anything to the ledger.
+ */
+export function PayoutBatchPanel() {
+  const [d, setD] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = () => api.payoutBatches().then(setD).catch(() => setD(null));
+  useEffect(() => { load(); }, []);
+
+  if (!d) return null;
+
+  const decide = async (row, settled) => {
+    const note = window.prompt(settled
+      ? t('Ngân hàng đã chuyển khoản này. Ghi lại mã giao dịch hoặc ghi chú:')
+      : t('Ngân hàng từ chối khoản này. Ghi rõ lý do:'));
+
+    if (!note?.trim()) return;
+
+    setBusy(true);
+    try {
+      await (settled ? api.settlePayoutBatch(row.id, { note }) : api.failPayoutBatch(row.id, { note }));
+      toast(settled ? t('Đã ghi nhận ngân hàng chuyển thành công.') : t('Đã ghi nhận ngân hàng từ chối.'));
+      await load();
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Chuyển tiền cho chủ nhà')}</h2>
+      <p className="section-sub">
+        {t('Cổng thanh toán trả toàn bộ tiền đơn về tài khoản StayHost. Phần của chủ nhà phải chuyển đi bằng lệnh hàng loạt, và chỉ được ghi sổ khi ngân hàng đã thực hiện.')}
+      </p>
+
+      {/* The one thing that must not be silent: with no encryption key the sweep
+          cannot even write these rows, so an empty table would read as "nothing
+          to pay" when it means "cannot pay anybody". */}
+      {d.blocked && (
+        <div className="book-alert is-error" style={{ marginTop: 14 }}>
+          <b>{t('Chưa tạo được lệnh chuyển tiền')}</b>
+          <span>{d.blocked}</span>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 16, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>{money(d.waitingAmount)}</div>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>
+            {d.waiting} {t('lệnh đang chờ ngân hàng')}
+          </div>
+        </div>
+        {d.waiting > 0 && (
+          <a className="btn btn-primary btn-sm" href={api.payoutFileUrl} onClick={() => setTimeout(load, 1500)}>
+            {t('Tải file chuyển tiền (.csv)')}
+          </a>
+        )}
+      </div>
+
+      <div className="table-wrap" style={{ marginTop: 16 }}>
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>{t('Mã chuyển')}</th>
+              <th>{t('Chủ nhà')}</th>
+              <th>{t('Tài khoản')}</th>
+              <th>{t('Số tiền')}</th>
+              <th>{t('Số đơn')}</th>
+              <th>{t('Trạng thái')}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {d.batches.map(row => (
+              <tr key={row.id}>
+                <td><b>{row.reference}</b></td>
+                <td>{row.hostName}</td>
+                <td>
+                  {row.accountName}<br />
+                  <span style={{ color: 'var(--ink-muted)', fontSize: 12.5 }}>
+                    {row.bankName} · {row.accountMasked}
+                  </span>
+                </td>
+                <td><b>{money(row.amount)}</b></td>
+                <td>{row.bookingCount}</td>
+                <td>
+                  {t(row.statusLabel)}
+                  {row.note && (
+                    <div style={{ color: 'var(--ink-muted)', fontSize: 12.5 }}>{row.note}</div>
+                  )}
+                </td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  {(row.status === 'Pending' || row.status === 'Exported') && (
+                    <>
+                      <button className="btn btn-primary btn-sm" disabled={busy}
+                              onClick={() => decide(row, true)}>{t('Đã chuyển')}</button>{' '}
+                      <button className="btn btn-outline btn-sm" disabled={busy}
+                              onClick={() => decide(row, false)}>{t('Bị từ chối')}</button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {!d.batches.length && (
+              <tr><td colSpan={7} style={{ color: 'var(--ink-muted)' }}>
+                {t('Chưa có lệnh chuyển nào.')}
+              </td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 /** docs/07 TC-A-04 — fee revenue, money held for others, tax owed, losses. */
 export function FinancePanel() {
   const [d, setD] = useState(null);
