@@ -117,8 +117,20 @@ tiền của khách.**
 ```
 1. Chủ nhà báo cho khách NGAY LÚC TRẢ PHÒNG, khách còn ở đó
 2. Hai bên tự thoả thuận, khách đưa tiền mặt cho chủ nhà
-3. Phần hai bên không tự giải quyết được → chi từ quỹ StayShield
+3. Khách không chịu đưa → CHỦ NHÀ CHỊU. Quỹ StayShield không chi.
 ```
+
+**Sàn không gánh phần khách không trả** (chốt 17/08/2026). Sàn phân xử — ra một
+con số và nói rõ khách phải đền bao nhiêu — rồi dừng ở đó. StayShield **không bảo
+lãnh** cho một vị khách bỏ đi không trả.
+
+Vì thế **hạn mức `[C-A]`, `[C-B]` và mức tự chịu `[C-C]` không áp cho C1/C2**. Ba
+tham số đó sinh ra để giới hạn *sàn chi bao nhiêu*; ở đây sàn không chi đồng nào,
+nên lấy chúng để cắt bớt số tiền một người nợ người khác là đặt ra một luật không
+ai thoả thuận — và làm nhẹ đi khoản khách thật sự phải đền.
+
+Quỹ vẫn đứng sau **C3 mất thu nhập** và **C4 bên thứ ba**: hàng xóm không có mặt
+ở cửa lúc trả phòng để nhận tiền mặt, và mất thu nhập chỉ biết được sau đó.
 
 Người trực **ghi lại** khách đã đưa bao nhiêu — đó là con số quỹ trừ đi trước khi
 chi phần còn lại. Nó là **biên bản của một cuộc nói chuyện sàn không tham gia**,
@@ -136,9 +148,14 @@ và ghi bút toán cho nó là bịa ra một chuyển động không có thật
 
 | Nhóm | Hạn mở hồ sơ | Vì sao |
 |---|---|---|
-| **C1** hư hỏng · **C2** chi phí khắc phục | **24 giờ** kể từ khi khách trả phòng | Đây là thứ khách trả tiền mặt tại chỗ. Quá 24 giờ thì khách đã đi, không ai đối chất được, và chủ nhà cũng không chứng minh được ai gây ra |
+| **C1** hư hỏng · **C2** chi phí khắc phục | **24 giờ** kể từ khi khách trả phòng | Đây là thứ khách trả tiền mặt tại chỗ. **Quá 24 giờ thì chủ nhà chịu** — khách đã đi, không ai đối chất được, và không chứng minh được ai gây ra |
 | **C3** mất thu nhập | 14 ngày | Chỉ biết được khi đơn kế tiếp bị huỷ |
 | **C4** bên thứ ba | 14 ngày | Hàng xóm phát hiện lúc nào thì báo lúc đó |
+
+**Hư hỏng phải phát hiện ngay lúc khách trả phòng.** Đó là lý do cửa sổ ngắn:
+chủ nhà kiểm phòng khi khách còn đứng đó, không phải hôm sau. Vết bẩn dưới thảm
+hay thiết bị không ai bật mà mãi sau mới thấy thì **chủ nhà chịu** — sàn không có
+cách nào biết ai gây ra, và khách không có cách nào tự bảo vệ.
 
 Với C1 và C2 còn một mốc nữa, lấy mốc nào đến trước: **trước khi khách tiếp theo
 nhận phòng.** Sau khi khách khác vào ở thì không xác định được ai gây ra. Mốc này

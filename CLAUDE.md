@@ -34,7 +34,11 @@ thì **code sai**, không phải tài liệu sai.
 3. **Bồi thường hư hỏng không đi qua sàn** (17/08/2026). Chủ nhà phải báo cho khách
    **lúc khách trả phòng**, khách đưa **tiền mặt** tại chỗ. Sàn ra phán quyết và ghi
    nhận, **không thu tiền của khách và không chuyển tiền cho chủ nhà**. Cửa sổ mở hồ
-   sơ hư hỏng vì thế rút từ 14 ngày xuống **24 giờ**. Xem `docs/06 §3.3`, `§3.4`.
+   sơ hư hỏng vì thế rút từ 14 ngày xuống **24 giờ**.
+   **Khách không chịu trả, hoặc phát hiện sau 24 giờ → chủ nhà chịu.** Quỹ StayShield
+   **không chi** cho C1/C2, nên hạn mức `C-A`/`C-B` và mức tự chịu `C-C` cũng không áp
+   cho hai nhóm đó (`Shield.FundCovers`). Quỹ vẫn đứng sau C3 và C4.
+   Xem `docs/06 §3.3`, `§3.4`.
 4. **14 tham số StayShield** của `docs/06 §10` đã chốt: bù đổi chỗ 40%, tặng số dư
    10%, trần chi phí phát sinh 3 triệu; chủ nhà 75 triệu/đơn, 350 triệu/năm, tự chịu
    500k, 5 đêm mất thu nhập, 15 triệu mỗi món giá trị cao; quỹ trích 5% phí dịch vụ,
@@ -45,7 +49,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (17/08/2026).** 1065 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (17/08/2026).** 1071 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **23/23** kịch bản chuyển tiền cho chủ nhà (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
@@ -55,7 +59,7 @@ toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay 
 (`scripts/acceptance.py`) · **10/10** kịch bản quản trị của `docs/08 §13`
 (`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
 (`scripts/doc09_acceptance.py`, gồm cả 12 tình huống bắt buộc của `docs/09 §9`) ·
-**9/9** kịch bản của `scripts/unwired_acceptance.py` (`docs/PLAN.md §9.6` — các
+**10/10** kịch bản của `scripts/unwired_acceptance.py` (`docs/PLAN.md §9.6` — các
 quy tắc từng có mã mà không đường nào gọi tới).
 Sổ sách lệch 0. Cả 203 mã của `docs/01` đã làm xong (`docs/PLAN.md §9`).
 
@@ -99,7 +103,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Bảo mật tài khoản | Xác minh danh tính có người duyệt, bảo mật 2 lớp bằng mã 6 số, ma trận thông báo loại × kênh, tải toàn bộ dữ liệu cá nhân |
 | Danh hiệu | Siêu chủ nhà xét mỗi quý, Khách chọn xét hằng tuần — cấp và thu hồi tự động. Ngưỡng chỉ nằm trong `Badges.cs` |
 | Xếp hạng | Điểm tổng hợp 7 yếu tố của `docs/03 §6` trong `Ranking.cs`, có trừ điểm và đa dạng hoá 12 kết quả đầu ≤ 2 chỗ mỗi chủ nhà |
-| Bồi thường hư hỏng | **Khách đền trực tiếp chủ nhà bằng tiền mặt lúc trả phòng — sàn không thu** (khách chốt 17/08/2026, `docs/06 §3.3`). Cửa sổ mở hồ sơ **C1/C2 chỉ 24 giờ** sau trả phòng (`Shield.DamageReportWindow`) — quá đó khách đã đi, không ai đối chất được; C3/C4 vẫn 14 ngày. Ô "thu từ khách" ở màn hình quản trị giờ là **biên bản khách đã đưa bao nhiêu tiền mặt**, quỹ chỉ bù phần còn thiếu, và **không ghi bút toán nào** cho khoản đó. Trung tâm giải quyết cũng vậy: `claim-to-host` không còn ghi sổ — nó từng trừ `GuestFunds` là **tiền của khách khác** |
+| Bồi thường hư hỏng | **Khách đền trực tiếp chủ nhà bằng tiền mặt lúc trả phòng — sàn không thu, và không gánh** (khách chốt 17/08/2026, `docs/06 §3.3`). Cửa sổ mở hồ sơ **C1/C2 chỉ 24 giờ** sau trả phòng (`Shield.DamageReportWindow`) — quá đó khách đã đi, không ai đối chất được; C3/C4 vẫn 14 ngày. Ô "thu từ khách" ở màn hình quản trị giờ là **biên bản khách đã đưa bao nhiêu tiền mặt**, quỹ chỉ bù phần còn thiếu, và **không ghi bút toán nào** cho khoản đó. Trung tâm giải quyết cũng vậy: `claim-to-host` không còn ghi sổ — nó từng trừ `GuestFunds` là **tiền của khách khác** |
 | StayShield | Hai nhánh K1–K4 / C1–C4 (kể cả bên thứ ba), cửa sổ khiếu nại, thứ tự thu tiền, quỹ trích từ phí dịch vụ, khiếu nại một lần do người khác xét |
 | Mở rộng | Khách sạn (nhiều loại phòng có tồn kho), thẻ quà tặng, số dư, giới thiệu bạn bè |
 | Trải nghiệm (`docs/09`) | Thẩm định có người duyệt + phân loại rủi ro theo danh mục, hàng chờ kiểm duyệt, suất lặp lại và chặn chồng giờ, **giữ chỗ 10 phút**, nhiều đơn chung một suất, thuê trọn nhóm, tự huỷ khi thiếu người + gợi ý suất khác, điểm danh, huỷ theo bậc 7 ngày/50%, đánh giá 4 tiêu chí riêng |
@@ -472,7 +476,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 1065 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1071 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09

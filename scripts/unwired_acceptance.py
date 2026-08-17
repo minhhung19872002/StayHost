@@ -269,6 +269,82 @@ def scenario_c3_cap():
        f"khai 90.000.000 -> con {claimed:,.0f} (tran 5 dem x {per_night:,.0f} = {ceiling:,.0f})")
 
 
+def scenario_damage_never_touches_the_fund():
+    """docs/06 §3.3, chot 17/08/2026 - san phan xu hu hong nhung khong chi dong nao.
+
+    Khach khong chiu den thi chu nha chiu. Kich ban nay chung minh bang co so du
+    lieu chu khong bang con so tren man hinh: quy chi 0d va khong co but toan
+    shield nao cho ho so.
+    """
+    name = "10. Hu hong: san phan xu nhung khong chi tu quy"
+
+    guest, _ = register(f"dmg{RUN}@stayhost.vn", "Khach lam vo do")
+    bid, err = book_and_pay(guest, "riverside-loft-pho-co-7", days_out=OFFSET + 44)
+    if err:
+        return ok(name, False, err)
+
+    # The stay has to be over, and inside the 24-hour damage window of §3.4 --
+    # which is the whole point of that window, so the fixture respects it.
+    sql("update bookings set "
+        "\"CheckIn\" = (now() at time zone 'utc')::date - 2, "
+        "\"CheckOut\" = now() at time zone 'utc' - interval '2 hours', "
+        "\"Status\" = 6 where \"Id\"=%d" % bid)
+
+    host_email = sql(
+        'select u."Email" from bookings b '
+        'join listings l on l."Id" = b."ListingId" '
+        'join hosts h on h."Id" = l."HostId" '
+        'join users u on u."Id" = h."UserId" where b."Id"=%d' % bid)
+
+    if not host_email:
+        return ok(name, False, "tin dang khong co chu nha co tai khoan")
+
+    host = sign_in(host_email)
+
+    lid = int(sql('select "ListingId" from bookings where "Id"=%d' % bid))
+    st, thread = call(guest, "/api/messages",
+                      {"listingId": lid, "body": "Chao anh, minh vua tra phong."})
+    if st not in (200, 201):
+        return ok(name, False, "khach mo hoi thoai: %s %s" % (st, thread))
+
+    call(host, "/api/messages",
+         {"threadId": thread["summary"]["id"], "body": "Ban oi, cai tivi bi vo luc ban o."})
+
+    st, res = call(host, "/api/shield/bookings/%d" % bid, {
+        "kind": "C1",
+        "description": "Khach lam vo tivi, da bao ngay luc tra phong",
+        "evidence": [{"url": "https://example.test/tivi.jpg",
+                      "caption": "Tivi vo luc khach tra phong", "kind": "photo"}],
+        "items": [{"name": "Tivi 43 inch", "value": 6000000, "declaredOnListing": False}]})
+
+    if st not in (200, 201):
+        return ok(name, False, "mo ho so: %s %s" % (st, res))
+
+    claim_id = int(sql('select "Id" from shield_claims where "BookingId"=%d '
+                       'order by "Id" desc limit 1' % bid))
+
+    admin, _ = make_admin("dmgadmin")
+    before = ledger_off()
+
+    # Khach khong dua dong nao.
+    st, res = call(admin, "/api/shield/admin/%d/decide" % claim_id,
+                   {"approve": True, "reason": "Bang chung ro rang, khach phai den.",
+                    "approvedAmount": 6000000, "recoverFromGuest": 0})
+
+    if st != 200:
+        return ok(name, False, "phan xu: %s %s" % (st, res))
+
+    from_fund = float(sql('select "PaidFromFund" from shield_claims where "Id"=%d' % claim_id) or 0)
+    approved = float(sql('select "Approved" from shield_claims where "Id"=%d' % claim_id) or 0)
+    fund_rows = int(sql('select count(*) from ledger_entries where "BookingId"=%d '
+                        "and \"TransactionKind\" like 'shield%%'" % bid) or 0)
+
+    ok(name,
+       from_fund == 0 and approved == 6000000 and fund_rows == 0 and ledger_off() == before,
+       "quy chi %s, phan xu %s, but toan shield %s, so lech %s"
+       % (from_fund, approved, fund_rows, ledger_off()))
+
+
 def scenario_provider_sees_jobs():
     """docs/09 §3.5 — the provider can finally read the note written for them."""
     host = sign_in("host1@stayhost.vn")
@@ -436,7 +512,8 @@ def main():
                scenario_c3_cap, scenario_provider_sees_jobs,
                scenario_misdeclared, scenario_misdeclared_needs_the_hour,
                scenario_repeat_chargebacks, scenario_refund_handed_back,
-               scenario_good_card_still_goes_to_the_card):
+               scenario_good_card_still_goes_to_the_card,
+               scenario_damage_never_touches_the_fund):
         try:
             fn()
         except Exception as e:  # a broken scenario must not hide the rest

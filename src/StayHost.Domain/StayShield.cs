@@ -405,7 +405,31 @@ public static class Shield
         decimal FromGuest,
         decimal FromFund,
         decimal TrimmedByCeiling,
-        string Summary);
+        string Summary,
+        /// <summary>
+        /// What the host is out of pocket: the ruling less whatever the guest
+        /// actually handed over and whatever the fund covers.
+        ///
+        /// For damage it is normally the whole of the unpaid part, and saying so
+        /// is the point — the customer settled on 17/08/2026 that the platform
+        /// does not carry a guest who refuses to pay, so a host reading a
+        /// decision has to be able to see what it leaves them holding.
+        /// </summary>
+        decimal BorneByHost = 0);
+
+    /// <summary>
+    /// docs/06 §3.3 (chốt 17/08/2026) — whether the StayShield fund pays anything
+    /// towards this kind of case.
+    ///
+    /// It does not for damage and the cleaning it needs: those are settled in
+    /// cash at the door between the two people involved, and if the guest walks
+    /// out without paying, the host carries it. The platform arbitrates; it does
+    /// not underwrite.
+    ///
+    /// It still does for lost income and for a third party, neither of which is
+    /// anything the guest could have settled on their way out.
+    /// </summary>
+    public static bool FundCovers(ShieldCase kind) => !SettledAtCheckout(kind);
 
     /// <summary>
     /// docs/06 §3.2 and §3.3. The ceilings bite first, then the host's own
@@ -420,11 +444,34 @@ public static class Shield
     /// </param>
     public static HostOutcome SettleHost(
         decimal claimed, decimal deposit, decimal recoverableFromGuest, decimal alreadyPaidThisYear,
-        ShieldSettings? settings = null, bool thirdParty = false)
+        ShieldSettings? settings = null, bool thirdParty = false, bool fundCovers = true)
     {
         var s = settings ?? ShieldSettings.Current;
-
         var wanted = Math.Max(0m, claimed);
+
+        // docs/06 §3.3 — a case the fund does not pay for is a ruling between two
+        // people, so none of the fund's machinery applies to it. The ceilings and
+        // the excess exist to bound what StayHost pays out; capping what one
+        // person owes another by them would be inventing a rule nobody agreed to.
+        if (!fundCovers)
+        {
+            var settled = Math.Min(wanted, Math.Max(0m, recoverableFromGuest));
+
+            return new HostOutcome(
+                Approved: wanted,
+                Deductible: 0m,
+                FromDeposit: 0m,
+                FromGuest: settled,
+                FromFund: 0m,
+                TrimmedByCeiling: 0m,
+                Summary: settled >= wanted
+                    ? $"Khách đã trả đủ {Vnd.Format(wanted)} tại chỗ."
+                    : $"Khách phải đền {Vnd.Format(wanted)}, đã trả {Vnd.Format(settled)}. " +
+                      $"Phần còn lại {Vnd.Format(wanted - settled)} hai bên tự giải quyết — " +
+                      "StayHost không chi khoản này.",
+                BorneByHost: wanted - settled);
+        }
+
         var perClaim = Math.Min(wanted, s.HostClaimCeiling);
         var yearLeft = Math.Max(0m, s.HostYearlyCeiling - Math.Max(0m, alreadyPaidThisYear));
         var allowed = Math.Min(perClaim, yearLeft);
@@ -441,7 +488,8 @@ public static class Shield
             : $"Duyệt đủ {Vnd.Format(allowed)}.";
 
         return new HostOutcome(
-            approved, deductible, fromDeposit, fromGuest, fromFund, wanted - allowed, summary);
+            approved, deductible, fromDeposit, fromGuest, fromFund, wanted - allowed, summary,
+            BorneByHost: deductible + (wanted - allowed));
     }
 
     /// <summary>

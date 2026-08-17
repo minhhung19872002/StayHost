@@ -244,6 +244,93 @@ public class StayShieldTests
         Assert.Equal(25_000_000m, outcome.TrimmedByCeiling);
     }
 
+    /* ------------------------------ §3.3, chốt 17/08/2026: sàn không gánh */
+
+    /// <summary>
+    /// The customer's rule: a guest who walks out without paying leaves the host
+    /// carrying it. StayHost decides the number and pays none of it.
+    /// </summary>
+    [Fact]
+    public void Damage_the_guest_refuses_to_pay_is_borne_by_the_host_not_the_fund()
+    {
+        var outcome = Shield.SettleHost(
+            claimed: 3_000_000m, deposit: 0m, recoverableFromGuest: 0m, alreadyPaidThisYear: 0m,
+            fundCovers: false);
+
+        Assert.Equal(0m, outcome.FromFund);
+        Assert.Equal(3_000_000m, outcome.BorneByHost);
+        Assert.Equal(3_000_000m, outcome.Approved);
+        Assert.Contains("không chi", outcome.Summary);
+    }
+
+    [Fact]
+    public void Cash_handed_over_at_the_door_reduces_what_the_host_carries()
+    {
+        var outcome = Shield.SettleHost(
+            claimed: 3_000_000m, deposit: 0m, recoverableFromGuest: 2_000_000m,
+            alreadyPaidThisYear: 0m, fundCovers: false);
+
+        Assert.Equal(2_000_000m, outcome.FromGuest);
+        Assert.Equal(1_000_000m, outcome.BorneByHost);
+        Assert.Equal(0m, outcome.FromFund);
+    }
+
+    [Fact]
+    public void A_guest_who_pays_in_full_leaves_the_host_carrying_nothing()
+    {
+        var outcome = Shield.SettleHost(
+            claimed: 3_000_000m, deposit: 0m, recoverableFromGuest: 3_000_000m,
+            alreadyPaidThisYear: 0m, fundCovers: false);
+
+        Assert.Equal(0m, outcome.BorneByHost);
+        Assert.Equal(0m, outcome.FromFund);
+        Assert.Contains("đã trả đủ", outcome.Summary);
+    }
+
+    /// <summary>
+    /// The ceilings and the excess bound what the fund pays out. A ruling between
+    /// two private people is not the fund paying out, so capping it at 75 million
+    /// or docking the host's 500,000 excess would be inventing a rule nobody
+    /// agreed to — and would understate what the guest actually owes.
+    /// </summary>
+    [Fact]
+    public void A_ruling_the_fund_does_not_pay_is_not_capped_or_docked()
+    {
+        var outcome = Shield.SettleHost(
+            claimed: 100_000_000m, deposit: 0m, recoverableFromGuest: 0m,
+            alreadyPaidThisYear: 0m, fundCovers: false);
+
+        Assert.Equal(100_000_000m, outcome.Approved);      // no C-A ceiling
+        Assert.Equal(0m, outcome.Deductible);              // no C-C excess
+        Assert.Equal(0m, outcome.TrimmedByCeiling);
+        Assert.Equal(0m, outcome.FromFund);
+    }
+
+    /// <summary>Which kinds the fund still stands behind, and which it does not.</summary>
+    [Fact]
+    public void The_fund_covers_lost_income_and_a_neighbour_but_not_damage()
+    {
+        Assert.False(Shield.FundCovers(ShieldCase.C1));    // hư hỏng
+        Assert.False(Shield.FundCovers(ShieldCase.C2));    // dọn dẹp, khử mùi
+        Assert.True(Shield.FundCovers(ShieldCase.C3));     // mất thu nhập
+        Assert.True(Shield.FundCovers(ShieldCase.C4));     // bên thứ ba
+    }
+
+    /// <summary>
+    /// The fund's own cases are untouched by any of this: a neighbour cannot be
+    /// paid at a door they were never at.
+    /// </summary>
+    [Fact]
+    public void A_neighbours_claim_still_comes_out_of_the_fund()
+    {
+        var outcome = Shield.SettleHost(
+            claimed: 2_000_000m, deposit: 0m, recoverableFromGuest: 0m, alreadyPaidThisYear: 0m,
+            thirdParty: true, fundCovers: true);
+
+        Assert.Equal(2_000_000m, outcome.FromFund);
+        Assert.Equal(0m, outcome.Deductible);
+    }
+
     [Fact]
     public void Nothing_can_be_filed_for_a_third_party_when_the_branch_is_off()
     {

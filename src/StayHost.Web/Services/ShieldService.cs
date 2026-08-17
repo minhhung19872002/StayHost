@@ -347,9 +347,12 @@ public class ShieldService(
         var paidInCash = Math.Max(0m, req.RecoverFromGuest ?? 0m);
         var thirdParty = Shield.IsThirdParty(claim.Kind);
 
+        // docs/06 §3.3 (17/08/2026) — the fund does not pay for damage. If the
+        // guest walks out without settling, the host carries it; StayHost rules
+        // on the amount and stops there.
         var outcome = Shield.SettleHost(
             req.ApprovedAmount ?? claim.Claimed, req.DepositAvailable ?? 0m, paidInCash, paidThisYear,
-            thirdParty: thirdParty);
+            thirdParty: thirdParty, fundCovers: Shield.FundCovers(claim.Kind));
 
         claim.Approved = outcome.Approved;
         claim.Deductible = outcome.Deductible;

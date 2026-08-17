@@ -723,11 +723,15 @@ Soát ra hai chỗ đang **ghi bút toán cho tiền không có thật**:
 khớp. Kịch bản 10 của `docs/04` giờ khẳng định thêm: **không có bút toán
 `claim-to-host` nào**.
 
-**Còn để ngỏ, khách chưa nói:** khách từ chối đưa tiền rồi đi thẳng thì chủ nhà
-còn đường nào; và hư hỏng chỉ phát hiện được sau 24 giờ (vết bẩn dưới thảm, thiết
-bị không ai bật) thì xử lý ra sao. Hiện quỹ StayShield vẫn bù phần còn thiếu, tức
-sàn gánh — với hạn mức 75 triệu/đơn và quỹ trích 5% phí dịch vụ, chỗ này cần
-khách nhìn lại.
+**Khách chốt nốt hai chỗ để ngỏ, cùng ngày:** khách từ chối đưa tiền rồi đi thẳng
+→ **chủ nhà chịu, sàn không gánh**; hư hỏng phát hiện sau 24 giờ → **chủ nhà
+chịu**. Nên quỹ StayShield **không chi cho C1/C2** nữa (`Shield.FundCovers`), và
+hạn mức `C-A`/`C-B` cùng mức tự chịu `C-C` không còn áp cho hai nhóm đó: ba tham
+số ấy giới hạn *sàn chi bao nhiêu*, mà giờ sàn không chi. Quỹ vẫn đứng sau C3
+(mất thu nhập) và C4 (bên thứ ba) — hàng xóm không đứng ở cửa để nhận tiền mặt.
+
+`scripts/unwired_acceptance.py` có kịch bản 10 chạy thật: hồ sơ C1 6 triệu, sàn
+phân xử đúng số, **quỹ chi 0đ và không một bút toán `shield%` nào**.
 
 ### 9.5. Soát lại đối chiếu airbnb.com (15/08/2026)
 
