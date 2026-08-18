@@ -183,6 +183,21 @@ cat >> ~/deploy/stayhost.env <<'EOF'
 # Địa chỉ cổng gọi ngược về. Phải là tên miền thật, không phải localhost.
 PSP_PUBLIC_URL=https://staylio.bluestar.com.vn
 
+# OnePay — cổng thứ hai cho ô "Thẻ tín dụng / ghi nợ" (thẻ quốc tế)
+# Đặt PSP_METHODS_CARD=onepay thì ô thẻ đi OnePay thay vì VNPay; bỏ trống thì
+# giữ nguyên VNPay. Sandbox công khai của họ là TESTONEPAY/6BEB2546.
+# ApiUser/ApiPassword là tài khoản OnePay cấp RIÊNG, không phải hash secret —
+# thiếu nó thì vẫn thu tiền được, nhưng docs/07 §5 (tự hỏi lại) và §10 (hoàn
+# tiền) im lặng và ghi log cảnh báo.
+ONEPAY_MERCHANT=<mã merchant>
+ONEPAY_ACCESS_CODE=<access code>
+ONEPAY_HASH_SECRET=<chuỗi bí mật, 32 ký tự hex>
+ONEPAY_PAY_URL=https://onepay.vn/vpcpay/vpcpay.op
+ONEPAY_API_URL=https://onepay.vn/onecomm-pay/Vpcdps.op
+ONEPAY_API_USER=
+ONEPAY_API_PASSWORD=
+PSP_METHODS_CARD=
+
 # VNPay — lo cả ô "Thẻ tín dụng / ghi nợ" lẫn ô "Thẻ ATM nội địa"
 VNPAY_TMN_CODE=<mã website>
 VNPAY_HASH_SECRET=<chuỗi bí mật>
@@ -209,6 +224,15 @@ docker compose -p stayhost -f docker-compose.prod.yml --env-file ~/deploy/stayho
 curl -s https://staylio.bluestar.com.vn/api/payment-methods/catalogue | python3 -m json.tool
 ```
 
+- **VNPay sandbox không có thẻ quốc tế để thử.** Thẻ test họ công bố là NCB, thẻ nội
+  địa; ô "Thẻ tín dụng / ghi nợ" mở được trang thẻ quốc tế của họ nhưng không có số
+  thẻ nào trả xong được (nhập vào bị chặn sau 3 lần). Muốn nghiệm thu nhánh Visa
+  trước khi ký hợp đồng thì dùng **OnePay**: sandbox công khai của họ cho thẻ Visa
+  `4005 5500 0000 0001` (12/27, CSC 100) và trả về `vpc_TxnResponseCode=0`.
+  Chạy `python scripts/onepay_acceptance.py` với `PSP_METHODS_CARD=onepay`.
+- **OnePay cho biết 4 số cuối của thẻ ngay trong giao dịch thường** (`vpc_CardNum`
+  dạng `400555xxxxxx0001`), không cần token hoá — khác VNPay, nơi `docs/07 §14.2`
+  để lại `payments.CardLast4` rỗng trừ khi khách bấm lưu thẻ.
 - **Ba `*_ENDPOINT`/`*_URL` mặc định là sandbox**, cố ý: một server cấu hình dở dang
   không được phép chuyển tiền thật vì quên một dòng. Lên prod phải đặt cả ba.
 - `VNPAY_HASH_SECRET`, `MOMO_SECRET_KEY`, `ZALOPAY_KEY1/KEY2` **là bí mật thật** — ai có

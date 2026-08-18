@@ -25,6 +25,15 @@ public static class Psp
     public const string MoMo = "momo";
     public const string ZaloPay = "zalopay";
 
+    /// <summary>
+    /// OnePay, added after VNPay's sandbox turned out to have no international
+    /// test card: their domestic NCB card is the only one published, so the
+    /// Visa/Mastercard row could be opened but never completed. OnePay is the
+    /// Vietnamese arm of Mastercard's own gateway (MiGS/MPGS) and its public
+    /// test merchant does authorise a Visa card end to end.
+    /// </summary>
+    public const string OnePay = "onepay";
+
     /* ------------------------------------------------------------- the order ref */
 
     /// <summary>
@@ -435,6 +444,145 @@ public static class Psp
     /// </summary>
     public static bool AmountMatches(decimal expected, decimal reported) =>
         Math.Abs(expected - reported) < 1m;
+
+
+    /* -------------------------------------------------------------- OnePay */
+
+    /// <summary>
+    /// OnePay signs a sorted query, like VNPay, but with three differences that
+    /// each fail silently if got wrong: the digest is SHA-256 rather than 512,
+    /// the key is the secret read as <em>hexadecimal bytes</em> rather than as
+    /// text, and only fields named <c>vpc_</c> or <c>user_</c> are signed —
+    /// which is why <c>AgainLink</c>, a field OnePay itself sends, must be left
+    /// out of the rebuild.
+    ///
+    /// Established against a real authorised transaction on their public test
+    /// merchant rather than from the documentation: the captured response and
+    /// its signature are the fixture in <c>PspOnePayTests</c>.
+    /// </summary>
+    public static string OnePaySign(IReadOnlyDictionary<string, string> fields, string secret) =>
+        HmacHex(HMACSHA256.HashData(HexKey(secret),
+            Encoding.UTF8.GetBytes(OnePayRaw(fields)))).ToUpperInvariant();
+
+    /// <summary>
+    /// What gets signed: sorted, joined <c>k=v</c>, and <b>not</b> URL-encoded.
+    /// The browser query is encoded separately; encoding it here as well would
+    /// sign a different string from the one OnePay rebuilds.
+    /// </summary>
+    private static string OnePayRaw(IReadOnlyDictionary<string, string> fields)
+    {
+        var sb = new StringBuilder();
+
+        foreach (var (k, v) in Sorted(fields).Where(p => OnePaySigned(p.Key)))
+        {
+            if (sb.Length > 0) sb.Append('&');
+            sb.Append(k).Append('=').Append(v);
+        }
+
+        return sb.ToString();
+    }
+
+    private static bool OnePaySigned(string key) =>
+        (key.StartsWith("vpc_", StringComparison.Ordinal)
+         || key.StartsWith("user_", StringComparison.Ordinal))
+        && key != "vpc_SecureHash"
+        && key != "vpc_SecureHashType";
+
+    /// <summary>
+    /// The secret is 32 hex characters standing for 16 bytes, and it is those
+    /// bytes that key the HMAC. Feeding the characters themselves produces a
+    /// signature OnePay rejects on every single request — with no message
+    /// saying why.
+    /// </summary>
+    private static byte[] HexKey(string secret)
+    {
+        var raw = (secret ?? "").Trim();
+
+        try
+        {
+            return Convert.FromHexString(raw);
+        }
+        catch (FormatException)
+        {
+            // A secret that is not hexadecimal is a misconfiguration, not a
+            // reason to throw inside a payment: sign with the text and let the
+            // gateway refuse it loudly.
+            return Encoding.UTF8.GetBytes(raw);
+        }
+    }
+
+    /// <summary>Checks a return from OnePay. Same rule as signing, in reverse.</summary>
+    public static bool OnePayVerify(IReadOnlyDictionary<string, string> query, string secret)
+    {
+        var given = query.GetValueOrDefault("vpc_SecureHash");
+        if (string.IsNullOrWhiteSpace(given)) return false;
+
+        return Same(OnePaySign(query, secret), given);
+    }
+
+    /// <summary>OnePay counts in đồng × 100, exactly as VNPay does.</summary>
+    public static long OnePayAmount(decimal dong) => VnPayAmount(dong);
+
+    /// <summary>
+    /// Their response code is a single character and <c>0</c> is the only one
+    /// that means the money moved. Note it is <c>"0"</c>, not <c>"00"</c> —
+    /// VNPay's spelling, and a plausible enough mistake to be worth a test.
+    /// </summary>
+    public static bool OnePayPaid(string? code) => code == "0";
+
+    /// <summary>The guest pressed cancel on OnePay's page rather than being refused.</summary>
+    public static bool OnePayCancelled(string? code) => code is "99" or "E";
+
+    /// <summary>
+    /// docs/07 §8 — OnePay's code turned into one of the reasons the guest-facing
+    /// message table knows about. Their list is MiGS's, so it is not VNPay's.
+    /// </summary>
+    public static DeclineReason OnePayDecline(string? code) => code switch
+    {
+        "0" => DeclineReason.Unknown,             // not a decline at all
+        "1" => DeclineReason.BankRefused,         // unspecified failure at the issuer
+        "2" => DeclineReason.BankRefused,         // bank declined
+        "3" => DeclineReason.GatewayError,        // no reply from the issuer
+        "4" => DeclineReason.ExpiredCard,
+        "5" => DeclineReason.InsufficientFunds,
+        "6" => DeclineReason.GatewayError,
+        "7" => DeclineReason.GatewayError,
+        "8" => DeclineReason.IncorrectDetails,    // unknown card
+        "9" => DeclineReason.IncorrectDetails,
+        "A" => DeclineReason.IncorrectDetails,    // 3-D Secure failed
+        "B" => DeclineReason.SuspectedFraud,
+        "C" => DeclineReason.SuspectedFraud,
+        "D" => DeclineReason.SuspectedFraud,
+        "F" => DeclineReason.IncorrectDetails,    // 3-D Secure authentication failed
+        "I" => DeclineReason.SuspectedFraud,
+        "L" => DeclineReason.GatewayError,        // shopping transaction locked
+        "N" => DeclineReason.LimitExceeded,
+        "P" => DeclineReason.GatewayError,        // pending
+        "R" => DeclineReason.LimitExceeded,       // retry limit exceeded
+        "T" => DeclineReason.IncorrectDetails,    // address verification failed
+        "U" => DeclineReason.IncorrectDetails,    // CSC failed
+        _ => DeclineReason.Unknown
+    };
+
+    /// <summary>
+    /// OnePay's masked number arrives as <c>400555xxxxxx0001</c> — the last four
+    /// are simply there, on an ordinary payment, with no token API involved.
+    /// That is a real difference from VNPay, where docs/07 §14.2 leaves the
+    /// platform knowing nothing about the card unless the guest saves it.
+    /// </summary>
+    public static string? OnePayLast4(string? maskedCardNumber) => Last4Of(maskedCardNumber);
+
+    /// <summary>
+    /// docs/07 §10 — what OnePay's refund reply means. Their <c>vpc_TxnResponseCode</c>
+    /// carries the same alphabet as a payment, so 0 is done and anything they
+    /// actually answered is a refusal; only a lost call is unknown.
+    /// </summary>
+    public static RefundOutcome OnePayRefundOutcome(string? code) => code switch
+    {
+        "0" => RefundOutcome.Accepted,
+        null or "" => RefundOutcome.Unknown,
+        _ => RefundOutcome.Refused
+    };
 
     private static IEnumerable<KeyValuePair<string, string>> Sorted(IReadOnlyDictionary<string, string> fields) =>
         fields.Where(p => !string.IsNullOrEmpty(p.Value))

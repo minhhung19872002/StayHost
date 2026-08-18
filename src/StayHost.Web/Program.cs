@@ -124,6 +124,7 @@ builder.Services.AddScoped<CalendarSyncService>();
 // method belongs to which gateway).
 builder.Services.Configure<PspSettings>(builder.Configuration.GetSection("Psp"));
 builder.Services.AddScoped<IPspProvider, VnPayProvider>();
+builder.Services.AddScoped<IPspProvider, OnePayProvider>();
 builder.Services.AddScoped<IPspProvider, MoMoProvider>();
 builder.Services.AddScoped<IPspProvider, ZaloPayProvider>();
 builder.Services.AddScoped<PspRouter>();

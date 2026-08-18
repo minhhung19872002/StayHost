@@ -49,7 +49,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (17/08/2026).** 1071 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (18/08/2026).** 1081 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **23/23** kịch bản chuyển tiền cho chủ nhà (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
@@ -89,6 +89,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Chủ nhà | Đăng tin theo bước, lịch nhiều tin, giá mùa/theo ngày, đồng bộ iCal hai chiều, co-host có phạm vi quyền |
 | Thanh toán | Trả đủ, trả một phần (cọc ≥50% + tự thu trước 14 ngày), chia hoá đơn tối đa 16 người |
 | Cổng thanh toán thật | `docs/07 §13` phương án A, `§15.3`. **VNPay** (thẻ quốc tế `INTCARD` + thẻ ATM nội địa `VNBANK`), **MoMo**, **ZaloPay**. Khách rời sang trang của cổng — sàn **không có ô nhập thẻ nào** khi cổng đã bật (`§14.2`). Ba đường báo tin về: khách quay lại (**không tin**), IPN có chữ ký, và `PspSweeper` mỗi phút tự hỏi lại cổng — cái đầu tiên có chữ ký thật thì thắng, hai cái sau không làm gì. **Chữ ký sai bị bỏ qua, không bị coi là thất bại**; số tiền cổng báo khác đơn thì không xác nhận. Khoá để trống = phương thức đó vẫn chạy bằng bản giả lập, y như cũ. Sandbox MoMo/ZaloPay nằm trong `appsettings.Development.json`; VNPay cần `TmnCode` từ **sandbox.vnpayment.vn/devreg/** (trang gốc là 404) |
+| Cổng thứ hai cho thẻ quốc tế | **OnePay** (`docs/07 §13`), cùng ô "Thẻ tín dụng / ghi nợ". Có vì **sandbox VNPay không có thẻ quốc tế nào để thử** — thẻ test họ công bố là NCB nội địa, nên nhánh Visa mở được trang mà không trả xong được. Sandbox OnePay cho thẻ Visa `4005550000000001` và trả `vpc_TxnResponseCode=0`. Chữ ký là **HMAC-SHA256**, khoá đọc theo **byte hex** chứ không phải chữ, và `AgainLink` **không** nằm trong phần được ký — sai một trong ba thì mọi giao dịch trông như bị giả mạo. Đổi bằng một biến: `Psp:Methods:card=onepay`, mặc định vẫn VNPay. **OnePay cho 4 số cuối ngay trong giao dịch thường**, không cần token hoá |
 | Thẻ đã lưu với cổng thật | `docs/07 §4`, `§15.5`. Khách tick "Lưu thẻ này" thì đơn đi qua **API token của VNPay** (`pay_and_create`) — đường **duy nhất** sàn biết được bốn số cuối sau khi `§14.2` bỏ ô nhập thẻ. Token lưu **mã hoá** bằng khoá dẫn xuất riêng (`DataSecrets`), bốn số cuối lưu thường. Thẻ do cổng giữ **không có ngày hết hạn** ở đây — `SavedCards.ExpiryKnown` nói không biết thay vì bịa. Tắt mặc định (`Psp:Vnpay:Tokens`) vì VNPay bật tính năng này theo từng merchant |
 | Hoàn tiền qua cổng thật | `docs/07 §10`, `§15.6`. Cả **năm** đường huỷ đơn đi qua `RefundGateway`; trước đây một đường hỏi bản giả lập và **bốn đường mặc định `true`**. Phân biệt ba kết quả chứ không phải hai: **từ chối vĩnh viễn** → số dư (đúng ca §10), **chưa biết** → thử lại 3 lần *cùng `vnp_RequestId`* rồi mới chuyển số dư kèm log Error. Trộn hai cái đó là khách được hoàn hai lần. Câu trả lời của cổng lưu ở `payment_sessions.RefundCode/RefundTxnId` — không có nó thì đối soát §7 lệch mà không truy được |
 | Chuyển tiền cho chủ nhà | `docs/07 §13`, `§15.4`. Cổng trả **toàn bộ** tiền đơn về tài khoản sàn; phần chủ nhà sàn tự chuyển. Số tài khoản lưu **mã hoá** AES-GCM (`SecretText`, khoá `Payouts:AccountKey`) — trước đây chỉ giữ 4 số cuối nên **không chuyển được cho ai**. Vòng quét sinh `payout_batches` gom theo chủ nhà theo ngày, đơn ở `PayoutStatus.Sent`, **chưa ghi bút toán nào**; quản trị tải `.csv` sáu cột, đưa lên internet banking, rồi bấm *Đã chuyển* — **đó mới là lúc ghi sổ**. Bị từ chối thì quay lại thang thử lại 1/3/7 ngày, không có gì phải đảo |
@@ -476,7 +477,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 1071 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1081 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
@@ -484,6 +485,8 @@ python scripts/gateway_acceptance.py               # 30 kịch bản cổng than
 python scripts/payout_acceptance.py                # 23 kịch bản chuyển tiền cho chủ nhà (docs/07 §15.4)
 python scripts/vnpay_browser_acceptance.py         # 14 kịch bản: trả tiền THẬT trên trang VNPay (cần playwright)
 python scripts/refund_acceptance.py                # 11 kịch bản hoàn tiền thật qua VNPay (docs/07 §15.6)
+python scripts/onepay_acceptance.py                # 11 kịch bản: trả bằng thẻ VISA THẬT qua OnePay
+                                                   # (chạy app với Psp__Methods__card=onepay)
 python scripts/i18n_audit.py                       # khoá dịch còn thiếu (phải ra 0)
 cd src/StayHost.Web/ClientApp && npm run build && npx oxlint src
 

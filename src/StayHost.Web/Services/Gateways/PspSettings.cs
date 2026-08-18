@@ -24,6 +24,7 @@ public class PspSettings
     public string PublicUrl { get; set; } = "";
 
     public VnPayOptions Vnpay { get; set; } = new();
+    public OnePayOptions Onepay { get; set; } = new();
     public MoMoOptions Momo { get; set; } = new();
     public ZaloPayOptions Zalopay { get; set; } = new();
 
@@ -64,6 +65,36 @@ public class PspSettings
         public bool Tokens { get; set; }
 
         public bool IsConfigured => TmnCode.Length > 0 && HashSecret.Length > 0;
+    }
+
+    /// <summary>
+    /// OnePay, for the international card row. Their gateway is the Vietnamese
+    /// deployment of MiGS/MPGS, so the vocabulary is <c>vpc_</c> rather than
+    /// <c>vnp_</c> and the merchant is identified by a code plus an access code
+    /// rather than one terminal id.
+    ///
+    /// The refund and query API is a different endpoint again, and it wants a
+    /// user name and password that are not the same thing as the hash secret —
+    /// OnePay issues them separately, so both are optional here: without them
+    /// the gateway still takes money, and only docs/07 §5's self-check and §10's
+    /// refunds go quiet. They say so in the log rather than pretending.
+    /// </summary>
+    public class OnePayOptions
+    {
+        public string Merchant { get; set; } = "";
+        public string AccessCode { get; set; } = "";
+        public string HashSecret { get; set; } = "";
+        public string PayUrl { get; set; } = "https://mtf.onepay.vn/vpcpay/vpcpay.op";
+        public string ApiUrl { get; set; } = "https://mtf.onepay.vn/onecomm-pay/Vpcdps.op";
+
+        /// <summary>The operator account for the query/refund API, when OnePay has issued one.</summary>
+        public string ApiUser { get; set; } = "";
+        public string ApiPassword { get; set; } = "";
+
+        public bool IsConfigured => Merchant.Length > 0 && AccessCode.Length > 0 && HashSecret.Length > 0;
+
+        /// <summary>Whether §5's self-check and §10's refunds can be attempted at all.</summary>
+        public bool HasApiUser => ApiUser.Length > 0 && ApiPassword.Length > 0;
     }
 
     public class MoMoOptions

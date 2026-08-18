@@ -114,6 +114,34 @@ public class PaymentGatewayController(
         return Redirect(Outcome(session, Word(status)));
     }
 
+    /* ----------------------------------------------------------------- OnePay */
+
+    /// <summary>
+    /// docs/07 §13 — where OnePay sends the guest back.
+    ///
+    /// OnePay has no separate server-to-server IPN in this integration: the
+    /// signed return is the only thing they push, and it arrives on the guest's
+    /// browser. That makes docs/07 §5's self-check load-bearing rather than a
+    /// safety net — a guest who closes the tab on their page is settled by
+    /// <see cref="PspSweeper"/> asking, and by nothing else. Which is also why
+    /// the signature is checked here exactly as it would be on an IPN: this is
+    /// the one message OnePay signs.
+    /// </summary>
+    [HttpGet("onepay/return")]
+    public async Task<IActionResult> OnePayReturn(CancellationToken ct)
+    {
+        var query = Query();
+        var session = await checkout.FindAsync(query.GetValueOrDefault("vpc_MerchTxnRef"), ct);
+        if (session is null) return Redirect(Outcome(null, "unknown"));
+
+        var provider = router.ByKey(session.Provider);
+        var status = provider is null
+            ? session.Status
+            : await checkout.SettleAsync(session, provider.Read(query), "return", ct);
+
+        return Redirect(Outcome(session, Word(status)));
+    }
+
     /* ------------------------------------------------------------------- MoMo */
 
     [HttpGet("momo/return")]

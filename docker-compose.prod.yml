@@ -135,6 +135,22 @@ services:
       Psp__Vnpay__Tokens: ${VNPAY_TOKENS:-false}
       Psp__Vnpay__CreateTokenUrl: ${VNPAY_CREATE_TOKEN_URL:-https://sandbox.vnpayment.vn/token_ui/pay-create-token.html}
       Psp__Vnpay__TokenPayUrl: ${VNPAY_TOKEN_PAY_URL:-https://sandbox.vnpayment.vn/token_ui/payment-token.html}
+      # docs/07 §13, §15.3 — OnePay, a second gateway for the same card row.
+      # It exists because VNPay's sandbox publishes only a domestic NCB test
+      # card, so the international branch could never be proven end to end;
+      # OnePay's public test merchant authorises a Visa card properly. Empty and
+      # nothing changes — the card row stays with whatever Psp__Methods says.
+      Psp__Onepay__Merchant: ${ONEPAY_MERCHANT:-}
+      Psp__Onepay__AccessCode: ${ONEPAY_ACCESS_CODE:-}
+      Psp__Onepay__HashSecret: ${ONEPAY_HASH_SECRET:-}
+      Psp__Onepay__PayUrl: ${ONEPAY_PAY_URL:-https://mtf.onepay.vn/vpcpay/vpcpay.op}
+      Psp__Onepay__ApiUrl: ${ONEPAY_API_URL:-https://mtf.onepay.vn/onecomm-pay/Vpcdps.op}
+      # Issued separately from the hash secret. Without them the gateway still
+      # takes money; only §5's self-check and §10's refunds go quiet, loudly.
+      Psp__Onepay__ApiUser: ${ONEPAY_API_USER:-}
+      Psp__Onepay__ApiPassword: ${ONEPAY_API_PASSWORD:-}
+      # Which gateway serves the card row. Empty keeps VNPay.
+      Psp__Methods__card: ${PSP_METHODS_CARD:-vnpay}
       Psp__Momo__PartnerCode: ${MOMO_PARTNER_CODE:-}
       Psp__Momo__AccessKey: ${MOMO_ACCESS_KEY:-}
       Psp__Momo__SecretKey: ${MOMO_SECRET_KEY:-}
