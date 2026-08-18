@@ -184,7 +184,8 @@ cat >> ~/deploy/stayhost.env <<'EOF'
 PSP_PUBLIC_URL=https://staylio.bluestar.com.vn
 
 # OnePay — cổng thứ hai cho ô "Thẻ tín dụng / ghi nợ" (thẻ quốc tế)
-# Đặt PSP_METHODS_CARD=onepay thì ô thẻ đi OnePay thay vì VNPay; bỏ trống thì
+# Đặt PSP_METHODS_CARD=
+PSP_METHODS_NAPAS=onepay thì ô thẻ đi OnePay thay vì VNPay; bỏ trống thì
 # giữ nguyên VNPay. Sandbox công khai của họ là TESTONEPAY/6BEB2546.
 # ApiUser/ApiPassword là tài khoản OnePay cấp RIÊNG, không phải hash secret —
 # thiếu nó thì vẫn thu tiền được, nhưng docs/07 §5 (tự hỏi lại) và §10 (hoàn
@@ -193,7 +194,9 @@ ONEPAY_MERCHANT=<mã merchant>
 ONEPAY_ACCESS_CODE=<access code>
 ONEPAY_HASH_SECRET=<chuỗi bí mật, 32 ký tự hex>
 ONEPAY_PAY_URL=https://onepay.vn/vpcpay/vpcpay.op
-ONEPAY_API_URL=https://onepay.vn/onecomm-pay/Vpcdps.op
+ONEPAY_DOMESTIC_PAY_URL=https://onepay.vn/onecomm-pay/vpc.op
+ONEPAY_API_URL=https://onepay.vn/vpcpay/Vpcdps.op
+ONEPAY_DOMESTIC_API_URL=https://onepay.vn/onecomm-pay/Vpcdps.op
 ONEPAY_API_USER=
 ONEPAY_API_PASSWORD=
 PSP_METHODS_CARD=
@@ -230,6 +233,14 @@ curl -s https://staylio.bluestar.com.vn/api/payment-methods/catalogue | python3 
   trước khi ký hợp đồng thì dùng **OnePay**: sandbox công khai của họ cho thẻ Visa
   `4005 5500 0000 0001` (12/27, CSC 100) và trả về `vpc_TxnResponseCode=0`.
   Chạy `python scripts/onepay_acceptance.py` với `PSP_METHODS_CARD=onepay`.
+- **OnePay có hai cổng, cùng merchant cùng khoá, chỉ khác địa chỉ.** Thẻ quốc tế đi
+  `vpcpay/vpcpay.op`, thẻ nội địa đi `onecomm-pay/vpc.op`. Gửi nhầm thì **không có gì
+  trông sai cả**: chữ ký vẫn đúng, OnePay vẫn nhận, khách chỉ đơn giản gặp một biểu
+  mẫu mà thẻ của họ không điền được. `PSP_METHODS_NAPAS=onepay` để chuyển ô nội địa.
+- **Nhánh nội địa của OnePay chưa trả xong lần nào trong nghiệm thu.** Đơn tới đúng
+  cổng, OnePay mở đúng danh sách 28 ngân hàng NAPAS với đúng số tiền — nhưng sandbox
+  của họ không công bố thẻ ATM thử nghiệm nào, nên bước cuối phải bấm tay. VNPay thì
+  nhánh này **đã** chạy xong 14/14 với thẻ NCB.
 - **OnePay cho biết 4 số cuối của thẻ ngay trong giao dịch thường** (`vpc_CardNum`
   dạng `400555xxxxxx0001`), không cần token hoá — khác VNPay, nơi `docs/07 §14.2`
   để lại `payments.CardLast4` rỗng trừ khi khách bấm lưu thẻ.

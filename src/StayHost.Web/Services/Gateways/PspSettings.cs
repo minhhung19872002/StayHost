@@ -84,7 +84,17 @@ public class PspSettings
         public string Merchant { get; set; } = "";
         public string AccessCode { get; set; } = "";
         public string HashSecret { get; set; } = "";
+        /// <summary>Where an international card goes.</summary>
         public string PayUrl { get; set; } = "https://mtf.onepay.vn/vpcpay/vpcpay.op";
+
+        /// <summary>
+        /// Where a domestic ATM card or bank account goes. Same merchant, same
+        /// secret, same signature — a different address is the whole difference,
+        /// and it is what decides whether the guest is shown a Visa form or the
+        /// bank list. Sending a napas order to the international URL would put
+        /// an ATM cardholder in front of a form their card cannot fill.
+        /// </summary>
+        public string DomesticPayUrl { get; set; } = "https://mtf.onepay.vn/onecomm-pay/vpc.op";
         /// <summary>
         /// The operator API. Note <c>vpcpay/</c> and not <c>onecomm-pay/</c>:
         /// both answer <c>queryDR</c>, but the domestic one reports
@@ -92,6 +102,14 @@ public class PspSettings
         /// number is the only handle docs/07 §7's reconciliation has.
         /// </summary>
         public string ApiUrl { get; set; } = "https://mtf.onepay.vn/vpcpay/Vpcdps.op";
+
+        /// <summary>
+        /// The same query API on the domestic side. Both answer for either kind
+        /// of transaction, but each is fuller about its own, so a query that
+        /// draws a blank on one is asked again here rather than reported as
+        /// "never heard of it" — which docs/07 §5 would read as unpaid.
+        /// </summary>
+        public string DomesticApiUrl { get; set; } = "https://mtf.onepay.vn/onecomm-pay/Vpcdps.op";
 
         /// <summary>The operator account for the query/refund API, when OnePay has issued one.</summary>
         public string ApiUser { get; set; } = "";

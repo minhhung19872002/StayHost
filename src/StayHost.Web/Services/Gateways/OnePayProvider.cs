@@ -66,8 +66,9 @@ public class OnePayProvider(
 
         var query = Psp.VnPayQuery(fields);
         var hash = Psp.OnePaySign(fields, Cfg.HashSecret);
+        var payUrl = Psp.OnePayIsDomestic(order.Method) ? Cfg.DomesticPayUrl : Cfg.PayUrl;
 
-        return Task.FromResult(new PspStart(true, $"{Cfg.PayUrl}?{query}&vpc_SecureHash={hash}"));
+        return Task.FromResult(new PspStart(true, $"{payUrl}?{query}&vpc_SecureHash={hash}"));
     }
 
     /// <summary>
@@ -145,7 +146,14 @@ public class OnePayProvider(
             ["vpc_Password"] = Cfg.ApiPassword
         };
 
-        var answer = await AskAsync(fields, ct);
+        // Asked on the international side first, then the domestic one. Each is
+        // fuller about its own transactions, and this method is not told which
+        // kind it is looking at — the session only carries a reference.
+        var answer = await AskAsync(Cfg.ApiUrl, fields, ct);
+
+        if (answer is null || answer.GetValueOrDefault("vpc_DRExists") == "N")
+            answer = await AskAsync(Cfg.DomesticApiUrl, fields, ct) ?? answer;
+
         if (answer is null) return PspVerdict.Unknown;
 
         var code = answer.GetValueOrDefault("vpc_TxnResponseCode") ?? "";
@@ -220,7 +228,7 @@ public class OnePayProvider(
 
         for (var attempt = 1; attempt <= 3; attempt++)
         {
-            var answer = await AskAsync(fields, ct);
+            var answer = await AskAsync(Cfg.ApiUrl, fields, ct);
 
             if (answer is not null)
             {
@@ -248,7 +256,7 @@ public class OnePayProvider(
     /// JSON, which is why this parses a query string and not a document.
     /// </summary>
     private async Task<Dictionary<string, string>?> AskAsync(
-        Dictionary<string, string> fields, CancellationToken ct)
+        string endpoint, Dictionary<string, string> fields, CancellationToken ct)
     {
         var signed = new Dictionary<string, string>(fields)
         {
@@ -258,7 +266,7 @@ public class OnePayProvider(
         try
         {
             using var client = http.CreateClient("psp");
-            var res = await client.PostAsync(Cfg.ApiUrl, new FormUrlEncodedContent(signed), ct);
+            var res = await client.PostAsync(endpoint, new FormUrlEncodedContent(signed), ct);
             var body = await res.Content.ReadAsStringAsync(ct);
 
             return Microsoft.AspNetCore.WebUtilities.QueryHelpers

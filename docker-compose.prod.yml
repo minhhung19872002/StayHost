@@ -144,13 +144,18 @@ services:
       Psp__Onepay__AccessCode: ${ONEPAY_ACCESS_CODE:-}
       Psp__Onepay__HashSecret: ${ONEPAY_HASH_SECRET:-}
       Psp__Onepay__PayUrl: ${ONEPAY_PAY_URL:-https://mtf.onepay.vn/vpcpay/vpcpay.op}
-      Psp__Onepay__ApiUrl: ${ONEPAY_API_URL:-https://mtf.onepay.vn/onecomm-pay/Vpcdps.op}
+      # The domestic gateway. Same merchant and secret; only the address decides
+      # whether the guest meets a Visa form or the list of Vietnamese banks.
+      Psp__Onepay__DomesticPayUrl: ${ONEPAY_DOMESTIC_PAY_URL:-https://mtf.onepay.vn/onecomm-pay/vpc.op}
+      Psp__Onepay__ApiUrl: ${ONEPAY_API_URL:-https://mtf.onepay.vn/vpcpay/Vpcdps.op}
+      Psp__Onepay__DomesticApiUrl: ${ONEPAY_DOMESTIC_API_URL:-https://mtf.onepay.vn/onecomm-pay/Vpcdps.op}
       # Issued separately from the hash secret. Without them the gateway still
       # takes money; only §5's self-check and §10's refunds go quiet, loudly.
       Psp__Onepay__ApiUser: ${ONEPAY_API_USER:-}
       Psp__Onepay__ApiPassword: ${ONEPAY_API_PASSWORD:-}
       # Which gateway serves the card row. Empty keeps VNPay.
       Psp__Methods__card: ${PSP_METHODS_CARD:-vnpay}
+      Psp__Methods__napas: ${PSP_METHODS_NAPAS:-vnpay}
       Psp__Momo__PartnerCode: ${MOMO_PARTNER_CODE:-}
       Psp__Momo__AccessKey: ${MOMO_ACCESS_KEY:-}
       Psp__Momo__SecretKey: ${MOMO_SECRET_KEY:-}

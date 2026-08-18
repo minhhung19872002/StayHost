@@ -520,6 +520,16 @@ public static class Psp
         return Same(OnePaySign(query, secret), given);
     }
 
+    /// <summary>
+    /// Which of OnePay's two gateways an order belongs on. They share a
+    /// merchant, a secret and a signature; only the address differs — and it is
+    /// the address that decides whether the guest meets a Visa form or the list
+    /// of Vietnamese banks. Sending a napas order to the international URL puts
+    /// an ATM cardholder in front of a form their card cannot fill, and nothing
+    /// about the request looks wrong.
+    /// </summary>
+    public static bool OnePayIsDomestic(string? method) => method == "napas";
+
     /// <summary>OnePay counts in đồng × 100, exactly as VNPay does.</summary>
     public static long OnePayAmount(decimal dong) => VnPayAmount(dong);
 

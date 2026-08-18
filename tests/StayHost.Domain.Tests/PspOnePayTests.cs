@@ -151,6 +151,19 @@ public class PspOnePayTests
         Assert.Equal(Psp.RefundOutcome.Refused, Psp.OnePayRefundOutcome("2"));
     }
 
+    /// <summary>
+    /// The two gateways share every credential, so nothing about a misrouted
+    /// order looks wrong: the signature checks out, OnePay accepts it, and the
+    /// guest simply arrives at a form their card cannot fill.
+    /// </summary>
+    [Fact]
+    public void A_domestic_card_goes_to_the_domestic_gateway()
+    {
+        Assert.True(Psp.OnePayIsDomestic("napas"));
+        Assert.False(Psp.OnePayIsDomestic("card"));
+        Assert.False(Psp.OnePayIsDomestic(null));
+    }
+
     [Fact]
     public void Amounts_go_out_in_dong_times_one_hundred()
     {
