@@ -58,6 +58,15 @@ public class PspSettings
         public string TokenPayUrl { get; set; } = "https://sandbox.vnpayment.vn/token_ui/payment-token.html";
 
         /// <summary>
+        /// docs/07 §15.5 — telling VNPay to forget a card the guest deleted here.
+        ///
+        /// Unlike the other two token URLs this one is not a page the guest is
+        /// sent to: it answers a query string server-to-server, so it is called
+        /// rather than redirected to.
+        /// </summary>
+        public string RemoveTokenUrl { get; set; } = "https://sandbox.vnpayment.vn/token_ui/remove-token.html";
+
+        /// <summary>
         /// Whether to offer keeping a card at all. Off by default: token creation
         /// is a feature VNPay enables per merchant, and offering a tick box that
         /// their gateway then refuses is worse than not offering it.

@@ -103,6 +103,18 @@ public interface IPspProvider
     /// guest told — and with a live gateway not a đồng actually moved.
     /// </summary>
     Task<PspRefundResult> RefundAsync(PspRefund refund, CancellationToken ct);
+
+    /// <summary>
+    /// docs/07 §4, §15.5 — the guest deleted a saved card, so the gateway is
+    /// told to stop holding it.
+    ///
+    /// A default of "nothing to forget" rather than an abstract member: only a
+    /// gateway that keeps cards has anything to do here, and making the other
+    /// three carry an empty override would invite one of them to grow a real
+    /// body by accident.
+    /// </summary>
+    Task<bool> ForgetCardAsync(string token, string userRef, CancellationToken ct) =>
+        Task.FromResult(true);
 }
 
 /// <summary>

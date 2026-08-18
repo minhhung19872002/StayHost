@@ -49,7 +49,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (18/08/2026).** 1082 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (18/08/2026).** 1084 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **23/23** kịch bản chuyển tiền cho chủ nhà (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
@@ -477,7 +477,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 1082 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1084 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
@@ -539,8 +539,11 @@ Tám commit, từ `a8ee0a3` tới `904cce2`. Mọi bộ nghiệm thu xanh.
 1. **Đối chiếu sao kê ngân hàng với lệnh chuyển tiền** (`docs/07 §15.4`). Hiện người
    trực bấm *"Đã chuyển"* và **không ai kiểm lại** — đó là nút duy nhất ghi bút toán
    trả chủ nhà, nên nó xứng đáng có một vế thứ hai đối chiếu, đúng tinh thần `§7`.
-2. **`token_remove`** (`docs/07 §15.5`). Khách xoá thẻ ở sàn thì token vẫn còn bên
-   VNPay. Nhỏ, một lần gọi API.
+2. ~~`token_remove`~~ — **xong 18/08/2026.** Endpoint là `token_ui/remove-token.html`,
+   trả lời bằng query string server-to-server (không phải trang chuyển hướng). Đã kiểm
+   thật: VNPay trả **mã 00**. `vnp_app_user_id` lúc xoá **phải trùng** lúc tạo —
+   `Psp.AppUserRef` giữ định dạng đó một nơi, vì lệch là VNPay trả `11 token not found`,
+   đúng cái mã mà thẻ đã xoá thật cũng trả, nên sai sẽ **im lặng**.
 3. **Trả góp qua thẻ** (`docs/07 §2.3`, nhóm P2). Chưa ai yêu cầu.
 
 ### 8.3. Đừng làm lại những thứ này

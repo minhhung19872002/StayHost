@@ -19,7 +19,8 @@ namespace StayHost.Web.Controllers;
 [Route("api/payment-methods")]
 public class PaymentMethodsController(
     StayHostDbContext db, AuthService auth, NotificationService notifications,
-    BankTransferSettings bank, Services.Gateways.PspRouter psp) : ControllerBase
+    BankTransferSettings bank, Services.Gateways.PspRouter psp,
+    DataSecrets secrets, ILogger<PaymentMethodsController> log) : ControllerBase
 {
     /// <summary>docs/07 §2 — the catalogue, so the payment page and this screen agree.</summary>
     [HttpGet("catalogue")]
@@ -261,6 +262,13 @@ public class PaymentMethodsController(
         if (block != SavedCards.RemovalBlock.None)
             return BadRequest(new { message = SavedCards.RemovalMessage(block) });
 
+        // docs/07 §15.5 — the gateway is holding this card too, and deleting the
+        // row here would leave it holding it for ever. Told first, while the
+        // sealed token is still readable; the row goes whatever they answer,
+        // because a guest who asked to remove a card must not be refused
+        // because somebody else's server is down.
+        await ForgetAtGatewayAsync(card, user.Id, ct);
+
         db.SavedCards.Remove(card);
         await db.SaveChangesAsync(ct);
 
@@ -273,6 +281,34 @@ public class PaymentMethodsController(
     }
 
     /* ------------------------------------------------------------- helpers */
+
+    /// <summary>
+    /// docs/07 §15.5 — asks the gateway to stop holding a card the guest just
+    /// deleted here. Never throws and never blocks the deletion.
+    /// </summary>
+    private async Task ForgetAtGatewayAsync(SavedCard card, int userId, CancellationToken ct)
+    {
+        if (card.GatewayTokenSealed is not { Length: > 0 }) return;
+
+        var provider = psp.ByKey(card.Provider);
+        if (provider is null) return;
+
+        var token = secrets.Open(DataSecrets.CardToken, card.GatewayTokenSealed);
+        if (token is null)
+        {
+            // The key changed or was never set, so the token cannot be read back
+            // — which means it can never be removed either. Worth saying once
+            // rather than deleting the row and quietly forgetting it existed.
+            log.LogWarning(
+                "Không mở được token của thẻ {Card}, nên {Provider} vẫn giữ thẻ này.",
+                card.Id, card.Provider);
+            return;
+        }
+
+        // The same name the token was created under. Psp.AppUserRef owns the
+        // format precisely so these two cannot drift.
+        await provider.ForgetCardAsync(token, Psp.AppUserRef(userId), ct);
+    }
 
     private async Task<IReadOnlyList<SavedCardDto>> CardsOf(int userId, CancellationToken ct)
     {

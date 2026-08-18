@@ -314,6 +314,70 @@ public class VnPayProvider(
         return new PspRefundResult(Psp.RefundOutcome.Unknown, Code: requestId);
     }
 
+    /// <summary>
+    /// docs/07 §15.5 — the guest deleted the card here, so VNPay is told to stop
+    /// holding it too.
+    ///
+    /// Their remove endpoint is not one of the token pages the guest is sent to:
+    /// it answers a query string server-to-server. Same lower-case-with-
+    /// underscores spelling as the rest of the token API, and the same
+    /// sorted-query signature — established the same way, by sending their
+    /// sandbox one and reading what came back rather than trusting a manual.
+    ///
+    /// The platform deletes its own row whether or not this succeeds. A guest
+    /// who asked to remove a card should not be told "no" because someone else's
+    /// server is down, and a token left behind at VNPay is inert: only this
+    /// merchant's secret can use it, and only with the cardholder present.
+    /// </summary>
+    public async Task<bool> ForgetCardAsync(string token, string userRef, CancellationToken ct)
+    {
+        if (!IsConfigured || token.Length == 0) return false;
+
+        var now = Psp.Vn(DateTime.UtcNow);
+
+        var fields = new Dictionary<string, string>
+        {
+            ["vnp_version"] = "2.1.0",
+            ["vnp_command"] = Psp.VnPayRemoveTokenCommand,
+            ["vnp_tmn_code"] = Cfg.TmnCode,
+            ["vnp_app_user_id"] = userRef,
+            ["vnp_token"] = token,
+            ["vnp_txn_ref"] = $"rm{now:yyMMddHHmmssfff}",
+            ["vnp_create_date"] = now.ToString("yyyyMMddHHmmss"),
+            ["vnp_ip_addr"] = "127.0.0.1",
+            ["vnp_locale"] = "vn"
+        };
+
+        var url = $"{Cfg.RemoveTokenUrl}?{Psp.VnPayQuery(fields)}"
+                  + $"&vnp_secure_hash={Psp.VnPaySign(fields, Cfg.HashSecret)}";
+
+        try
+        {
+            using var client = http.CreateClient("psp");
+            var body = await client.GetStringAsync(url, ct);
+
+            var answer = Microsoft.AspNetCore.WebUtilities.QueryHelpers
+                .ParseQuery(body.StartsWith('?') ? body : "?" + body);
+
+            var code = answer.TryGetValue("vnp_response_code", out var c) ? c.ToString() : "";
+            var forgotten = Psp.VnPayTokenForgotten(code);
+
+            if (forgotten)
+                log.LogInformation("VNPay đã bỏ thẻ đã lưu của {User} (mã {Code}).", userRef, code);
+            else
+                log.LogWarning("VNPay không bỏ được thẻ đã lưu của {User}: mã {Code} — {Message}.",
+                    userRef, code,
+                    answer.TryGetValue("vnp_message", out var m) ? m.ToString() : "");
+
+            return forgotten;
+        }
+        catch (Exception ex)
+        {
+            log.LogWarning(ex, "Không gọi được VNPay để bỏ thẻ đã lưu của {User}.", userRef);
+            return false;
+        }
+    }
+
     private static string Text(JsonElement json, string name) =>
         json.ValueKind == JsonValueKind.Object && json.TryGetProperty(name, out var v)
             ? v.ValueKind == JsonValueKind.Number ? v.ToString() : v.GetString() ?? ""

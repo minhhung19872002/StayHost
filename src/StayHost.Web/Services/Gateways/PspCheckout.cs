@@ -68,7 +68,7 @@ public class PspCheckout(
                 SaveCard: saveCard,
                 // The gateway keeps its tokens per user of ours, so it needs a
                 // handle on the guest that survives them saving a second card.
-                UserRef: booking.GuestUserId is { } id ? $"stayhost-{id}" : null,
+                UserRef: booking.GuestUserId is { } id ? Psp.AppUserRef(id) : null,
                 Token: cardToken), ct);
 
         if (!start.Ok || start.PayUrl is null)

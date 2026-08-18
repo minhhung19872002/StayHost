@@ -21,6 +21,29 @@ public class PspTests
     private const string ZaloKey1 = "PcY4iZIKFCIdgZvA6ueMcMHHUbRLYjPL";
     private const string ZaloKey2 = "kLtgPl8HHhfvMTrAuDzcvAcO61sw2Vqc";
 
+    /* -------------------------------------------------- the gateway's user id */
+
+    /// <summary>
+    /// docs/07 §15.5 — a token is created under this name and removed under it.
+    /// VNPay answers a mismatch with the same code it uses for a card that has
+    /// already gone, so a drift between the two would make every removal look
+    /// like a success while the card stayed on their side.
+    /// </summary>
+    [Fact]
+    public void The_gateway_knows_a_guest_by_one_name_only()
+    {
+        Assert.Equal("stayhost-4812", Psp.AppUserRef(4_812));
+    }
+
+    [Fact]
+    public void Removing_a_token_accepts_both_done_and_already_gone()
+    {
+        Assert.True(Psp.VnPayTokenForgotten("00"));   // removed now
+        Assert.True(Psp.VnPayTokenForgotten("11"));   // nothing there to remove
+        Assert.False(Psp.VnPayTokenForgotten("97"));  // bad signature
+        Assert.False(Psp.VnPayTokenForgotten(null));
+    }
+
     /* ---------------------------------------------------------- the order ref */
 
     [Fact]

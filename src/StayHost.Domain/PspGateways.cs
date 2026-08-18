@@ -316,6 +316,22 @@ public static class Psp
     /// <summary>Charging a card the guest already saved. A redirect, not a server call.</summary>
     public const string VnPayTokenPayCommand = "token_pay";
 
+    /// <summary>docs/07 §15.5 — telling VNPay to stop holding a card.</summary>
+    public const string VnPayRemoveTokenCommand = "token_remove";
+
+    /// <summary>
+    /// Who the gateway's token store knows this guest as.
+    ///
+    /// It is written here rather than at the two call sites because a token is
+    /// created under this name and removed under it, and the two must agree
+    /// exactly. They did not: creation used "stayhost-4" while removal sent "4",
+    /// and VNPay answers a mismatch with <c>11 — The token is not found</c>,
+    /// which is the same thing it says about a card that really has gone. The
+    /// removal would have looked successful for ever while the card stayed on
+    /// their side.
+    /// </summary>
+    public static string AppUserRef(int userId) => $"stayhost-{userId}";
+
     /// <summary>VNPay's own words for the two card families, on the token API only.</summary>
     public static string VnPayCardType(string method) => method == "napas" ? "01" : "02";
 
@@ -573,6 +589,18 @@ public static class Psp
         "U" => DeclineReason.IncorrectDetails,    // CSC failed
         _ => DeclineReason.Unknown
     };
+
+    /// <summary>
+    /// docs/07 §15.5 — whether VNPay has stopped holding a card.
+    ///
+    /// Two answers both mean the card is gone from their side and neither is an
+    /// error worth showing a guest: <c>00</c> removed it, <c>11</c> says there
+    /// was nothing there to remove. The second happens whenever a removal is
+    /// retried, and treating it as a failure would make the retry look worse
+    /// than the original problem.
+    /// </summary>
+    public static bool VnPayTokenForgotten(string? responseCode) =>
+        responseCode is "00" or "11";
 
     /// <summary>
     /// OnePay's masked number arrives as <c>400555xxxxxx0001</c> — the last four
