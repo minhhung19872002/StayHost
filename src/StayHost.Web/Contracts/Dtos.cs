@@ -2383,7 +2383,19 @@ public record PaymentMethodDto(
     /// Off unless VNPay has enabled tokens for this merchant: offering a tick box
     /// their gateway then refuses is worse than not offering it.
     /// </summary>
-    bool Tokens = false);
+    bool Tokens = false,
+    /// <summary>
+    /// docs/07 §13 — which licensed gateway is behind this method, so the
+    /// checkout can name it before sending the guest away.
+    ///
+    /// It has to come from the server. The client used to map the method to a
+    /// gateway itself — card and napas were spelled "VNPay" in a constant — and
+    /// the moment those two rows were pointed at OnePay the checkout began
+    /// promising a page it was not about to open. A guest told they are going to
+    /// VNPay and landing on OnePay has every reason to think something is wrong.
+    /// Null when the stand-in still owns the method.
+    /// </summary>
+    string? Provider = null);
 
 /// <summary>
 /// docs/07 §4 — everything the platform is allowed to show about a saved card.

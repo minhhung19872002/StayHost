@@ -34,6 +34,16 @@ public class PspRouter(IOptions<PspSettings> options, IEnumerable<IPspProvider> 
     public bool IsLive(string? method) => For(method) is not null;
 
     /// <summary>
+    /// Whose page the guest is about to land on — "vnpay", "onepay", "momo",
+    /// "zalopay" — or null while the stand-in still owns the method.
+    ///
+    /// The checkout has to say this out loud before it redirects, and it cannot
+    /// work it out for itself: which gateway serves a method is configuration,
+    /// and a client that guesses names the wrong company the day it changes.
+    /// </summary>
+    public string? ProviderOf(string? method) => For(method)?.Key;
+
+    /// <summary>
     /// docs/07 §4 — whether the gateway behind this method can keep a card.
     ///
     /// Only VNPay does, and only when their token feature is switched on for the

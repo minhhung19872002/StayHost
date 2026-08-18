@@ -21,8 +21,14 @@ const ICONS = { card: 'card', napas: 'bank', momo: 'wallet', zalopay: 'wallet' }
 /**
  * docs/07 §13 — whose page the guest is about to land on. A brand name, so it is
  * not translated; it is only ever shown, never matched against.
+ *
+ * Keyed by the *gateway* the server names, not by the payment method. It used to
+ * be keyed by method, with card and napas both spelled "VNPay" — and the day
+ * those two rows were pointed at OnePay the checkout began promising a page it
+ * was not about to open. Which gateway serves which method is configuration, so
+ * only the server knows it.
  */
-const GATEWAY_NAME = { card: 'VNPay', napas: 'VNPay', momo: 'MoMo', zalopay: 'ZaloPay' };
+const GATEWAY_NAME = { vnpay: 'VNPay', onepay: 'OnePay', momo: 'MoMo', zalopay: 'ZaloPay' };
 
 export function PaymentMethods({ idPrefix = 'card' }) {
   const state = useStore();
@@ -75,7 +81,7 @@ export function PaymentMethods({ idPrefix = 'card' }) {
             <p className="pay-demo" style={{ margin: 0 }}>
               <Icon name="shield" size={16} />
               {t('Bạn sẽ được chuyển sang trang thanh toán của {} để hoàn tất. StayHost không nhìn thấy số thẻ của bạn.')
-                .replace('{}', GATEWAY_NAME[m.key] ?? t('cổng thanh toán'))}
+                .replace('{}', GATEWAY_NAME[m.provider] ?? t('cổng thanh toán'))}
             </p>
           )}
         </Fragment>

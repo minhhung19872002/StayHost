@@ -27,7 +27,7 @@ public class PaymentMethodsController(
     {
         var offered = PaymentMethods.Available()
             .Select(m => new PaymentMethodDto(m.Key, m.Group, m.Label, m.Hint, m.Savable,
-                psp.IsLive(m.Key), psp.KeepsCards(m.Key)))
+                psp.IsLive(m.Key), psp.KeepsCards(m.Key), psp.ProviderOf(m.Key)))
             .ToList();
 
         // docs/07 §2.3 — VietQR is a "later" method in the catalogue, so it is not
