@@ -3,6 +3,7 @@ import { api } from '../../lib/api.js';
 import { toast } from '../../lib/store.js';
 import { money, longDate } from '../../lib/format.js';
 import { t } from '../../lib/i18n.js';
+import { PayoutReconcilePanel } from './PayoutReconcile.jsx';
 
 /**
  * docs/07 §13 — the transfers StayHost owes hosts, and the file that pays them.
@@ -124,6 +125,8 @@ export function PayoutBatchPanel() {
           </tbody>
         </table>
       </div>
+
+      <PayoutReconcilePanel />
     </section>
   );
 }

@@ -277,6 +277,12 @@ export const api = {
     request(`/api/admin/finance/payout-batches/${id}/settled`, { method: 'POST', body: JSON.stringify(body) }),
   failPayoutBatch: (id, body) =>
     request(`/api/admin/finance/payout-batches/${id}/failed`, { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/07 §15.4 — the bank's own record, read against the transfers we said we
+     made. It confirms; it never marks one failed. */
+  reconcilePayouts: (note, lines) =>
+    request('/api/admin/finance/payout-batches/reconcile', {
+      method: 'POST', body: JSON.stringify({ note, lines })
+    }),
 
   chargebacks: () => request('/api/admin/finance/chargebacks'),
   openChargeback: body => request('/api/admin/finance/chargebacks', { method: 'POST', body: JSON.stringify(body) }),

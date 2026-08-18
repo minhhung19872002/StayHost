@@ -321,6 +321,72 @@ else:
     check("Mã lô thứ hai khác mã lô đầu", ref2 != batch_ref, "%s vs %s" % (batch_ref, ref2))
     check("Sổ vẫn cân sau lô thứ hai", ledger_total() == 0, str(ledger_total()))
 
+# --- 6: the bank statement, read against what the platform says it sent -------
+# docs/07 §15.4 — until this existed, "the bank paid the host" rested entirely on
+# a person pressing a button, and that button is the only thing that posts the
+# payout. A statement is the bank's own word, and §7 asks for exactly this on the
+# incoming side.
+print("\n6. Đối chiếu sao kê với lệnh đã chuyển")
+
+# Downloading exports whatever is still pending, which is what makes a batch
+# eligible to be confirmed by a statement at all.
+call(admin, "/api/admin/finance/payout-batches/file", raw=True)
+
+waiting_ref = sql("""select "Reference" from payout_batches where "Status"=1 order by "Id" desc limit 1""")
+
+if not waiting_ref:
+    print("     (bỏ qua: không còn lệnh nào đang chờ ngân hàng)")
+else:
+    waiting_amount = float(sql("""select "Amount" from payout_batches where "Reference"='%s'""" % waiting_ref))
+    before = int(sql("""select count(*) from ledger_entries where "TransactionKind"='host-payout';""") or 0)
+
+    # Wrong amount first, then right: the same reference must be refused once and
+    # accepted once, in that order, or the test proves nothing about either.
+    st, res = call(admin, "/api/admin/finance/payout-batches/reconcile", {
+        "note": "Đối chiếu sao kê VIB ngày hôm nay",
+        "lines": [
+            {"bankReference": "FT0001", "amount": waiting_amount - 1000,
+             "description": "CK StayHost %s" % waiting_ref},
+            {"bankReference": "FT0002", "amount": 3000000,
+             "description": "THANH TOAN TIEN DIEN THANG 8"},
+            {"bankReference": "FT0003", "amount": waiting_amount,
+             "description": "CK StayHost %s tra chu nha" % waiting_ref},
+        ]})
+
+    check("Đối chiếu chạy được", st == 200, "HTTP %s: %s" % (st, res))
+
+    rows = (res or {}).get("rows", [])
+    verdicts = [r["verdict"] for r in rows]
+
+    check("Sai số tiền thì không ghi sổ", verdicts[:1] == ["WrongAmount"], str(verdicts))
+    check("Khoản chi khác của công ty không bị nhận vơ",
+          len(verdicts) > 1 and verdicts[1] == "Unidentified", str(verdicts))
+    check("Đúng mã đúng tiền thì xác nhận", "Transferred" in verdicts, str(verdicts))
+    check("Đếm đúng số lệnh đã chốt", (res or {}).get("settled") == 1, str((res or {}).get("settled")))
+
+    status_now = sql("""select "Status" from payout_batches where "Reference"='%s'""" % waiting_ref)
+    check("Lệnh chuyển sang 'ngân hàng đã chuyển'", status_now == "2", "Status=%s" % status_now)
+
+    after = int(sql("""select count(*) from ledger_entries where "TransactionKind"='host-payout';""") or 0)
+    check("Bút toán trả chủ nhà được ghi ở đây", after > before, "%d → %d" % (before, after))
+    check("Sổ vẫn cân sau đối chiếu", ledger_total() == 0, str(ledger_total()))
+
+    # Pasting the same day twice is what a tired person does at 6pm.
+    st, again = call(admin, "/api/admin/finance/payout-batches/reconcile", {
+        "note": "Dán lại đúng sao kê đó",
+        "lines": [{"bankReference": "FT0003", "amount": waiting_amount,
+                   "description": "CK StayHost %s tra chu nha" % waiting_ref}]})
+
+    twice = int(sql("""select count(*) from ledger_entries where "TransactionKind"='host-payout';""") or 0)
+    check("Dán lại sao kê không trả tiền hai lần", twice == after, "%d → %d" % (after, twice))
+    check("Dòng cũ được nhận ra là đã xác nhận trước đó",
+          [r["verdict"] for r in (again or {}).get("rows", [])] == ["AlreadySeen"],
+          str((again or {}).get("rows")))
+
+    # The half a statement cannot show: what is missing from it.
+    check("Có danh sách lệnh ngân hàng chưa xác nhận",
+          "stillAwaitingBank" in (again or {}), str(list((again or {}).keys())))
+
 print("\n%d đạt · %d hỏng" % (len(passed), len(failed)))
 for f in failed:
     print("  hỏng: " + f)

@@ -1935,6 +1935,27 @@ public record BankImportResultDto(
 public record ResolveCreditRequest(string? Note);
 
 /// <summary>
+/// docs/07 §15.4 — a statement of what left the account, read against the
+/// transfers the platform said it made. `Note` is required for the same reason
+/// the button requires one: settling a batch posts a ledger entry.
+/// </summary>
+public record ReconcilePayoutsRequest(string? Note, List<StatementLineDto>? Lines);
+
+public record PayoutReconcileRowDto(
+    string BankReference, decimal Amount, string Description,
+    string Verdict, string VerdictLabel, string? MatchedReference, decimal Expected,
+    string Explanation);
+
+public record PayoutReconcileResultDto(
+    int Settled, int Pending, int Skipped, IReadOnlyList<PayoutReconcileRowDto> Rows,
+    /// <summary>What the statement did not account for — the half a statement cannot show.</summary>
+    IReadOnlyList<PayoutAwaitingBankDto> StillAwaitingBank);
+
+public record PayoutAwaitingBankDto(
+    long Id, string Reference, string HostName, decimal Amount,
+    string BankName, string AccountName, DateOnly DueOn, int DaysWaiting);
+
+/// <summary>
 /// docs/07 §13 — one bank transfer the platform owes a host.
 ///
 /// The account number is masked; the whole number exists only in the file, which

@@ -49,9 +49,9 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (18/08/2026).** 1084 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (18/08/2026).** 1093 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
-đời) · **23/23** kịch bản chuyển tiền cho chủ nhà (`scripts/payout_acceptance.py`) ·
+đời) · **34/34** kịch bản chuyển tiền cho chủ nhà và đối chiếu sao kê (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
 (`scripts/vnpay_browser_acceptance.py`) · **11/11** hoàn tiền thật qua VNPay
 (`scripts/refund_acceptance.py`) ·
@@ -477,12 +477,12 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 1084 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1093 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
 python scripts/gateway_acceptance.py               # 30 kịch bản cổng thanh toán, gọi sandbox thật
-python scripts/payout_acceptance.py                # 23 kịch bản chuyển tiền cho chủ nhà (docs/07 §15.4)
+python scripts/payout_acceptance.py                # 34 kịch bản chuyển tiền + đối chiếu sao kê (docs/07 §15.4)
 python scripts/vnpay_browser_acceptance.py         # 14 kịch bản: trả tiền THẬT trên trang VNPay (cần playwright)
 python scripts/refund_acceptance.py                # 11 kịch bản hoàn tiền thật qua VNPay (docs/07 §15.6)
 python scripts/onepay_acceptance.py                # 15 kịch bản: trả bằng thẻ VISA THẬT qua OnePay
@@ -536,9 +536,14 @@ Tám commit, từ `a8ee0a3` tới `904cce2`. Mọi bộ nghiệm thu xanh.
 
 ### 8.2. Việc còn lại, theo thứ tự
 
-1. **Đối chiếu sao kê ngân hàng với lệnh chuyển tiền** (`docs/07 §15.4`). Hiện người
-   trực bấm *"Đã chuyển"* và **không ai kiểm lại** — đó là nút duy nhất ghi bút toán
-   trả chủ nhà, nên nó xứng đáng có một vế thứ hai đối chiếu, đúng tinh thần `§7`.
+1. ~~Đối chiếu sao kê ngân hàng với lệnh chuyển tiền~~ — **xong 18/08/2026.**
+   Người trực dán các dòng **chuyển đi**; dòng nào ngân hàng ghi đúng mã lệnh và
+   đúng số tiền thì lệnh đó tự xác nhận qua **đúng lời gọi mà nút bấm dùng**, nên bút
+   toán, thông báo và nhật ký giống hệt. Nó **chỉ xác nhận, không bao giờ đánh hỏng** —
+   một lệnh vắng mặt trong sao kê hôm nay thường là sao kê chưa kịp, chứ không phải
+   ngân hàng từ chối. Kết quả còn kèm **danh sách lệnh đã tải file mà ngân hàng chưa
+   xác nhận**: đó là nửa mà sao kê không bao giờ nói ra. `PayoutStatements` +
+   `PayoutStatementService`, khung dán ở `pages/admin/PayoutReconcile.jsx`.
 2. ~~`token_remove`~~ — **xong 18/08/2026.** Endpoint là `token_ui/remove-token.html`,
    trả lời bằng query string server-to-server (không phải trang chuyển hướng). Đã kiểm
    thật: VNPay trả **mã 00**. `vnp_app_user_id` lúc xoá **phải trùng** lúc tạo —

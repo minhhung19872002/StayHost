@@ -884,6 +884,60 @@ public class FinanceController(
         return Ok(new { ok = true });
     }
 
+    /// <summary>
+    /// docs/07 §15.4 — the second pair of eyes on the only button that posts a
+    /// payout.
+    ///
+    /// The operator pastes the outgoing side of the bank statement; every line
+    /// the bank shows for the right reference and the right amount settles its
+    /// batch, through the same call the button makes. Everything else is
+    /// reported rather than acted on, and the answer carries what the statement
+    /// did <em>not</em> account for — a transfer exported days ago and never seen
+    /// is the failure this whole screen exists to catch, and no statement line
+    /// will ever mention it.
+    /// </summary>
+    [HttpPost("payout-batches/reconcile")]
+    public async Task<ActionResult<PayoutReconcileResultDto>> ReconcilePayouts(
+        [FromBody] ReconcilePayoutsRequest req,
+        [FromServices] PayoutStatementService statementsOut,
+        CancellationToken ct)
+    {
+        var v = await gate.AllowAsync(AdminAction.RunPayoutTransfers, req.Note, ct);
+        if (!v.Ok) return Refuse(v);
+
+        if (req.Lines is not { Count: > 0 })
+            return BadRequest(new { message = "Chưa có dòng nào để đối chiếu." });
+
+        if (req.Lines.Count > 1000)
+            return BadRequest(new { message = "Mỗi lần đối chiếu tối đa 1000 dòng." });
+
+        var result = await statementsOut.ImportAsync(
+            $"admin:{v.Admin!.Id}", req.Note,
+            req.Lines.Select(l => new PayoutStatementService.Line(
+                l.BankReference, l.Amount, l.Description)).ToList(),
+            ct);
+
+        audit.Record(v.Admin!, "finance.payout-reconcile", $"lines:{req.Lines.Count}", null,
+            $"{result.Settled} khớp lệnh, {result.Pending} cần xử lý, {result.Skipped} đã xác nhận trước đó");
+        await db.SaveChangesAsync(ct);
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var waiting = (await statementsOut.AwaitingBankAsync(ct))
+            .Select(b => new PayoutAwaitingBankDto(
+                b.Id, b.Reference, b.Host?.User?.FullName ?? b.AccountName, b.Amount,
+                b.BankName, b.AccountName, b.DueOn, today.DayNumber - b.DueOn.DayNumber))
+            .ToList();
+
+        return Ok(new PayoutReconcileResultDto(
+            result.Settled, result.Pending, result.Skipped,
+            result.Rows.Select(r => new PayoutReconcileRowDto(
+                r.BankReference, r.Amount, r.Description,
+                r.Verdict.ToString(), Domain.PayoutStatements.VerdictLabel(r.Verdict),
+                r.MatchedReference, r.Expected, r.Explanation)).ToList(),
+            waiting));
+    }
+
     /// <summary>The bank refused it. Nothing is reversed, because nothing was posted.</summary>
     [HttpPost("payout-batches/{id:long}/failed")]
     public async Task<IActionResult> FailBatch(

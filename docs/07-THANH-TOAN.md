@@ -470,8 +470,22 @@ sinh trùng mã (số thứ tự đếm theo `PaidOutAt`, cột giờ chỉ đư
 xác nhận), ràng buộc duy nhất ném lỗi, và vì nó ném trong tick của worker nên các
 vòng quét phía sau chết theo — im lặng.
 
-**Chưa làm:** lấy sao kê ngân hàng về để tự đối chiếu lệnh đã chuyển (giờ là người
-bấm), và mẫu file riêng cho từng ngân hàng.
+**Đối chiếu sao kê — làm ngày 18/08/2026.** Người trực dán các dòng **chuyển đi**
+của sao kê; dòng nào ngân hàng ghi đúng mã lệnh và đúng số tiền thì lệnh đó được
+xác nhận qua **đúng lời gọi mà nút *Đã chuyển* dùng**, nên bút toán, thông báo và
+nhật ký không khác một chữ. Mọi trường hợp khác chỉ được báo lại: sai số tiền
+không ghi sổ, khoản chi không mang mã lệnh nào thì để yên, và **một dòng khớp
+nhiều lệnh cùng lúc thì từ chối đoán** — `PO-20260818-42` và `PO-20260818-4-2` bỏ
+dấu gạch đi là một chuỗi, đoán bừa sẽ trả tiền cho nhầm chủ nhà và sổ vẫn cân khi
+làm thế.
+
+Nó **chỉ xác nhận, không bao giờ đánh hỏng một lệnh**. Một lệnh vắng mặt trong sao
+kê hôm nay hầu như luôn là sao kê chưa kịp, chứ không phải ngân hàng từ chối, và
+từ đây nhìn thì hai thứ đó giống hệt nhau. Nên kết quả kèm thêm **danh sách lệnh
+đã tải file mà ngân hàng chưa xác nhận, kèm số ngày chờ** — đó là nửa mà không
+dòng sao kê nào nói ra được, và cũng là kiểu hỏng mà màn hình này sinh ra để bắt.
+
+**Chưa làm:** mẫu file riêng cho từng ngân hàng.
 
 ---
 

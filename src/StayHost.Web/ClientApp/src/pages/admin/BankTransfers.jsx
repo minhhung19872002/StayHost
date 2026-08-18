@@ -3,6 +3,7 @@ import { api } from '../../lib/api.js';
 import { toast } from '../../lib/store.js';
 import { money, longDate } from '../../lib/format.js';
 import { t } from '../../lib/i18n.js';
+import { splitRows, parseAmount } from '../../lib/statement.js';
 
 /**
  * docs/07 §2.3 — reading a bank statement, and the queue of credits it could
@@ -210,35 +211,4 @@ function ColumnPick({ label, value, count, onChange }) {
       </select>
     </label>
   );
-}
-
-/** Tabs, semicolons or commas — whichever the export used. */
-function splitRows(text) {
-  return text.split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(Boolean)
-    .map(line => line.includes('\t') ? line.split('\t') : line.split(/[;,](?=(?:[^"]*"[^"]*")*[^"]*$)/))
-    .map(cells => cells.map(c => c.replace(/^"|"$/g, '')));
-}
-
-/**
- * "2.672.000", "2,672,000.00" and "2672000" are the same money.
- *
- * Which separator means what is decided by what follows the last one: grouping
- * always has three digits behind it, so a separator with exactly two is the
- * decimal point and everything else is grouping. That is unambiguous in both
- * the Vietnamese and the English convention, which is why it beats guessing
- * from whether the character is a dot or a comma.
- */
-function parseAmount(cell) {
-  if (!cell) return 0;
-
-  const cleaned = String(cell).replace(/[^\d.,-]/g, '');
-
-  const normalised = /[.,]\d{2}$/.test(cleaned)
-    ? `${cleaned.slice(0, -3).replace(/[.,]/g, '')}.${cleaned.slice(-2)}`
-    : cleaned.replace(/[.,]/g, '');
-
-  const n = Number(normalised);
-  return Number.isFinite(n) && n > 0 ? n : 0;
 }
