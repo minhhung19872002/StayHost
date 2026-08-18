@@ -83,6 +83,64 @@ def future(days):
     return (datetime.date.today() + datetime.timedelta(days=days)).isoformat()
 
 
+def pay_on_onepay(page):
+    """
+    Fills OnePay's international card form and presses pay.
+
+    Both scenarios below need this and they must stay identical: the second one
+    differs only in that the trip home is blocked, so any drift between two
+    copies would make it test something other than what it claims to.
+    """
+    for _ in range(12):
+        time.sleep(3)
+        if "generalv2" in page.url:
+            break
+
+    page.click("text=Thẻ tín dụng / Ghi nợ", timeout=20000)
+    time.sleep(4)
+
+    def put(placeholder, value):
+        box = page.locator("input[placeholder='%s']" % placeholder)
+        if box.count() == 0:
+            return False
+        box.first.click()
+        page.keyboard.type(value, delay=70)
+        return True
+
+    put("1234 5678 9101 1234", CARD)
+    time.sleep(1)
+    put("12/27", EXPIRY)
+    put("123", CSC)
+    put("Nhập tên chủ thẻ", HOLDER)
+    put("name@email.com", EMAIL)
+
+    # Only the terms box. The one above it is "không sử dụng email", and ticking
+    # that turns the form into one that demands a phone number instead.
+    page.locator("input[type=checkbox]").last.check(force=True)
+    time.sleep(1)
+
+    page.click("text=Xác nhận thanh toán", timeout=15000)
+
+
+def hold_a_booking(from_day):
+    """A bookable stay paid by card, or None when the calendar is full."""
+    for week in range(0, 14):
+        at = from_day + week * 7
+        _, page_of = call("/api/listings?pageSize=60&checkIn=%s&checkOut=%s"
+                          % (future(at), future(at + 2)))
+        for listing in page_of.get("items", []):
+            if not listing["instantBook"]:
+                continue
+            st, booking = call("/api/bookings", {
+                "listingId": listing["id"], "checkIn": future(at), "checkOut": future(at + 2),
+                "guests": 1, "adults": 1, "children": 0, "infants": 0, "pets": 0,
+                "guestName": "Khách Demo", "guestEmail": "guest@stayhost.vn",
+                "agreedToRules": True, "paymentMethod": "card"})
+            if st == 201:
+                return booking
+    return None
+
+
 print("StayHost · nghiệm thu OnePay, thẻ Visa quốc tế (docs/07 §13) — %s\n" % BASE)
 
 _, catalogue = call("/api/payment-methods/catalogue")
@@ -100,23 +158,7 @@ if st != 200:
 # --- 1: a booking, and an order at OnePay ------------------------------------
 print("1. Giữ chỗ rồi mở đơn ở OnePay")
 
-held = None
-for week in range(0, 14):
-    at = 120 + week * 7
-    _, page_of = call("/api/listings?pageSize=60&checkIn=%s&checkOut=%s" % (future(at), future(at + 2)))
-    for listing in page_of.get("items", []):
-        if not listing["instantBook"]:
-            continue
-        st, booking = call("/api/bookings", {
-            "listingId": listing["id"], "checkIn": future(at), "checkOut": future(at + 2),
-            "guests": 1, "adults": 1, "children": 0, "infants": 0, "pets": 0,
-            "guestName": "Khách Demo", "guestEmail": "guest@stayhost.vn",
-            "agreedToRules": True, "paymentMethod": "card"})
-        if st == 201:
-            held = booking
-            break
-    if held:
-        break
+held = hold_a_booking(120)
 
 if held is None:
     print("Không giữ được chỗ nào — lịch đã kín trong tầm ngày đã thử.")
@@ -161,33 +203,10 @@ with sync_playwright() as p:
     check("OnePay mở trang đơn hàng cho đúng đơn này",
           order_ref in page.inner_text("body"), page.url[:60])
 
-    page.click("text=Thẻ tín dụng / Ghi nợ", timeout=20000)
-    time.sleep(4)
-
-    def put(placeholder, value):
-        box = page.locator("input[placeholder='%s']" % placeholder)
-        if box.count() == 0:
-            return False
-        box.first.click()
-        page.keyboard.type(value, delay=70)
-        return True
-
-    put("1234 5678 9101 1234", CARD)
-    time.sleep(1)
-    put("12/27", EXPIRY)
-    put("123", CSC)
-    put("Nhập tên chủ thẻ", HOLDER)
-    put("name@email.com", EMAIL)
-
-    # Only the terms box. The one above it is "không sử dụng email", and ticking
-    # that turns the form into one that demands a phone number instead.
-    page.locator("input[type=checkbox]").last.check(force=True)
-    time.sleep(1)
+    pay_on_onepay(page)
 
     if SHOTS:
         page.screenshot(path=os.path.join(SHOTS, "onepay-card.png"), full_page=True)
-
-    page.click("text=Xác nhận thanh toán", timeout=15000)
 
     for _ in range(20):
         time.sleep(3)
@@ -226,6 +245,59 @@ check("Phiên thanh toán chốt bằng câu trả lời của OnePay", status =
 check("Chốt bằng đường có chữ ký, không phải đoán", settled in ("return", "ipn"), settled or "(trống)")
 check("Ghi đúng cổng đã thu tiền", provider == "onepay", provider)
 check("Có mã giao dịch của OnePay để đối soát", bool(txn), txn or "(trống)")
+
+# --- 4: the guest who never comes back ---------------------------------------
+# docs/07 §5 — "không tin vào việc khách quay về trang nào". The trip home is
+# blocked outright here, so the only thing that can settle this payment is the
+# platform asking OnePay itself. Without an ApiUser it cannot ask and the
+# booking would sit pending until the hold expired — which makes this the
+# scenario that proves the query API is wired rather than merely written.
+print("\n4. Khách trả tiền xong nhưng KHÔNG quay về")
+
+held2 = hold_a_booking(300)
+
+if held2 is None:
+    print("     (bỏ qua: không giữ được chỗ nào nữa)")
+else:
+    _, paid2 = call("/api/bookings/%d/pay" % held2["id"], {"paymentMethod": "card", "saveCard": False})
+    url2 = (paid2 or {}).get("gatewayRedirectUrl") or ""
+    ref2 = (paid2 or {}).get("gatewayOrderRef")
+    print("     đơn %s · mã %s" % (held2["reference"], ref2))
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        # Matched on the hostname, not on the text of the URL: OnePay's own
+        # address carries vpc_ReturnURL inside its query string, so a glob like
+        # "**localhost*" blocks the trip *out* as well as the trip home and the
+        # scenario never gets as far as paying.
+        page.route(lambda u: urllib.parse.urlsplit(u).hostname == HOST,
+                   lambda route: route.abort())
+
+        page.goto(url2, wait_until="domcontentloaded", timeout=60000)
+        pay_on_onepay(page)
+        time.sleep(25)
+
+        stranded = "onepay.vn" in page.url
+        browser.close()
+
+    check("Khách kẹt lại ở cổng, không có đường quay về", stranded)
+
+    settled2 = ""
+    for _ in range(12):
+        time.sleep(15)
+        settled2 = sql("""select coalesce("SettledBy", '') from payment_sessions where "OrderRef"='%s'""" % ref2)
+        if settled2:
+            break
+
+    _, mine2 = call("/api/bookings")
+    row2 = next((b for b in (mine2 or []) if b["id"] == held2["id"]), None)
+    txn2 = sql("""select coalesce("ProviderTxnId", '') from payment_sessions where "OrderRef"='%s'""" % ref2)
+
+    check("Sàn tự hỏi lại OnePay và chốt được", settled2 == "sweep", settled2 or "(chưa chốt)")
+    check("Đơn được xác nhận dù khách không quay về",
+          row2 is not None and row2["status"] == "Confirmed", str(row2 and row2["status"]))
+    check("Vẫn lấy được mã giao dịch để đối soát", bool(txn2), txn2 or "(trống)")
 
 total = sql('select coalesce(sum(case when "Direction"=1 then "Amount" else -"Amount" end),0) '
             'from ledger_entries;')

@@ -155,20 +155,37 @@ public class OnePayProvider(
             ? raw / 100m
             : 0m;
 
-        // "No transaction found" is not an answer about the money — the guest
-        // may still be typing their card on OnePay's page.
-        if (code.Length == 0 || code == "100") return PspVerdict.Unknown;
+        // They say outright whether they have heard of the order. "N" is not an
+        // answer about the money — the guest may still be typing their card on
+        // OnePay's page — so it must not be read as a failure.
+        if (answer.GetValueOrDefault("vpc_DRExists") == "N") return PspVerdict.Unknown;
+        if (code.Length == 0) return PspVerdict.Unknown;
 
         if (Psp.OnePayPaid(code))
             return new PspVerdict(PaymentSessionStatus.Paid, amount, txn, code,
-                CardLast4: Psp.OnePayLast4(answer.GetValueOrDefault("vpc_CardNum")),
-                CardType: answer.GetValueOrDefault("vpc_Card"));
+                // Their own two spellings: the browser return says vpc_CardNum,
+                // this API says vpc_CardNo. Reading only one leaves the last
+                // four digits null on whichever path was not tested.
+                CardLast4: Psp.OnePayLast4(answer.GetValueOrDefault("vpc_CardNo")
+                                           ?? answer.GetValueOrDefault("vpc_CardNum")),
+                CardType: answer.GetValueOrDefault("vpc_AdditionData")
+                          ?? answer.GetValueOrDefault("vpc_Card"));
 
         return new PspVerdict(PaymentSessionStatus.Failed, amount, txn, code, Psp.OnePayDecline(code));
     }
 
     /// <summary>
     /// docs/07 §10 — the money back to the card it came from.
+    ///
+    /// <b>Unverified against a live gateway.</b> Their <c>queryDR</c> on the same
+    /// endpoint needs no signature and answers happily with the demo operator
+    /// account; <c>refund</c> demands a <c>vpc_SecureHash</c> that the payment
+    /// secret does not produce — every rule that signs a payment correctly comes
+    /// back "Invalid vpc_SecureHash" (255), and the domestic endpoint, which does
+    /// accept that signature, has no refund command at all. The likeliest reading
+    /// is that a public demo merchant is not granted refunds, which is sensible
+    /// of them. So this is written to their documented shape and left honest: a
+    /// call that does not land is Unknown, never Refused.
     ///
     /// The reference sent is the original payment's, which is what makes a
     /// repeat safe: OnePay matches a refund to the transaction it reverses, so a

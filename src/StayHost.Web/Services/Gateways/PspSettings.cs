@@ -85,7 +85,13 @@ public class PspSettings
         public string AccessCode { get; set; } = "";
         public string HashSecret { get; set; } = "";
         public string PayUrl { get; set; } = "https://mtf.onepay.vn/vpcpay/vpcpay.op";
-        public string ApiUrl { get; set; } = "https://mtf.onepay.vn/onecomm-pay/Vpcdps.op";
+        /// <summary>
+        /// The operator API. Note <c>vpcpay/</c> and not <c>onecomm-pay/</c>:
+        /// both answer <c>queryDR</c>, but the domestic one reports
+        /// <c>vpc_TransactionNo=0</c> for an international payment, and that
+        /// number is the only handle docs/07 §7's reconciliation has.
+        /// </summary>
+        public string ApiUrl { get; set; } = "https://mtf.onepay.vn/vpcpay/Vpcdps.op";
 
         /// <summary>The operator account for the query/refund API, when OnePay has issued one.</summary>
         public string ApiUser { get; set; } = "";
