@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useStore } from '../lib/useStore.js';
 import { set } from '../lib/store.js';
 import { api } from '../lib/api.js';
@@ -58,11 +58,27 @@ export function PaymentMethods({ idPrefix = 'card' }) {
   return <>
     <div style={{ display: 'grid', gap: 10 }}>
       {offered.map(m => (
-        <button type="button" key={m.key} className={`opt opt-row ${state.payMethod === m.key ? 'is-on' : ''}`}
-                onClick={() => set({ payMethod: m.key })}>
-          <span className="opt-ic"><Icon name={ICONS[m.key] ?? 'card'} size={22} /></span>
-          <span className="opt-tx"><b>{t(m.label)}</b><span>{t(m.hint)}</span></span>
-        </button>
+        <Fragment key={m.key}>
+          <button type="button" className={`opt opt-row ${state.payMethod === m.key ? 'is-on' : ''}`}
+                  onClick={() => set({ payMethod: m.key })}>
+            <span className="opt-ic"><Icon name={ICONS[m.key] ?? 'card'} size={22} /></span>
+            <span className="opt-tx"><b>{t(m.label)}</b><span>{t(m.hint)}</span></span>
+          </button>
+
+          {/* docs/07 §13 — a method with a licensed gateway behind it is paid for
+              on that gateway's own page. It sits under the row the guest just
+              pressed rather than under the whole list: below the list it falls
+              past the bottom of the modal, so the guest picks "Thẻ tín dụng",
+              sees no card fields, and reads the checkout as broken. The one
+              line that explains why has to be where the choice was made. */}
+          {state.payMethod === m.key && m.live && (
+            <p className="pay-demo" style={{ margin: 0 }}>
+              <Icon name="shield" size={16} />
+              {t('Bạn sẽ được chuyển sang trang thanh toán của {} để hoàn tất. StayHost không nhìn thấy số thẻ của bạn.')
+                .replace('{}', GATEWAY_NAME[m.key] ?? t('cổng thanh toán'))}
+            </p>
+          )}
+        </Fragment>
       ))}
     </div>
 
@@ -110,18 +126,6 @@ export function PaymentMethods({ idPrefix = 'card' }) {
           </span>
         </button>
       </div>
-    )}
-
-    {/* docs/07 §13 — a method with a licensed gateway behind it is paid for on
-        that gateway's own page. Saying so before the button is pressed matters:
-        the guest is about to leave the site, and a redirect nobody warned them
-        about reads as the checkout breaking. */}
-    {live && (
-      <p className="pay-demo">
-        <Icon name="shield" size={16} />
-        {t('Bạn sẽ được chuyển sang trang thanh toán của {} để hoàn tất. StayHost không nhìn thấy số thẻ của bạn.')
-          .replace('{}', GATEWAY_NAME[live.key] ?? t('cổng thanh toán'))}
-      </p>
     )}
 
     {/* docs/07 §14.2 — the card fields only exist for the built-in stand-in.
