@@ -27,8 +27,10 @@ import os
 import subprocess
 import sys
 import tempfile
+import shlex
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 try:
@@ -38,6 +40,11 @@ except ImportError:
     sys.exit(2)
 
 BASE = os.environ.get("STAYHOST_URL", "http://localhost:5199").rstrip("/")
+HOST = urllib.parse.urlsplit(BASE).hostname or "localhost"
+# Where the database lives, when it is not this machine. Pointing STAYHOST_URL at
+# a server while `sql()` kept reading the container on the laptop is how a run
+# reports on two different databases at once and believes every word of it.
+DB_SSH = os.environ.get("STAYHOST_DB_SSH")
 SHOTS = os.environ.get("STAYHOST_SHOTS") or tempfile.mkdtemp(prefix="stayhost-vnpay-")
 
 # VNPay's published sandbox card (NCB). Not a secret and not real money.
@@ -70,10 +77,14 @@ def check(name, ok, detail=""):
 
 
 def sql(query):
-    out = subprocess.run(
-        ["docker", "exec", "stayhost-db", "psql", "-U", "stayhost", "-d", "stayhost",
-         "-t", "-A", "-c", query],
-        capture_output=True, text=True, encoding="utf-8")
+    argv = ["docker", "exec", "stayhost-db", "psql", "-U", "stayhost", "-d", "stayhost",
+            "-t", "-A", "-c", query]
+    if DB_SSH:
+        # ssh hands the remote shell one string, which parses it again, so every
+        # argument has to survive a second round of quoting.
+        argv = ["ssh", "-o", "BatchMode=yes", DB_SSH,
+                " ".join(shlex.quote(a) for a in argv)]
+    out = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8")
     return out.stdout.strip() if out.returncode == 0 else ""
 
 
@@ -246,7 +257,7 @@ with sync_playwright() as p:
     press(page, "Xác nhận", "Thanh toán", "Continue")
 
     try:
-        page.wait_for_url("**localhost**", timeout=60000)
+        page.wait_for_url("**%s**" % HOST, timeout=60000)
     except Exception:
         pass
 
