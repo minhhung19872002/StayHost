@@ -32,6 +32,7 @@ import json
 import os
 import random
 import re
+import shlex
 import subprocess
 import sys
 import urllib.error
@@ -39,6 +40,10 @@ import urllib.parse
 import urllib.request
 
 BASE = os.environ.get("STAYHOST_URL", "http://localhost:5199").rstrip("/")
+# Where the database lives, when the server under test is not this machine.
+# Reading the local container while BASE points elsewhere reports on two
+# databases at once — see vnpay_browser_acceptance.py for the same fix.
+DB_SSH = os.environ.get("STAYHOST_DB_SSH")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEV_SETTINGS = os.path.join(HERE, os.pardir, "src", "StayHost.Web", "appsettings.Development.json")
@@ -109,11 +114,13 @@ def browser():
 
 def ledger_total():
     """docs/00 §6.5 — every movement is written both ways, so this must be zero."""
-    out = subprocess.run(
-        ["docker", "exec", "stayhost-db", "psql", "-U", "stayhost", "-d", "stayhost", "-t", "-c",
-         'select coalesce(sum(case when "Direction"=1 then "Amount" else -"Amount" end),0) '
-         'from ledger_entries;'],
-        capture_output=True, text=True)
+    argv = ["docker", "exec", "stayhost-db", "psql", "-U", "stayhost", "-d", "stayhost", "-t", "-c",
+            'select coalesce(sum(case when "Direction"=1 then "Amount" else -"Amount" end),0) '
+            'from ledger_entries;']
+    if DB_SSH:
+        argv = ["ssh", "-o", "BatchMode=yes", DB_SSH,
+                " ".join(shlex.quote(a) for a in argv)]
+    out = subprocess.run(argv, capture_output=True, text=True)
     try:
         return float(out.stdout.strip())
     except ValueError:
