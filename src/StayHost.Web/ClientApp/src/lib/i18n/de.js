@@ -65,7 +65,7 @@ export default {
   'Tính năng mới': 'Neuigkeiten',
   'Cơ hội nghề nghiệp': 'Karriere',
   'Nhà đầu tư': 'Investoren',
-  'Chỗ ở khẩn cấp StayHost.org': 'Notunterkünfte — StayHost.org',
+  'Chỗ ở khẩn cấp Staylio.org': 'Notunterkünfte — Staylio.org',
   'Thẻ quà tặng': 'Geschenkkarten',
   'Khám phá': 'Entdecken',
   'Chỗ nghỉ ven biển': 'Unterkünfte am Strand',

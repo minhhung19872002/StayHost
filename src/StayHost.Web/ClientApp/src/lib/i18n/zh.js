@@ -65,7 +65,7 @@ export default {
   'Tính năng mới': '新功能',
   'Cơ hội nghề nghiệp': '招聘',
   'Nhà đầu tư': '投资者',
-  'Chỗ ở khẩn cấp StayHost.org': '紧急住宿 — StayHost.org',
+  'Chỗ ở khẩn cấp Staylio.org': '紧急住宿 — Staylio.org',
   'Thẻ quà tặng': '礼品卡',
   'Khám phá': '探索',
   'Chỗ nghỉ ven biển': '海滨住宿',

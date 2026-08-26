@@ -92,7 +92,7 @@ const EN = {
   'Tính năng mới': "What's new",
   'Cơ hội nghề nghiệp': 'Careers',
   'Nhà đầu tư': 'Investors',
-  'Chỗ ở khẩn cấp StayHost.org': 'Emergency stays — StayHost.org',
+  'Chỗ ở khẩn cấp Staylio.org': 'Emergency stays — Staylio.org',
   'Thẻ quà tặng': 'Gift cards',
   'Khám phá': 'Explore',
   'Chỗ nghỉ ven biển': 'Beachfront stays',

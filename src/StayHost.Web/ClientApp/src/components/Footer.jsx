@@ -17,7 +17,7 @@ const COLUMNS = [
   {
     title: 'Staylio',
     links: ['Trang tin tức', 'Tính năng mới', 'Cơ hội nghề nghiệp',
-            'Nhà đầu tư', 'Chỗ ở khẩn cấp StayHost.org', 'Thẻ quà tặng']
+            'Nhà đầu tư', 'Chỗ ở khẩn cấp Staylio.org', 'Thẻ quà tặng']
   },
   {
     title: 'Khám phá',
