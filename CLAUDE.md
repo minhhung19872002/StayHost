@@ -364,6 +364,15 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   đi soát tên miền để đổi. Giờ là `Site:PublicUrl`, và nó **rơi về `Psp:PublicUrl`**
   khi để trống — cùng một địa chỉ, nên không đẻ ra biến thứ hai phải nhớ sửa cùng lúc.
   Không có địa chỉ nào thì **bỏ hẳn dòng link** chứ không đoán tên miền.
+- **`pgrep -f` khớp luôn chính câu lệnh đang gọi nó.** Dòng cron canh runner viết
+  `pgrep -f "Runner.Listener" || khoi_dong_lai` **không bao giờ khởi động lại**: cron
+  chạy nó qua `sh -c '...'`, mà dòng lệnh của chính `sh` đó có chứa chuỗi tìm kiếm, nên
+  `pgrep` luôn tự thấy mình và kết luận "đang chạy". Không có lỗi, không có log, chỉ là
+  một lưới an toàn không bao giờ bung. Cùng cái bẫy đó, `pkill -f "Runner.Listener"` gõ
+  qua SSH **tự cắt phiên SSH của mình**. Dùng ngoặc vuông: `pgrep -f "[R]unner.Listener"`
+  — regex khớp `Runner.Listener` nhưng dòng lệnh chứa `[R]unner.Listener` thì không khớp.
+  Kiểm chứng bằng cách **giết tiến trình thật rồi xem lưới có bung không**, đừng đọc dòng
+  cron rồi tin.
 - **Mật khẩu seed + 2FA tắt + repo công khai = trang quản trị bỏ ngỏ.** Ngày 26/08
   phát hiện `admin@stayhost.vn` / `stayhost123` **đăng nhập được vào prod**: `README.md`
   in nguyên bảng đó trên một repo PUBLIC, còn `ADMIN_REQUIRE_2FA=false` — ngoại lệ khẩn
@@ -576,7 +585,7 @@ không áp dụng.
 
 | Việc | Vì sao chưa xong |
 |---|---|
-| **Runner chạy tạm, chưa thành service** | Nó **chưa bao giờ được cài systemd**: không có `.service`, không có unit — nên `sudo ./svc.sh start` không có gì để khởi động, mà cũng không báo gì ra ngoài ngoài chữ "offline" trên GitHub. Hiện đang chạy bằng `setsid nohup ./run.sh` nên **chết khi máy khởi động lại**. Cài hẳn: `cd ~/actions-runner && sudo ./svc.sh install hung && sudo ./svc.sh start` |
+| **Runner giữ bằng cron, chưa phải systemd** | Nó **chưa bao giờ được cài service**: không có `~/actions-runner/.service`, không có unit — nên `sudo ./svc.sh start` không có gì để khởi động, và triệu chứng duy nhất là chữ "offline" trên GitHub. Không có sudo nên đang giữ bằng **crontab của `hung`**, `*/5` dựng lại nếu không thấy tiến trình: bao cả reboot lẫn crash, nhưng không có auto-restart tức thì như systemd. Cài hẳn thì **xoá dòng cron trước** (`crontab -e`), rồi `cd ~/actions-runner && sudo ./svc.sh install hung && sudo ./svc.sh start` — để cả hai là hai runner tranh nhau |
 
 | Google origins + Apple Return URL | Khai ở console của nhà cung cấp. Quên thì báo `origin_mismatch`, **không có log nào bên mình** |
 | Địa chỉ website ở cổng VNPay/MoMo/ZaloPay/OnePay | Mỗi bên chặn IPN theo tên miền đã đăng ký |
