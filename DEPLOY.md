@@ -1,6 +1,16 @@
 # Triển khai & CI/CD
 
-Máy chủ hiện tại: VPS Ubuntu 24.04, 1 vCPU / 2 GB RAM, IP `45.119.215.96`.
+Máy chủ hiện tại: VPS Ubuntu, IP `14.225.83.93`, hostname `bluestar01`. Tên miền
+chính là **`staylio.vn`** (kèm `www`); `staylio.bluestar.com.vn` vẫn trỏ về đây trong
+thời gian chuyển tiếp.
+
+> **Máy này không của riêng StayHost.** Nó chạy chung với `bluedental`, `blueidea`,
+> `foodsafe`, `starlab`. Cổng 80/443 do **một container Caddy dùng chung** (`proxy-caddy`)
+> giữ — **không có Nginx và không có Certbot trên host**. Vì thế
+> `deploy/setup-nginx.sh` và `deploy/nginx/stayhost.conf` **không áp dụng cho máy này**:
+> chạy chúng sẽ cài Nginx giành cổng 443 với Caddy và làm sập cả năm dự án, không riêng
+> StayHost. Hai file đó giữ lại cho một máy chủ chỉ chạy StayHost. Cách thêm tên miền ở
+> đây xem §2.7.
 
 ## 1. Kiến trúc
 
@@ -13,7 +23,7 @@ push main  ──►  GitHub Actions (runner của GitHub)
                                              ▼
                         docker compose pull + up -d  →  kiểm tra /health
                                              ▼
-                        Nginx (443, TLS) ──► 127.0.0.1:8090 ──► container web
+                     proxy-caddy (443, TLS) ──► stayhost-web:8080
                                                                       │
                                                                   container db
 ```
@@ -299,6 +309,52 @@ File cố ý **không** theo mẫu riêng của một ngân hàng nào. Đoán s
 lên được và trả tiền cho nhầm người; sáu cột này là phần chung của mọi mẫu, người vận
 hành ánh xạ một lần.
 
+## 2.7. Thêm / đổi tên miền (Caddy dùng chung)
+
+TLS ở máy này do container `proxy-caddy` lo, và Caddy **tự xin chứng chỉ Let's Encrypt**
+— không chạy `certbot`, không có `setup-nginx.sh`. Mỗi dự án một file trong
+`/home/hung/proxy/sites/*.caddy`, `Caddyfile` chỉ `import` cả thư mục.
+
+Điều kiện tiên quyết: **bản ghi A phải trỏ về `14.225.83.93` trước**. Caddy dùng thử
+thách `tls-alpn-01`, Let's Encrypt phải gọi ngược vào đúng máy này; tên miền chưa trỏ
+đúng thì xin chứng chỉ trượt, và Let's Encrypt **giới hạn 5 lần thất bại mỗi giờ cho
+mỗi tên miền** — nên kiểm tra phân giải trước, đừng thử đại.
+
+```bash
+# 1. Kiểm tra tên miền đã về đúng máy chưa
+dig +short staylio.vn @8.8.8.8          # phải ra 14.225.83.93
+
+# 2. Sửa file site (user hung sở hữu, KHÔNG cần sudo)
+cd /home/hung/proxy/sites
+cp stayhost.caddy stayhost.caddy.bak-$(date +%Y%m%d)
+# đầu khối liệt kê các tên miền, cách nhau bởi dấu phẩy:
+#   staylio.vn, www.staylio.vn, staylio.bluestar.com.vn {
+
+# 3. Kiểm cú pháp TOÀN BỘ config trước khi nạp — file này dùng chung 5 dự án
+docker exec proxy-caddy caddy validate --config /etc/caddy/Caddyfile
+
+# 4. Nạp lại (graceful; cấu hình hỏng thì Caddy giữ nguyên cái đang chạy)
+docker exec proxy-caddy caddy reload --config /etc/caddy/Caddyfile
+
+# 5. Xem Caddy xin chứng chỉ tới đâu
+docker logs proxy-caddy --since 3m 2>&1 | grep -iE "obtain|challenge|error"
+```
+
+Kiểm tra xong **đừng tin mỗi mã 200**: `curl -s https://staylio.vn/api/meta` phải trả
+JSON có `"categories"`. Cùng một máy phục vụ năm dự án, và một cấu hình sai có thể đưa
+tên miền này sang ứng dụng khác mà vẫn trả 200.
+
+Đổi tên miền còn ba chỗ **ngoài** máy chủ, không có cái nào báo lỗi nếu quên:
+
+| Chỗ | Quên thì sao |
+|---|---|
+| `PSP_PUBLIC_URL` trong `~/deploy/stayhost.env` | Cổng thanh toán gọi ngược về tên miền cũ. Đây cũng là địa chỉ đặt trước link trong email (`Site:PublicUrl` rơi về nó) |
+| **Authorised JavaScript origins** của Google, **Return URL** của Apple | Nút đăng nhập báo `origin_mismatch`; lỗi nằm ở phía nhà cung cấp nên **không có log nào bên mình** |
+| Địa chỉ website khai ở cổng quản trị VNPay / MoMo / ZaloPay / OnePay | Mỗi bên chặn IPN theo tên miền đã đăng ký |
+
+Sửa `~/deploy/stayhost.env` **không** cần khởi động lại ngay: lần deploy kế tiếp
+`docker compose up -d` sẽ nạp. Muốn có hiệu lực ngay thì chạy lại lệnh ở §3.
+
 ## 3. Các lệnh vận hành
 
 Tất cả chạy với user `hung`:
@@ -361,6 +417,10 @@ Certbot tự gia hạn qua timer `certbot.timer`. Kiểm tra: `sudo certbot rene
 
 ## 4. Dựng lại từ đầu
 
+> **Phần này viết cho một máy chủ chỉ chạy StayHost.** Máy `bluestar01` hiện tại
+> **không** như vậy — nó dùng chung Caddy với bốn dự án khác, nên **bỏ qua bước 1 và
+> bước 5**, và thêm tên miền theo §2.7. Xem cảnh báo ở đầu tài liệu.
+
 Ba script dưới đây cần `sudo`, nên phải chạy trong terminal SSH thật (chế độ `!` của
 Claude Code không có TTY để nhập mật khẩu).
 
@@ -374,3 +434,5 @@ Claude Code không có TTY để nhập mật khẩu).
 4. Push lên `main` (hoặc bấm *Run workflow*) để CI/CD chạy lần đầu và dựng stack.
 5. `sudo bash deploy/setup-nginx.sh <tên miền> <email>` — reverse proxy + TLS.
    Chạy sau bước 4 vì Certbot cần site trả lời được trên cổng 80.
+   **Trên `bluestar01` thì không chạy bước này** — Caddy đang giữ cổng 443, cài Nginx
+   vào là giành cổng và làm sập cả năm dự án. Dùng §2.7 thay thế.

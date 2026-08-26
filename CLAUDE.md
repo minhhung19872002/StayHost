@@ -543,20 +543,36 @@ Khách chốt bỏ `staylio.bluestar.com.vn`, và bỏ luôn domain email `stayh
 Trong repo đã đổi hết: tài khoản seed (`guest@staylio.vn`…), `Email:FromAddress`,
 User-Agent gọi VNPay, mọi script nghiệm thu, `DEPLOY.md`, `README.md`.
 
-**Phần còn lại nằm trên máy chủ, không nằm trong repo** — làm theo thứ tự:
+**Đã làm xong trên máy chủ:**
 
-1. `sudo bash deploy/setup-nginx.sh staylio.vn <email>` — site mới + chứng chỉ
-   Let's Encrypt mới. Tên miền cũ vẫn chạy cho tới khi gỡ khỏi `sites-enabled`.
-2. `~/deploy/stayhost.env`: `PSP_PUBLIC_URL=https://staylio.vn`. **Đây là biến
-   quan trọng nhất** — cổng thanh toán gọi ngược về địa chỉ này, sai là IPN không
-   tới nơi và đơn treo ở "chờ thanh toán" cho tới khi `PspSweeper` tự hỏi lại.
-3. Khai lại **Authorised JavaScript origins** của Google (`console.cloud.google.com`)
-   và **Return URL** của Apple. Không khai thì nút đăng nhập báo `origin_mismatch`,
-   và đó là lỗi ở phía nhà cung cấp nên không có log nào bên mình.
-4. Khai lại địa chỉ website ở cổng quản trị VNPay/MoMo/ZaloPay/OnePay — mỗi bên
-   chặn IPN theo tên miền đã đăng ký.
-5. `EMAIL_FROM=no-reply@staylio.vn` chỉ gửi được khi SPF/DKIM của tên miền mới đã
-   dựng; chưa có thì thư bị đánh dấu spam chứ không báo lỗi.
+- Bản ghi A của `staylio.vn` và `www` (P.A Việt Nam) trỏ về `14.225.83.93`. Trước đó
+  cả hai là `127.0.0.1` — bản ghi mặc định của nhà đăng ký, **không** phải chưa cấu hình.
+- `proxy/sites/stayhost.caddy` phục vụ cả ba tên miền; Caddy đã xin xong chứng chỉ
+  Let's Encrypt cho `staylio.vn` và `www.staylio.vn`. Tên miền cũ **cố ý giữ lại**.
+- `~/deploy/stayhost.env`: `PSP_PUBLIC_URL=https://staylio.vn` (bản sao lưu
+  `stayhost.env.bak-truoc-doi-ten-mien-20260826`). **Chưa restart** — lần deploy kế
+  tiếp nạp. Đây cũng là địa chỉ đặt trước link trong email, vì `Site:PublicUrl` rơi
+  về nó.
+
+**Máy chủ không giống tài liệu cũ.** `DEPLOY.md` từng ghi IP `45.119.215.96` và TLS
+bằng nginx + certbot. Thật ra là `14.225.83.93`, hostname `bluestar01`, và cổng 443 do
+**một container Caddy dùng chung với `bluedental`/`blueidea`/`foodsafe`/`starlab`** giữ
+— host **không có** `/etc/nginx` lẫn `/etc/letsencrypt`. Ai tin tài liệu cũ mà chạy
+`deploy/setup-nginx.sh` sẽ giành cổng 443 và **làm sập cả năm dự án**. Đã sửa
+`DEPLOY.md`: cảnh báo ở đầu, `§2.7` là cách thêm tên miền thật, `§4` đánh dấu bước nào
+không áp dụng.
+
+**Còn lại, đều nằm ngoài tầm với của repo:**
+
+| Việc | Vì sao chưa xong |
+|---|---|
+| Deploy code mới | **Runner `bluestar01` đang offline**, job "Deploy to VPS" xếp hàng vô hạn. Bật lại cần `sudo`: `cd ~/actions-runner && sudo ./svc.sh start` |
+| Google origins + Apple Return URL | Khai ở console của nhà cung cấp. Quên thì báo `origin_mismatch`, **không có log nào bên mình** |
+| Địa chỉ website ở cổng VNPay/MoMo/ZaloPay/OnePay | Mỗi bên chặn IPN theo tên miền đã đăng ký |
+| `EMAIL_HOST` | **Không có trong env file** — nên thư nằm im trong hàng đợi, kể cả mã 6 số đăng nhập quản trị. Tên miền mới đã có sẵn SPF + DKIM trỏ `maychuemail.com`, nên chỉ cần tạo hòm thư rồi điền SMTP |
+
+**Prod đang chạy toàn khoá sandbox** (`VNPAY_TMN_CODE=GLQWM7J8`, MoMo `MOMOBKUN…`,
+ZaloPay `2553`, OnePay `TESTONEPAY`) — chưa đồng nào là tiền thật, đúng như `§8.1`.
 
 **Cơ sở dữ liệu đang chạy giữ nguyên email cũ.** `DbSeeder` chỉ chạy trên DB trắng,
 nên bản prod vẫn còn `admin@stayhost.vn`. Đổi tài khoản quản trị bằng `ADMIN_EMAIL`;
