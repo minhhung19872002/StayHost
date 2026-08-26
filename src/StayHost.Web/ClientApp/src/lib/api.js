@@ -345,6 +345,7 @@ export const api = {
   // never offered the same list by two copies drifting apart.
   reportReasons: target => request(`/api/reports/reasons/${target}`),
   adminOverview: () => request('/api/admin/overview'),
+  adminPresence: () => request('/api/admin/presence'),
   adminPublish: (id, published, reason) =>
     request(`/api/admin/listings/${id}/publish?published=${published}`, {
       method: 'POST', body: JSON.stringify({ reason }),

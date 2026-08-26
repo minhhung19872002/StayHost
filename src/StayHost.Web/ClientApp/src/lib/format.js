@@ -121,6 +121,17 @@ export function monthLabel(text) {
 export const shortDate = iso => SHORT.format(parseIso(iso));
 export const longDate = iso => LONG.format(parseIso(iso));
 export const dateTime = value => TIME.format(new Date(value));
+
+/**
+ * Just the clock, in the reader's language.
+ *
+ * dateTime() carries the date too, and slicing the first five characters off it
+ * to "get the time" only works in a language that happens to put the time last:
+ * Vietnamese renders "22:42 26-08" and Japanese renders "08/26 22:42", so the
+ * same slice showed a date to half the readers.
+ */
+export const clockTime = value =>
+  dateFormat({ hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 export const dateRangeLabel = (a, b) => `${shortDate(a)} – ${shortDate(b)}`;
 
 export function debounce(fn, wait = 260) {

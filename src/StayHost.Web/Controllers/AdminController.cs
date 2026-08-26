@@ -13,7 +13,7 @@ namespace StayHost.Web.Controllers;
 [Route("api")]
 public class AdminController(
     StayHostDbContext db, AuthService auth, NotificationService notifications, AdminAudit audit,
-    AdminGate gate)
+    AdminGate gate, PresenceTracker presence)
     : ControllerBase
 {
     /* ------------------------------------------------------------- reports */
@@ -147,6 +147,30 @@ public class AdminController(
     // below asks for the narrower scope it actually requires.
     private Task<User?> RequireAdminAsync(CancellationToken ct) =>
         audit.RequireAsync(AdminScope.Support, ct);
+
+    /// <summary>
+    /// How many people are on the site right now.
+    ///
+    /// Its own endpoint rather than a field on the overview, because the two
+    /// have nothing in common but the page they appear on: this one is cheap
+    /// enough to poll every half minute and answers from memory, while the
+    /// overview runs a dozen aggregate queries and would be wasteful at that
+    /// rate. Support scope, the same as the rest of the dashboard — it names no
+    /// individual, so there is nothing here a support admin should not see.
+    /// </summary>
+    [HttpGet("admin/presence")]
+    public async Task<ActionResult<PresenceDto>> Presence(CancellationToken ct)
+    {
+        if (await RequireAdminAsync(ct) is null)
+            return StatusCode(403, new { message = "Chỉ quản trị viên mới xem được trang này." });
+
+        var now = DateTime.UtcNow;
+        var live = presence.Read(now);
+
+        return Ok(new PresenceDto(
+            live.Total, live.SignedIn, live.Guests,
+            live.Peak, live.Since, live.WindowMinutes, live.At));
+    }
 
     [HttpGet("admin/overview")]
     public async Task<ActionResult<AdminOverviewDto>> Overview(CancellationToken ct)

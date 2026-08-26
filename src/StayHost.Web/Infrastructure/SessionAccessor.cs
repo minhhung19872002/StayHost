@@ -10,6 +10,17 @@ public static class SessionAccessor
 {
     public const string CookieName = "sh_sid";
     private const string ItemKey = "__sh_sid";
+    private const string FreshKey = "__sh_sid_fresh";
+
+    /// <summary>
+    /// True when this request arrived with no usable cookie and was handed a new
+    /// one. Worth telling apart: something that stores and returns a cookie is a
+    /// browser, and something that never does is almost always a crawler being
+    /// issued a fresh identity on every single request. The live-visitor count
+    /// leans on exactly that difference (see <c>Presence.CountsAsVisit</c>).
+    /// </summary>
+    public static bool SessionIsNew(this HttpContext ctx) =>
+        ctx.Items.TryGetValue(FreshKey, out var v) && v is true;
 
     public static string SessionId(this HttpContext ctx)
     {
@@ -18,6 +29,7 @@ public static class SessionAccessor
         var sid = ctx.Request.Cookies[CookieName];
         if (string.IsNullOrWhiteSpace(sid) || sid.Length > 64)
         {
+            ctx.Items[FreshKey] = true;
             sid = Guid.NewGuid().ToString("N");
             ctx.Response.Cookies.Append(CookieName, sid, new CookieOptions
             {

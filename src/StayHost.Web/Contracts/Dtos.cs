@@ -639,6 +639,19 @@ public record ResolutionEventDto(string FromLabel, string ToLabel, string Actor,
 
 /* -------------------------------------------------------------------- admin */
 
+/// <summary>
+/// The live visitor count for the admin dashboard.
+///
+/// <paramref name="Since"/> and <paramref name="WindowMinutes"/> travel with the
+/// numbers on purpose: "12 người" means nothing without "trong 5 phút qua", and
+/// a peak means nothing without knowing it is measured from the last restart.
+/// A figure whose definition is left in the code gets read as whatever the
+/// person looking at it assumes.
+/// </summary>
+public record PresenceDto(
+    int Total, int SignedIn, int Guests,
+    int Peak, DateTime Since, int WindowMinutes, DateTime At);
+
 public record AdminOverviewDto(
     int Users, int Hosts, int Listings, int PublishedListings, int Drafts,
     int Bookings, int ActiveBookings, decimal GrossVolume, decimal PlatformRevenue,

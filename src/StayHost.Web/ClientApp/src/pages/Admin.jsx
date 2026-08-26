@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import { set, loadAdmin, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
-import { money, longDate, dateTime } from '../lib/format.js';
+import { money, longDate, dateTime, clockTime } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 import { FinancePanel, ReconciliationPanel, TransactionsPanel, ChargebackPanel, PayoutBatchPanel } from './admin/Finance.jsx';
 import { BankTransferPanel } from './admin/BankTransfers.jsx';
@@ -69,6 +69,9 @@ export function Admin() {
         <Stat label={t('Báo cáo đang mở')} value={String(d.openReports)} note={t('Cần xử lý')} />
         <Stat label={t('Email chờ gửi')} value={String(d.queuedEmails)} note={t('Hàng đợi giao dịch')} />
       </div>
+
+      <h2 className="section-title" style={{ fontSize: 20, marginTop: 30 }}>{t('Người đang trên sàn')}</h2>
+      <LivePresence />
 
       <ShieldPanel />
 
@@ -1028,6 +1031,81 @@ function RiskPanel() {
         </div>
       ) : <p className="section-sub">{t('Không có cảnh báo nào đang mở.')}</p>}
     </section>
+  );
+}
+
+/**
+ * How many people are on the site right now.
+ *
+ * Polls rather than pushing: the number is only interesting while somebody is
+ * looking at it, and a websocket for one figure on one page would be a lot of
+ * moving parts to keep alive. Thirty seconds is well inside the five-minute
+ * window the count uses, so nothing is missed between reads.
+ *
+ * Every label carries its own definition — "trong 5 phút qua", "từ HH:mm". A
+ * bare "12" gets read as whatever the person looking at it assumes, and the two
+ * reasonable assumptions (right this second / today) are both wrong.
+ */
+function LivePresence() {
+  const [live, setLive] = useState(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    const read = async () => {
+      try {
+        const data = await api.adminPresence();
+        if (alive) { setLive(data); setFailed(false); }
+      } catch {
+        // A blip must not blank the panel — the last reading stays, flagged.
+        if (alive) setFailed(true);
+      }
+    };
+    read();
+    const timer = setInterval(read, 30_000);
+    return () => { alive = false; clearInterval(timer); };
+  }, []);
+
+  if (!live) {
+    return (
+      <div className="stat-grid" style={{ marginTop: 16 }}>
+        <div className="stat skeleton" style={{ height: 110, border: 0 }} />
+      </div>
+    );
+  }
+
+  /*
+   * Whole sentences, not phrases glued together.
+   *
+   * Translating "trong" and "phút qua" separately and gluing the number between
+   * them reads correctly in Vietnamese and
+   * falls apart in Japanese and Korean, which put the number and the particle
+   * in a different order — the mistake CLAUDE.md §4 already records once. t()
+   * keys the whole sentence with a {} where the number goes, so one entry
+   * covers every value and each language keeps its own word order. The {} is
+   * filled in here rather than by t()'s number-lifting, because a literal is
+   * what scripts/i18n_audit.py can see — a template string reaches it as two
+   * fragments and the real key looks missing.
+   */
+  return (
+    <div className="stat-grid" style={{ marginTop: 16 }}>
+      <Stat
+        label={t('Đang truy cập')}
+        value={String(live.total)}
+        note={t('trong {} phút qua').replace('{}', live.windowMinutes)} />
+      <Stat
+        label={t('Đã đăng nhập')}
+        value={String(live.signedIn)}
+        note={t('{} khách chưa đăng nhập').replace('{}', live.guests)} />
+      <Stat
+        label={t('Cao nhất')}
+        value={String(live.peak)}
+        note={t('kể từ {}').replace('{}', dateTime(live.since))} />
+      <Stat
+        label={t('Số liệu lúc')}
+        value={clockTime(live.at)}
+        note={failed ? t('Chưa đọc lại được — số cũ') : t('Tự đọc lại mỗi 30 giây')} />
+    </div>
   );
 }
 

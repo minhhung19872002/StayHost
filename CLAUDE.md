@@ -55,7 +55,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (26/08/2026).** 1152 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (26/08/2026).** 1158 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **34/34** kịch bản chuyển tiền cho chủ nhà và đối chiếu sao kê (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
@@ -125,6 +125,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Đường cho Google đi | Thứ quyết định không phải sitemap mà là **liên kết**. `Card` giờ là `<a href="/rooms/…">` thật — trước đó là `div onClick`, nên **không tin đăng nào có một liên kết nào trỏ tới**. Footer lấy danh sách thành phố từ `meta.cityLinks` (server sinh cả slug) thay vì 6 dòng đóng cứng trong khi sàn có 18. Trang thành phố **phân trang** (`?trang=N`, 12 tin/trang, `Seo.CityPageSize`) nên tin thứ 13 trở đi vẫn có liên kết; dải phân trang là `<a href>` thật, và `?trang=N` là **query duy nhất canonical giữ lại** — gộp nó về trang 1 là khai với Google rằng trang 2 trùng nội dung |
 | Mã trạng thái đúng cho từng địa chỉ | `SpaRoutes` + `PageExistence`: địa chỉ không có trang nào phía sau trả **404** thay vì 200 kèm shell rỗng. Địa chỉ dưới `/api/` không khớp controller trả 404 **rỗng**, không trả HTML — trả HTML là cách một lời gọi sai động từ đọc thành thành công. Trang `NotFound` có `noindex, follow`, và app tự gỡ thẻ đó khi rời trang |
 | Thẻ chia sẻ do máy chủ sinh | `ShellSeo.cs` thay khối `<!--seo:start-->…<!--seo:end-->` của `index.html` theo từng địa chỉ, **ngay câu trả lời đầu tiên**: tiêu đề, mô tả, canonical, `og:url`, `og:image`. Facebook/Zalo/Messenger không chạy JS nên đây là bản duy nhất chúng đọc. Ảnh mặc định `wwwroot/og-default.png` (1200×630); tin đăng dùng ảnh của chính nó |
+| Người đang trên sàn | Trang quản trị đếm **số người đang truy cập** theo cookie phiên `sh_sid` — khách chưa đăng nhập cũng tính, vì phần lớn lưu lượng của một sàn đặt phòng là người chưa có tài khoản. Cửa sổ 5 phút (`Presence.Window`), tách **đã đăng nhập / khách**, kèm đỉnh kể từ lần khởi động. Đếm **trong bộ nhớ** (`PresenceTracker`), không ghi bảng: đây là đường ghi bận nhất của app mà con số thì không ai cần giữ lại. Bot bị loại ba lớp — User-Agent, đường máy gọi máy (`/health`, IPN của cổng thanh toán), và **cookie phải được gửi trả lại** (crawler không giữ cookie nên mỗi request của nó là một danh tính mới) |
 | Hiếm có & sắp hết phòng | `Scarcity.cs` là **một ngưỡng cho hai chỗ**: dấu "Hiếm có" trên trang chi tiết (`TĐ-23`) và thông báo "sắp hết phòng" cho chỗ đã lưu (`YT-08`). Dưới 25% đêm trống trong 60 ngày tới, và bỏ qua khi cửa sổ chưa đủ 14 đêm — tin mới khoá sạch lịch là *trống*, không phải *đắt khách*. `ScarcitySweeper` chỉ báo **lúc vượt ngưỡng**, cột `LowAvailabilityNotifiedAt` xoá về null khi lịch mở lại |
 
 ---
@@ -471,6 +472,18 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   12:00 UTC thì "đơn chưa trả phòng" → kịch bản 10 hỏng mỗi buổi sáng, đạt mỗi buổi
   chiều, và trông hệt như một test chập chờn. Cửa sổ đúng là `CheckOut@12:00` nằm
   trong `(now-24h, now]`.
+- **`slice(0, 5)` để "lấy giờ" chỉ đúng với ngôn ngữ đặt giờ ở cuối.** Ô "Số liệu
+  lúc" cắt năm ký tự đầu của `dateTime()`: tiếng Việt ra `22:42` (chuỗi là
+  "22:42 26-08"), tiếng Nhật ra **`08/26`** vì `Intl` đặt ngày trước. Không có lỗi,
+  không có test nào bắt được — chỉ là một nửa số người đọc thấy ngày ở ô ghi "lúc".
+  Giờ có `clockTime()` trong `format.js`. Cắt chuỗi ngày giờ theo vị trí ký tự là
+  hard-code định dạng của một ngôn ngữ.
+- **`scripts/i18n_audit.py` quét cả comment, và không đọc được template literal.**
+  Viết `t(`trong ${n} phút qua`)` thì nó thấy hai mảnh "trong" và "phút qua" rồi báo
+  thiếu khoá — mà ghép ba mảnh như vậy **cũng sai thật** với tiếng Nhật/Hàn. Cách
+  đúng là một khoá nguyên câu có `{}` và tự `.replace('{}', n)`: literal nên audit
+  soát được, và mỗi thứ tiếng giữ trật tự của nó. Ngược lại, một ví dụ `t('...')`
+  viết trong **comment** cũng bị đếm là khoá thiếu.
 - **Quy tắc "đừng đổi identifier" cũng che mất chữ hiển thị.** Đổi tên thương hiệu
   bằng regex `StayHost(?![.\w])` — cốt giữ `StayHost.Domain` và `StayHostDbContext` —
   bỏ sót **166 dòng**: `StayHost.` cuối câu (dấu chấm câu, không phải namespace),
@@ -605,7 +618,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 1152 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1158 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09

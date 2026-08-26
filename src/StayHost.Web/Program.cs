@@ -97,6 +97,10 @@ builder.Services.AddDbContext<StayHostDbContext>(o => o
     .UseNpgsql(connectionString, npg => npg.EnableRetryOnFailure(5, TimeSpan.FromSeconds(5), null)));
 
 builder.Services.AddHttpContextAccessor();
+
+// The live visitor count. Singleton because the whole point is that it survives
+// between requests; see PresenceTracker for what that does and does not promise.
+builder.Services.AddSingleton<PresenceTracker>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<ReviewService>();
@@ -277,6 +281,8 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+var presence = app.Services.GetRequiredService<PresenceTracker>();
+
 app.UseResponseCompression();
 
 app.UseDefaultFiles();
@@ -295,8 +301,25 @@ app.UseStaticFiles(new StaticFileOptions
 // Every request gets a wishlist identity, including the first HTML hit.
 app.Use(async (ctx, next) =>
 {
-    ctx.SessionId();
+    var sid = ctx.SessionId();
+    var counts = Presence.CountsAsVisit(
+        ctx.Request.Path.Value,
+        ctx.Request.Headers.UserAgent.ToString(),
+        broughtCookie: !ctx.SessionIsNew());
+
     await next();
+
+    // Counted AFTER the request, so the signed-in user is known: AuthService
+    // caches whoever it resolved in HttpContext.Items, and most endpoints have
+    // asked by the time they finish. Before next(), every visitor would look
+    // like a guest.
+    if (!counts) return;
+
+    var user = ctx.Items.TryGetValue("__sh_user", out var u) ? u as StayHost.Domain.User : null;
+    presence.Touch(
+        sid, user?.Id,
+        hasAuthCookie: ctx.Request.Cookies.ContainsKey(StayHost.Web.Services.AuthService.CookieName),
+        DateTime.UtcNow);
 });
 
 // docs/08 §7.6 — the nine things a support session inside somebody's account
