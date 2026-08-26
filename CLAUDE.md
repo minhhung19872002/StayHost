@@ -49,7 +49,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (18/08/2026).** 1101 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (18/08/2026).** 1132 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **34/34** kịch bản chuyển tiền cho chủ nhà và đối chiếu sao kê (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
@@ -115,6 +115,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Máy dịch | `libretranslate` tự host trong cả hai compose — **không cần khoá API, không tính tiền theo ký tự**. Đủ 8 thứ tiếng, trùng khít danh sách giao diện. Kết quả cache trong `translation_caches`, mỗi (chuỗi × ngôn ngữ) chỉ dịch một lần |
 | Hạn dùng số dư | `docs/07 §16` đã chốt (11/08/2026): bù đắp / giới thiệu bạn / hoàn khi huỷ **12 tháng**, thẻ quà tặng **không hết hạn**. Hạn đóng dấu **lúc cấp**, nên đổi tham số về sau không với ngược lại số dư khách đang giữ |
 | Cẩm nang chủ nhà (`TĐ-22`) | Chủ nhà tự viết danh sách chỗ nên đi cho từng tin: tám nhóm (quán ăn / cà phê / tham quan / thiên nhiên / mua sắm / về đêm / đi lại / lời khuyên), mỗi mục có lý do giới thiệu, địa chỉ và toạ độ tuỳ chọn. Toạ độ **phải đủ cả hai nửa** (`Guidebooks.HasPin`) — nửa vĩ độ đơn độc rơi xuống biển ngoài châu Phi. Chữ do người viết nên đi qua `TranslatedText`, không vào từ điển giao diện |
+| SEO cho sàn đặt phòng | `robots.txt` + `sitemap.xml` **sinh từ DB** (`SeoController`): trang thành phố, tin đăng, trải nghiệm, dịch vụ, bài trợ giúp. Cả hai **phục vụ động** vì phải nói ra tên miền, mà tên miền là cấu hình chứ không phải hằng số. Quy tắc "đường nào không được cho Google thấy" nằm trong `Seo.cs` với 31 test — vài đường **mang bí mật ngay trong địa chỉ** (`/split/`, `/wishlist/`, `/chuyen-khoan/`), lọt vào sitemap là công bố link của người khác. Canonical do `lib/canonical.js` đặt **theo từng địa chỉ** |
 | Hiếm có & sắp hết phòng | `Scarcity.cs` là **một ngưỡng cho hai chỗ**: dấu "Hiếm có" trên trang chi tiết (`TĐ-23`) và thông báo "sắp hết phòng" cho chỗ đã lưu (`YT-08`). Dưới 25% đêm trống trong 60 ngày tới, và bỏ qua khi cửa sổ chưa đủ 14 đêm — tin mới khoá sạch lịch là *trống*, không phải *đắt khách*. `ScarcitySweeper` chỉ báo **lúc vượt ngưỡng**, cột `LowAvailabilityNotifiedAt` xoá về null khi lịch mở lại |
 
 ---
@@ -364,6 +365,19 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   đi soát tên miền để đổi. Giờ là `Site:PublicUrl`, và nó **rơi về `Psp:PublicUrl`**
   khi để trống — cùng một địa chỉ, nên không đẻ ra biến thứ hai phải nhớ sửa cùng lúc.
   Không có địa chỉ nào thì **bỏ hẳn dòng link** chứ không đoán tên miền.
+- **Một `canonical` cố định trong SPA sẽ xoá sổ toàn bộ danh mục khỏi Google.** Mọi
+  địa chỉ ở đây đều nhận cùng một `index.html`, nên đặt sẵn `<link rel="canonical">`
+  trong file đó là **khai với Google rằng mọi tin đăng đều là bản sao của trang chủ** —
+  và chúng rơi khỏi chỉ mục. Canonical phải theo từng địa chỉ (`lib/canonical.js` đặt
+  lại sau mỗi lần chuyển trang) hoặc không có. Với sàn đặt phòng thì bắt buộc phải có:
+  bộ lọc ngày/khách sinh ra vô số địa chỉ cùng nội dung, và Google chia điểm cho tất cả
+  rồi không tin cái nào. Kiểm bằng **trình duyệt thật** — thẻ do JS đặt, `curl` không thấy.
+- **Chữ trong `meta description` cũng là chữ hiển thị, và nó hiện trên Google.**
+  `index.html` hứa "huỷ miễn phí trước 48 giờ" từ đầu, trong khi **không bậc huỷ nào là
+  48 giờ**: Linh hoạt 24 giờ, Vừa phải 5 ngày (mặc định), Chặt 30/7 ngày, Rất chặt 7
+  ngày, hoặc không hoàn (`Cancellation.cs`). Cùng loại lỗi với trang dịch vụ hứa 24 giờ
+  khi luật là 72 giờ — nhưng nặng hơn, vì đây là dòng chữ người ta đọc **trước khi** bấm
+  vào, tức một lời hứa đưa ra trước cả khi khách tới sàn.
 - **Tài liệu viết `sudo` không có nghĩa là tài khoản đó sudo được.** `DEPLOY.md §4`
   bảo `sudo bash deploy/setup-runner-service.sh`, nhưng trên `bluestar01` thì `hung`
   không nằm trong sudoers và nhóm `sudo` **rỗng** — máy được quản trị bằng root trực
@@ -512,7 +526,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 1101 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1132 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09

@@ -6,6 +6,7 @@ import {
 } from './lib/store.js';
 import { queryToSearch } from './lib/urlState.js';
 import { setNavigator } from './lib/nav.js';
+import { applyCanonical } from './lib/canonical.js';
 
 import { Header } from './components/Header.jsx';
 import { Footer } from './components/Footer.jsx';
@@ -97,6 +98,14 @@ export function App() {
     if (!location.pathname.startsWith('/rooms/') && store.detail) {
       set({ detail: null, quote: null, bookingResult: null, bookingError: null });
     }
+  }, [location.pathname]);
+
+  // A route change here never reloads the document, so the canonical and og:url
+  // tags would otherwise keep pointing at whatever page was opened first — every
+  // room sharing the home page's preview card, and every filtered city address
+  // competing with the plain one for the same ranking.
+  useEffect(() => {
+    applyCanonical(location.pathname);
   }, [location.pathname]);
 
   if (state.metaError) {
