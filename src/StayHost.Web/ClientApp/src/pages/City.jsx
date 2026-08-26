@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Card } from '../components/Card.jsx';
 import { t } from '../lib/i18n.js';
@@ -13,14 +13,18 @@ import { setPageMeta, setStructuredData, cityJsonLd, breadcrumbJsonLd } from '..
 export function City() {
   const { city } = useParams();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const pageNo = Math.max(1, Number(params.get('trang')) || 1);
   const [page, setPage] = useState(null);
   const [missing, setMissing] = useState(false);
 
   useEffect(() => {
     setPage(null);
     setMissing(false);
-    api.city(city).then(setPage).catch(() => setMissing(true));
-  }, [city]);
+    api.city(city, pageNo).then(setPage).catch(() => setMissing(true));
+    // The whole page reloads on a page change, so the effect watches the number
+    // as well — otherwise following a paging link would leave page 1 on screen.
+  }, [city, pageNo]);
 
   // The whole point of a city landing page is the query "khách sạn Đà Lạt", and
   // a page whose title never says "Đà Lạt" cannot answer it. Until this ran, all
@@ -29,8 +33,13 @@ export function City() {
   useEffect(() => {
     if (!page) return;
 
+    // Page 2 onwards says so in the title. Two pages of a series sharing one
+    // title is a duplicate to a search engine, and the one it keeps is arbitrary.
+    const suffix = page.totalPages > 1 && page.page > 1
+      ? ` — trang ${page.page}/${page.totalPages}` : '';
+
     setPageMeta({
-      title: `Khách sạn, nhà & homestay cho thuê tại ${page.city} | StayHost OS`,
+      title: `Khách sạn, nhà & homestay cho thuê tại ${page.city}${suffix} | StayHost OS`,
       // The count is the honest hook and it is the real number from the same
       // query the page renders, so it cannot promise more than the page shows.
       description: `${page.count} chỗ nghỉ tại ${page.city}: khách sạn, nhà nguyên căn, `
@@ -76,6 +85,29 @@ export function City() {
       <div className="card-grid" style={{ marginTop: 20 }}>
         {page.listings.map(c => <Card key={c.id} card={c} lazy />)}
       </div>
+
+      {page.totalPages > 1 && (
+        /* Real <a href> links, not buttons. This strip is the only path a crawler
+           has to the places past the first page — a button that calls navigate()
+           is invisible to it, which is exactly how the listings came to have no
+           inbound links at all. preventDefault keeps the in-app navigation. */
+        <nav className="city-pages" aria-label={t('Phân trang')} style={{ marginTop: 26 }}>
+          {Array.from({ length: page.totalPages }, (_, i) => i + 1).map(n => {
+            const href = n === 1 ? `/thanh-pho/${city}` : `/thanh-pho/${city}?trang=${n}`;
+            const here = n === page.page;
+            return (
+              <a key={n} href={href}
+                 aria-current={here ? 'page' : undefined}
+                 className={`city-page-link ${here ? 'is-on' : ''}`}
+                 onClick={e => {
+                   if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+                   e.preventDefault();
+                   navigate(href);
+                 }}>{n}</a>
+            );
+          })}
+        </nav>
+      )}
 
       <div style={{ marginTop: 28 }}>
         <button className="btn btn-dark" onClick={() => navigate(`/?q=${encodeURIComponent(page.city)}`)}>

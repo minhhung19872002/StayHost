@@ -89,11 +89,23 @@ public class SeoController(StayHostDbContext db, SiteSettings site) : Controller
         var cities = published
             .GroupBy(l => Cities.Key(l.City))
             .Where(g => g.Key.Length > 0)
-            .Select(g => new { Slug = g.Key.Replace(' ', '-'), Newest = g.Max(l => l.UpdatedAt) })
+            .Select(g => new
+            {
+                Slug = g.Key.Replace(' ', '-'),
+                Newest = g.Max(l => l.UpdatedAt),
+                Pages = Seo.TotalPages(g.Count()),
+            })
             .OrderBy(c => c.Slug);
 
         foreach (var c in cities)
-            Add($"/thanh-pho/{Uri.EscapeDataString(c.Slug)}", c.Newest, "daily", "0.9");
+        {
+            // Every page of the series, not only the first. Page 2 onwards is
+            // where the places past the first screen live, and leaving them out
+            // would put those listings back to being reachable by nothing.
+            for (var page = 1; page <= c.Pages; page++)
+                Add(Seo.CityPagePath(Uri.EscapeDataString(c.Slug), page),
+                    c.Newest, "daily", page == 1 ? "0.9" : "0.6");
+        }
 
         foreach (var l in published.OrderBy(l => l.Slug))
             Add($"/rooms/{Uri.EscapeDataString(l.Slug)}", l.UpdatedAt, "weekly", "0.8");

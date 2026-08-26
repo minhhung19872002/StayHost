@@ -2621,3 +2621,15 @@ a.opt { color: inherit; text-decoration: none; display: block; }
   .svc-option { grid-template-columns: 104px minmax(0, 1fr); }
   .svc-option img { min-height: 104px; }
 }
+
+/* Phân trang trang thành phố. Là <a href> thật chứ không phải nút: đây là đường
+   duy nhất cho trình thu thập đi tới các tin ngoài trang một. */
+.city-pages { display: flex; flex-wrap: wrap; gap: 8px; }
+.city-page-link {
+  min-width: 38px; height: 38px; padding: 0 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 10px;
+  color: inherit; text-decoration: none; font-weight: 600; font-size: 14px;
+}
+.city-page-link:hover { border-color: var(--ink); }
+.city-page-link.is-on { background: var(--ink); color: #fff; border-color: var(--ink); }

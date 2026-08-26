@@ -105,7 +105,7 @@ export function App() {
   // room sharing the home page's preview card, and every filtered city address
   // competing with the plain one for the same ranking.
   useEffect(() => {
-    applyCanonical(location.pathname);
+    applyCanonical(location.pathname, location.search);
 
     // Back to the defaults on every navigation, then each page sets its own once
     // its data lands. Without the reset a room's title would follow the visitor
@@ -114,7 +114,9 @@ export function App() {
     // whole site loses rich results rather than one page.
     resetPageMeta();
     setStructuredData(location.pathname === '/' ? siteJsonLd() : null);
-  }, [location.pathname]);
+    // location.search matters here: ?trang=2 is a different page in a series and
+    // has to canonicalise to itself, not to page 1.
+  }, [location.pathname, location.search]);
 
   if (state.metaError) {
     return (

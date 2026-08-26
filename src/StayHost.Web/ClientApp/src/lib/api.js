@@ -41,7 +41,7 @@ export const api = {
   meta: () => request('/api/meta'),
 
   // docs/01 TM-26 — a city landing page.
-  city: key => request(`/api/cities/${encodeURIComponent(key)}`),
+  city: (key, page = 1) => request(`/api/cities/${encodeURIComponent(key)}?page=${page}`),
 
   // docs/01 AT-08 — the contextual support assistant.
   supportAssistant: () => request('/api/support/assistant'),

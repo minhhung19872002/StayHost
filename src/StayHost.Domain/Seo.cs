@@ -123,6 +123,48 @@ public static class Seo
     }
 
     /// <summary>
+    /// How many places a city landing page shows before it needs a second page.
+    ///
+    /// The number matters to more than layout. A city page is where a crawler
+    /// finds the individual places, so anything past this cut has no link
+    /// pointing at it and is reachable only through the sitemap — which works,
+    /// but is the weaker of the two paths. Today the busiest city holds seven,
+    /// so nothing is cut; the paging exists so that stops being true quietly.
+    /// </summary>
+    public const int CityPageSize = 12;
+
+    /// <summary>
+    /// Pages needed for <paramref name="total"/> items. Always at least one, so
+    /// an empty city still has a page 1 rather than a page range of nothing.
+    /// </summary>
+    public static int TotalPages(int total, int pageSize = CityPageSize)
+    {
+        if (pageSize <= 0) return 1;
+        return Math.Max(1, (total + pageSize - 1) / pageSize);
+    }
+
+    /// <summary>
+    /// <paramref name="page"/> clamped into the range that actually exists. A
+    /// crawler will ask for ?trang=99 sooner or later — usually because it found
+    /// the number in an old link — and answering with an empty page teaches it
+    /// the site is full of thin content.
+    /// </summary>
+    public static int ClampPage(int page, int total, int pageSize = CityPageSize) =>
+        Math.Clamp(page, 1, TotalPages(total, pageSize));
+
+    /// <summary>How many items to skip to reach <paramref name="page"/>.</summary>
+    public static int Skip(int page, int total, int pageSize = CityPageSize) =>
+        (ClampPage(page, total, pageSize) - 1) * pageSize;
+
+    /// <summary>
+    /// The address of one page in a city series. Page 1 is the bare address, not
+    /// "?trang=1" — two addresses for the same page is the duplicate the whole
+    /// canonical arrangement exists to prevent.
+    /// </summary>
+    public static string CityPagePath(string slug, int page) =>
+        page <= 1 ? $"/thanh-pho/{slug}" : $"/thanh-pho/{slug}?trang={page}";
+
+    /// <summary>
     /// The body of robots.txt. <paramref name="sitemapUrl"/> is left out entirely
     /// when there is none rather than written as a relative address — the Sitemap
     /// directive is defined as absolute, and a relative one is silently ignored,

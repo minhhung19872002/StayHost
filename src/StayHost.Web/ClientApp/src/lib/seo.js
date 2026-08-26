@@ -12,20 +12,39 @@
 // between them and trusts none. Pointing them all at the bare address collapses
 // that back into one page.
 //
-// The query string is dropped entirely rather than filtered. Nothing in it names
-// a different set of rooms — dates and guest counts narrow availability on a page
-// that is still about the same place — so there is no parameter worth keeping,
-// and a list of exceptions would be one more thing to forget to update.
+// Almost the whole query string is dropped. Dates and guest counts narrow
+// availability on a page that is still about the same place, so they name no new
+// page and keeping them would split one page's ranking across dozens.
+//
+// `trang` is the one exception, and it is not a filter — page 2 of a city holds
+// different places from page 1. Folding it onto the bare address would tell
+// Google the later pages are duplicates, and every listing past the first twelve
+// would drop out of the index: exactly the gap the paging was added to close.
+// Page 1 still normalises to the bare address, because "?trang=1" and no
+// parameter are the same page and two addresses for one page is the duplicate
+// this whole arrangement exists to prevent.
+const KEEP = ['trang'];
 
-/** Absolute address of a path on this origin, with no query and no fragment. */
-export function canonicalUrl(pathname) {
-  const path = (pathname || '/').split('?')[0].split('#')[0];
+/** Absolute address of a path on this origin, keeping only the params that name a page. */
+export function canonicalUrl(pathname, search) {
+  const raw = (pathname || '/');
+  const path = raw.split('?')[0].split('#')[0];
+  const query = search !== undefined ? search : raw.includes('?') ? raw.slice(raw.indexOf('?')) : '';
 
   // "/rooms/x/" and "/rooms/x" are the same page to a person and two pages to a
   // crawler. The home page keeps its slash; everything else loses a trailing one.
   const tidy = path.length > 1 ? path.replace(/\/+$/, '') : '/';
 
-  return window.location.origin + (tidy || '/');
+  const from = new URLSearchParams(query);
+  const kept = new URLSearchParams();
+  for (const key of KEEP) {
+    const value = from.get(key);
+    // "1" is the bare address, and anything that is not a page number is noise.
+    if (value && /^[0-9]+$/.test(value) && Number(value) > 1) kept.set(key, value);
+  }
+
+  const tail = kept.toString();
+  return window.location.origin + (tidy || '/') + (tail ? `?${tail}` : '');
 }
 
 function put(selector, make) {
@@ -42,8 +61,8 @@ function put(selector, make) {
  * a route change in this app never reloads the document and nothing else would
  * update the tags left over from the previous page.
  */
-export function applyCanonical(pathname) {
-  const url = canonicalUrl(pathname);
+export function applyCanonical(pathname, search) {
+  const url = canonicalUrl(pathname, search);
 
   const link = put('link[rel="canonical"]', () => {
     const el = document.createElement('link');

@@ -191,6 +191,7 @@ export default {
   "Về:": "관련:",
   "Nhắn cho bạn…": "친구에게 메시지…",
   "Gửi": "보내기",
+  "Phân trang": "페이지 매기기",
   "Chưa có chỗ nghỉ ở nơi này": "아직 이곳에 숙소가 없습니다",
   "StayHost chưa có tin đăng nào cho thành phố bạn tìm.": "검색하신 도시에 등록된 숙소가 없습니다.",
   "Chỗ nghỉ tại": "다음 지역의 숙소:",

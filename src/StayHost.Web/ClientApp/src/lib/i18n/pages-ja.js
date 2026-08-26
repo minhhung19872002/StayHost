@@ -191,6 +191,7 @@ export default {
   'Về:': '件名：',
   'Nhắn cho bạn…': '友達にメッセージ…',
   'Gửi': '送信',
+  'Phân trang': 'ページ送り',
   'Chưa có chỗ nghỉ ở nơi này': 'この場所にはまだ宿がありません',
   'StayHost chưa có tin đăng nào cho thành phố bạn tìm.': 'StayHostには検索した都市の掲載がまだありません。',
   'Chỗ nghỉ tại': '宿の所在地',

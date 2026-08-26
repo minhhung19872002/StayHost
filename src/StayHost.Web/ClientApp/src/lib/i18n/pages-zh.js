@@ -191,6 +191,7 @@ export default {
   "Về:": "关于：",
   "Nhắn cho bạn…": "给好友发消息…",
   "Gửi": "发送",
+  "Phân trang": "分页",
   "Chưa có chỗ nghỉ ở nơi này": "此地暂无房源",
   "StayHost chưa có tin đăng nào cho thành phố bạn tìm.": "StayHost 在您搜索的城市暂无房源。",
   "Chỗ nghỉ tại": "…的房源",

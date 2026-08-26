@@ -191,6 +191,7 @@ export default {
   "Về:": "Sobre:",
   "Nhắn cho bạn…": "Escribe a tu amigo…",
   "Gửi": "Enviar",
+  "Phân trang": "Paginación",
   "Chưa có chỗ nghỉ ở nơi này": "Aún no hay alojamientos aquí",
   "StayHost chưa có tin đăng nào cho thành phố bạn tìm.": "StayHost no tiene ningún anuncio para la ciudad que buscaste.",
   "Chỗ nghỉ tại": "Alojamientos en",

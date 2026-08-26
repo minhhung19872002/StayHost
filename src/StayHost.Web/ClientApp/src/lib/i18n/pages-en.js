@@ -193,6 +193,7 @@ export default {
   "Về:": "About:",
   "Nhắn cho bạn…": "Message your friend…",
   "Gửi": "Send",
+  "Phân trang": "Pagination",
   "Chưa có chỗ nghỉ ở nơi này": "No stays here yet",
   "StayHost chưa có tin đăng nào cho thành phố bạn tìm.": "StayHost doesn't have any listings for the city you searched.",
   "Chỗ nghỉ tại": "Stays in",

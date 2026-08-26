@@ -97,6 +97,57 @@ public class SeoTests
         Assert.Contains("User-agent: *", txt);
     }
 
+    // --- paging a city page -------------------------------------------------
+
+    [Theory]
+    [InlineData(0, 1)]    // an empty city still has a page 1
+    [InlineData(1, 1)]
+    [InlineData(12, 1)]   // exactly full — the off-by-one that invents an empty page 2
+    [InlineData(13, 2)]
+    [InlineData(24, 2)]
+    [InlineData(25, 3)]
+    public void The_last_page_is_not_an_empty_one(int total, int expected)
+    {
+        Assert.Equal(expected, Seo.TotalPages(total, 12));
+    }
+
+    [Theory]
+    [InlineData(-5, 1)]
+    [InlineData(0, 1)]
+    [InlineData(2, 2)]
+    [InlineData(99, 3)]   // a crawler following a stale link gets the last page,
+    public void A_page_outside_the_range_lands_on_one_that_exists(int asked, int expected)
+    {
+        // ...not an empty one. Thin pages teach a search engine the site is thin.
+        Assert.Equal(expected, Seo.ClampPage(asked, 25, 12));
+    }
+
+    [Fact]
+    public void Skipping_lines_the_pages_up_without_gaps_or_repeats()
+    {
+        Assert.Equal(0, Seo.Skip(1, 25, 12));
+        Assert.Equal(12, Seo.Skip(2, 25, 12));
+        Assert.Equal(24, Seo.Skip(3, 25, 12));
+    }
+
+    [Fact]
+    public void Page_one_is_the_bare_address_not_trang_equals_one()
+    {
+        // Two addresses for the same page is the duplicate the canonical rules
+        // exist to prevent, so the series must not start with a parameter.
+        Assert.Equal("/thanh-pho/da-lat", Seo.CityPagePath("da-lat", 1));
+        Assert.Equal("/thanh-pho/da-lat", Seo.CityPagePath("da-lat", 0));
+        Assert.Equal("/thanh-pho/da-lat?trang=2", Seo.CityPagePath("da-lat", 2));
+    }
+
+    [Fact]
+    public void A_paged_city_address_stays_crawlable()
+    {
+        // The paging strip is the only path to the places past page one; a rule
+        // that quietly blocked "?trang=" would undo the whole thing.
+        Assert.False(Seo.IsPrivate(Seo.CityPagePath("da-lat", 2)));
+    }
+
     [Fact]
     public void Every_disallow_rule_is_actually_private()
     {

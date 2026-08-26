@@ -191,6 +191,7 @@ export default {
   'Về:': 'Über:',
   'Nhắn cho bạn…': 'Ihrem Freund schreiben…',
   'Gửi': 'Senden',
+  'Phân trang': 'Seitennummerierung',
   'Chưa có chỗ nghỉ ở nơi này': 'Noch keine Unterkünfte hier',
   'StayHost chưa có tin đăng nào cho thành phố bạn tìm.': 'StayHost hat noch keine Inserate für die gesuchte Stadt.',
   'Chỗ nghỉ tại': 'Unterkünfte in',

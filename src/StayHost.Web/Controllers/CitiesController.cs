@@ -15,8 +15,15 @@ namespace StayHost.Web.Controllers;
 [Route("api/cities")]
 public class CitiesController(StayHostDbContext db) : ControllerBase
 {
+    /// <summary>
+    /// One page of a city's places. <paramref name="page"/> is 1-based and out of
+    /// range is clamped rather than refused: a crawler will ask for ?trang=99 from
+    /// some stale link eventually, and answering with an empty page teaches it the
+    /// site is full of thin content.
+    /// </summary>
     [HttpGet("{key}")]
-    public async Task<ActionResult<CityPageDto>> Page(string key, CancellationToken ct)
+    public async Task<ActionResult<CityPageDto>> Page(
+        string key, [FromQuery] int page, CancellationToken ct)
     {
         // The slug uses hyphens ("da-lat"); the city key uses spaces ("da lat"),
         // so the separators are lined up before matching.
@@ -43,8 +50,21 @@ public class CitiesController(StayHostDbContext db) : ControllerBase
         if (here.Count == 0) return NotFound();
 
         var name = here[0].City;
-        var cards = here.Take(12).Select(l => CatalogService.ToCard(l, [])).ToList();
 
-        return Ok(new CityPageDto(name, Cities.Blurb(name), here.Count, cards));
+        // Paging is what keeps every place in a city reachable by following a
+        // link. Without it the page shows the first twelve and the rest exist
+        // only in the sitemap — which works, but is the weaker of the two paths,
+        // and the day a city passes twelve nothing would say so.
+        var total = here.Count;
+        var pageNo = Seo.ClampPage(page <= 0 ? 1 : page, total);
+        var cards = here
+            .Skip(Seo.Skip(pageNo, total))
+            .Take(Seo.CityPageSize)
+            .Select(l => CatalogService.ToCard(l, []))
+            .ToList();
+
+        return Ok(new CityPageDto(
+            name, Cities.Blurb(name), total, cards,
+            pageNo, Seo.CityPageSize, Seo.TotalPages(total)));
     }
 }

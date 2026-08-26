@@ -1192,7 +1192,12 @@ public record RespondChangeRequest(bool Accept);
 /* ------------------------------------------------------- TM-26 city landing */
 
 public record CityPageDto(
-    string City, string Blurb, int Count, IReadOnlyList<ListingCardDto> Listings);
+    string City, string Blurb, int Count, IReadOnlyList<ListingCardDto> Listings,
+    /// <summary>1-based, already clamped to what exists.</summary>
+    int Page = 1,
+    int PageSize = 12,
+    /// <summary>Never below 1, so an empty city still has a page 1.</summary>
+    int TotalPages = 1);
 
 /* ------------------------------------------------- QL-16 listing performance */
 

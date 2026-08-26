@@ -49,7 +49,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (18/08/2026).** 1132 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (18/08/2026).** 1145 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **34/34** kịch bản chuyển tiền cho chủ nhà và đối chiếu sao kê (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
@@ -116,7 +116,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Hạn dùng số dư | `docs/07 §16` đã chốt (11/08/2026): bù đắp / giới thiệu bạn / hoàn khi huỷ **12 tháng**, thẻ quà tặng **không hết hạn**. Hạn đóng dấu **lúc cấp**, nên đổi tham số về sau không với ngược lại số dư khách đang giữ |
 | Cẩm nang chủ nhà (`TĐ-22`) | Chủ nhà tự viết danh sách chỗ nên đi cho từng tin: tám nhóm (quán ăn / cà phê / tham quan / thiên nhiên / mua sắm / về đêm / đi lại / lời khuyên), mỗi mục có lý do giới thiệu, địa chỉ và toạ độ tuỳ chọn. Toạ độ **phải đủ cả hai nửa** (`Guidebooks.HasPin`) — nửa vĩ độ đơn độc rơi xuống biển ngoài châu Phi. Chữ do người viết nên đi qua `TranslatedText`, không vào từ điển giao diện |
 | SEO cho sàn đặt phòng | `robots.txt` + `sitemap.xml` **sinh từ DB** (`SeoController`) — tin mới đăng có mặt **ngay lần gọi kế tiếp**, không chờ vòng quét nào. Quy tắc "đường nào không được cho Google thấy" nằm trong `Seo.cs` với 31 test: vài đường **mang bí mật ngay trong địa chỉ** (`/split/`, `/wishlist/`, `/chuyen-khoan/`), lọt vào sitemap là công bố link của người khác. `lib/seo.js` lo canonical + og:url theo từng địa chỉ, tiêu đề/mô tả riêng cho trang thành phố và trang tin, và JSON-LD (`Product` + giá + `AggregateRating`, `ItemList`, `BreadcrumbList`, `WebSite`+`SearchAction`) |
-| Đường cho Google đi | Thứ quyết định không phải sitemap mà là **liên kết**. `Card` giờ là `<a href="/rooms/…">` thật — trước đó là `div onClick`, nên **không tin đăng nào có một liên kết nào trỏ tới**. Footer lấy danh sách thành phố từ `meta.cityLinks` (server sinh cả slug) thay vì 6 dòng đóng cứng trong khi sàn có 18 |
+| Đường cho Google đi | Thứ quyết định không phải sitemap mà là **liên kết**. `Card` giờ là `<a href="/rooms/…">` thật — trước đó là `div onClick`, nên **không tin đăng nào có một liên kết nào trỏ tới**. Footer lấy danh sách thành phố từ `meta.cityLinks` (server sinh cả slug) thay vì 6 dòng đóng cứng trong khi sàn có 18. Trang thành phố **phân trang** (`?trang=N`, 12 tin/trang, `Seo.CityPageSize`) nên tin thứ 13 trở đi vẫn có liên kết; dải phân trang là `<a href>` thật, và `?trang=N` là **query duy nhất canonical giữ lại** — gộp nó về trang 1 là khai với Google rằng trang 2 trùng nội dung |
 | Hiếm có & sắp hết phòng | `Scarcity.cs` là **một ngưỡng cho hai chỗ**: dấu "Hiếm có" trên trang chi tiết (`TĐ-23`) và thông báo "sắp hết phòng" cho chỗ đã lưu (`YT-08`). Dưới 25% đêm trống trong 60 ngày tới, và bỏ qua khi cửa sổ chưa đủ 14 đêm — tin mới khoá sạch lịch là *trống*, không phải *đắt khách*. `ScarcitySweeper` chỉ báo **lúc vượt ngưỡng**, cột `LowAvailabilityNotifiedAt` xoá về null khi lịch mở lại |
 
 ---
@@ -366,6 +366,12 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   đi soát tên miền để đổi. Giờ là `Site:PublicUrl`, và nó **rơi về `Psp:PublicUrl`**
   khi để trống — cùng một địa chỉ, nên không đẻ ra biến thứ hai phải nhớ sửa cùng lúc.
   Không có địa chỉ nào thì **bỏ hẳn dòng link** chứ không đoán tên miền.
+- **Canonical mà cắt sạch query sẽ giết luôn phân trang.** Bản đầu của
+  `lib/seo.js` bỏ toàn bộ query — đúng với bộ lọc ngày/khách (cùng một chỗ, chỉ khác
+  điều kiện), nhưng **sai với `?trang=2`**, vì trang 2 chứa những căn *khác hẳn* trang 1.
+  Gộp nó về địa chỉ trần là khai với Google rằng các trang sau là bản sao, và mọi tin từ
+  thứ 13 trở đi rơi khỏi chỉ mục — đúng cái lỗ mà phân trang sinh ra để bịt. Giữ đúng một
+  tham số (`trang`), và `?trang=1` vẫn phải gộp về địa chỉ trần vì đó là cùng một trang.
 - **`div onClick` không phải liên kết, và Google chỉ đi theo liên kết.** `Card.jsx`
   điều hướng bằng `navigate()` trong `onClick`, comment ngay trên đó còn viết "the card
   is a link" — nhưng trong HTML thì không có `<a href>` nào, nên **không một tin đăng
@@ -542,7 +548,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 1132 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1145 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
