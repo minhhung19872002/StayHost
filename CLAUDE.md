@@ -472,6 +472,19 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   12:00 UTC thì "đơn chưa trả phòng" → kịch bản 10 hỏng mỗi buổi sáng, đạt mỗi buổi
   chiều, và trông hệt như một test chập chờn. Cửa sổ đúng là `CheckOut@12:00` nằm
   trong `(now-24h, now]`.
+- **Nhà mạng Việt Nam chặn `openstreetmap.org` ở tầng DNS, nên bản đồ trắng trơn với
+  phần lớn khách.** Đo ngày 27/08/2026 trên `tile.openstreetmap.org`: Viettel
+  (`123.23.23.23`) không phân giải, FPT (`210.245.0.100`) không phân giải, VNPT
+  (`203.113.131.1`) trả **`127.0.0.1`** — bản ghi bị đầu độc, tức chặn có chủ đích chứ
+  không phải sự cố. Cloudflare và Google phân giải bình thường, và **đó chính là lý do
+  không ai phát hiện**: máy lập trình viên nào cũng đã đổi DNS. Khách dùng mạng nhà
+  mặc định chỉ thấy một ô xám kèm vòng tròn đỏ. Trình duyệt báo `ERR_NAME_NOT_RESOLVED`
+  chứ không báo lỗi ảnh — nhìn giống lỗi CSS hơn là lỗi mạng.
+  Giờ `Maps.jsx` có `PROVIDERS`: **ArcGIS** (chính, tên đường tiếng Việt) và
+  **`tile.openstreetmap.de`** (dự phòng), tự đổi sau 4 tile lỗi. **Carto đã thử và bỏ**
+  — tile miễn phí của họ giờ đóng dấu chìm "API KEY REQUIRED" giữa ảnh, đọc như trang
+  hỏng chứ không phải thiếu bản đồ, mà request vẫn trả **200**. Chọn nhà cung cấp tile
+  thì phải **nhìn tận mắt một tile**, đừng tin mã 200.
 - **Đổi tên repo thì runner tự-host không đổi theo.** Sau khi `StayHost` thành
   `Staylio` (27/08/2026), `~/actions-runner/.runner` trên VPS vẫn ghi URL cũ và vẫn
   `online` — nhưng chỉ vì **GitHub tự chuyển hướng tên cũ sang tên mới**. Chuyển hướng

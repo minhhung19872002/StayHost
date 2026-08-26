@@ -11,8 +11,78 @@ import { t } from '../lib/i18n.js';
 import { set } from '../lib/store.js';
 import { money } from '../lib/format.js';
 
-const TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+/*
+ * Where the map pictures come from, and why not from OpenStreetMap directly.
+ *
+ * openstreetmap.org is blocked at DNS by the large Vietnamese ISPs. Measured on
+ * 27/08/2026 against tile.openstreetmap.org: Viettel (123.23.23.23) returns
+ * nothing, FPT (210.245.0.100) returns nothing, and VNPT (203.113.131.1)
+ * answers 127.0.0.1 — a poisoned record, which is a deliberate block rather
+ * than an outage. Cloudflare and Google resolve it fine, which is exactly why
+ * this went unnoticed: it works for anyone who changed their DNS, and most
+ * developers have. Every guest on a default home connection saw a grey
+ * rectangle with a red circle on it and no map at all.
+ *
+ * Both providers below resolve on all of those networks, and neither needs a
+ * key. Carto was tried first and dropped: its free raster tiles now arrive with
+ * "API KEY REQUIRED" stamped across the picture, which reads as a broken site
+ * rather than a missing map — worse than the blank it replaced. Checked by
+ * looking at a real tile, not by trusting the 200.
+ *
+ * Two of them, because a whole provider vanishing behind a national block is no
+ * longer hypothetical — it is the bug this comment exists to explain. Neither is
+ * a paid plan, so if the map ever carries real traffic, get a key from MapTiler
+ * or Stadia and make that the first entry.
+ */
+const PROVIDERS = [
+  {
+    // Esri's public basemap. Street names come through in Vietnamese, and the
+    // infrastructure is sized for far more traffic than this. Note the axis
+    // order: ArcGIS asks for {z}/{y}/{x}, not {z}/{x}/{y} like everyone else,
+    // and getting it wrong returns valid tiles of the wrong place.
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+    maxZoom: 19,
+  },
+  {
+    // Run by the German OpenStreetMap chapter, on a host the Vietnamese ISPs do
+    // not block. Standard OSM cartography, more detail than Esri at high zoom.
+    url: 'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 18,
+  },
+];
+
+
+/**
+ * Adds the base layer, and swaps to the next provider if this one turns out to
+ * be unreachable.
+ *
+ * Leaflet raises `tileerror` per failed tile, and a real failure fails every
+ * tile at once, so a handful is already conclusive — while one or two errors
+ * are just the edge of the world at low zoom and must not trigger a swap. The
+ * swap happens once: if the fallback is unreachable too, the honest outcome is
+ * an empty map rather than an endless cycle between two dead hosts.
+ */
+function addBaseLayer(map, index = 0) {
+  const provider = PROVIDERS[index];
+  if (!provider) return null;
+
+  const layer = L.tileLayer(provider.url, {
+    attribution: provider.attribution,
+    maxZoom: provider.maxZoom,
+  }).addTo(map);
+
+  let failures = 0;
+  layer.on('tileerror', () => {
+    if (++failures < 4 || index + 1 >= PROVIDERS.length) return;
+    layer.off('tileerror');
+    map.removeLayer(layer);
+    addBaseLayer(map, index + 1);
+  });
+
+  return layer;
+}
 
 /** docs/01 TM-10 — below this zoom, nearby pins merge into a count. */
 const CLUSTER_ZOOM = 11;
@@ -114,7 +184,7 @@ export function ResultsMap({ onSearchArea, onDrawArea }) {
   useEffect(() => {
     const map = L.map(hostRef.current, { scrollWheelZoom: false, zoomControl: true })
       .setView([16.0, 107.5], 5);
-    L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: 18 }).addTo(map);
+    addBaseLayer(map);
 
     mapRef.current = map;
     layerRef.current = L.layerGroup().addTo(map);
@@ -268,7 +338,7 @@ export function CardsMap({ cards, height = 320 }) {
     if (!pinned.length) return undefined;
 
     const map = L.map(hostRef.current, { scrollWheelZoom: false });
-    L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: 18 }).addTo(map);
+    addBaseLayer(map);
 
     for (const c of pinned) {
       const marker = L.marker([c.latitude, c.longitude], {
@@ -303,7 +373,7 @@ export function DetailMap({ latitude, longitude }) {
     if (latitude == null || longitude == null) return undefined;
 
     const map = L.map(hostRef.current, { scrollWheelZoom: false }).setView([latitude, longitude], 13);
-    L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: 18 }).addTo(map);
+    addBaseLayer(map);
     L.circle([latitude, longitude], {
       radius: 900, color: '#e01a2b', fillColor: '#e01a2b', fillOpacity: 0.15, weight: 2
     }).addTo(map);
