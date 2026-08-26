@@ -76,11 +76,24 @@ export function Card({ card, variant, lazy = false }) {
         </>}
       </div>
 
-      <div className="card-body" onClick={open}>
+      {/* A real <a href>, not a div that navigates. A crawler follows links and
+          nothing else: while this was a click handler, none of the listings had
+          a single inbound link anywhere on the site, so Google had no way to
+          reach one even after finding the home page. The title inside it is also
+          the anchor text, which is among the strongest signals a listing page
+          gets for the words in its own name.
+
+          preventDefault keeps the single-page navigation — the address is there
+          for the crawler and for open-in-new-tab, not to trigger a full reload.
+          The media block above stays a click handler because it contains the
+          favourite button and the carousel arrows, and interactive controls
+          inside a link is both invalid HTML and a keyboard trap. */}
+      <a className="card-body" href={`/rooms/${card.slug}`}
+         onClick={e => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); open(); }}>
         {variant === 'search' ? <SearchBody card={card} />
           : variant === 'rail' ? <RailBody card={card} />
             : <BrowseBody card={card} showTotal={state.showTotalPrice} />}
-      </div>
+      </a>
     </article>
   );
 }

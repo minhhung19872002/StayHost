@@ -803,7 +803,18 @@ public record MetaDto(
     IReadOnlyList<int> PriceHistogram,
     IReadOnlyList<CurrencyDto> Currencies,
     IReadOnlyList<LanguageDto> Languages,
-    FeesDto Fees);
+    FeesDto Fees,
+    /// <summary>
+    /// docs/01 TM-26 — the city landing pages that have something to show, with
+    /// the slug the server itself would route on. The footer links every one of
+    /// them, which is how a crawler reaches a city page at all: a sitemap lists
+    /// addresses, but a search engine follows links, and until now only six
+    /// cities were hard-coded into the footer while eighteen existed.
+    /// </summary>
+    IReadOnlyList<CityLinkDto>? CityLinks = null);
+
+/// <summary>One city landing page: what to call it, where it lives, how big it is.</summary>
+public record CityLinkDto(string Name, string Slug, int Count);
 
 /// <summary>
 /// The fee constants the client needs to explain a price. The authoritative

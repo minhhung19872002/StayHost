@@ -115,7 +115,8 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Máy dịch | `libretranslate` tự host trong cả hai compose — **không cần khoá API, không tính tiền theo ký tự**. Đủ 8 thứ tiếng, trùng khít danh sách giao diện. Kết quả cache trong `translation_caches`, mỗi (chuỗi × ngôn ngữ) chỉ dịch một lần |
 | Hạn dùng số dư | `docs/07 §16` đã chốt (11/08/2026): bù đắp / giới thiệu bạn / hoàn khi huỷ **12 tháng**, thẻ quà tặng **không hết hạn**. Hạn đóng dấu **lúc cấp**, nên đổi tham số về sau không với ngược lại số dư khách đang giữ |
 | Cẩm nang chủ nhà (`TĐ-22`) | Chủ nhà tự viết danh sách chỗ nên đi cho từng tin: tám nhóm (quán ăn / cà phê / tham quan / thiên nhiên / mua sắm / về đêm / đi lại / lời khuyên), mỗi mục có lý do giới thiệu, địa chỉ và toạ độ tuỳ chọn. Toạ độ **phải đủ cả hai nửa** (`Guidebooks.HasPin`) — nửa vĩ độ đơn độc rơi xuống biển ngoài châu Phi. Chữ do người viết nên đi qua `TranslatedText`, không vào từ điển giao diện |
-| SEO cho sàn đặt phòng | `robots.txt` + `sitemap.xml` **sinh từ DB** (`SeoController`): trang thành phố, tin đăng, trải nghiệm, dịch vụ, bài trợ giúp. Cả hai **phục vụ động** vì phải nói ra tên miền, mà tên miền là cấu hình chứ không phải hằng số. Quy tắc "đường nào không được cho Google thấy" nằm trong `Seo.cs` với 31 test — vài đường **mang bí mật ngay trong địa chỉ** (`/split/`, `/wishlist/`, `/chuyen-khoan/`), lọt vào sitemap là công bố link của người khác. Canonical do `lib/canonical.js` đặt **theo từng địa chỉ** |
+| SEO cho sàn đặt phòng | `robots.txt` + `sitemap.xml` **sinh từ DB** (`SeoController`) — tin mới đăng có mặt **ngay lần gọi kế tiếp**, không chờ vòng quét nào. Quy tắc "đường nào không được cho Google thấy" nằm trong `Seo.cs` với 31 test: vài đường **mang bí mật ngay trong địa chỉ** (`/split/`, `/wishlist/`, `/chuyen-khoan/`), lọt vào sitemap là công bố link của người khác. `lib/seo.js` lo canonical + og:url theo từng địa chỉ, tiêu đề/mô tả riêng cho trang thành phố và trang tin, và JSON-LD (`Product` + giá + `AggregateRating`, `ItemList`, `BreadcrumbList`, `WebSite`+`SearchAction`) |
+| Đường cho Google đi | Thứ quyết định không phải sitemap mà là **liên kết**. `Card` giờ là `<a href="/rooms/…">` thật — trước đó là `div onClick`, nên **không tin đăng nào có một liên kết nào trỏ tới**. Footer lấy danh sách thành phố từ `meta.cityLinks` (server sinh cả slug) thay vì 6 dòng đóng cứng trong khi sàn có 18 |
 | Hiếm có & sắp hết phòng | `Scarcity.cs` là **một ngưỡng cho hai chỗ**: dấu "Hiếm có" trên trang chi tiết (`TĐ-23`) và thông báo "sắp hết phòng" cho chỗ đã lưu (`YT-08`). Dưới 25% đêm trống trong 60 ngày tới, và bỏ qua khi cửa sổ chưa đủ 14 đêm — tin mới khoá sạch lịch là *trống*, không phải *đắt khách*. `ScarcitySweeper` chỉ báo **lúc vượt ngưỡng**, cột `LowAvailabilityNotifiedAt` xoá về null khi lịch mở lại |
 
 ---
@@ -365,6 +366,21 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   đi soát tên miền để đổi. Giờ là `Site:PublicUrl`, và nó **rơi về `Psp:PublicUrl`**
   khi để trống — cùng một địa chỉ, nên không đẻ ra biến thứ hai phải nhớ sửa cùng lúc.
   Không có địa chỉ nào thì **bỏ hẳn dòng link** chứ không đoán tên miền.
+- **`div onClick` không phải liên kết, và Google chỉ đi theo liên kết.** `Card.jsx`
+  điều hướng bằng `navigate()` trong `onClick`, comment ngay trên đó còn viết "the card
+  is a link" — nhưng trong HTML thì không có `<a href>` nào, nên **không một tin đăng
+  nào có đường vào**. Người dùng bấm vẫn chạy, test vẫn xanh, màn hình vẫn đúng; chỉ có
+  Google là không vào được, và chuyện đó không hiện ra ở đâu cả. Cùng loại lỗi ở
+  `Footer`: 6 thành phố đóng cứng trong khi sàn có 18, tức 12 trang không ai trỏ tới.
+  Hỏi "cái này có phải thẻ `<a href>` thật không?" chứ đừng hỏi "bấm vào có chạy không".
+- **Đừng viết lại chuẩn hoá slug ở phía JS.** Breadcrumb suýt sinh
+  `/thanh-pho/tp-ho-chi-minh` vì bản JS không cắt tiền tố như `Cities.Key` — địa chỉ đó
+  404, và **dữ liệu có cấu trúc sai còn hại hơn không có**. Slug giờ lấy từ
+  `meta.cityLinks` do chính server sinh ra.
+- **`aggregateRating` chỉ được xuất khi có đánh giá thật.** Google coi review markup bịa
+  là spam và phạt **cả tên miền** chứ không riêng trang đó. Tin mới đăng có `ReviewCount = 0`
+  nên khối `Product` bỏ hẳn `aggregateRating` — đã thử bằng cách đăng một tin thật rồi mở
+  bằng trình duyệt, không suy luận.
 - **Một `canonical` cố định trong SPA sẽ xoá sổ toàn bộ danh mục khỏi Google.** Mọi
   địa chỉ ở đây đều nhận cùng một `index.html`, nên đặt sẵn `<link rel="canonical">`
   trong file đó là **khai với Google rằng mọi tin đăng đều là bản sao của trang chủ** —

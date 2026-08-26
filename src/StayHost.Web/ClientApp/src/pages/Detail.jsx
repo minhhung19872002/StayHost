@@ -14,6 +14,7 @@ import { Icon, AmenityIcon } from '../components/Icon.jsx';
 import { TranslatedText } from '../components/TranslatedText.jsx';
 import { PriceLines } from '../components/modals/ListingModals.jsx';
 import { t } from '../lib/i18n.js';
+import { setPageMeta, setStructuredData, listingJsonLd, breadcrumbJsonLd, canonicalUrl } from '../lib/seo.js';
 
 const RATING_LABELS = {
   cleanliness: 'Mức độ sạch sẽ',
@@ -40,6 +41,40 @@ export function Detail() {
   const navigate = useNavigate();
 
   useEffect(() => { loadDetail(slug); }, [slug]);
+
+  // The room's own title and city, so a search result says what the place is
+  // instead of repeating the site name — and a share on Zalo or Messenger shows
+  // this room rather than the home page.
+  useEffect(() => {
+    const d = state.detail;
+    if (!d || d.card?.slug !== slug) return;
+
+    const c = d.card;
+    const citySlug = state.meta?.cityLinks?.find(x => x.name === c.city)?.slug;
+
+    setPageMeta({
+      title: `${c.title} — ${c.city} | StayHost OS`,
+      description: (d.description || '').replace(/\s+/g, ' ').trim().slice(0, 155)
+        || `${c.typeLabel} tại ${c.city}, ${c.maxGuests} khách, ${c.bedrooms} phòng ngủ.`,
+    });
+
+    setStructuredData({
+      '@context': 'https://schema.org',
+      '@graph': [
+        listingJsonLd(c, { description: d.description, url: canonicalUrl(`/rooms/${slug}`) }),
+        breadcrumbJsonLd([
+          { name: 'Trang chủ', path: '/' },
+          // The slug comes from the server's own list rather than being derived
+          // here. Cities.Key strips prefixes — "TP. Hồ Chí Minh" routes as
+          // "ho-chi-minh", not "tp-ho-chi-minh" — so a normalisation written
+          // again in JavaScript would put a broken address into the breadcrumb,
+          // and broken structured data is worse than none. No match, no step.
+          ...(citySlug ? [{ name: c.city, path: `/thanh-pho/${citySlug}` }] : []),
+          { name: c.title, path: `/rooms/${slug}` },
+        ]),
+      ],
+    });
+  }, [state.detail, state.meta, slug]);
 
   // On a listing page the site header scrolls away and the section nav takes the
   // top of the screen instead. You have already chosen the place by this point;

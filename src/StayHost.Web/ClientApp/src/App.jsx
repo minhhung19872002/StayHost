@@ -6,7 +6,7 @@ import {
 } from './lib/store.js';
 import { queryToSearch } from './lib/urlState.js';
 import { setNavigator } from './lib/nav.js';
-import { applyCanonical } from './lib/canonical.js';
+import { applyCanonical, resetPageMeta, setStructuredData, siteJsonLd } from './lib/seo.js';
 
 import { Header } from './components/Header.jsx';
 import { Footer } from './components/Footer.jsx';
@@ -106,6 +106,14 @@ export function App() {
   // competing with the plain one for the same ranking.
   useEffect(() => {
     applyCanonical(location.pathname);
+
+    // Back to the defaults on every navigation, then each page sets its own once
+    // its data lands. Without the reset a room's title would follow the visitor
+    // onto the next page — and a structured-data block describing the previous
+    // room is read by Google as a claim about the page it is on, which is how a
+    // whole site loses rich results rather than one page.
+    resetPageMeta();
+    setStructuredData(location.pathname === '/' ? siteJsonLd() : null);
   }, [location.pathname]);
 
   if (state.metaError) {

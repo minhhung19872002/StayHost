@@ -84,6 +84,22 @@ public class CatalogService(StayHostDbContext db)
             .ToListAsync(ct);
 
         var cities = await db.Listings.Select(l => l.City).Distinct().OrderBy(c => c).ToListAsync(ct);
+
+        // docs/01 TM-26 — only cities the public can actually open. CitiesController
+        // returns 404 for a city whose listings are all hidden, so linking one from
+        // the footer would advertise a dead page to every crawler on every page.
+        var visible = await db.Listings
+            .Where(l => l.IsPublished && l.ReviewStatus == ListingReviewStatus.Approved)
+            .Select(l => l.City)
+            .ToListAsync(ct);
+
+        var cityLinks = visible
+            .GroupBy(Cities.Key)
+            .Where(g => g.Key.Length > 0)
+            .Select(g => new CityLinkDto(g.First(), g.Key.Replace(' ', '-'), g.Count()))
+            .OrderByDescending(c => c.Count)
+            .ThenBy(c => c.Name)
+            .ToList();
         var prices = await db.Listings.Select(l => l.PricePerNight).ToListAsync(ct);
 
         var min = prices.Count == 0 ? 0 : prices.Min();
@@ -105,7 +121,8 @@ public class CatalogService(StayHostDbContext db)
                 PricingSettings.Current.GuestServiceFeeRate,
                 PricingSettings.Current.HostServiceFeeRate,
                 PricingSettings.Current.MaxDiscountPercent,
-                PricingSettings.Current.DefaultCleaningFee));
+                PricingSettings.Current.DefaultCleaningFee),
+            cityLinks);
     }
 
     private static List<int> BuildHistogram(List<decimal> prices, decimal min, decimal max, int buckets)

@@ -28,10 +28,22 @@ const COLUMNS = [
 
 const LEGAL = ['© 2026 StayHost OS, Inc.', 'Quyền riêng tư', 'Điều khoản', 'Sơ đồ trang web', 'Thông tin công ty'];
 
-// docs/01 TM-26 — name and slug for the city landing pages.
-const CITIES = [
-  ['Đà Lạt', 'da-lat'], ['Đà Nẵng', 'da-nang'], ['Hội An', 'hoi-an'],
-  ['Hà Nội', 'ha-noi'], ['TP. Hồ Chí Minh', 'ho-chi-minh'], ['Nha Trang', 'nha-trang']
+// docs/01 TM-26 — the city landing pages, from the server rather than from a
+// list typed here. The hard-coded six covered a third of the cities that existed,
+// so twelve landing pages had no link pointing at them from anywhere on the site
+// and a crawler could not reach them at all. The server also decides the slug, so
+// it cannot drift from the address CitiesController actually routes on.
+//
+// Capped, because this is a footer on every page and the catalogue keeps growing.
+// The ones left out are still in sitemap.xml — the cap costs discovery speed, not
+// discovery. Ordered by how much each city has to show.
+const FOOTER_CITY_LIMIT = 12;
+
+// Used only until meta arrives on first paint, so the column is never empty.
+const FALLBACK_CITIES = [
+  { name: 'Đà Lạt', slug: 'da-lat' }, { name: 'Đà Nẵng', slug: 'da-nang' },
+  { name: 'Hội An', slug: 'hoi-an' }, { name: 'Hà Nội', slug: 'ha-noi' },
+  { name: 'TP. Hồ Chí Minh', slug: 'ho-chi-minh' }, { name: 'Nha Trang', slug: 'nha-trang' }
 ];
 
 const demo = e => { e.preventDefault(); toast('Bản demo — chức năng này chưa kết nối dịch vụ thật.'); };
@@ -53,6 +65,9 @@ export function Footer() {
   const state = useStore();
   const navigate = useNavigate();
 
+  const cities = (state.meta?.cityLinks?.length ? state.meta.cityLinks : FALLBACK_CITIES)
+    .slice(0, FOOTER_CITY_LIMIT);
+
   return <>
     <div className="footer-cols">
       {COLUMNS.map(col => (
@@ -72,10 +87,14 @@ export function Footer() {
       <div className="footer-col">
         <h4>{t('Điểm đến')}</h4>
         <ul>
-          {CITIES.map(([name, slug]) => (
-            <li key={slug}>
-              <a href={`/thanh-pho/${slug}`}
-                 onClick={e => { e.preventDefault(); navigate(`/thanh-pho/${slug}`); }}>{name}</a>
+          {cities.map(c => (
+            <li key={c.slug}>
+              <a href={`/thanh-pho/${c.slug}`}
+                 onClick={e => {
+                   if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+                   e.preventDefault();
+                   navigate(`/thanh-pho/${c.slug}`);
+                 }}>{c.name}</a>
             </li>
           ))}
         </ul>

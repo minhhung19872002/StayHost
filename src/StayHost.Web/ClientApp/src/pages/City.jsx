@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Card } from '../components/Card.jsx';
 import { t } from '../lib/i18n.js';
+import { setPageMeta, setStructuredData, cityJsonLd, breadcrumbJsonLd } from '../lib/seo.js';
 
 /**
  * docs/01 TM-26 — a landing page for one city, so a visitor arriving from a
@@ -20,6 +21,33 @@ export function City() {
     setMissing(false);
     api.city(city).then(setPage).catch(() => setMissing(true));
   }, [city]);
+
+  // The whole point of a city landing page is the query "khách sạn Đà Lạt", and
+  // a page whose title never says "Đà Lạt" cannot answer it. Until this ran, all
+  // eighteen city pages carried the home page's title and competed with it and
+  // with each other for the same words.
+  useEffect(() => {
+    if (!page) return;
+
+    setPageMeta({
+      title: `Khách sạn, nhà & homestay cho thuê tại ${page.city} | StayHost OS`,
+      // The count is the honest hook and it is the real number from the same
+      // query the page renders, so it cannot promise more than the page shows.
+      description: `${page.count} chỗ nghỉ tại ${page.city}: khách sạn, nhà nguyên căn, `
+        + `căn hộ, villa và homestay. Giá trọn gói, chính sách huỷ ghi rõ trên từng tin.`,
+    });
+
+    setStructuredData({
+      '@context': 'https://schema.org',
+      '@graph': [
+        cityJsonLd(page.city, page.listings || []),
+        breadcrumbJsonLd([
+          { name: 'Trang chủ', path: '/' },
+          { name: page.city, path: `/thanh-pho/${city}` },
+        ]),
+      ],
+    });
+  }, [page, city]);
 
   if (missing) {
     return (

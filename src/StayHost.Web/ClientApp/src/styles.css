@@ -571,7 +571,11 @@ select.field { width: 100%; padding: 10px 12px; }
 .carousel-dots .bullet.is-on { background: #fff; }
 .carousel-dots .bullet:hover { background: transparent; border-color: rgba(255, 255, 255, .9); }
 
-.card-body { padding-top: 11px; }
+/* The body is an <a> now, so it needs the block layout and the inherited colour
+   a div gave it for free — otherwise every card title turns into a blue underlined
+   link. It is a real href because a crawler follows links and nothing else. */
+.card-body { padding-top: 11px; display: block; color: inherit; text-decoration: none; }
+a.card-body:hover { color: inherit; }
 .card-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .card-title {
   font-size: 15px; font-weight: 700; letter-spacing: -0.2px; line-height: 1.35; flex: 1; min-width: 0;
