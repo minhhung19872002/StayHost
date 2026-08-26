@@ -543,16 +543,19 @@ Khách chốt bỏ `staylio.bluestar.com.vn`, và bỏ luôn domain email `stayh
 Trong repo đã đổi hết: tài khoản seed (`guest@staylio.vn`…), `Email:FromAddress`,
 User-Agent gọi VNPay, mọi script nghiệm thu, `DEPLOY.md`, `README.md`.
 
-**Đã làm xong trên máy chủ:**
+**Đã làm xong trên máy chủ** (deploy `764160c` lúc 26/08, container `healthy`):
 
 - Bản ghi A của `staylio.vn` và `www` (P.A Việt Nam) trỏ về `14.225.83.93`. Trước đó
   cả hai là `127.0.0.1` — bản ghi mặc định của nhà đăng ký, **không** phải chưa cấu hình.
-- `proxy/sites/stayhost.caddy` phục vụ cả ba tên miền; Caddy đã xin xong chứng chỉ
-  Let's Encrypt cho `staylio.vn` và `www.staylio.vn`. Tên miền cũ **cố ý giữ lại**.
+- `proxy/sites/stayhost.caddy` phục vụ `staylio.vn` + `www`; Caddy đã xin xong chứng
+  chỉ Let's Encrypt cho cả hai (hạn 24/11/2026). **`staylio.bluestar.com.vn` đã gỡ hẳn
+  theo yêu cầu của khách** — giờ nó không trả lời gì, ai còn giữ đường dẫn cũ thì hỏng.
+  Sao lưu ở `stayhost.caddy.bak-truoc-go-ten-mien-cu`, muốn khôi phục là thêm lại tên
+  đó vào đầu khối rồi `caddy reload`.
 - `~/deploy/stayhost.env`: `PSP_PUBLIC_URL=https://staylio.vn` (bản sao lưu
-  `stayhost.env.bak-truoc-doi-ten-mien-20260826`). **Chưa restart** — lần deploy kế
-  tiếp nạp. Đây cũng là địa chỉ đặt trước link trong email, vì `Site:PublicUrl` rơi
-  về nó.
+  `stayhost.env.bak-truoc-doi-ten-mien-20260826`), đã vào container — kiểm bằng
+  `docker exec stayhost-web printenv Psp__PublicUrl`. Đây cũng là địa chỉ đặt trước
+  link trong email, vì `Site:PublicUrl` rơi về nó khi để trống.
 
 **Máy chủ không giống tài liệu cũ.** `DEPLOY.md` từng ghi IP `45.119.215.96` và TLS
 bằng nginx + certbot. Thật ra là `14.225.83.93`, hostname `bluestar01`, và cổng 443 do
@@ -566,7 +569,8 @@ không áp dụng.
 
 | Việc | Vì sao chưa xong |
 |---|---|
-| Deploy code mới | **Runner `bluestar01` đang offline**, job "Deploy to VPS" xếp hàng vô hạn. Bật lại cần `sudo`: `cd ~/actions-runner && sudo ./svc.sh start` |
+| **Runner chạy tạm, chưa thành service** | Nó **chưa bao giờ được cài systemd**: không có `.service`, không có unit — nên `sudo ./svc.sh start` không có gì để khởi động, mà cũng không báo gì ra ngoài ngoài chữ "offline" trên GitHub. Hiện đang chạy bằng `setsid nohup ./run.sh` nên **chết khi máy khởi động lại**. Cài hẳn: `cd ~/actions-runner && sudo ./svc.sh install hung && sudo ./svc.sh start` |
+| 86 thư cũ trong hàng đợi | Chúng mang link `https://stayhost.vn/…` sinh ra trước bản vá. `EMAIL_HOST` bật lên là chúng bay đi kèm link chết. Hoặc `UPDATE` lại thân thư, hoặc bỏ — phần lớn là thông báo đã cũ |
 | Google origins + Apple Return URL | Khai ở console của nhà cung cấp. Quên thì báo `origin_mismatch`, **không có log nào bên mình** |
 | Địa chỉ website ở cổng VNPay/MoMo/ZaloPay/OnePay | Mỗi bên chặn IPN theo tên miền đã đăng ký |
 | `EMAIL_HOST` | **Không có trong env file** — nên thư nằm im trong hàng đợi, kể cả mã 6 số đăng nhập quản trị. Tên miền mới đã có sẵn SPF + DKIM trỏ `maychuemail.com`, nên chỉ cần tạo hòm thư rồi điền SMTP |
