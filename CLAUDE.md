@@ -472,15 +472,24 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   12:00 UTC thì "đơn chưa trả phòng" → kịch bản 10 hỏng mỗi buổi sáng, đạt mỗi buổi
   chiều, và trông hệt như một test chập chờn. Cửa sổ đúng là `CheckOut@12:00` nằm
   trong `(now-24h, now]`.
-- **Push xong không có nghĩa là deploy chạy.** Ngày 26/08, commit `b30ebd5` lên
-  `origin/main` bình thường mà GitHub **không tạo workflow run nào** —
-  `gh api "repos/.../actions/runs?head_sha=b30ebd5"` trả `total_count: 0`. Không
-  phải `Unstick deploys` (nó chỉ đụng run đã queued ≥20 phút), không phải `paths`
-  filter (`ci-cd.yml` không có), và không có lỗi ở đâu cả: chỉ là commit nằm trên
-  GitHub còn prod vẫn chạy bản cũ, im lặng. Sau mỗi lần push thì kiểm
-  `gh run list --workflow=ci-cd.yml --limit 1` xem có run cho đúng commit đó không;
-  không có thì `gh workflow run ci-cd.yml --ref main`, rồi đối chiếu
-  `docker inspect stayhost-web --format "{{.Config.Image}}"` với sha vừa push.
+- **Đổi tên repo thì runner tự-host không đổi theo.** Sau khi `StayHost` thành
+  `Staylio` (27/08/2026), `~/actions-runner/.runner` trên VPS vẫn ghi URL cũ và vẫn
+  `online` — nhưng chỉ vì **GitHub tự chuyển hướng tên cũ sang tên mới**. Chuyển hướng
+  ấy biến mất ngay khi có ai tạo repo mới trùng tên `StayHost` dưới cùng tài khoản, và
+  khi đó deploy ngừng chạy mà không báo gì. Package GHCR thì tự bám theo repo mới
+  (`ghcr.io/minhhung19872002/stayhost` vẫn đúng), nên chỉ còn runner là chỗ hở.
+- **GitHub có thể tạo workflow run trễ cả tiếng, và "chưa có run" không phải "hỏng".**
+  Ngày 26/08, `gh api ".../actions/runs?head_sha=b30ebd5"` trả `total_count: 0` ngay
+  sau khi push, rồi trả `0` lần nữa ở lần push kế tiếp. Workflow vẫn `active`, Actions
+  vẫn `enabled`, không có `paths` filter, không phải `Unstick deploys` (nó chỉ đụng
+  run đã queued ≥20 phút) — nên kết luận lúc đó là "GitHub bỏ qua push". **Sai.** Một
+  tiếng sau, run cho `b30ebd5` xuất hiện lúc 16:53 và run cho `a8a1de3` lúc 16:55, cả
+  hai `event=push`, cả hai `success`. Cái giá của việc kết luận vội là `b30ebd5` được
+  **deploy hai lần** (một do kích thủ công, một do run push tới muộn) — không hại, vì
+  cùng một image và runner chạy tuần tự, nhưng vô ích.
+  Thứ đáng tin duy nhất là **prod đang chạy sha nào**, không phải danh sách run:
+  `ssh hung@14.225.83.93 'docker inspect stayhost-web --format "{{.Config.Image}}"'`.
+  Chỉ khi sha đó lệch và đã đợi đủ lâu thì mới `gh workflow run ci-cd.yml --ref main`.
 - **`slice(0, 5)` để "lấy giờ" chỉ đúng với ngôn ngữ đặt giờ ở cuối.** Ô "Số liệu
   lúc" cắt năm ký tự đầu của `dateTime()`: tiếng Việt ra `22:42` (chuỗi là
   "22:42 26-08"), tiếng Nhật ra **`08/26`** vì `Intl` đặt ngày trước. Không có lỗi,
