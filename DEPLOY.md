@@ -415,11 +415,49 @@ Dump có `--clean --if-exists` nên nó tự xoá bảng cũ trước khi dựng
 
 Certbot tự gia hạn qua timer `certbot.timer`. Kiểm tra: `sudo certbot renew --dry-run`.
 
+## 3.1. Runner: giữ bằng cron, không phải systemd
+
+Trên `bluestar01` không cài được service (xem cảnh báo ở §4), nên runner sống nhờ một
+dòng trong `crontab -l` của `hung`:
+
+```cron
+*/5 * * * * pgrep -f "[R]unner.Listener" >/dev/null || (cd /home/hung/actions-runner && setsid ./run.sh >> /home/hung/actions-runner/run-cron.log 2>&1)
+```
+
+Nó bao **cả reboot lẫn crash**, chỉ kém systemd ở chỗ chậm nhất 5 phút mới dựng lại.
+
+**Dấu ngoặc vuông trong `[R]unner.Listener` là bắt buộc.** Cron chạy dòng này qua
+`sh -c '…'`, mà dòng lệnh của chính `sh` đó chứa chuỗi đang tìm — viết
+`pgrep -f "Runner.Listener"` thì nó **luôn tự thấy mình**, kết luận runner đang chạy, và
+**không bao giờ dựng lại**. Không lỗi, không log, chỉ là một lưới an toàn không bung.
+Cùng cái bẫy đó khiến `pkill -f "Runner.Listener"` gõ qua SSH tự cắt phiên SSH của mình.
+
+Kiểm chứng thì **giết runner rồi chờ nhịp kế tiếp**, đừng đọc dòng cron rồi tin:
+
+```bash
+pkill -f "[R]unner.Listener"          # nho ngoac vuong, keo tu giet phien SSH
+# cho toi phut chia het cho 5, roi:
+pgrep -af "[R]unner.Listener"          # phai thay tien trinh moi
+```
+
+Ngày nào có mật khẩu root thì chuyển sang systemd bằng
+`/home/hung/cai-runner-service.sh` (chạy **bằng root**, không phải `sudo`). Script đó
+**gỡ dòng cron trước rồi mới cài** — để cả hai là hai runner tranh cùng một đăng ký, và
+triệu chứng lại đúng chữ "offline" khó truy.
+
 ## 4. Dựng lại từ đầu
 
-> **Phần này viết cho một máy chủ chỉ chạy StayHost.** Máy `bluestar01` hiện tại
-> **không** như vậy — nó dùng chung Caddy với bốn dự án khác, nên **bỏ qua bước 1 và
-> bước 5**, và thêm tên miền theo §2.7. Xem cảnh báo ở đầu tài liệu.
+> **Phần này viết cho một máy chủ chỉ chạy StayHost, và cho một tài khoản có `sudo`.**
+> Máy `bluestar01` hiện tại **không** thoả cả hai:
+>
+> - Nó dùng chung Caddy với bốn dự án khác → **bỏ qua bước 1 và bước 5**, thêm tên miền
+>   theo §2.7.
+> - Tài khoản `hung` **không nằm trong sudoers**, và nhóm `sudo` trên máy **rỗng** —
+>   máy được quản trị bằng root trực tiếp → **bước 3 không chạy được**. Runner ở đây
+>   giữ bằng crontab, xem §3.1.
+>
+> Lưu ý `hung` **có** nhóm `docker`, tức là root trá hình. Chỗ thiếu `sudo` này là bất
+> tiện chứ không phải hàng rào bảo mật.
 
 Ba script dưới đây cần `sudo`, nên phải chạy trong terminal SSH thật (chế độ `!` của
 Claude Code không có TTY để nhập mật khẩu).

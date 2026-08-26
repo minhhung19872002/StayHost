@@ -364,6 +364,14 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   đi soát tên miền để đổi. Giờ là `Site:PublicUrl`, và nó **rơi về `Psp:PublicUrl`**
   khi để trống — cùng một địa chỉ, nên không đẻ ra biến thứ hai phải nhớ sửa cùng lúc.
   Không có địa chỉ nào thì **bỏ hẳn dòng link** chứ không đoán tên miền.
+- **Tài liệu viết `sudo` không có nghĩa là tài khoản đó sudo được.** `DEPLOY.md §4`
+  bảo `sudo bash deploy/setup-runner-service.sh`, nhưng trên `bluestar01` thì `hung`
+  không nằm trong sudoers và nhóm `sudo` **rỗng** — máy được quản trị bằng root trực
+  tiếp. Cả một bước cài đặt vì thế **chưa bao giờ chạy**, và hậu quả chỉ hiện ra nhiều
+  tháng sau dưới dạng một chữ "offline" trên GitHub, đúng lúc cần deploy gấp. Đáng nói
+  hơn: `hung` **có** nhóm `docker`, mà nhóm docker là root trá hình (mount `/` vào một
+  container là xong) — nên chỗ thiếu sudo ấy **không phải hàng rào bảo mật**, chỉ là
+  bất tiện. Trước khi viết `sudo` vào tài liệu, kiểm `id` của tài khoản thật sẽ chạy nó.
 - **`pgrep -f` khớp luôn chính câu lệnh đang gọi nó.** Dòng cron canh runner viết
   `pgrep -f "Runner.Listener" || khoi_dong_lai` **không bao giờ khởi động lại**: cron
   chạy nó qua `sh -c '...'`, mà dòng lệnh của chính `sh` đó có chứa chuỗi tìm kiếm, nên
@@ -585,7 +593,7 @@ không áp dụng.
 
 | Việc | Vì sao chưa xong |
 |---|---|
-| **Runner giữ bằng cron, chưa phải systemd** | Nó **chưa bao giờ được cài service**: không có `~/actions-runner/.service`, không có unit — nên `sudo ./svc.sh start` không có gì để khởi động, và triệu chứng duy nhất là chữ "offline" trên GitHub. Không có sudo nên đang giữ bằng **crontab của `hung`**, `*/5` dựng lại nếu không thấy tiến trình: bao cả reboot lẫn crash, nhưng không có auto-restart tức thì như systemd. Cài hẳn thì **xoá dòng cron trước** (`crontab -e`), rồi `cd ~/actions-runner && sudo ./svc.sh install hung && sudo ./svc.sh start` — để cả hai là hai runner tranh nhau |
+| ~~Runner thành systemd service~~ | **Không làm được, và đã chốt bỏ (26/08).** `hung` **không nằm trong sudoers**, mà nhóm `sudo` trên máy **rỗng** — `bluestar01` xưa nay quản trị bằng root trực tiếp, và khách không giữ mật khẩu root. Đó cũng là lý do runner chưa bao giờ thành service: `DEPLOY.md §4` bảo `sudo bash deploy/setup-runner-service.sh`, tài khoản được cấp không chạy nổi dòng đó. Thay bằng **crontab của `hung`** — xem dưới |
 
 | Google origins + Apple Return URL | Khai ở console của nhà cung cấp. Quên thì báo `origin_mismatch`, **không có log nào bên mình** |
 | Địa chỉ website ở cổng VNPay/MoMo/ZaloPay/OnePay | Mỗi bên chặn IPN theo tên miền đã đăng ký |
