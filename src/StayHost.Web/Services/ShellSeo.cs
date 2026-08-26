@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using StayHost.Domain;
@@ -31,6 +32,25 @@ public static class ShellSeo
 
     /// <summary>Where the default share card lives, relative to the site root.</summary>
     public const string DefaultImage = "/og-default.png";
+
+    /// <summary>The name Google prints above a result for this site.</summary>
+    private const string SiteName = "Staylio";
+
+    /// <summary>
+    /// The id lib/seo.js gives its own JSON-LD block. Shared on purpose: when
+    /// React runs it replaces this element instead of adding a second, competing
+    /// description of the same page.
+    /// </summary>
+    private const string LdElementId = "seo-jsonld";
+
+    /// <summary>
+    /// Unicode left unescaped so Vietnamese stays readable in the page source,
+    /// and because the document already declares UTF-8.
+    /// </summary>
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
 
     private static string? _shell;
     private static long _shellStamp;
@@ -76,7 +96,7 @@ public static class ShellSeo
         if (start < 0 || end < start) return shell;
 
         var page = await DescribeAsync(db, route, requestedPage, ct);
-        var head = Head(page, origin, path);
+        var head = Head(page, origin, path) + SiteJsonLd(origin, path);
 
         return shell[..start] + head + shell[(end + Close.Length)..];
     }
@@ -267,6 +287,72 @@ public static class ShellSeo
     /// browser, but the page already declares UTF-8 and not every chat-app
     /// scraper decodes entities before showing the card.
     /// </summary>
+    /// <summary>
+    /// Who this site is, on the home page only.
+    ///
+    /// Google takes the name it prints above a result from the home page, and
+    /// the strongest signal it accepts is a WebSite node in structured data —
+    /// stronger than og:site_name or the title. lib/seo.js already emits this
+    /// node, but only once React has run, and a crawler that indexed the page
+    /// before rendering the JavaScript keeps whatever name it learned last time.
+    /// That is how "StayHost OS:" stayed on the search result for a day after
+    /// every visible trace of the old name was gone.
+    ///
+    /// Same element id as the client's block, so when React does run it replaces
+    /// this one instead of leaving the page with two competing descriptions of
+    /// itself — structured data that disagrees with itself is worse than none.
+    ///
+    /// SearchAction is a promise, not decoration: the address given has to be a
+    /// real search page, which /?q= is.
+    /// </summary>
+    private static string SiteJsonLd(string origin, string path)
+    {
+        if (path != "/") return "";
+
+        // Built as a serialised object rather than a hand-written literal: the
+        // JSON here is full of braces, and a raw interpolated string needs them
+        // doubled, which is exactly the kind of quoting that survives review and
+        // then ships a document Google silently refuses to parse.
+        var graph = new object[]
+        {
+            new Dictionary<string, object>
+            {
+                ["@type"] = "Organization",
+                ["@id"] = $"{origin}/#org",
+                ["name"] = SiteName,
+                ["url"] = origin,
+            },
+            new Dictionary<string, object>
+            {
+                ["@type"] = "WebSite",
+                ["@id"] = $"{origin}/#site",
+                ["url"] = origin,
+                ["name"] = SiteName,
+                ["inLanguage"] = "vi-VN",
+                ["publisher"] = new Dictionary<string, object> { ["@id"] = $"{origin}/#org" },
+                ["potentialAction"] = new Dictionary<string, object>
+                {
+                    ["@type"] = "SearchAction",
+                    ["target"] = new Dictionary<string, object>
+                    {
+                        ["@type"] = "EntryPoint",
+                        // A promise, not decoration: this has to be a real search
+                        // page on this site, which /?q= is.
+                        ["urlTemplate"] = origin + "/?q={search_term_string}",
+                    },
+                    ["query-input"] = "required name=search_term_string",
+                },
+            },
+        };
+
+        var doc = JsonSerializer.Serialize(
+            new Dictionary<string, object> { ["@context"] = "https://schema.org", ["@graph"] = graph },
+            JsonOptions);
+
+        return "\n<script type=\"application/ld+json\" id=\"" + LdElementId + "\">"
+             + doc + "</script>\n";
+    }
+
     private static string E(string s) => s
         .Replace("&", "&amp;")
         .Replace("<", "&lt;")
