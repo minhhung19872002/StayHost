@@ -1,11 +1,11 @@
-# 06 — StayShield: chương trình bảo vệ hai đầu
+# 06 — Staylio Shield: chương trình bảo vệ hai đầu
 
 Bổ sung cho `00-TONG-QUAN.md` §4 và `01-DANH-MUC-CHUC-NANG.md` AT-06.
 Liên quan chặt tới `03-QUY-TAC-NGHIEP-VU.md` §4 (huỷ) và `04-QUY-TRINH.md` QT-10 (tranh chấp).
 
 ---
 
-## 1. StayShield là gì và không là gì
+## 1. Staylio Shield là gì và không là gì
 
 **Là:** cam kết của sàn với người dùng — khi chuyến đi hỏng vì lỗi bên kia, sàn đứng ra xử lý và bù đắp bằng tiền của sàn. Chi phí lấy từ doanh thu phí dịch vụ.
 
@@ -16,16 +16,16 @@ Liên quan chặt tới `03-QUY-TAC-NGHIEP-VU.md` §4 (huỷ) và `04-QUY-TRINH.
 
 > **Cách gọi bắt buộc trong mọi văn bản hiển thị:** "chính sách hỗ trợ" / "chương trình bảo vệ" của sàn. **Tuyệt đối không dùng từ "bảo hiểm", "quyền lợi bảo hiểm", "được bảo hiểm"** — xem §11.
 
-StayShield có hai nhánh độc lập, hạn mức riêng, quỹ riêng:
+Staylio Shield có hai nhánh độc lập, hạn mức riêng, quỹ riêng:
 
 | Nhánh | Bảo vệ ai | Trước rủi ro gì |
 |---|---|---|
-| **StayShield Khách** | Khách | Chỗ ở không có, không vào được, hoặc khác xa mô tả |
-| **StayShield Chủ nhà** | Chủ nhà | Khách làm hư hỏng, mất mát, hoặc gây thiệt hại thu nhập |
+| **Staylio Shield Khách** | Khách | Chỗ ở không có, không vào được, hoặc khác xa mô tả |
+| **Staylio Shield Chủ nhà** | Chủ nhà | Khách làm hư hỏng, mất mát, hoặc gây thiệt hại thu nhập |
 
 ---
 
-## 2. StayShield cho Khách
+## 2. Staylio Shield cho Khách
 
 ### 2.1. Bốn tình huống được bảo vệ
 
@@ -45,7 +45,7 @@ StayShield có hai nhánh độc lập, hạn mức riêng, quỹ riêng:
 | K1 (chủ nhà huỷ) | Tự động, không cần khách báo |
 | K2, K3, K4 | **Trong 72 giờ** kể từ giờ nhận phòng ghi trên đơn |
 
-Quá hạn → không áp dụng StayShield, chuyển sang Trung tâm giải quyết thông thường (có thể được hoàn một phần theo phân xử, nhưng không có cam kết hạn mức).
+Quá hạn → không áp dụng Staylio Shield, chuyển sang Trung tâm giải quyết thông thường (có thể được hoàn một phần theo phân xử, nhưng không có cam kết hạn mức).
 
 **Điều kiện tiên quyết cho K2–K4:** khách phải **liên hệ chủ nhà qua tin nhắn trong sàn trước**, và chờ ít nhất **1 giờ** (K2 khẩn cấp) hoặc **3 giờ** (K3, K4) mà không được xử lý. Ngoại lệ không cần chờ: có nguy hiểm về an toàn, hoặc chỗ ở có người lạ đang ở.
 
@@ -81,7 +81,7 @@ Không tìm được chỗ thay thế, hoặc khách chọn về sớm:
 
 ---
 
-## 3. StayShield cho Chủ nhà
+## 3. Staylio Shield cho Chủ nhà
 
 ### 3.1. Ba nhóm thiệt hại được bảo vệ
 
@@ -117,11 +117,11 @@ tiền của khách.**
 ```
 1. Chủ nhà báo cho khách NGAY LÚC TRẢ PHÒNG, khách còn ở đó
 2. Hai bên tự thoả thuận, khách đưa tiền mặt cho chủ nhà
-3. Khách không chịu đưa → CHỦ NHÀ CHỊU. Quỹ StayShield không chi.
+3. Khách không chịu đưa → CHỦ NHÀ CHỊU. Quỹ Staylio Shield không chi.
 ```
 
 **Sàn không gánh phần khách không trả** (chốt 17/08/2026). Sàn phân xử — ra một
-con số và nói rõ khách phải đền bao nhiêu — rồi dừng ở đó. StayShield **không bảo
+con số và nói rõ khách phải đền bao nhiêu — rồi dừng ở đó. Staylio Shield **không bảo
 lãnh** cho một vị khách bỏ đi không trả.
 
 Vì thế **hạn mức `[C-A]`, `[C-B]` và mức tự chịu `[C-C]` không áp cho C1/C2**. Ba
@@ -199,10 +199,10 @@ Thiếu bất kỳ mục nào thì hồ sơ không đủ điều kiện:
 
 ---
 
-## 5. Quỹ StayShield
+## 5. Quỹ Staylio Shield
 
 - **Nguồn:** trích **`[THAM SỐ Q-B]`%** doanh thu phí dịch vụ hằng tháng.
-- **Hạch toán:** là một tài khoản riêng trong sổ ghi tiền (`05-THUC-THE.md` — Sổ ghi tiền). Mọi khoản chi từ quỹ đều ghi một dòng, tham chiếu tới hồ sơ StayShield.
+- **Hạch toán:** là một tài khoản riêng trong sổ ghi tiền (`05-THUC-THE.md` — Sổ ghi tiền). Mọi khoản chi từ quỹ đều ghi một dòng, tham chiếu tới hồ sơ Staylio Shield.
 - **Ngưỡng cảnh báo:** khi chi trong tháng vượt **`[THAM SỐ Q-C]`%** số trích trong tháng → báo động cho bộ phận tài chính.
 - **Khi quỹ cạn:** không tự động từ chối người dùng. Chuyển mọi hồ sơ mới sang phê duyệt thủ công cấp cao và báo lãnh đạo.
 - **Thu hồi:** khi thu được tiền từ khách sau khi đã chi quỹ, ghi hoàn lại quỹ đúng số đó.
@@ -210,7 +210,7 @@ Thiếu bất kỳ mục nào thì hồ sơ không đủ điều kiện:
 
 ---
 
-## 6. Vòng đời một hồ sơ StayShield
+## 6. Vòng đời một hồ sơ Staylio Shield
 
 ```
 Mở hồ sơ
@@ -264,7 +264,7 @@ Hệ thống phải theo dõi và gắn cờ:
 - Chủ nhà và khách có dấu hiệu quen biết (thông đồng rút quỹ)
 - Hồ sơ mở ngay sau khi hai bên vừa cãi nhau trong tin nhắn
 
-Tài khoản bị gắn cờ → mọi hồ sơ tiếp theo phải qua duyệt thủ công. Xác định gian lận → thu hồi tiền đã chi, khoá tài khoản, không được dùng StayShield vĩnh viễn.
+Tài khoản bị gắn cờ → mọi hồ sơ tiếp theo phải qua duyệt thủ công. Xác định gian lận → thu hồi tiền đã chi, khoá tài khoản, không được dùng Staylio Shield vĩnh viễn.
 
 ---
 
@@ -272,7 +272,7 @@ Tài khoản bị gắn cờ → mọi hồ sơ tiếp theo phải qua duyệt t
 
 | Mã | Chức năng |
 |---|---|
-| AT-06-01 | Trang giới thiệu StayShield cho khách và cho chủ nhà, nêu rõ phạm vi, hạn mức, loại trừ |
+| AT-06-01 | Trang giới thiệu Staylio Shield cho khách và cho chủ nhà, nêu rõ phạm vi, hạn mức, loại trừ |
 | AT-06-02 | Nút "Chỗ ở có vấn đề" trong chi tiết chuyến đi, chỉ hiện trong 72 giờ đầu kể từ giờ nhận phòng |
 | AT-06-03 | Biểu mẫu mở hồ sơ khách: chọn tình huống K1–K4, mô tả, tải ảnh/video, xác nhận đã nhắn chủ nhà |
 | AT-06-04 | Biểu mẫu mở hồ sơ chủ nhà: chọn nhóm C1–C3, liệt kê từng món kèm giá, tải bằng chứng, đối chiếu ảnh tin đăng |
@@ -294,14 +294,14 @@ Tài khoản bị gắn cờ → mọi hồ sơ tiếp theo phải qua duyệt t
 1. **`03 §4` quy tắc bất khả kháng** — khoản "chủ nhà được đền bù một phần từ quỹ" nay lấy tham số `[Q-A]` ở tài liệu này.
 2. **`04 QT-10` tranh chấp** — bước 6 "chi từ quỹ bảo vệ" nay theo thứ tự thu tiền ở §3.3.
 3. **`04 QT-6` chủ nhà huỷ** — khoản tặng 10% số dư cho khách nay là tham số `[K-B]`, và phần chênh lệch chỗ thay thế do quỹ chịu.
-4. **`04 QT-11` chuyển tiền chủ nhà** — thêm điều kiện: có hồ sơ StayShield đang mở thì tạm giữ khoản chuyển.
-5. **`05` thực thể "Yêu cầu bồi thường"** — bổ sung: có thuộc StayShield không, thuộc nhánh nào, mã tình huống, số tiền quỹ chi, số tiền thu hồi được.
+4. **`04 QT-11` chuyển tiền chủ nhà** — thêm điều kiện: có hồ sơ Staylio Shield đang mở thì tạm giữ khoản chuyển.
+5. **`05` thực thể "Yêu cầu bồi thường"** — bổ sung: có thuộc Staylio Shield không, thuộc nhánh nào, mã tình huống, số tiền quỹ chi, số tiền thu hồi được.
 
 ---
 
 ## 10. Bảng tham số cần chốt trước khi xây
 
-**Khách chốt ngày 06/08/2026.** Giá trị nằm trong `StayHost.Domain/StayShield.cs`
+**Khách chốt ngày 06/08/2026.** Giá trị nằm trong `StayHost.Domain/Staylio Shield.cs`
 (`ShieldSettings`), một nơi duy nhất — không rải hằng số ra chỗ khác.
 
 | Mã | Tham số | Gợi ý | Giá trị chốt |
@@ -327,10 +327,10 @@ Tài khoản bị gắn cờ → mọi hồ sơ tiếp theo phải qua duyệt t
 
 Ở Việt Nam, việc cam kết chi trả cho một rủi ro xác định, có hạn mức, có điều kiện loại trừ, rất dễ bị coi là hoạt động kinh doanh bảo hiểm — mà cái đó cần giấy phép. Cách để không rơi vào diện đó:
 
-1. **Không thu riêng phí nào cho StayShield.** Không được tách dòng "phí StayShield" trên hoá đơn. Chi phí nằm trong phí dịch vụ chung.
+1. **Không thu riêng phí nào cho Staylio Shield.** Không được tách dòng "phí Staylio Shield" trên hoá đơn. Chi phí nằm trong phí dịch vụ chung.
 2. **Không dùng từ ngữ bảo hiểm** ở bất kỳ đâu người dùng đọc được: bảo hiểm, phí bảo hiểm, quyền lợi bảo hiểm, bồi thường bảo hiểm, người được bảo hiểm.
 3. **Đóng khung là chính sách hỗ trợ của sàn**, sàn có toàn quyền quyết định từng trường hợp, không phải nghĩa vụ hợp đồng tự động.
 4. **Giữ quyền sửa đổi và chấm dứt chương trình** bất cứ lúc nào, ghi rõ trong điều khoản.
-5. Nếu sau này muốn mở rộng hạn mức lên mức lớn → cân nhắc hợp tác với một công ty bảo hiểm có giấy phép và bán như sản phẩm bảo hiểm riêng biệt, tách khỏi StayShield.
+5. Nếu sau này muốn mở rộng hạn mức lên mức lớn → cân nhắc hợp tác với một công ty bảo hiểm có giấy phép và bán như sản phẩm bảo hiểm riêng biệt, tách khỏi Staylio Shield.
 
 Đây là nhận định để anh biết đường hỏi, không phải tư vấn pháp lý — trước khi công bố chương trình nên đưa luật sư đọc bản điều khoản.

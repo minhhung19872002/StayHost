@@ -36,7 +36,7 @@ public class CalendarSyncService(
 
             await ApplyAsync(feed, events, ct);
 
-            // docs/01 QL-11 — warn when the import sells nights StayHost has
+            // docs/01 QL-11 — warn when the import sells nights Staylio has
             // already confirmed. The blocks are still written (the dates really are
             // taken elsewhere); the host is told so they can sort out the clash.
             await FlagOverlapsAsync(feed, events, ct);
@@ -161,7 +161,7 @@ public class CalendarSyncService(
             .OrderBy(e => e.From)
             .ToList();
 
-        return Ical.Write($"StayHost · {listing.Title}", events, DateTime.UtcNow);
+        return Ical.Write($"Staylio · {listing.Title}", events, DateTime.UtcNow);
     }
 
     private static string Note(CalendarFeed feed, IcalEvent e) =>

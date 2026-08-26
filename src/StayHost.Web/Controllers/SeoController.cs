@@ -44,12 +44,18 @@ public class SeoController(StayHostDbContext db, SiteSettings site) : Controller
             ? site.PublicUrl.TrimEnd('/')
             : $"{Request.Scheme}://{Request.Host}";
 
+    // HEAD as well as GET. [HttpGet] does not answer a HEAD request in ASP.NET
+    // Core, so both files returned 404 to anything that checks for existence
+    // without downloading - which is what most SEO checkers do, and the answer
+    // they got read as "this site has no sitemap".
     [HttpGet("/robots.txt")]
+    [HttpHead("/robots.txt")]
     [Produces("text/plain")]
     public ContentResult Robots() =>
         Content(Seo.RobotsTxt($"{BaseUrl}/sitemap.xml"), "text/plain; charset=utf-8");
 
     [HttpGet("/sitemap.xml")]
+    [HttpHead("/sitemap.xml")]
     public async Task<IActionResult> Sitemap(CancellationToken ct)
     {
         var root = BaseUrl;

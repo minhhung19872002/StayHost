@@ -6,16 +6,16 @@ import { t } from '../lib/i18n.js';
 const COLUMNS = [
   {
     title: 'Hỗ trợ',
-    links: ['Trung tâm trợ giúp', 'StayShield cho khách', 'Chống phân biệt đối xử',
+    links: ['Trung tâm trợ giúp', 'Staylio Shield cho khách', 'Chống phân biệt đối xử',
             'Hỗ trợ người khuyết tật', 'Tuỳ chọn huỷ', 'Báo cáo lo ngại khu dân cư']
   },
   {
     title: 'Đón tiếp khách',
-    links: ['Cho thuê nhà trên StayHost', 'StayShield cho Chủ nhà', 'Tài nguyên cho Chủ nhà',
+    links: ['Cho thuê nhà trên Staylio', 'Staylio Shield cho Chủ nhà', 'Tài nguyên cho Chủ nhà',
             'Diễn đàn cộng đồng', 'Đón tiếp khách có trách nhiệm', 'Tham gia khoá học miễn phí']
   },
   {
-    title: 'StayHost',
+    title: 'Staylio',
     links: ['Trang tin tức', 'Tính năng mới', 'Cơ hội nghề nghiệp',
             'Nhà đầu tư', 'Chỗ ở khẩn cấp StayHost.org', 'Thẻ quà tặng']
   },
@@ -26,7 +26,7 @@ const COLUMNS = [
   }
 ];
 
-const LEGAL = ['© 2026 StayHost OS, Inc.', 'Quyền riêng tư', 'Điều khoản', 'Sơ đồ trang web', 'Thông tin công ty'];
+const LEGAL = ['© 2026 Staylio, Inc.', 'Quyền riêng tư', 'Điều khoản', 'Sơ đồ trang web', 'Thông tin công ty'];
 
 // docs/01 TM-26 — the city landing pages, from the server rather than from a
 // list typed here. The hard-coded six covered a third of the cities that existed,
@@ -51,12 +51,12 @@ const demo = e => { e.preventDefault(); toast('Bản demo — chức năng này 
 /** The few footer links that lead somewhere real (docs/01 AT-07). */
 const ROUTES = {
   'Trung tâm trợ giúp': '/help',
-  'Cho thuê nhà trên StayHost': '/host',
+  'Cho thuê nhà trên Staylio': '/host',
   'Trải nghiệm': '/experiences',
   'Dịch vụ': '/services',
   'Thẻ quà tặng': '/wallet',
-  'StayShield cho khách': '/shield/terms',
-  'StayShield cho Chủ nhà': '/shield/terms',
+  'Staylio Shield cho khách': '/shield/terms',
+  'Staylio Shield cho Chủ nhà': '/shield/terms',
   // docs/01 AT-03 — the neighbour channel.
   'Báo cáo lo ngại khu dân cư': '/neighbors'
 };

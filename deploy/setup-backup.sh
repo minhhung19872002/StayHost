@@ -17,7 +17,7 @@ install -m 0755 "$HERE/backup-db.sh" /usr/local/bin/stayhost-backup
 echo "==> Writing systemd units"
 cat > /etc/systemd/system/stayhost-backup.service <<EOF
 [Unit]
-Description=StayHost Postgres dump
+Description=Staylio Postgres dump
 Requires=docker.service
 After=docker.service
 
@@ -29,7 +29,7 @@ EOF
 
 cat > /etc/systemd/system/stayhost-backup.timer <<'EOF'
 [Unit]
-Description=Nightly StayHost Postgres dump
+Description=Nightly Staylio Postgres dump
 
 [Timer]
 OnCalendar=*-*-* 03:30:00

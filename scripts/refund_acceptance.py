@@ -101,7 +101,7 @@ def vnpay_querydr(tmn, secret, order_ref, paid_at):
                                           # VNPay answers 403 to a request with no
                                           # User-Agent, and the page says nothing
                                           # about why. Cost an afternoon.
-                                          "User-Agent": "StayHost-acceptance/1.0"})
+                                          "User-Agent": "Staylio-acceptance/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=40) as res:
             return json.loads(res.read().decode())
@@ -109,7 +109,7 @@ def vnpay_querydr(tmn, secret, order_ref, paid_at):
         return {"error": str(e)}
 
 
-print("StayHost · nghiệm thu hoàn tiền qua cổng thật (docs/07 §10) — %s\n" % BASE)
+print("Staylio · nghiệm thu hoàn tiền qua cổng thật (docs/07 §10) — %s\n" % BASE)
 
 _, catalogue = call("/api/payment-methods/catalogue")
 live = {m["key"]: m.get("live") for m in (catalogue or {}).get("methods", [])}

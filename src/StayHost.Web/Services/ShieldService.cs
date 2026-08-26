@@ -6,7 +6,7 @@ using StayHost.Web.Contracts;
 namespace StayHost.Web.Services;
 
 /// <summary>
-/// docs/06 — StayShield. Filing, answering, deciding and paying, plus the fund
+/// docs/06 — Staylio Shield. Filing, answering, deciding and paying, plus the fund
 /// behind it. Every number comes from <see cref="ShieldSettings"/>; nothing in
 /// here invents a limit of its own.
 /// </summary>
@@ -163,7 +163,7 @@ public class ShieldService(
 
         var otherId = side == ShieldSide.Guest ? hostUserId : booking.GuestUserId;
         await NotifyAsync(otherId,
-            "Có hồ sơ StayShield cần bạn phản hồi",
+            "Có hồ sơ Staylio Shield cần bạn phản hồi",
             $"{Shield.CaseLabel(kind)} · đơn {booking.Reference}. Bạn có 24 giờ để phản hồi.",
             "/shield", ct);
 
@@ -209,7 +209,7 @@ public class ShieldService(
         await db.SaveChangesAsync(ct);
 
         await NotifyAsync(guestId,
-            "StayHost đang lo chỗ ở thay thế cho bạn",
+            "Staylio đang lo chỗ ở thay thế cho bạn",
             $"Đơn {booking.Reference} bị chủ nhà huỷ. Chúng tôi sẽ liên hệ trong vòng 4 giờ.",
             "/shield", ct);
 
@@ -244,7 +244,7 @@ public class ShieldService(
         await db.SaveChangesAsync(ct);
 
         await NotifyAsync(claim.OpenedByUserId,
-            "Bên kia đã phản hồi hồ sơ StayShield",
+            "Bên kia đã phản hồi hồ sơ Staylio Shield",
             $"{Shield.StatusLabel(next)} · hồ sơ {claim.Reference}.",
             "/shield", ct);
 
@@ -312,9 +312,9 @@ public class ShieldService(
         if (outcome.Credit > 0 && booking.GuestUserId is { } guestId)
         {
             wallet.Add(guestId, outcome.Credit, CreditReason.Goodwill,
-                $"StayShield · {Shield.CaseLabel(claim.Kind)}", booking.Id);
+                $"Staylio Shield · {Shield.CaseLabel(claim.Kind)}", booking.Id);
             db.LedgerEntries.AddRange(
-                Ledger.GrantCredit(booking, outcome.Credit, "Số dư StayShield", now));
+                Ledger.GrantCredit(booking, outcome.Credit, "Số dư Staylio Shield", now));
         }
 
         Finish(claim, admin, req.Reason, outcome.Summary, now);
@@ -348,7 +348,7 @@ public class ShieldService(
         var thirdParty = Shield.IsThirdParty(claim.Kind);
 
         // docs/06 §3.3 (17/08/2026) — the fund does not pay for damage. If the
-        // guest walks out without settling, the host carries it; StayHost rules
+        // guest walks out without settling, the host carries it; Staylio rules
         // on the amount and stops there.
         var outcome = Shield.SettleHost(
             req.ApprovedAmount ?? claim.Claimed, req.DepositAvailable ?? 0m, paidInCash, paidThisYear,
@@ -361,7 +361,7 @@ public class ShieldService(
 
         // Cash that passed from one person to another at a front door is not a
         // movement on this platform's books, and posting it would be inventing
-        // one: ChargeCounterparty debits GuestFunds — money StayHost is holding —
+        // one: ChargeCounterparty debits GuestFunds — money Staylio is holding —
         // and by checkout there is none of it left to debit. Recording it here
         // would have credited the host a second time for money they already had
         // in their hand.
@@ -489,7 +489,7 @@ public class ShieldService(
         RecordFund(null, contribution, FundMovementKind.Contribution,
             $"Trích {Shield.FundContribution(1m) * 100:0.#}% phí dịch vụ tháng {period:MM/yyyy}", now);
 
-        log.LogInformation("StayShield fund topped up by {Amount} for {Period}.", contribution, period);
+        log.LogInformation("Staylio Shield fund topped up by {Amount} for {Period}.", contribution, period);
         return 1;
     }
 
@@ -739,7 +739,7 @@ public class ShieldService(
         var settled = claim.Status == ShieldStatus.Settled;
 
         await NotifyAsync(claim.OpenedByUserId,
-            settled ? "Hồ sơ StayShield đã được xử lý" : "Hồ sơ StayShield không được chấp nhận",
+            settled ? "Hồ sơ Staylio Shield đã được xử lý" : "Hồ sơ Staylio Shield không được chấp nhận",
             settled
                 ? $"{claim.Decision} Số tiền {Vnd.Format(claim.Approved)} · đơn {booking.Reference}."
                 : claim.Decision ?? "Xem lý do trong hồ sơ.",

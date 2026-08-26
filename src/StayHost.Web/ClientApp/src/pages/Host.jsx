@@ -14,7 +14,7 @@ const STATS = [
 
 const STEPS = [
   { n: 1, title: 'Kể về chỗ nghỉ của bạn', text: 'Chọn loại hình, vị trí và số khách có thể ở. Mất khoảng 10 phút.' },
-  { n: 2, title: 'Làm nó nổi bật', text: 'Đội ngũ StayHost chụp ảnh, viết mô tả và thiết lập giá theo mùa cho bạn.' },
+  { n: 2, title: 'Làm nó nổi bật', text: 'Đội ngũ Staylio chụp ảnh, viết mô tả và thiết lập giá theo mùa cho bạn.' },
   { n: 3, title: 'Đón khách đầu tiên', text: 'Bật lịch, chúng tôi lo phần còn lại: tin nhắn, dọn dẹp, bảo trì.' }
 ];
 
@@ -46,7 +46,7 @@ export function Host() {
   const monthly = nights * rate * (1 - hostRate);
 
   const faq = [
-    [t('StayHost thu phí bao nhiêu?'), `${t('Phí dịch vụ')} ${pct}% ${t('trên mỗi lượt đặt thành công. Không có phí đăng tin, không phí duy trì.')}`],
+    [t('Staylio thu phí bao nhiêu?'), `${t('Phí dịch vụ')} ${pct}% ${t('trên mỗi lượt đặt thành công. Không có phí đăng tin, không phí duy trì.')}`],
     [t('Tôi có toàn quyền với lịch không?'), t('Có. Bạn khoá ngày bất cứ lúc nào; hệ thống tự chặn đặt chỗ trùng.')],
     [t('Nhà bị hư hỏng thì sao?'), t('Mỗi lượt đặt được bảo vệ tới 1 tỷ đồng cho thiệt hại tài sản.')],
     [t('Khi nào tôi được thanh toán?'), t('Chuyển khoản 24 giờ sau khi khách nhận phòng, thẳng vào tài khoản ngân hàng của bạn.')]
@@ -59,7 +59,7 @@ export function Host() {
           <div className="host-eyebrow">{t('CHO CHỦ NHÀ CHO THUÊ NGẮN HẠN')}</div>
           <h1>{t('Giữ căn nhà.')}<br /><span>{t('Bỏ')}</span> {t('phần việc.')}</h1>
           <p>
-            {t('StayHost OS vận hành thay bạn: trả lời khách, tối ưu giá, điều phối dọn dẹp và bảo trì — bạn chỉ nhận doanh thu.')}
+            {t('Staylio vận hành thay bạn: trả lời khách, tối ưu giá, điều phối dọn dẹp và bảo trì — bạn chỉ nhận doanh thu.')}
           </p>
           <div className="host-cta">
             <button className="btn btn-primary" onClick={startListing}>
@@ -73,7 +73,7 @@ export function Host() {
         </div>
         <div className="host-media">
           <img src="https://images.pexels.com/photos/1029599/pexels-photo-1029599.jpeg?auto=compress&cs=tinysrgb&w=1200"
-               alt={t('Villa cho thuê trên StayHost')} loading="eager" decoding="async" />
+               alt={t('Villa cho thuê trên Staylio')} loading="eager" decoding="async" />
         </div>
       </section>
 

@@ -55,7 +55,7 @@ public static class EmailDelivery
     /// client's list, and in every log between here and the recipient. A one-time
     /// code has no business in any of them.
     /// </summary>
-    public static string CodeSubject() => "Mã xác thực StayHost";
+    public static string CodeSubject() => "Mã xác thực Staylio";
 
     /// <summary>True when a subject is leaking something that belongs in the body.</summary>
     public static bool SubjectLeaksCode(string? subject) =>

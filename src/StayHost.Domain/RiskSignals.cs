@@ -12,7 +12,7 @@ public enum RiskKind
     RapidBookings = 3,
 
     /// <summary>
-    /// docs/07 §11 step 6 — an account that has gone to its bank about StayHost
+    /// docs/07 §11 step 6 — an account that has gone to its bank about Staylio
     /// more than once and been found wrong. Unlike the others, this one is not
     /// raised by the periodic sweep: it is raised the moment arbitration lands,
     /// because that is when the fact becomes true.

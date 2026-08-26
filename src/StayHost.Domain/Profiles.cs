@@ -169,7 +169,7 @@ public static class Profiles
         var chosen = Tidy(preferred, LineMax);
         if (chosen is not null) return chosen;
 
-        return Tidy(fullName, LineMax) ?? "Người dùng StayHost";
+        return Tidy(fullName, LineMax) ?? "Người dùng Staylio";
     }
 
     /// <summary>Initials for the grey circle shown wherever there is no photo.</summary>
@@ -225,9 +225,9 @@ public static class Profiles
     /// <summary>"Tháng 8, 2026" — how a date reads next to a review or a profile.</summary>
     public static string MonthLabel(DateTime at) => $"Tháng {at.Month}, {at.Year}";
 
-    /// <summary>docs/02 C6 — "Tham gia StayHost tháng 8, 2026".</summary>
+    /// <summary>docs/02 C6 — "Tham gia Staylio tháng 8, 2026".</summary>
     public static string JoinedLabel(DateTime createdAt) =>
-        $"Tham gia StayHost tháng {createdAt.Month}, {createdAt.Year}";
+        $"Tham gia Staylio tháng {createdAt.Month}, {createdAt.Year}";
 
     /// <summary>
     /// docs/01 TK-05 — the verification badges a stranger may see. Only what was

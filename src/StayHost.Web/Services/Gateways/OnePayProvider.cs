@@ -199,7 +199,7 @@ public class OnePayProvider(
     /// repeat safe: OnePay matches a refund to the transaction it reverses, so a
     /// retry after a lost reply is not a second refund. A call that never landed
     /// is <em>Unknown</em>, never Refused — the difference decides whether the
-    /// guest is paid back to their card or to their StayHost balance, and
+    /// guest is paid back to their card or to their Staylio balance, and
     /// getting it wrong pays them twice.
     /// </summary>
     public async Task<PspRefundResult> RefundAsync(PspRefund refund, CancellationToken ct)

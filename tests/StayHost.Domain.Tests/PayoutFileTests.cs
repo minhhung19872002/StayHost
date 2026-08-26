@@ -180,7 +180,7 @@ public class PayoutFileTests
         Assert.Equal(3, lines.Length);                       // header + two rows
         Assert.StartsWith("1,", lines[1]);
         Assert.StartsWith("2,", lines[2]);
-        Assert.Contains("StayHost CT-260817-1", lines[1]);
+        Assert.Contains("Staylio CT-260817-1", lines[1]);
     }
 
     /* --------------------------------------------------- what stops a transfer */

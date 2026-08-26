@@ -93,7 +93,7 @@ public class FinanceController(
             new("held-host", "Đang giữ hộ chủ nhà", Balance(LedgerAccount.HostPayable), "Giữ hộ"),
             new("held-refund", "Đang chờ hoàn khách", Balance(LedgerAccount.GuestRefundPayable), "Giữ hộ"),
             new("held-third-party", "Đang giữ hộ bên thứ ba", Balance(LedgerAccount.ThirdPartyPayable), "Giữ hộ"),
-            new("shield-fund", "Quỹ StayShield", Balance(LedgerAccount.ShieldFund), "Giữ hộ"),
+            new("shield-fund", "Quỹ Staylio Shield", Balance(LedgerAccount.ShieldFund), "Giữ hộ"),
             new("credit", "Số dư khuyến mãi khách đang giữ", Balance(LedgerAccount.PromotionalCredit), "Giữ hộ"),
             new("tax", "Thuế thu hộ, phải nộp", Balance(LedgerAccount.TaxPayable), "Thuế"),
             new("expense", "Chi phí nền tảng và thất thoát", -Net(LedgerAccount.PlatformExpense), "Thất thoát"),
@@ -301,7 +301,7 @@ public class FinanceController(
         await db.SaveChangesAsync(ct);
 
         await notifications.QueueWithEmailAsync(booking.GuestUser, NotificationKind.RefundIssued,
-            "StayHost đã hoàn tiền cho bạn",
+            "Staylio đã hoàn tiền cho bạn",
             $"{req.Amount:#,##0}₫ cho đơn {booking.Reference}. {Refunds.TimingNotice(split)}",
             $"/trips/{booking.Id}", ct);
 
@@ -383,7 +383,7 @@ public class FinanceController(
             await notifications.QueueWithEmailAsync(hostUser, NotificationKind.System,
                 "Đền bù bất khả kháng",
                 $"Đơn {booking.Reference} bị huỷ vì {reason}. Bạn được đền bù " +
-                $"{award:#,##0}₫ từ quỹ StayShield, không cần mở hồ sơ.",
+                $"{award:#,##0}₫ từ quỹ Staylio Shield, không cần mở hồ sơ.",
                 "/hosting", ct);
         }
 

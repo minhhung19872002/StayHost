@@ -248,7 +248,7 @@ public class StayShieldTests
 
     /// <summary>
     /// The customer's rule: a guest who walks out without paying leaves the host
-    /// carrying it. StayHost decides the number and pays none of it.
+    /// carrying it. Staylio decides the number and pays none of it.
     /// </summary>
     [Fact]
     public void Damage_the_guest_refuses_to_pay_is_borne_by_the_host_not_the_fund()
@@ -579,7 +579,7 @@ public class StayShieldTests
         // Accents missing is still the same word.
         Assert.True(Shield.ReadsAsInsurance("chuong trinh bao hiem"));
 
-        Assert.False(Shield.ReadsAsInsurance("StayHost hỗ trợ bạn tới 75 triệu ₫"));
+        Assert.False(Shield.ReadsAsInsurance("Staylio hỗ trợ bạn tới 75 triệu ₫"));
         Assert.False(Shield.ReadsAsInsurance("chính sách hỗ trợ của sàn"));
         Assert.False(Shield.ReadsAsInsurance(null));
     }

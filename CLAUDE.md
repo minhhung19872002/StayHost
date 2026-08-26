@@ -1,4 +1,4 @@
-# CLAUDE.md — StayHost OS
+# CLAUDE.md — Staylio
 
 Đọc file này trước khi làm bất cứ việc gì trong repo.
 
@@ -27,19 +27,25 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 2. Những việc khách đã quyết
 
-1. **Giữ tên StayHost OS**, giữ danh hiệu "Siêu chủ nhà" / "Khách yêu thích".
-   Không đổi sang StayHub.
+1. **Tên hiển thị là "Staylio"** (khách chốt 26/08/2026, cùng ngày đổi tên miền sang
+   `staylio.vn`). Trước đó là "StayHost OS" — khách từng chốt giữ tên ấy và không đổi
+   sang StayHub, nay đổi hẳn. Chương trình bảo vệ gọi là **"Staylio Shield"**.
+   Danh hiệu "Siêu chủ nhà" / "Khách yêu thích" giữ nguyên.
+   **Chỉ chữ hiển thị đổi.** Namespace `StayHost.Domain`/`StayHost.Web`, `StayHostDbContext`,
+   tên project, tên container `stayhost-db`/`stayhost-web`, tên file migration
+   `..._StayShield.cs` và class `StayShieldTests` **giữ nguyên** — đổi tên một migration
+   là đổi một dòng mà cơ sở dữ liệu đang chạy đã ghi. Đổi lại thì sửa chữ, đừng sửa mã.
 2. **Phí dịch vụ 14% khách / 3% chủ nhà** theo `docs/03 §1`, để trong cấu hình
    `Pricing:` chứ không rải hằng số khắp nơi.
 3. **Bồi thường hư hỏng không đi qua sàn** (17/08/2026). Chủ nhà phải báo cho khách
    **lúc khách trả phòng**, khách đưa **tiền mặt** tại chỗ. Sàn ra phán quyết và ghi
    nhận, **không thu tiền của khách và không chuyển tiền cho chủ nhà**. Cửa sổ mở hồ
    sơ hư hỏng vì thế rút từ 14 ngày xuống **24 giờ**.
-   **Khách không chịu trả, hoặc phát hiện sau 24 giờ → chủ nhà chịu.** Quỹ StayShield
+   **Khách không chịu trả, hoặc phát hiện sau 24 giờ → chủ nhà chịu.** Quỹ Staylio Shield
    **không chi** cho C1/C2, nên hạn mức `C-A`/`C-B` và mức tự chịu `C-C` cũng không áp
    cho hai nhóm đó (`Shield.FundCovers`). Quỹ vẫn đứng sau C3 và C4.
    Xem `docs/06 §3.3`, `§3.4`.
-4. **14 tham số StayShield** của `docs/06 §10` đã chốt: bù đổi chỗ 40%, tặng số dư
+4. **14 tham số Staylio Shield** của `docs/06 §10` đã chốt: bù đổi chỗ 40%, tặng số dư
    10%, trần chi phí phát sinh 3 triệu; chủ nhà 75 triệu/đơn, 350 triệu/năm, tự chịu
    500k, 5 đêm mất thu nhập, 15 triệu mỗi món giá trị cao; quỹ trích 5% phí dịch vụ,
    cảnh báo ở 80%, gắn cờ từ hồ sơ thứ 4. **Có trực 24/7**, **có làm nhánh C4**.
@@ -49,7 +55,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (18/08/2026).** 1145 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (26/08/2026).** 1152 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **34/34** kịch bản chuyển tiền cho chủ nhà và đối chiếu sao kê (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
@@ -105,7 +111,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Danh hiệu | Siêu chủ nhà xét mỗi quý, Khách chọn xét hằng tuần — cấp và thu hồi tự động. Ngưỡng chỉ nằm trong `Badges.cs` |
 | Xếp hạng | Điểm tổng hợp 7 yếu tố của `docs/03 §6` trong `Ranking.cs`, có trừ điểm và đa dạng hoá 12 kết quả đầu ≤ 2 chỗ mỗi chủ nhà |
 | Bồi thường hư hỏng | **Khách đền trực tiếp chủ nhà bằng tiền mặt lúc trả phòng — sàn không thu, và không gánh** (khách chốt 17/08/2026, `docs/06 §3.3`). Cửa sổ mở hồ sơ **C1/C2 chỉ 24 giờ** sau trả phòng (`Shield.DamageReportWindow`) — quá đó khách đã đi, không ai đối chất được; C3/C4 vẫn 14 ngày. Ô "thu từ khách" ở màn hình quản trị giờ là **biên bản khách đã đưa bao nhiêu tiền mặt**, quỹ chỉ bù phần còn thiếu, và **không ghi bút toán nào** cho khoản đó. Trung tâm giải quyết cũng vậy: `claim-to-host` không còn ghi sổ — nó từng trừ `GuestFunds` là **tiền của khách khác** |
-| StayShield | Hai nhánh K1–K4 / C1–C4 (kể cả bên thứ ba), cửa sổ khiếu nại, thứ tự thu tiền, quỹ trích từ phí dịch vụ, khiếu nại một lần do người khác xét |
+| Staylio Shield | Hai nhánh K1–K4 / C1–C4 (kể cả bên thứ ba), cửa sổ khiếu nại, thứ tự thu tiền, quỹ trích từ phí dịch vụ, khiếu nại một lần do người khác xét |
 | Mở rộng | Khách sạn (nhiều loại phòng có tồn kho), thẻ quà tặng, số dư, giới thiệu bạn bè |
 | Trải nghiệm (`docs/09`) | Thẩm định có người duyệt + phân loại rủi ro theo danh mục, hàng chờ kiểm duyệt, suất lặp lại và chặn chồng giờ, **giữ chỗ 10 phút**, nhiều đơn chung một suất, thuê trọn nhóm, tự huỷ khi thiếu người + gợi ý suất khác, điểm danh, huỷ theo bậc 7 ngày/50%, đánh giá 4 tiêu chí riêng |
 | Dữ liệu mẫu | `ReviewSeeder` dựng lịch sử có thật cho hai dòng này: 6 buổi/đơn đã hoàn tất mỗi tin, khách được điểm danh, người cung cấp đã nhận tiền, **bút toán đi qua `Ledger` nên sổ vẫn cân bằng**, rồi 6 đánh giá và điểm sao tính lại từ chính chúng |
@@ -117,6 +123,8 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Cẩm nang chủ nhà (`TĐ-22`) | Chủ nhà tự viết danh sách chỗ nên đi cho từng tin: tám nhóm (quán ăn / cà phê / tham quan / thiên nhiên / mua sắm / về đêm / đi lại / lời khuyên), mỗi mục có lý do giới thiệu, địa chỉ và toạ độ tuỳ chọn. Toạ độ **phải đủ cả hai nửa** (`Guidebooks.HasPin`) — nửa vĩ độ đơn độc rơi xuống biển ngoài châu Phi. Chữ do người viết nên đi qua `TranslatedText`, không vào từ điển giao diện |
 | SEO cho sàn đặt phòng | `robots.txt` + `sitemap.xml` **sinh từ DB** (`SeoController`) — tin mới đăng có mặt **ngay lần gọi kế tiếp**, không chờ vòng quét nào. Quy tắc "đường nào không được cho Google thấy" nằm trong `Seo.cs` với 31 test: vài đường **mang bí mật ngay trong địa chỉ** (`/split/`, `/wishlist/`, `/chuyen-khoan/`), lọt vào sitemap là công bố link của người khác. `lib/seo.js` lo canonical + og:url theo từng địa chỉ, tiêu đề/mô tả riêng cho trang thành phố và trang tin, và JSON-LD (`Product` + giá + `AggregateRating`, `ItemList`, `BreadcrumbList`, `WebSite`+`SearchAction`) |
 | Đường cho Google đi | Thứ quyết định không phải sitemap mà là **liên kết**. `Card` giờ là `<a href="/rooms/…">` thật — trước đó là `div onClick`, nên **không tin đăng nào có một liên kết nào trỏ tới**. Footer lấy danh sách thành phố từ `meta.cityLinks` (server sinh cả slug) thay vì 6 dòng đóng cứng trong khi sàn có 18. Trang thành phố **phân trang** (`?trang=N`, 12 tin/trang, `Seo.CityPageSize`) nên tin thứ 13 trở đi vẫn có liên kết; dải phân trang là `<a href>` thật, và `?trang=N` là **query duy nhất canonical giữ lại** — gộp nó về trang 1 là khai với Google rằng trang 2 trùng nội dung |
+| Mã trạng thái đúng cho từng địa chỉ | `SpaRoutes` + `PageExistence`: địa chỉ không có trang nào phía sau trả **404** thay vì 200 kèm shell rỗng. Địa chỉ dưới `/api/` không khớp controller trả 404 **rỗng**, không trả HTML — trả HTML là cách một lời gọi sai động từ đọc thành thành công. Trang `NotFound` có `noindex, follow`, và app tự gỡ thẻ đó khi rời trang |
+| Thẻ chia sẻ do máy chủ sinh | `ShellSeo.cs` thay khối `<!--seo:start-->…<!--seo:end-->` của `index.html` theo từng địa chỉ, **ngay câu trả lời đầu tiên**: tiêu đề, mô tả, canonical, `og:url`, `og:image`. Facebook/Zalo/Messenger không chạy JS nên đây là bản duy nhất chúng đọc. Ảnh mặc định `wwwroot/og-default.png` (1200×630); tin đăng dùng ảnh của chính nó |
 | Hiếm có & sắp hết phòng | `Scarcity.cs` là **một ngưỡng cho hai chỗ**: dấu "Hiếm có" trên trang chi tiết (`TĐ-23`) và thông báo "sắp hết phòng" cho chỗ đã lưu (`YT-08`). Dưới 25% đêm trống trong 60 ngày tới, và bỏ qua khi cửa sổ chưa đủ 14 đêm — tin mới khoá sạch lịch là *trống*, không phải *đắt khách*. `ScarcitySweeper` chỉ báo **lúc vượt ngưỡng**, cột `LowAvailabilityNotifiedAt` xoá về null khi lịch mở lại |
 
 ---
@@ -424,6 +432,45 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   liệu"; ghép lại thì ai đọc README cũng vào được hồ sơ, ảnh giấy tờ và lệnh chuyển tiền.
   Comment trong `AccountModals.jsx` đã lường trước đúng tình huống này mà không ai nối
   hai đầu lại. Bật một ngoại lệ bảo mật thì phải hỏi luôn "cái gì đang che thay nó?".
+- **`MapFallbackToFile` trả 200 cho *mọi* địa chỉ, và đó là soft 404.**
+  `/rooms/khong-co-that-999` về 200 kèm tiêu đề trang chủ và thân trang rỗng; Google
+  hoặc lập chỉ mục trang trắng ấy, hoặc sau vài lần thì bớt tin những địa chỉ nó chưa
+  bò tới. Không có dấu hiệu nào ở phía mình: người dùng thấy "không tìm thấy" rồi quay
+  ra. Giờ `SpaRoutes.Resolve` nói địa chỉ đó là loại trang gì, `PageExistence` hỏi DB,
+  và fallback đặt đúng mã. **Cái đắt hơn là nó che lỗi suốt nhiều tháng:** ba lời gọi
+  trong `acceptance.py` gửi **GET vào endpoint POST** (`/api/favorites/{id}`,
+  `/api/account/send-verification`) và vẫn "đạt", vì shell trả 200 nên `st == 200`.
+  Dòng chi tiết in ra `? chỗ đã lưu` mỗi lần chạy — dấu hiệu duy nhất, và không ai đọc.
+  `/api/` giờ trả 404 rỗng chứ không trả HTML.
+- **Thẻ `og:*` đặt bằng JavaScript không bao giờ tới Facebook, Zalo hay Messenger.**
+  Chúng đọc HTML như nhận được, **không chạy JS**. Nên `setPageMeta` của `lib/seo.js`
+  — vốn đặt đúng tiêu đề, mô tả và ảnh cho từng tin — chưa từng có tác dụng với kênh
+  mà **phần lớn khách Việt Nam bấm vào**: mọi lần dán một tin vào khung chat đều ra
+  tiêu đề trang chủ và một thẻ trắng (không có `og:image` nào cả). Giờ `ShellSeo.cs`
+  thay khối giữa `<!--seo:start-->`/`<!--seo:end-->` **ngay trong câu trả lời đầu
+  tiên**. Hai bản không thừa: bản server cho scraper, bản JS cho lúc người dùng đi lại
+  trong app mà tài liệu không tải lại. Google chạy JS nhưng chậm — có sẵn ở lần đầu
+  vẫn hơn.
+- **`www.` và tên miền trần là hai bản sao, mỗi bên tự nhận là bản gốc.** Cả hai đều
+  trả 200, và canonical do JS đặt bằng `window.location.origin` nên trang ở `www` khai
+  canonical trỏ về chính `www`. Google thấy hai catalogue giống hệt và chia điểm.
+  Trong mã đã cắt tiền tố `www.` ở cả hai đường (`canonicalOrigin()` và fallback của
+  server), nhưng **chỗ sửa thật là 301 ở proxy** — chưa làm, xem `§8.0`.
+- **Canonical giữ `?trang=N` thì phải giữ số trang *có thật*.** Máy chủ kẹp `?trang=99`
+  về trang cuối rồi trả nội dung trang 1 — đúng với người đọc — nhưng địa chỉ vẫn là
+  99 và canonical trỏ về 99. Mọi con số một crawler nghĩ ra thành một địa chỉ nữa tự
+  xưng bản gốc của cùng mười hai căn. Mà hiện **không thành phố nào đủ 12 tin**, nên
+  *mọi* `?trang=N` đều là bản sao. Giờ `City.jsx` `navigate(replace)` về trang thật và
+  `ShellSeo` tự kẹp trước khi in canonical.
+- **`[HttpGet]` không trả lời HEAD.** `HEAD /robots.txt` và `HEAD /sitemap.xml` cùng
+  trả **404** trong khi GET trả 200 — và phần lớn công cụ soát SEO hỏi bằng HEAD, nên
+  câu trả lời chúng nhận được đọc y như "trang này không có sitemap".
+- **Ngày trong fixture là `date`, còn luật đọc theo giờ.** `unwired_acceptance.py` đặt
+  `CheckOut = now() - interval '2 hours'`, nhưng cột ấy là `date` nên Postgres ép về
+  **hôm nay**, và `ShieldService` đọc trả phòng là **12:00 UTC** của ngày đó. Trước
+  12:00 UTC thì "đơn chưa trả phòng" → kịch bản 10 hỏng mỗi buổi sáng, đạt mỗi buổi
+  chiều, và trông hệt như một test chập chờn. Cửa sổ đúng là `CheckOut@12:00` nằm
+  trong `(now-24h, now]`.
 - **Đổi tên miền thì DB đang chạy không đổi theo.** Email tài khoản seed nằm trong
   `DbSeeder`, mà seeder chỉ chạy trên DB trắng — bản prod vẫn giữ `admin@stayhost.vn`
   cũ sau khi deploy. Đường đổi tài khoản quản trị là `ADMIN_EMAIL`; các tài khoản
@@ -518,7 +565,7 @@ toán rồi tự xác nhận đơn.
 
 Thẻ kết thúc **`0009`** nhận tiền bình thường nhưng **luôn trả lại khoản hoàn** — nó đóng
 vai "thẻ đã hết hạn hoặc đã đóng" của `docs/07 §10`. Huỷ một đơn trả bằng thẻ này thì tiền
-**vào số dư StayHost** thay vì về thẻ, và khách được báo. Đây là cách duy nhất chạy được
+**vào số dư Staylio** thay vì về thẻ, và khách được báo. Đây là cách duy nhất chạy được
 nhánh `Refunds.Redirect`, thứ vốn không có sự kiện nào sinh ra vì cổng mô phỏng **không
 hề có hàm hoàn tiền** cho tới 16/08/2026.
 
@@ -548,7 +595,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 1145 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1152 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
@@ -576,7 +623,7 @@ docker exec stayhost-db psql -U stayhost -d stayhost -t \
   (`docs/00 §6.8`) — tìm kiếm, trang chi tiết và thanh toán phải ra **cùng một con số**.
 - Sổ sách: mọi khoản tiền ghi hai chiều, **bất biến**, không sửa không xoá (`docs/05`).
 - Số dư khách cũng là sổ chỉ-thêm: số dư là tổng các dòng, không phải một cột bị ghi đè.
-- **StayShield không bao giờ được gọi là bảo hiểm** (`docs/06 §11`). Mọi chữ hiển thị
+- **Staylio Shield không bao giờ được gọi là bảo hiểm** (`docs/06 §11`). Mọi chữ hiển thị
   là "chính sách hỗ trợ". Có `Shield.ReadsAsInsurance` và test chặn từ ngữ này.
 - **`docs/PLAN.md §9` đã soát đủ cả 203 mã: 203 xong · 0 một phần · 0 chưa có**
   (soát 07/08/2026, dọn nốt 10/08/2026). Hai việc từng "chờ khách quyết" đã xong
@@ -587,7 +634,7 @@ docker exec stayhost-db psql -U stayhost -d stayhost -t \
 - Kiểm chứng bằng app đang chạy thật, không chỉ đọc code.
 - Commit theo từng mốc có nghĩa, push lên `origin main`.
 
-Remote: **https://github.com/minhhung19872002/StayHost**
+Remote: **https://github.com/minhhung19872002/Staylio**
 
 ---
 

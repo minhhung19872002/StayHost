@@ -15,7 +15,7 @@ const KINDS = [
 
 /**
  * docs/01 AT-04 — the resolution centre. One side claims, the other has 24
- * hours to answer, and StayHost decides if they object.
+ * hours to answer, and Staylio decides if they object.
  */
 export function Resolutions() {
   const state = useStore();
@@ -47,7 +47,7 @@ export function Resolutions() {
         <div>
           <h1 className="section-title">{t('Trung tâm giải quyết')}</h1>
           <p className="section-sub">
-            {t('Mở hồ sơ khi có thiệt hại hoặc tranh chấp. Bên còn lại có 24 giờ để trả lời; nếu phản đối, StayHost sẽ phân xử.')}
+            {t('Mở hồ sơ khi có thiệt hại hoặc tranh chấp. Bên còn lại có 24 giờ để trả lời; nếu phản đối, Staylio sẽ phân xử.')}
           </p>
         </div>
         <button className="btn btn-primary btn-sm" onClick={() => setOpening(true)}>{t('+ Mở hồ sơ')}</button>
@@ -77,7 +77,7 @@ function CaseCard({ kase: c, onDone }) {
     setBusy(true);
     try {
       await api.respondResolution(c.id, { accept, note });
-      toast(accept ? t('Đã ghi nhận bạn đồng ý.') : t('Đã chuyển StayHost phân xử.'));
+      toast(accept ? t('Đã ghi nhận bạn đồng ý.') : t('Đã chuyển Staylio phân xử.'));
       onDone();
     } catch (err) { toast(err.message); } finally { setBusy(false); }
   };
@@ -120,7 +120,7 @@ function CaseCard({ kase: c, onDone }) {
 
         {c.decision && (
           <div className="book-alert" style={{ marginTop: 12 }}>
-            <b>{t('StayHost phân xử')}{c.decidedByName ? ` · ${c.decidedByName}` : ''}</b>
+            <b>{t('Staylio phân xử')}{c.decidedByName ? ` · ${c.decidedByName}` : ''}</b>
             <span>{c.decision}</span>
           </div>
         )}
@@ -157,7 +157,7 @@ function CaseCard({ kase: c, onDone }) {
   );
 }
 
-const ACTOR = { system: 'Hệ thống', guest: 'Khách', host: 'Chủ nhà', admin: 'StayHost' };
+const ACTOR = { system: 'Hệ thống', guest: 'Khách', host: 'Chủ nhà', admin: 'Staylio' };
 
 function History({ events }) {
   if (!events?.length) return null;

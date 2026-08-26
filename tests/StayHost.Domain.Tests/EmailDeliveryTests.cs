@@ -74,7 +74,7 @@ public class EmailDeliveryTests
     [Fact]
     public void A_subject_with_the_code_in_it_is_caught()
     {
-        Assert.True(EmailDelivery.SubjectLeaksCode("Mã xác thực StayHost: 123456"));
+        Assert.True(EmailDelivery.SubjectLeaksCode("Mã xác thực Staylio: 123456"));
     }
 
     [Fact]

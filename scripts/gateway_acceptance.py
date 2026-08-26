@@ -206,7 +206,7 @@ def hold(op, method, nights=3, offset=60):
     return None, last
 
 
-print("StayHost · nghiệm thu cổng thanh toán (docs/07 §13) — %s\n" % BASE)
+print("Staylio · nghiệm thu cổng thanh toán (docs/07 §13) — %s\n" % BASE)
 
 # --- 0: which gateways are wired --------------------------------------------
 _, catalogue = call(opener(), "/api/payment-methods/catalogue")
@@ -441,7 +441,7 @@ else:
         fields = {
             "vnp_Amount": str(int(round(amount)) * 100), "vnp_BankCode": "NCB",
             "vnp_BankTranNo": "VNP" + ref[-8:], "vnp_CardType": "ATM",
-            "vnp_OrderInfo": "StayHost", "vnp_PayDate": ref[:12] + "00",
+            "vnp_OrderInfo": "Staylio", "vnp_PayDate": ref[:12] + "00",
             "vnp_ResponseCode": "00", "vnp_TmnCode": "GLQWM7J8",
             "vnp_TransactionNo": "14" + ref[-6:], "vnp_TransactionStatus": "00",
             "vnp_TxnRef": ref,

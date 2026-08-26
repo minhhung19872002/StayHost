@@ -278,7 +278,7 @@ export function CheckoutModal() {
       // second charge. New for each fresh attempt the guest makes themselves.
       idempotencyKey: attemptKey.current,
       // docs/07 §4 — keep this card at the gateway, or pay with one already
-      // kept there. With a live gateway the first is also how StayHost learns
+      // kept there. With a live gateway the first is also how Staylio learns
       // the card's last four digits at all (§14.2).
       saveCard: !!state.paySaveCard,
       savedCardId: state.payCardId ?? null
@@ -671,10 +671,10 @@ function StepPayment({ q }) {
         </p>
       )}
 
-      {/* docs/07 §2.4 — the ways StayHost does not take, with the one reason. */}
+      {/* docs/07 §2.4 — the ways Staylio does not take, with the one reason. */}
       {!!refused?.notAccepted?.length && (
         <p style={{ marginTop: 18, fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.6 }}>
-          {t('StayHost không nhận')} {refused.notAccepted.join(', ').toLowerCase()}. {refused.refusalReason}
+          {t('Staylio không nhận')} {refused.notAccepted.join(', ').toLowerCase()}. {refused.refusalReason}
         </p>
       )}
     </section>
@@ -772,7 +772,7 @@ function legacyLines(q) {
   ];
   if (q.lengthDiscount > 0) out.push({ label: `${t('Giảm giá ở dài ngày')} (${q.lengthDiscountPercent}%)`, amount: -q.lengthDiscount });
   out.push({ label: t('Phí dọn dẹp'), amount: q.cleaningFee });
-  out.push({ label: t('Phí dịch vụ StayHost'), amount: q.serviceFee });
+  out.push({ label: t('Phí dịch vụ Staylio'), amount: q.serviceFee });
   if (q.tax) out.push({ label: t('Thuế'), amount: q.tax });
   return out;
 }

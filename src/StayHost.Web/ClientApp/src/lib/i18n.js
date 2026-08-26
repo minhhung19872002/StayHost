@@ -45,7 +45,7 @@ const EN = {
   'Chuyến đi của tôi': 'My trips',
   'Lịch trình chuyến đi': 'Trip plans',
   'Bạn bè': 'Friends',
-  'Cho thuê nhà trên StayHost': 'Host your place on StayHost',
+  'Cho thuê nhà trên Staylio': 'Host your place on Staylio',
   'Dịch vụ đã đặt': 'Booked services',
   'Danh sách yêu thích': 'Wishlists',
   'Vé trải nghiệm': 'Experience tickets',
@@ -77,13 +77,13 @@ const EN = {
   // Footer columns
   'Hỗ trợ': 'Support',
   'Trung tâm trợ giúp': 'Help centre',
-  'StayShield cho khách': 'StayShield for guests',
+  'Staylio Shield cho khách': 'Staylio Shield for guests',
   'Chống phân biệt đối xử': 'Anti-discrimination',
   'Hỗ trợ người khuyết tật': 'Disability support',
   'Tuỳ chọn huỷ': 'Cancellation options',
   'Báo cáo lo ngại khu dân cư': 'Report a neighbourhood concern',
   'Đón tiếp khách': 'Hosting',
-  'StayShield cho Chủ nhà': 'StayShield for hosts',
+  'Staylio Shield cho Chủ nhà': 'Staylio Shield for hosts',
   'Tài nguyên cho Chủ nhà': 'Host resources',
   'Diễn đàn cộng đồng': 'Community forum',
   'Đón tiếp khách có trách nhiệm': 'Responsible hosting',
@@ -173,7 +173,7 @@ const EN = {
   'Đánh giá': 'Reviews',
   'Vị trí': 'Location',
   'Mục trong trang': 'On this page',
-  'Một trong những chỗ nghỉ được yêu thích nhất trên StayHost': 'One of the most loved stays on StayHost',
+  'Một trong những chỗ nghỉ được yêu thích nhất trên Staylio': 'One of the most loved stays on Staylio',
   'do': 'by',
   'cho thuê': '',
   'Điểm nổi bật:': 'Highlight:',
@@ -407,13 +407,13 @@ export function tt(s) {
 }
 
 /**
- * "Tham gia StayHost tháng 8, 2026". A numeric shape cannot handle this: it would
+ * "Tham gia Staylio tháng 8, 2026". A numeric shape cannot handle this: it would
  * hand a translation the digits 8 and 2026 in that order, and no language that
  * writes the year first can use them. So the sentence is taken apart — the prefix
  * through the dictionary, the date through Intl — and put back together.
  * Anything that does not match the pattern is left to the dictionary.
  */
-const JOINED = /^Tham gia StayHost tháng (\d{1,2}),\s*(\d{4})$/;
+const JOINED = /^Tham gia Staylio tháng (\d{1,2}),\s*(\d{4})$/;
 
 export function joined(s) {
   const m = typeof s === 'string' && s.match(JOINED);
@@ -421,5 +421,5 @@ export function joined(s) {
   if ((state.language?.code || 'vi') === 'vi') return s;
   const when = dateFormat({ month: 'long', year: 'numeric' })
     .format(new Date(Number(m[2]), Number(m[1]) - 1, 1));
-  return `${t('Tham gia StayHost')} ${when}`;
+  return `${t('Tham gia Staylio')} ${when}`;
 }

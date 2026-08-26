@@ -75,7 +75,7 @@ export function PaymentResult() {
       {!paid && waiting && (
         <div className="book-alert">
           <b>{t('Đang xác nhận với cổng thanh toán…')}</b>
-          <span>{t('Tiền có thể đã được trừ. Đừng thanh toán lại — StayHost đang đối chiếu và sẽ xác nhận đơn ngay khi có kết quả.')}</span>
+          <span>{t('Tiền có thể đã được trừ. Đừng thanh toán lại — Staylio đang đối chiếu và sẽ xác nhận đơn ngay khi có kết quả.')}</span>
         </div>
       )}
 

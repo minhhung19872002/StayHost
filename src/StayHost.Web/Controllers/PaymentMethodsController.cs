@@ -172,7 +172,7 @@ public class PaymentMethodsController(
 
         var brand = SavedCards.BrandOf(req.Number);
         if (brand == CardBrand.Unknown)
-            return BadRequest(new { message = "StayHost chưa nhận loại thẻ này." });
+            return BadRequest(new { message = "Staylio chưa nhận loại thẻ này." });
 
         if (req.ExpiryMonth is < 1 or > 12 || req.ExpiryYear < 2000)
             return BadRequest(new { message = "Tháng/năm hết hạn không hợp lệ." });

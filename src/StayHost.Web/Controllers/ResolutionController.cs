@@ -144,8 +144,8 @@ public class ResolutionController(
         await notifications.QueueWithEmailAsync(opener, NotificationKind.System,
             req.Accept ? "Bên kia đã đồng ý" : "Bên kia đã phản đối",
             $"Hồ sơ {kase.Reference}: " + (req.Accept
-                ? "StayHost sẽ chuyển tiền sau khi quản trị duyệt."
-                : "Quản trị viên StayHost sẽ phân xử."),
+                ? "Staylio sẽ chuyển tiền sau khi quản trị duyệt."
+                : "Quản trị viên Staylio sẽ phân xử."),
             "/resolutions", ct);
 
         await db.SaveChangesAsync(ct);
@@ -233,7 +233,7 @@ public class ResolutionController(
          * not move the money.
          *
          * It used to post SettleClaim(toHost:), which debits GuestFunds — the
-         * pooled account of money StayHost is holding for guests. By the time a
+         * pooled account of money Staylio is holding for guests. By the time a
          * damage case is decided the guest's own money has long since gone to
          * the host as payout, so that debit was against other guests' balances
          * and nothing ever collected it back. A ruling nobody can enforce is
@@ -269,11 +269,11 @@ public class ResolutionController(
         var opener = await db.Users.FirstOrDefaultAsync(u => u.Id == kase.OpenedByUserId, ct);
         await notifications.QueueWithEmailAsync(opener, NotificationKind.System,
             "Hồ sơ đã được phân xử",
-            $"Hồ sơ {kase.Reference}: StayHost quyết định {ruling}. {decision}",
+            $"Hồ sơ {kase.Reference}: Staylio quyết định {ruling}. {decision}",
             "/resolutions", ct);
 
         await messenger.PostAsync(booking,
-            $"Hồ sơ {kase.Reference} đã được StayHost phân xử: {ruling}. {decision}", ct);
+            $"Hồ sơ {kase.Reference} đã được Staylio phân xử: {ruling}. {decision}", ct);
 
         await db.SaveChangesAsync(ct);
         return Ok(ToDto((await LoadAsync(id, ct))!, admin));

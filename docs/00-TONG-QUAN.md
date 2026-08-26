@@ -61,7 +61,7 @@ Sao chép **cách vận hành**, không sao chép **thương hiệu**. Không d�
 
 | Airbnb | StayHub |
 |---|---|
-| AirCover | **StayShield** — chương trình bảo vệ hai đầu |
+| AirCover | **Staylio Shield** — chương trình bảo vệ hai đầu |
 | Superhost | **Chủ nhà Ưu tú** |
 | Guest Favorite | **Khách chọn** |
 

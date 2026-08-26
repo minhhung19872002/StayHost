@@ -1,5 +1,5 @@
 /**
- * docs/07 §2 — the ways StayHost takes money, as the client last knew them.
+ * docs/07 §2 — the ways Staylio takes money, as the client last knew them.
  *
  * The live list comes from `api.paymentCatalogue()` so the checkout and the
  * saved-methods screen cannot disagree; this is what a checkout falls back to

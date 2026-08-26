@@ -4,7 +4,7 @@ import { toast } from '../lib/store.js';
 import { t } from '../lib/i18n.js';
 
 /**
- * docs/01 AT-03 — the neighbour channel. No login: anyone living near a StayHost
+ * docs/01 AT-03 — the neighbour channel. No login: anyone living near a Staylio
  * can flag a problem (noise, parties, safety) and it reaches the moderation team.
  */
 export function Neighbors() {
@@ -35,7 +35,7 @@ export function Neighbors() {
     <div className="shell" style={{ paddingBlock: '28px 90px', maxWidth: 720 }}>
       <h1 className="section-title">{t('Phản ánh của hàng xóm')}</h1>
       <p className="section-sub" style={{ marginBottom: 20 }}>
-        {t('Bạn sống gần một chỗ cho thuê ngắn hạn trên StayHost và có lo ngại (tiếng ồn, tụ tập, an toàn…)? Gửi phản ánh tại đây — ')}<b>{t('không cần tài khoản')}</b>{t('. Đội ngũ StayHost sẽ xem xét.')}
+        {t('Bạn sống gần một chỗ cho thuê ngắn hạn trên Staylio và có lo ngại (tiếng ồn, tụ tập, an toàn…)? Gửi phản ánh tại đây — ')}<b>{t('không cần tài khoản')}</b>{t('. Đội ngũ Staylio sẽ xem xét.')}
       </p>
 
       {sent ? (

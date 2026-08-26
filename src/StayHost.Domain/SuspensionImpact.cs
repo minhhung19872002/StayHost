@@ -163,13 +163,13 @@ public static class SuspensionImpact
 
     /// <summary>
     /// docs/08 §6 — the exception under the host table: a safety case moves the
-    /// guest out now, and StayShield pays for it (docs/06 §2.3).
+    /// guest out now, and Staylio Shield pays for it (docs/06 §2.3).
     /// </summary>
     public static string SafetyRelocationNotice(int guestsStaying) =>
         guestsStaying == 0
             ? ""
             : $"Vi phạm liên quan an toàn: {guestsStaying} khách đang ở cần được chuyển sang chỗ khác ngay, " +
-              "chi phí theo StayShield (docs/06 §2.3).";
+              "chi phí theo Staylio Shield (docs/06 §2.3).";
 
     /// <summary>docs/08 §6, "Số dư khuyến mãi: đóng băng, không xoá."</summary>
     public static string BalanceNotice() => "Số dư khuyến mãi bị đóng băng, không bị xoá.";

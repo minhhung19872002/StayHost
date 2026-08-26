@@ -50,7 +50,7 @@ export function AuthModal() {
 
   return (
     <Modal title={isRegister ? t('Đăng ký') : t('Đăng nhập')} size="narrow">
-      <h3 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800 }}>{t('Chào mừng đến StayHost')}</h3>
+      <h3 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800 }}>{t('Chào mừng đến Staylio')}</h3>
       <p style={{ margin: '0 0 18px', fontSize: 13.5, color: 'var(--ink-muted)' }}>
         {isRegister ? t('Tạo tài khoản để đặt chỗ, lưu yêu thích và cho thuê nhà.') : t('Đăng nhập để tiếp tục.')}
       </p>
@@ -945,7 +945,7 @@ function SavedCardsPanel() {
   return (
     <div>
       <p className="section-sub" style={{ marginTop: 0 }}>
-        {t('StayHost chỉ lưu thương hiệu, 4 số cuối và tháng/năm hết hạn. Số thẻ đầy đủ và mã CVV không bao giờ được lưu.')}
+        {t('Staylio chỉ lưu thương hiệu, 4 số cuối và tháng/năm hết hạn. Số thẻ đầy đủ và mã CVV không bao giờ được lưu.')}
       </p>
 
       {!!error && <p className="notice notice-warn">{error}</p>}
@@ -1087,7 +1087,7 @@ function DataPanel() {
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.6, color: 'var(--ink-body)' }}>
-        {t('Tải về bản sao dữ liệu cá nhân của bạn: hồ sơ, đơn đặt, hoá đơn, đánh giá, tin nhắn, số dư, hồ sơ StayShield, thông báo và lịch sử đăng nhập.')}
+        {t('Tải về bản sao dữ liệu cá nhân của bạn: hồ sơ, đơn đặt, hoá đơn, đánh giá, tin nhắn, số dư, hồ sơ Staylio Shield, thông báo và lịch sử đăng nhập.')}
       </p>
       <a className="btn btn-primary btn-block" href="/api/account/data/export" download>
         {t('Tải dữ liệu của tôi (.json)')}

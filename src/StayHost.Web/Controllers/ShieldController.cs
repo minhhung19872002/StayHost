@@ -8,7 +8,7 @@ using StayHost.Web.Services;
 namespace StayHost.Web.Controllers;
 
 /// <summary>
-/// docs/06 — StayShield. Filing a case, answering one, and the admin side that
+/// docs/06 — Staylio Shield. Filing a case, answering one, and the admin side that
 /// decides and pays. The wording throughout is "chính sách hỗ trợ": §11 forbids
 /// insurance language anywhere a user can read it.
 /// </summary>
@@ -29,8 +29,8 @@ public class ShieldController(
         return Ok(forHost
             ? new ShieldTermsDto(
                 "host",
-                "StayShield cho Chủ nhà",
-                "Khi khách làm hỏng đồ hoặc khiến bạn phải huỷ đơn kế tiếp, StayHost đứng ra xử lý " +
+                "Staylio Shield cho Chủ nhà",
+                "Khi khách làm hỏng đồ hoặc khiến bạn phải huỷ đơn kế tiếp, Staylio đứng ra xử lý " +
                 "và bù đắp trong hạn mức dưới đây. Đây là chính sách hỗ trợ của sàn, không thay thế " +
                 "bảo vệ tài sản mà bạn tự thu xếp cho công trình và tài sản lớn.",
                 [
@@ -42,7 +42,7 @@ public class ShieldController(
                             ? new[]
                             {
                                 "Thiệt hại khách gây ra cho hàng xóm hoặc tài sản chung của toà nhà — " +
-                                "bạn mở hồ sơ, StayHost trả thẳng cho bên bị thiệt hại và bạn không phải tự chịu phần đầu"
+                                "bạn mở hồ sơ, Staylio trả thẳng cho bên bị thiệt hại và bạn không phải tự chịu phần đầu"
                             }
                             : []
                     ]),
@@ -55,15 +55,15 @@ public class ShieldController(
                     ]),
                     new ShieldTermsSectionDto("Thứ tự thu tiền", [
                         "Trừ vào tiền đặt cọc của khách, nếu bạn có thu cọc",
-                        "Thu từ phương thức thanh toán của khách khi khách đồng ý hoặc StayHost phân xử buộc chịu",
-                        "Phần còn thiếu mới chi từ quỹ StayShield"
+                        "Thu từ phương thức thanh toán của khách khi khách đồng ý hoặc Staylio phân xử buộc chịu",
+                        "Phần còn thiếu mới chi từ quỹ Staylio Shield"
                     ]),
                     new ShieldTermsSectionDto("Thời hạn và bằng chứng", [
                         "Mở hồ sơ trong 14 ngày kể từ khi khách trả phòng, và trước khi khách tiếp theo nhận phòng",
                         "Ảnh hoặc video hiện trạng có mốc thời gian",
                         "Bằng chứng tình trạng trước đó: ảnh trong tin đăng hoặc ảnh sau lần dọn gần nhất",
                         "Chứng từ giá trị: hoá đơn mua, báo giá sửa chữa hoặc bảng giá thay thế",
-                        "Đã nhắn tin cho khách trong StayHost trước khi mở hồ sơ"
+                        "Đã nhắn tin cho khách trong Staylio trước khi mở hồ sơ"
                     ])
                 ],
                 [
@@ -74,14 +74,14 @@ public class ShieldController(
                     "Công trình, kết cấu nhà, mái, tường — thuộc phần bạn tự thu xếp",
                     "Xe cộ, tàu thuyền",
                     "Thiệt hại do chính bạn hoặc người của bạn gây ra",
-                    "Đơn đặt hoặc thanh toán ngoài StayHost",
+                    "Đơn đặt hoặc thanh toán ngoài Staylio",
                     "Tin đăng đang bị đình chỉ hoặc bạn đang bị xem xét kỷ luật"
                 ],
                 Disclaimer)
             : new ShieldTermsDto(
                 "guest",
-                "StayShield cho Khách",
-                "Khi chỗ ở không có, không vào được hoặc khác xa mô tả, StayHost đứng ra tìm chỗ khác " +
+                "Staylio Shield cho Khách",
+                "Khi chỗ ở không có, không vào được hoặc khác xa mô tả, Staylio đứng ra tìm chỗ khác " +
                 "hoặc hoàn tiền cho bạn. Đây là chính sách hỗ trợ của sàn, áp dụng cho đơn đặt và " +
                 "thanh toán qua StayHost.",
                 [
@@ -93,8 +93,8 @@ public class ShieldController(
                     ]),
                     new ShieldTermsSectionDto("Chúng tôi làm gì, theo thứ tự", [
                         "Tìm chỗ tương đương hoặc tốt hơn cùng khu vực — bạn trả đúng số tiền đã trả, " +
-                        $"StayHost bù chênh lệch tới {s.RehousingTopUpRate * 100:0}% giá trị đơn",
-                        "Bạn tự tìm chỗ khác và gửi hoá đơn, StayHost hoàn đơn gốc và bù chênh lệch trong hạn mức đó",
+                        $"Staylio bù chênh lệch tới {s.RehousingTopUpRate * 100:0}% giá trị đơn",
+                        "Bạn tự tìm chỗ khác và gửi hoá đơn, Staylio hoàn đơn gốc và bù chênh lệch trong hạn mức đó",
                         "Không tìm được chỗ nào phù hợp thì hoàn tiền: phần chưa ở, hoặc toàn bộ đơn kể cả " +
                         "phí dịch vụ nếu chủ nhà huỷ hoặc bạn không vào được"
                     ]),
@@ -105,7 +105,7 @@ public class ShieldController(
                     ]),
                     new ShieldTermsSectionDto("Cần làm gì để được hỗ trợ", [
                         "Báo trong 72 giờ kể từ giờ nhận phòng ghi trên đơn",
-                        "Nhắn cho chủ nhà trong StayHost trước, chờ 1 giờ (không vào được) hoặc 3 giờ (các trường hợp khác)",
+                        "Nhắn cho chủ nhà trong Staylio trước, chờ 1 giờ (không vào được) hoặc 3 giờ (các trường hợp khác)",
                         "Không phải chờ nếu có nguy hiểm về an toàn hoặc chỗ ở đang có người lạ",
                         "Gửi kèm ảnh hoặc video"
                     ])
@@ -116,7 +116,7 @@ public class ShieldController(
                     "Đã ở qua đêm rồi mới báo mà không có lý do chính đáng",
                     "Từ chối mọi phương án thay thế hợp lý mà không nêu lý do",
                     "Vi phạm nội quy và bị chủ nhà mời ra",
-                    "Đơn đặt hoặc thanh toán ngoài StayHost",
+                    "Đơn đặt hoặc thanh toán ngoài Staylio",
                     "Bất khả kháng — xử lý theo chính sách huỷ riêng"
                 ],
                 Disclaimer));
@@ -127,8 +127,8 @@ public class ShieldController(
     /// case by case, and it can be changed or ended. Saying so is the point.
     /// </summary>
     private const string Disclaimer =
-        "StayShield là chính sách hỗ trợ do StayHost tự nguyện áp dụng, không phải hợp đồng, " +
-        "không thu phí riêng và nằm trong phí dịch vụ chung. StayHost xem xét từng trường hợp " +
+        "Staylio Shield là chính sách hỗ trợ do Staylio tự nguyện áp dụng, không phải hợp đồng, " +
+        "không thu phí riêng và nằm trong phí dịch vụ chung. Staylio xem xét từng trường hợp " +
         "và có quyền sửa đổi hoặc chấm dứt chương trình, có thông báo trước.";
 
     /* ---------------------------------------------------- filing and reading */

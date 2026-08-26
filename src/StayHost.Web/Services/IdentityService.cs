@@ -86,7 +86,7 @@ public class IdentityService(
         {
             // No SMS gateway in this build. The code is logged so the flow can be
             // followed; a deployment swaps this for a real provider.
-            log.LogInformation("SMS to {Phone}: mã xác thực StayHost {Code}", sentTo, code);
+            log.LogInformation("SMS to {Phone}: mã xác thực Staylio {Code}", sentTo, code);
         }
 
         await db.SaveChangesAsync(ct);

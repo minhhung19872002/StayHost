@@ -73,7 +73,7 @@ public class HostOperationsController(
             booking.RoomTypeId, nightlyOverride: booking.NightlyOverride);
         if (fresh is null) return NotFound();
         if (booking.CouponDiscount > 0) fresh = fresh with { CouponAmount = booking.CouponDiscount, CouponLabel = "Mã giảm giá" };
-        if (booking.CreditUsed > 0) fresh = fresh with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư StayHost" };
+        if (booking.CreditUsed > 0) fresh = fresh with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư Staylio" };
         var price = Pricing.Quote(fresh);
 
         // docs/01 CĐ-06 — the money already recognised shifts by the difference.
@@ -130,7 +130,7 @@ public class HostOperationsController(
 
     /// <summary>
     /// A host walking away from a confirmed booking. docs/03 §4 gives the guest
-    /// everything back plus a credit, and docs/06 §2.1 K1 opens a StayShield
+    /// everything back plus a credit, and docs/06 §2.1 K1 opens a Staylio Shield
     /// case on their behalf when it happens inside 30 days of check-in — the
     /// guest should not have to notice and file it themselves.
     /// </summary>
@@ -138,7 +138,7 @@ public class HostOperationsController(
     /// docs/01 QL-13 — "được cảnh báo rõ hậu quả trước khi xác nhận".
     ///
     /// The same refund maths the cancellation itself will run, plus the two
-    /// consequences that are not money: a StayShield case opens on the guest's
+    /// consequences that are not money: a Staylio Shield case opens on the guest's
     /// behalf inside 30 days (docs/06 K1), and the self-cancellation rate is one
     /// of the four Superhost criteria (docs/03 §8). A host who only learns that
     /// afterwards was not warned.
@@ -208,7 +208,7 @@ public class HostOperationsController(
 
         if (opensShield)
             consequences.Insert(1,
-                $"Còn {daysOut} ngày tới ngày nhận phòng nên hệ thống **tự mở hồ sơ StayShield** "
+                $"Còn {daysOut} ngày tới ngày nhận phòng nên hệ thống **tự mở hồ sơ Staylio Shield** "
                 + "để tìm chỗ ở thay thế cho khách; chi phí chênh lệch có thể được thu lại từ bạn.");
 
         return Ok(new HostCancelPreviewDto(

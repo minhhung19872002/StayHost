@@ -1020,7 +1020,7 @@ public class CatalogService(StayHostDbContext db)
         var hostDto = new HostDto(
             host.Id, host.Name, host.Initials, host.IsSuperhost, host.YearsHosting, host.Bio,
             host.ResponseRate, host.ResponseTime,
-            $"Tham gia StayHost tháng {host.JoinedAt.Month}, {host.JoinedAt.Year}",
+            $"Tham gia Staylio tháng {host.JoinedAt.Month}, {host.JoinedAt.Year}",
             hostListings.Count,
             Profiles.OverallRating(hostListings.Select(h => (h.Rating, h.ReviewCount))) ?? 5,
             hostListings.Sum(h => h.ReviewCount),

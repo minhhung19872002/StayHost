@@ -33,10 +33,10 @@ Chạy trên dữ liệu thật, server thật (`scripts/acceptance.py`, xem §K
 
 | # | Vấn đề | Quyết định |
 |---|---|---|
-| 1 | Tên sản phẩm & danh hiệu | **Giữ StayHost OS**, giữ "Siêu chủ nhà" / "Khách yêu thích" (khách chốt 06/08/2026) |
+| 1 | Tên sản phẩm & danh hiệu | **Giữ Staylio**, giữ "Siêu chủ nhà" / "Khách yêu thích" (khách chốt 06/08/2026) |
 | 2 | Phí dịch vụ | **14% khách / 3% chủ nhà** theo `03 §1`, đặt trong cấu hình `Pricing:` |
 
-Chương trình bảo vệ **StayShield** (`00 §4`) đã có yêu cầu chi tiết ở `docs/06`,
+Chương trình bảo vệ **Staylio Shield** (`00 §4`) đã có yêu cầu chi tiết ở `docs/06`,
 14 tham số chốt ngày 06/08/2026, và đã làm xong — xem giai đoạn 8.
 
 ---
@@ -284,7 +284,7 @@ Nhóm này trước đây **không có trong plan**, nên chưa từng được 
 - [x] Giờ nhận/trả là **một nguồn duy nhất**: trang chi tiết, trang chuyến đi và nội quy
       nhà đều đọc từ `CheckInGuide.WindowLabel`
 
-### Giai đoạn 8 — StayShield ✅
+### Giai đoạn 8 — Staylio Shield ✅
 - [x] `AT-06-01` trang giới thiệu hai nhánh, nêu rõ phạm vi, hạn mức, loại trừ
 - [x] `AT-06-02` nút "Chỗ ở có vấn đề" chỉ hiện trong 72 giờ đầu
 - [x] `AT-06-03`/`AT-06-04` biểu mẫu mở hồ sơ cho khách (K2–K4) và chủ nhà (C1–C3)
@@ -344,7 +344,7 @@ Tám trong chín mã P0 của lần soát 07/08/2026 đã làm xong trong cùng 
 | `TM-20` | Công tắc "giá đã gồm thuế và phí" | hiện **giá mỗi đêm đã gồm tất cả**, kèm tổng kỳ nghỉ |
 | `CN-08` | Gợi ý tiêu đề & mô tả | `ListingCopy.cs` — dựng từ chính dữ liệu host đã nhập |
 | `CN-10` | Giá thị trường khu vực | phân vị 25/50/75 của chỗ tương đương cùng thành phố |
-| `QL-13` | Cảnh báo hậu quả trước khi huỷ | tiền hoàn + hồ sơ StayShield + tỉ lệ tự huỷ sau khi huỷ |
+| `QL-13` | Cảnh báo hậu quả trước khi huỷ | tiền hoàn + hồ sơ Staylio Shield + tỉ lệ tự huỷ sau khi huỷ |
 | `TĐ-03` | Dịch mô tả tin đăng | **chạy thật 11/08/2026** bằng máy dịch tự host, xem dưới |
 
 `TĐ-03` và `TN-06` **đã bật, không tốn khoá API**. Lần soát trước ghi là "chờ khách
@@ -725,7 +725,7 @@ khớp. Kịch bản 10 của `docs/04` giờ khẳng định thêm: **không c�
 
 **Khách chốt nốt hai chỗ để ngỏ, cùng ngày:** khách từ chối đưa tiền rồi đi thẳng
 → **chủ nhà chịu, sàn không gánh**; hư hỏng phát hiện sau 24 giờ → **chủ nhà
-chịu**. Nên quỹ StayShield **không chi cho C1/C2** nữa (`Shield.FundCovers`), và
+chịu**. Nên quỹ Staylio Shield **không chi cho C1/C2** nữa (`Shield.FundCovers`), và
 hạn mức `C-A`/`C-B` cùng mức tự chịu `C-C` không còn áp cho hai nhóm đó: ba tham
 số ấy giới hạn *sàn chi bao nhiêu*, mà giờ sàn không chi. Quỹ vẫn đứng sau C3
 (mất thu nhập) và C4 (bên thứ ba) — hàng xóm không đứng ở cửa để nhận tiền mặt.
@@ -736,7 +736,7 @@ phân xử đúng số, **quỹ chi 0đ và không một bút toán `shield%` n�
 ### 9.5. Soát lại đối chiếu airbnb.com (15/08/2026)
 
 Lượt soát này đi từ ngoài vào: lấy mặt sản phẩm của Airbnb (kể cả bản phát hành
-hè 2026 — dịch vụ đi lại, khách sạn boutique, lịch trình chung) rồi hỏi StayHost
+hè 2026 — dịch vụ đi lại, khách sạn boutique, lịch trình chung) rồi hỏi Staylio
 có gì tương ứng. Phần lớn **đã có, có chỗ còn rộng hơn**: bộ lọc đủ sáu nhóm kể
 cả nhóm tiếp cận, tìm và sắp xếp trong đánh giá, đổi lịch hai chiều, chia hoá đơn,
 đa tiền tệ, và ba trong bốn "travel services" mới của Airbnb (đưa đón sân bay,

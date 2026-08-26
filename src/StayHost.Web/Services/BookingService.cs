@@ -36,7 +36,7 @@ public class BookingService(StayHostDbContext db)
             try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
             catch (TimeZoneNotFoundException) { /* try the next spelling */ }
         }
-        return TimeZoneInfo.CreateCustomTimeZone("StayHost-ICT", TimeSpan.FromHours(7), "ICT", "ICT");
+        return TimeZoneInfo.CreateCustomTimeZone("Staylio-ICT", TimeSpan.FromHours(7), "ICT", "ICT");
     }
 
     /// <summary>
@@ -477,10 +477,10 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 if (lapsed > 0) log.LogInformation("Số dư hết hạn: {Count} khoản.", lapsed);
 
                 // docs/06 §6 — cases nobody answered inside 24 hours, and the
-                // monthly top-up of the StayShield fund.
+                // monthly top-up of the Staylio Shield fund.
                 var shield = scope.ServiceProvider.GetRequiredService<ShieldService>();
                 var shieldMoved = await shield.SweepAsync(stoppingToken);
-                if (shieldMoved > 0) log.LogInformation("StayShield: {Count} thay đổi.", shieldMoved);
+                if (shieldMoved > 0) log.LogInformation("Staylio Shield: {Count} thay đổi.", shieldMoved);
 
                 // docs/01 TN-09 — milestone lines in the conversation itself.
                 var messenger = scope.ServiceProvider.GetRequiredService<ThreadMessenger>();

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# StayHost deploy — step 1: system packages (Docker, Nginx, Certbot).
+# Staylio deploy — step 1: system packages (Docker, Nginx, Certbot).
 # Idempotent: safe to re-run.
 set -euo pipefail
 

@@ -6,7 +6,7 @@ import { t } from '../../lib/i18n.js';
 import { PayoutReconcilePanel } from './PayoutReconcile.jsx';
 
 /**
- * docs/07 §13 — the transfers StayHost owes hosts, and the file that pays them.
+ * docs/07 §13 — the transfers Staylio owes hosts, and the file that pays them.
  *
  * This screen exists because option A has no API behind it: a licensed gateway
  * settles every guest's payment into the platform's own account and the split

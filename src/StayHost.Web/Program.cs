@@ -153,7 +153,7 @@ builder.Services.AddHttpClient("psp", c =>
     // call and the querydr self-check of docs/07 §5 — the safety net for a guest
     // whose connection drops mid-payment — while every log line said only that
     // the reply could not be parsed as JSON.
-    c.DefaultRequestHeaders.UserAgent.ParseAdd("StayHost/1.0 (+https://staylio.vn)");
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("Staylio/1.0 (+https://staylio.vn)");
 });
 
 builder.Services.AddHttpClient("ical");
@@ -307,7 +307,82 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 app.Map("/error", () => Results.Problem("Đã có lỗi xảy ra."));
 
-// Client-side routes (/rooms/..., /wishlists, /host, /trips) fall back to the SPA shell.
-app.MapFallbackToFile("index.html");
+// Client-side routes (/rooms/..., /wishlists, /host, /trips) fall back to the SPA
+// shell — but the shell is not an answer to every address.
+//
+// MapFallbackToFile answered 200 for anything at all, so /rooms/khong-co-that
+// came back as a successful page carrying the home page's title and an empty
+// body. Google calls that a soft 404 and it is invisible from this side: a
+// person sees "không tìm thấy" and goes back, while a crawler files a blank
+// page under a real-looking address. The shell still renders — the guest gets
+// the same screen either way — but the status line now says what happened.
+app.MapFallback(async (HttpContext ctx, StayHostDbContext db, SiteSettings site) =>
+{
+    var path = ctx.Request.Path.Value ?? "/";
+
+    // Nothing under /api/ is a page. An unmatched API address reaching this far
+    // means a wrong verb or a wrong route, and answering it with the app shell
+    // is how a caller reads a 405 as a success: three acceptance scenarios sent
+    // a GET to a POST endpoint for months and passed, because the shell came
+    // back 200 and only the printed detail line ("? chỗ đã lưu") ever said so.
+    if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+    {
+        ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    // A missing file must never be answered with HTML. A <script> tag that
+    // receives the app shell fails as a syntax error somewhere inside the app,
+    // which is a long way from "that bundle name is stale".
+    if (SpaRoutes.LooksLikeAsset(path))
+    {
+        ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    var route = SpaRoutes.Resolve(path);
+    var exists = await PageExistence.ExistsAsync(db, route, ctx.RequestAborted);
+
+    ctx.Response.StatusCode = exists
+        ? StatusCodes.Status200OK
+        : StatusCodes.Status404NotFound;
+
+    // Belt and braces for the 404: the shell is rendered by JavaScript, and a
+    // crawler that gave up before running it would otherwise have only the
+    // status line to go on.
+    if (!exists) ctx.Response.Headers["X-Robots-Tag"] = "noindex";
+
+    ctx.Response.ContentType = "text/html; charset=utf-8";
+    ctx.Response.Headers.CacheControl = "no-cache";
+
+    // The address this site admits to living at. Configured first, because that
+    // is the one canonical answer; otherwise the host the request arrived on,
+    // minus any "www." - both hosts answer, and a canonical that points at
+    // whichever one was asked hands Google two complete copies of the catalogue,
+    // each claiming to be the original.
+    var host = site.PublicUrl.Length > 0
+        ? site.PublicUrl.TrimEnd('/')
+        : $"{ctx.Request.Scheme}://{ctx.Request.Host.Value}";
+    var origin = host.Replace("://www.", "://", StringComparison.OrdinalIgnoreCase);
+
+    // "/rooms/x/" and "/rooms/x" are one page, and only one of them may be the
+    // canonical address of it.
+    var tidy = path.Length > 1 ? path.TrimEnd('/') : "/";
+    if (tidy.Length == 0) tidy = "/";
+
+    _ = int.TryParse(ctx.Request.Query["trang"], out var wantedPage);
+
+    var html = await ShellSeo.RenderAsync(
+        app.Environment.WebRootFileProvider, db, route, origin, tidy, wantedPage,
+        ctx.RequestAborted);
+
+    if (html is null)
+    {
+        ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        return;
+    }
+
+    await ctx.Response.WriteAsync(html, ctx.RequestAborted);
+});
 
 app.Run();

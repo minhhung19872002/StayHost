@@ -7,10 +7,10 @@ import { money, longDate, dateTime } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 
 /** Who did a thing, in words rather than in the actor codes the server stores. */
-const ACTOR = { guest: 'Khách', host: 'Chủ nhà', admin: 'StayHost', system: 'Tự động' };
+const ACTOR = { guest: 'Khách', host: 'Chủ nhà', admin: 'Staylio', system: 'Tự động' };
 
 /**
- * docs/06 — StayShield. The programme is always described as a platform support
+ * docs/06 — Staylio Shield. The programme is always described as a platform support
  * policy: §11 forbids insurance language anywhere a user can read it, and the
  * server owns the wording so every screen says the same thing.
  */
@@ -32,8 +32,8 @@ export function ShieldTerms() {
 
   return (
     <div className="shell shell-narrow" style={{ paddingBlock: '34px 90px' }}>
-      <span className="shield-mark">StayShield</span>
-      <h1 className="section-title" style={{ marginTop: 10 }}>{terms?.title ?? 'StayShield'}</h1>
+      <span className="shield-mark">Staylio Shield</span>
+      <h1 className="section-title" style={{ marginTop: 10 }}>{terms?.title ?? 'Staylio Shield'}</h1>
 
       <div className="seg-tabs" style={{ marginTop: 16 }}>
         {[['guest', 'Dành cho khách'], ['host', 'Dành cho chủ nhà']].map(([key, label]) => (
@@ -81,7 +81,7 @@ function Overview() {
 
   if (!state.user) {
     return <div className="shell" style={{ paddingBlock: '60px 90px' }}>
-      <div className="empty-state"><h3>{t('Đăng nhập để xem hồ sơ StayShield')}</h3>
+      <div className="empty-state"><h3>{t('Đăng nhập để xem hồ sơ Staylio Shield')}</h3>
         <button className="btn btn-primary" style={{ marginTop: 18 }}
                 onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>{t('Đăng nhập')}</button>
       </div></div>;
@@ -89,10 +89,10 @@ function Overview() {
 
   return (
     <div className="shell" style={{ paddingBlock: '30px 90px' }}>
-      <span className="shield-mark">StayShield</span>
-      <h1 className="section-title" style={{ marginTop: 10 }}>{t('Hồ sơ StayShield')}</h1>
+      <span className="shield-mark">Staylio Shield</span>
+      <h1 className="section-title" style={{ marginTop: 10 }}>{t('Hồ sơ Staylio Shield')}</h1>
       <p className="section-sub">
-        {t('Chính sách hỗ trợ của StayHost cho cả khách và chủ nhà.')}
+        {t('Chính sách hỗ trợ của Staylio cho cả khách và chủ nhà.')}
         {' '}<button className="text-btn" onClick={() => navigate('/shield/terms')}>{t('Xem phạm vi và hạn mức')}</button>
       </p>
 
@@ -176,9 +176,9 @@ function Claim({ id }) {
 
   return (
     <div className="shell shell-narrow" style={{ paddingBlock: '26px 90px' }}>
-      <button className="back-link" onClick={() => navigate('/shield')}>← Hồ sơ StayShield</button>
+      <button className="back-link" onClick={() => navigate('/shield')}>← Hồ sơ Staylio Shield</button>
 
-      <span className="shield-mark" style={{ marginTop: 12 }}>StayShield</span>
+      <span className="shield-mark" style={{ marginTop: 12 }}>Staylio Shield</span>
       <h1 className="section-title" style={{ marginTop: 8 }}>{c.kindLabel}</h1>
       <p className="section-sub">
         {t('Mã')} {c.reference} · {t('đơn')} {c.bookingReference} · {c.listingTitle}
@@ -263,7 +263,7 @@ function Claim({ id }) {
       {waiting && c.openedByMe && (
         <div className="book-alert" style={{ marginTop: 20 }}>
           <b>{t('Đang chờ bên kia phản hồi')}</b>
-          <span>{t('Hết')} {dateTime(c.respondBy)} {t('mà không có trả lời thì StayHost sẽ tự xem xét.')}</span>
+          <span>{t('Hết')} {dateTime(c.respondBy)} {t('mà không có trả lời thì Staylio sẽ tự xem xét.')}</span>
         </div>
       )}
 

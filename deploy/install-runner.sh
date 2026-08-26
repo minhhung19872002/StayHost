@@ -5,7 +5,7 @@
 #   bash deploy/install-runner.sh <REGISTRATION_TOKEN>
 #
 # Get the token (valid for one hour) at:
-#   https://github.com/minhhung19872002/StayHost/settings/actions/runners/new
+#   https://github.com/minhhung19872002/Staylio/settings/actions/runners/new
 #
 # Re-running the script re-registers the same runner name (--replace), so it is the
 # recovery path as well as the install path.
@@ -14,11 +14,11 @@ set -euo pipefail
 TOKEN="${1:-}"
 if [ -z "$TOKEN" ]; then
   echo "usage: bash deploy/install-runner.sh <REGISTRATION_TOKEN>" >&2
-  echo "token: https://github.com/minhhung19872002/StayHost/settings/actions/runners/new" >&2
+  echo "token: https://github.com/minhhung19872002/Staylio/settings/actions/runners/new" >&2
   exit 1
 fi
 
-REPO_URL="https://github.com/minhhung19872002/StayHost"
+REPO_URL="https://github.com/minhhung19872002/Staylio"
 RUNNER_VERSION="2.336.0"
 RUNNER_DIR="$HOME/actions-runner"
 # ci-cd.yml targets this label; changing it here means changing it there too.

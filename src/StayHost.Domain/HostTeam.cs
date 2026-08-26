@@ -113,7 +113,7 @@ public class CalendarFeed
 
     /// <summary>
     /// docs/01 QL-11 — a warning when the last import clashed with a confirmed
-    /// StayHost booking: the same nights are sold on both platforms. Null when the
+    /// Staylio booking: the same nights are sold on both platforms. Null when the
     /// feeds are consistent.
     /// </summary>
     public string? OverlapWarning { get; set; }

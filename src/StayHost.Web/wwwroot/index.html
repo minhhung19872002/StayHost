@@ -6,40 +6,55 @@
 <!-- Doi tu "thue nha ngan han" sang tu nguoi ta that su go vao Google: dat phong
      khach san, thue nha nguyen can, homestay. Thu tu tu khoa dat truoc ten thuong
      hieu vi Google cat tieu de quanh 60 ky tu, va phan bi cat nen la phan it quan
-     trong nhat. Ten "StayHost OS" giu nguyen theo quyet dinh cua khach (CLAUDE.md §2).
+     trong nhat.
 
      Cau mo ta cu hua "huy mien phi truoc 48 gio". KHONG bac huy nao la 48 gio:
      Linh hoat 24 gio, Vua phai 5 ngay (mac dinh), Chat 30/7 ngay, Rat chat 7 ngay,
      hoac khong hoan (Cancellation.cs). Loi hua sai o day nang hon o trong trang, vi
-     day chinh la dong chu Google hien tren ket qua tim kiem. -->
-<title>Đặt phòng khách sạn, thuê nhà &amp; homestay khắp Việt Nam | StayHost OS</title>
-<meta name="description" content="Đặt phòng khách sạn, thuê nhà nguyên căn, căn hộ, villa và homestay khắp Việt Nam. Xem giá trọn gói trước khi trả tiền, chính sách huỷ ghi rõ trên từng tin.">
-<meta name="theme-color" content="#e01a2b">
+     day chinh la dong chu Google hien tren ket qua tim kiem.
 
+     MOI THU GIUA HAI MOC seo:start / seo:end BI MAY CHU THAY THE theo tung dia chi
+     (Services/ShellSeo.cs). Facebook, Zalo va Messenger KHONG chay JavaScript, nen
+     the do lib/seo.js dat sau khi trang tai xong khong bao gio toi duoc chung: moi
+     lan dan mot tin dang vao khung chat deu ra tieu de trang chu va mot the trang.
+     Nhung dong duoi day la ban mac dinh — cai `npm run dev` phuc vu, va cai may chu
+     tra ve khi dia chi khong ung voi trang nao cu the. -->
+<!--seo:start-->
+<title>Đặt phòng khách sạn, thuê nhà &amp; homestay khắp Việt Nam | Staylio</title>
+<meta name="description" content="Đặt phòng khách sạn, thuê nhà nguyên căn, căn hộ, villa và homestay khắp Việt Nam. Xem giá trọn gói trước khi trả tiền, chính sách huỷ ghi rõ trên từng tin.">
 <meta property="og:title" content="Đặt phòng khách sạn, thuê nhà &amp; homestay khắp Việt Nam">
 <meta property="og:description" content="Khách sạn, nhà nguyên căn, căn hộ, villa và homestay khắp Việt Nam. Giá trọn gói, không phụ phí hiện ra ở bước cuối.">
+<meta property="og:image" content="/og-default.png">
+<meta property="og:image:alt" content="Staylio — đặt phòng khách sạn, thuê nhà &amp; homestay khắp Việt Nam">
+<meta name="twitter:image" content="/og-default.png">
+<!--seo:end-->
+<meta name="theme-color" content="#e01a2b">
+
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="StayHost OS">
+<meta property="og:site_name" content="Staylio">
 <meta property="og:locale" content="vi_VN">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<!-- Khong dat <link rel="canonical"> co dinh o day. Day la SPA: moi dia chi deu
+<!-- Khong dat mot <link rel="canonical"> CO DINH o day. Day la SPA: moi dia chi deu
      nhan cung file nay, nen mot canonical co dinh se bao Google rang moi tin dang
-     la ban sao cua trang chu — va ca danh muc roi khoi chi muc. lib/canonical.js
-     dat the do theo tung dia chi sau moi lan chuyen trang. -->
+     la ban sao cua trang chu — va ca danh muc roi khoi chi muc. Voi cac dia chi co
+     trang that phia sau, ShellSeo.cs dat the do ngay trong cau tra loi dau tien;
+     lib/seo.js dat lai sau moi lan chuyen trang trong app. -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://images.pexels.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%23e01a2b'/><text x='16' y='23' font-size='20' font-family='sans-serif' font-weight='800' fill='white' text-anchor='middle'>S</text></svg>">
-  <script type="module" crossorigin src="/assets/index-DW1wA5eR.js"></script>
+  <script type="module" crossorigin src="/assets/index-DvJNyQh6.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-CbXtAM7H.js">
   <link rel="modulepreload" crossorigin href="/assets/react-BPVc_K6p.js">
   <link rel="modulepreload" crossorigin href="/assets/leaflet-DNayh7lh.js">
   <link rel="stylesheet" crossorigin href="/assets/leaflet-vh-t_kPv.css">
-  <link rel="stylesheet" crossorigin href="/assets/index-DcRsqQ0w.css">
+  <link rel="stylesheet" crossorigin href="/assets/index-CcRkYhsK.css">
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root"></div>
 </body>
 </html>

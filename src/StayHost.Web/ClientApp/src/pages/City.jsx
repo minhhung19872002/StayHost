@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { Card } from '../components/Card.jsx';
 import { t } from '../lib/i18n.js';
 import { setPageMeta, setStructuredData, cityJsonLd, breadcrumbJsonLd } from '../lib/seo.js';
+import { NotFound } from './NotFound.jsx';
 
 /**
  * docs/01 TM-26 — a landing page for one city, so a visitor arriving from a
@@ -14,7 +15,8 @@ export function City() {
   const { city } = useParams();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const pageNo = Math.max(1, Number(params.get('trang')) || 1);
+  const rawPage = params.get('trang');
+  const pageNo = Math.max(1, Number(rawPage) || 1);
   const [page, setPage] = useState(null);
   const [missing, setMissing] = useState(false);
 
@@ -25,6 +27,28 @@ export function City() {
     // The whole page reloads on a page change, so the effect watches the number
     // as well — otherwise following a paging link would leave page 1 on screen.
   }, [city, pageNo]);
+
+  /*
+   * A page number outside the series is not a page.
+   *
+   * The server clamps ?trang=99 to the last real page and returns its contents,
+   * which is the right answer to give a person. Left there, though, the address
+   * bar still said 99 and canonical — which deliberately keeps `trang`, because
+   * page 2 holds different places from page 1 — pointed at ?trang=99 as if it
+   * were a page of its own. Every number a crawler tried became another address
+   * claiming to be canonical while showing page 1's rooms. Today no city holds
+   * more than twelve places, so *every* ?trang=N was such a duplicate.
+   *
+   * The redirect is what closes it: one address per page, and the number in it
+   * is one the series really has.
+   */
+  useEffect(() => {
+    if (!page) return;
+    const want = page.page <= 1 ? null : String(page.page);
+    if (rawPage === want) return;
+    navigate(page.page <= 1 ? `/thanh-pho/${city}` : `/thanh-pho/${city}?trang=${page.page}`,
+             { replace: true });
+  }, [page, rawPage, city, navigate]);
 
   // The whole point of a city landing page is the query "khách sạn Đà Lạt", and
   // a page whose title never says "Đà Lạt" cannot answer it. Until this ran, all
@@ -39,11 +63,14 @@ export function City() {
       ? ` — trang ${page.page}/${page.totalPages}` : '';
 
     setPageMeta({
-      title: `Khách sạn, nhà & homestay cho thuê tại ${page.city}${suffix} | StayHost OS`,
+      title: `Khách sạn, nhà & homestay cho thuê tại ${page.city}${suffix} | Staylio`,
       // The count is the honest hook and it is the real number from the same
       // query the page renders, so it cannot promise more than the page shows.
       description: `${page.count} chỗ nghỉ tại ${page.city}: khách sạn, nhà nguyên căn, `
         + `căn hộ, villa và homestay. Giá trọn gói, chính sách huỷ ghi rõ trên từng tin.`,
+      // A real place in this city on the share card, rather than the site's
+      // default one — the first listing shown is the one the page leads with.
+      image: (page.listings || [])[0]?.images?.[0],
     });
 
     setStructuredData({
@@ -58,15 +85,14 @@ export function City() {
     });
   }, [page, city]);
 
+  // A city with nothing in it is an address with no page behind it. It used to
+  // render an empty state under a 200, which reads to a crawler as a real but
+  // thin page — and eighteen of those is how a site starts being distrusted.
   if (missing) {
     return (
-      <div className="shell" style={{ paddingBlock: '40px 90px' }}>
-        <div className="empty-state">
-          <h3>{t('Chưa có chỗ nghỉ ở nơi này')}</h3>
-          <p>{t('StayHost chưa có tin đăng nào cho thành phố bạn tìm.')}</p>
-          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={() => navigate('/')}>{t('Về trang chủ')}</button>
-        </div>
-      </div>
+      <NotFound
+        title={t('Chưa có chỗ nghỉ ở nơi này')}
+        body={t('Staylio chưa có tin đăng nào cho thành phố bạn tìm.')} />
     );
   }
 

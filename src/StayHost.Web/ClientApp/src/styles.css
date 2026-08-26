@@ -1,4 +1,4 @@
-/* StayHost OS — design tokens lifted from "StayHost Marketplace.dc.html" */
+/* Staylio — design tokens lifted from "Staylio Marketplace.dc.html" */
 :root {
   --brand: #e01a2b;
   --brand-dark: #b5121f;
@@ -107,7 +107,6 @@ img { max-width: 100%; display: block; }
   display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 800;
 }
 .brand-text { font-size: 18px; font-weight: 800; letter-spacing: -0.4px; white-space: nowrap; color: var(--ink); }
-.brand-text span { color: var(--brand); }
 
 /* nav tabs (Chỗ ở / Trải nghiệm / Dịch vụ) */
 .nav-tabs { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; }
@@ -2093,7 +2092,7 @@ a.opt { color: inherit; text-decoration: none; display: block; }
   font-size: 12.5px; font-weight: 600;
 }
 
-/* ---- StayShield (docs/06) ----------------------------------------------- */
+/* ---- Staylio Shield (docs/06) ----------------------------------------------- */
 
 .shield-mark {
   display: inline-flex; align-items: center; gap: 6px;

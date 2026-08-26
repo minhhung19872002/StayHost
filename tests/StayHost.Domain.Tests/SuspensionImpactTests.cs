@@ -142,7 +142,7 @@ public class SuspensionImpactTests
     {
         var preview = SuspensionImpact.ForHost([B(1, BookingStatus.InProgress)]);
 
-        Assert.Contains("StayShield", SuspensionImpact.SafetyRelocationNotice(preview.GuestsStaying));
+        Assert.Contains("Staylio Shield", SuspensionImpact.SafetyRelocationNotice(preview.GuestsStaying));
         Assert.Equal("", SuspensionImpact.SafetyRelocationNotice(0));
     }
 }

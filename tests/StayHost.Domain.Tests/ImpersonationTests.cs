@@ -157,6 +157,6 @@ public class ImpersonationTests
 
         Assert.Contains("Lan", notice);
         Assert.Contains("Khách báo không thấy", notice);
-        Assert.Contains("liên hệ StayHost", notice);
+        Assert.Contains("liên hệ Staylio", notice);
     }
 }

@@ -40,7 +40,7 @@ public enum LedgerAccount
     /// </summary>
     GiftCardLiability = 10,
     /// <summary>
-    /// The StayShield fund (docs/06 §5). Money set aside out of service-fee
+    /// The Staylio Shield fund (docs/06 §5). Money set aside out of service-fee
     /// revenue, spent on cases, and topped back up when the platform recovers
     /// what it paid out.
     /// </summary>
@@ -279,7 +279,7 @@ public static class Ledger
             new Leg(LedgerAccount.HostServiceFeeRevenue, LedgerDirection.Credit, booking.PlatformCut, "Phần sàn giữ lại"),
             new Leg(LedgerAccount.TaxPayable, LedgerDirection.Credit, booking.Tax, "Thuế thu hộ"));
 
-    /* ------------------------------------------------------- StayShield */
+    /* ------------------------------------------------------- Staylio Shield */
 
     /// <summary>
     /// docs/06 §5 - the monthly set-aside. Revenue the platform has already
@@ -290,8 +290,8 @@ public static class Ledger
         amount <= 0
             ? []
             : Post("shield-funded", null, at,
-                new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Debit, amount, $"Trích quỹ StayShield {period}"),
-                new Leg(LedgerAccount.ShieldFund, LedgerDirection.Credit, amount, "Quỹ StayShield"));
+                new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Debit, amount, $"Trích quỹ Staylio Shield {period}"),
+                new Leg(LedgerAccount.ShieldFund, LedgerDirection.Credit, amount, "Quỹ Staylio Shield"));
 
     /// <summary>
     /// A case paid out of the fund. Whatever the guest is owed becomes payable
@@ -356,7 +356,7 @@ public static class Ledger
             ? []
             : Post("shield-recovered", claim.BookingId, at,
                 new Leg(LedgerAccount.GuestFunds, LedgerDirection.Debit, amount, $"Thu hồi hồ sơ {claim.Reference}"),
-                new Leg(LedgerAccount.ShieldFund, LedgerDirection.Credit, amount, "Hoàn lại quỹ StayShield"));
+                new Leg(LedgerAccount.ShieldFund, LedgerDirection.Credit, amount, "Hoàn lại quỹ Staylio Shield"));
 
     /// <summary>A service job refunded, in the proportion each account received it.</summary>
     public static List<LedgerEntry> RefundService(ServiceBooking booking, decimal amount, DateTime at)

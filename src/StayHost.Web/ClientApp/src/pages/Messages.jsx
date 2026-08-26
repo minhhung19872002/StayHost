@@ -165,7 +165,7 @@ function Conversation({ thread, onOpenListing }) {
 
     {!thread.contactsUnlocked && (
       <div className="inbox-notice">
-        {t('Số điện thoại, email và đường liên kết được che cho tới khi đơn được xác nhận. Giao dịch ngoài StayHost không được bảo vệ.')}
+        {t('Số điện thoại, email và đường liên kết được che cho tới khi đơn được xác nhận. Giao dịch ngoài Staylio không được bảo vệ.')}
       </div>
     )}
 

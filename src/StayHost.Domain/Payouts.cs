@@ -4,7 +4,7 @@ namespace StayHost.Domain;
 public enum PayoutHoldReason
 {
     None = 0,
-    /// <summary>An open dispute or StayShield case on the stay.</summary>
+    /// <summary>An open dispute or Staylio Shield case on the stay.</summary>
     Dispute = 1,
     /// <summary>The guest has gone to their bank about the charge (docs/07 §11).</summary>
     Chargeback = 2,
@@ -202,18 +202,18 @@ public static class Payouts
 
     public static string DeductionNote(decimal applied, decimal stillOwed) =>
         stillOwed > 0
-            ? $"Đã khấu trừ {applied:#,##0}₫ vào khoản bạn còn nợ StayHost; còn lại {stillOwed:#,##0}₫."
-            : $"Đã khấu trừ {applied:#,##0}₫ — bạn không còn nợ StayHost khoản nào.";
+            ? $"Đã khấu trừ {applied:#,##0}₫ vào khoản bạn còn nợ Staylio; còn lại {stillOwed:#,##0}₫."
+            : $"Đã khấu trừ {applied:#,##0}₫ — bạn không còn nợ Staylio khoản nào.";
 
     /// <summary>docs/07 §12.4 — "báo chủ nhà lý do". A hold nobody explains is a hold nobody trusts.</summary>
     public static string HoldLabel(PayoutHoldReason reason) => reason switch
     {
-        PayoutHoldReason.Dispute => "Đơn đang có tranh chấp hoặc hồ sơ StayShield mở",
+        PayoutHoldReason.Dispute => "Đơn đang có tranh chấp hoặc hồ sơ Staylio Shield mở",
         PayoutHoldReason.Chargeback => "Khách đang khiếu nại giao dịch với ngân hàng",
         PayoutHoldReason.ListingSuspended => "Tin đăng đang bị tạm dừng để xem xét",
         PayoutHoldReason.AccountUnverified => "Tài khoản nhận tiền chưa xác minh hoặc vừa được đổi",
-        PayoutHoldReason.HostOwesPlatform => "Đang khấu trừ khoản bạn còn nợ StayHost",
-        PayoutHoldReason.AccountUnderReview => "Tài khoản của bạn đang được StayHost xem xét — tiền vẫn là của bạn, chỉ tạm giữ",
+        PayoutHoldReason.HostOwesPlatform => "Đang khấu trừ khoản bạn còn nợ Staylio",
+        PayoutHoldReason.AccountUnderReview => "Tài khoản của bạn đang được Staylio xem xét — tiền vẫn là của bạn, chỉ tạm giữ",
         _ => ""
     };
 

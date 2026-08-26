@@ -137,7 +137,7 @@ export function AppealByToken() {
       {!token && (
         <div className="empty-state" style={{ marginTop: 20 }}>
           <h3>{t('Thiếu liên kết khiếu nại')}</h3>
-          <p>{t('Hãy mở đúng liên kết trong thư StayHost đã gửi cho bạn.')}</p>
+          <p>{t('Hãy mở đúng liên kết trong thư Staylio đã gửi cho bạn.')}</p>
         </div>
       )}
 

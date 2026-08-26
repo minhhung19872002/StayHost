@@ -170,7 +170,7 @@ public static class CreditRules
     public static string ReasonLabel(CreditReason reason) => reason switch
     {
         CreditReason.GiftCard => "Thẻ quà tặng",
-        CreditReason.Goodwill => "Bù đắp từ StayHost",
+        CreditReason.Goodwill => "Bù đắp từ Staylio",
         CreditReason.Referral => "Thưởng giới thiệu bạn",
         CreditReason.Spent => "Dùng cho đơn đặt",
         CreditReason.Expired => "Hết hạn sử dụng",

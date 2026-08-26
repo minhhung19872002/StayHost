@@ -237,7 +237,7 @@ Mỗi chức năng có mã `FR-<module>-<số>` để tham chiếu và theo dõi
 | AT-03 | Kênh phản ánh dành cho hàng xóm, không cần tài khoản | P2 |
 | AT-04 | Trung tâm giải quyết: đòi bồi thường hư hỏng, xin hoàn tiền, thu phí phát sinh | P1 |
 | AT-05 | Bên bị yêu cầu có 24 giờ phản hồi trước khi sàn vào phân xử | P1 |
-| AT-06 | Chương trình bảo vệ StayShield cho cả khách và chủ nhà | P2 |
+| AT-06 | Chương trình bảo vệ Staylio Shield cho cả khách và chủ nhà | P2 |
 | AT-07 | Trung tâm trợ giúp có bài viết, tìm kiếm, phân tách nội dung khách/chủ nhà | P1 |
 | AT-08 | Trợ lý hỗ trợ tự động hiểu ngữ cảnh đơn của người dùng, có nút hành động | P2 |
 | AT-09 | Chuyển tiếp lên nhân viên hỗ trợ khi tự động không giải quyết được | P1 |

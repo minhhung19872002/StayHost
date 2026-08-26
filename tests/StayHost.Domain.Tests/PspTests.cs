@@ -126,7 +126,7 @@ public class PspTests
         ["vnp_Amount"] = "452786100",
         ["vnp_CurrCode"] = "VND",
         ["vnp_TxnRef"] = "26081710300000481200",
-        ["vnp_OrderInfo"] = "StayHost SH1A2B3C4D",
+        ["vnp_OrderInfo"] = "Staylio SH1A2B3C4D",
         ["vnp_OrderType"] = "other",
         ["vnp_Locale"] = "vn",
         ["vnp_ReturnUrl"] = "http://localhost:5199/api/payments/vnpay/return",
@@ -146,7 +146,7 @@ public class PspTests
         var query = Psp.VnPayQuery(fields);
 
         Assert.StartsWith("vnp_Amount=452786100&vnp_Command=pay&", query);
-        Assert.Contains("vnp_OrderInfo=StayHost+SH1A2B3C4D", query);   // space, not %20
+        Assert.Contains("vnp_OrderInfo=Staylio+SH1A2B3C4D", query);   // space, not %20
         Assert.DoesNotContain("vnp_SecureHash", query);
 
         var expected = HmacHex(HMACSHA512.HashData(
@@ -341,11 +341,11 @@ public class PspTests
     public void A_momo_result_signature_changes_when_the_amount_does()
     {
         var honest = Psp.MoMoResultSign(MomoAccess, MomoSecret, 4_527_861, "", "Successful.",
-            "26081710300000481200", "StayHost", "momo_wallet", "MOMO", "webApp",
+            "26081710300000481200", "Staylio", "momo_wallet", "MOMO", "webApp",
             "26081710300000481200", "1755400000000", "0", "2547283641");
 
         var edited = Psp.MoMoResultSign(MomoAccess, MomoSecret, 1, "", "Successful.",
-            "26081710300000481200", "StayHost", "momo_wallet", "MOMO", "webApp",
+            "26081710300000481200", "Staylio", "momo_wallet", "MOMO", "webApp",
             "26081710300000481200", "1755400000000", "0", "2547283641");
 
         Assert.NotEqual(honest, edited);

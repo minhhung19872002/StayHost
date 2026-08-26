@@ -256,7 +256,7 @@ public static class Shield
             return Check.Fail(Refusal.BookedOffPlatform, "Chỉ áp dụng cho đơn đặt và thanh toán qua StayHost.");
 
         if (req.AlreadyHasOpenCase)
-            return Check.Fail(Refusal.AlreadyOpen, "Đơn này đã có một hồ sơ StayShield đang mở.");
+            return Check.Fail(Refusal.AlreadyOpen, "Đơn này đã có một hồ sơ Staylio Shield đang mở.");
 
         var settings = ShieldSettings.Current;
         return SideOf(req.Kind) == ShieldSide.Guest ? GuestCheck(req) : HostCheck(req, settings);
@@ -281,7 +281,7 @@ public static class Shield
 
         if (req.HostContactedAt is not { } contacted)
             return Check.Fail(Refusal.HostNotContacted,
-                "Hãy nhắn cho chủ nhà trong StayHost trước khi mở hồ sơ.");
+                "Hãy nhắn cho chủ nhà trong Staylio trước khi mở hồ sơ.");
 
         var wait = WaitOnHost(req.Kind);
         return req.Now - contacted >= wait
@@ -295,7 +295,7 @@ public static class Shield
         if (IsThirdParty(req.Kind))
         {
             if (!settings.ThirdPartyBranch)
-                return Check.Fail(Refusal.BranchOff, "StayHost chưa mở nhánh bồi thường cho bên thứ ba.");
+                return Check.Fail(Refusal.BranchOff, "Staylio chưa mở nhánh bồi thường cho bên thứ ba.");
 
             if (string.IsNullOrWhiteSpace(req.ThirdParty))
                 return Check.Fail(Refusal.NoThirdParty, "Cho biết bên bị thiệt hại là ai.");
@@ -312,7 +312,7 @@ public static class Shield
 
         if (req.HostContactedAt is null)
             return Check.Fail(Refusal.HostNotContacted,
-                "Hãy nhắn cho khách trong StayHost trước khi mở hồ sơ.");
+                "Hãy nhắn cho khách trong Staylio trước khi mở hồ sơ.");
 
         // Once somebody else has slept there, nobody can say who did it. That
         // reasoning is about the inside of the property, so it does not apply to
@@ -418,7 +418,7 @@ public static class Shield
         decimal BorneByHost = 0);
 
     /// <summary>
-    /// docs/06 §3.3 (chốt 17/08/2026) — whether the StayShield fund pays anything
+    /// docs/06 §3.3 (chốt 17/08/2026) — whether the Staylio Shield fund pays anything
     /// towards this kind of case.
     ///
     /// It does not for damage and the cleaning it needs: those are settled in
@@ -451,7 +451,7 @@ public static class Shield
 
         // docs/06 §3.3 — a case the fund does not pay for is a ruling between two
         // people, so none of the fund's machinery applies to it. The ceilings and
-        // the excess exist to bound what StayHost pays out; capping what one
+        // the excess exist to bound what Staylio pays out; capping what one
         // person owes another by them would be inventing a rule nobody agreed to.
         if (!fundCovers)
         {
@@ -468,7 +468,7 @@ public static class Shield
                     ? $"Khách đã trả đủ {Vnd.Format(wanted)} tại chỗ."
                     : $"Khách phải đền {Vnd.Format(wanted)}, đã trả {Vnd.Format(settled)}. " +
                       $"Phần còn lại {Vnd.Format(wanted - settled)} hai bên tự giải quyết — " +
-                      "StayHost không chi khoản này.",
+                      "Staylio không chi khoản này.",
                 BorneByHost: wanted - settled);
         }
 
@@ -613,7 +613,7 @@ public static class Shield
         ShieldStatus.Open => "Đang chờ bên kia phản hồi",
         ShieldStatus.Accepted => "Bên kia đã đồng ý",
         ShieldStatus.PartiallyAccepted => "Đồng ý một phần",
-        ShieldStatus.UnderReview => "StayHost đang xem xét",
+        ShieldStatus.UnderReview => "Staylio đang xem xét",
         ShieldStatus.Settled => "Đã xử lý xong",
         ShieldStatus.Rejected => "Không được chấp nhận",
         _ => "Đang xét lại"

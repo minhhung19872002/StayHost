@@ -347,14 +347,14 @@ function CrossSell({ booking }) {
   );
 }
 
-const ACTOR = { system: 'Hệ thống', guest: 'Bạn', host: 'Chủ nhà', admin: 'StayHost' };
+const ACTOR = { system: 'Hệ thống', guest: 'Bạn', host: 'Chủ nhà', admin: 'Staylio' };
 
 /**
  * docs/00 §6.2 — every state change is a row, never an overwrite. Showing it
  * is what makes that guarantee worth anything to the guest.
  */
 /**
- * docs/06 AT-06-02 — the way in to StayShield, and only while it can be used:
+ * docs/06 AT-06-02 — the way in to Staylio Shield, and only while it can be used:
  * from check-in until 72 hours after it. Outside that window the guest still
  * has the resolution centre, so the button says so rather than vanishing.
  */
@@ -455,7 +455,7 @@ function ShieldPanel({ booking }) {
       ) : open ? (
         <>
           <p style={{ margin: '0 0 12px', fontSize: 14.5, lineHeight: 1.7, color: 'var(--ink-body)' }}>
-            {t('Không vào được, chỗ ở khác xa mô tả hoặc không ở được? StayHost tìm chỗ khác hoặc hoàn tiền cho bạn. Báo trong 72 giờ đầu kể từ giờ nhận phòng.')}
+            {t('Không vào được, chỗ ở khác xa mô tả hoặc không ở được? Staylio tìm chỗ khác hoặc hoàn tiền cho bạn. Báo trong 72 giờ đầu kể từ giờ nhận phòng.')}
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button className="btn btn-primary btn-sm"
@@ -463,12 +463,12 @@ function ShieldPanel({ booking }) {
               {t('Báo vấn đề')}
             </button>
             <button className="btn btn-outline btn-sm"
-                    onClick={() => navigate('/shield/terms')}>{t('StayShield là gì')}</button>
+                    onClick={() => navigate('/shield/terms')}>{t('Staylio Shield là gì')}</button>
           </div>
         </>
       ) : (
         <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.7, color: 'var(--ink-muted)' }}>
-          {t('Cửa sổ 72 giờ của StayShield đã khép. Bạn vẫn mở được yêu cầu ở')}{' '}
+          {t('Cửa sổ 72 giờ của Staylio Shield đã khép. Bạn vẫn mở được yêu cầu ở')}{' '}
           <button className="text-btn" onClick={() => navigate('/resolutions')}>{t('Trung tâm giải quyết')}</button>.
         </p>
       )}
@@ -545,7 +545,7 @@ function Receipt({ booking: b }) {
   const lines = b.lines ?? [
     { label: `${t('Tiền phòng')} · ${b.nights} ${t('đêm')}`, amount: b.subtotal },
     { label: t('Phí dọn dẹp'), amount: b.cleaningFee },
-    { label: t('Phí dịch vụ StayHost'), amount: b.serviceFee },
+    { label: t('Phí dịch vụ Staylio'), amount: b.serviceFee },
     ...(b.tax ? [{ label: t('Thuế'), amount: b.tax }] : [])
   ];
 
@@ -553,7 +553,7 @@ function Receipt({ booking: b }) {
     <aside className="receipt" id="receipt">
       <div className="receipt-head">
         <span className="brand-mark" aria-hidden="true">S</span>
-        <div><b>{t('Hoá đơn StayHost')}</b><span>{b.reference}</span></div>
+        <div><b>{t('Hoá đơn Staylio')}</b><span>{b.reference}</span></div>
       </div>
 
       <img src={b.listingImage} alt="" className="receipt-image" />

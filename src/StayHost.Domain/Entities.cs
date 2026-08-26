@@ -137,7 +137,7 @@ public class HostProfile
     public bool PayoutAccountVerified { get; set; }
 
     /// <summary>
-    /// docs/07 §17.4 — what the host still owes StayHost: a cancellation penalty,
+    /// docs/07 §17.4 — what the host still owes Staylio: a cancellation penalty,
     /// a settled claim, a chargeback arbitration found them at fault for. It comes
     /// out of the next transfer rather than being chased separately.
     /// </summary>

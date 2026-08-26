@@ -285,10 +285,21 @@ def scenario_damage_never_touches_the_fund():
 
     # The stay has to be over, and inside the 24-hour damage window of §3.4 --
     # which is the whole point of that window, so the fixture respects it.
+    #
+    # CheckOut is a DATE, and the server reads check-out as that date at 12:00
+    # UTC (ShieldService). "now() - interval '2 hours'" therefore lands on TODAY
+    # once Postgres casts it, so before 12:00 UTC the fixture was asking the
+    # server to accept a stay that has not ended yet: this scenario failed every
+    # morning and passed every evening, which reads exactly like a flaky test.
+    #
+    # The window that satisfies both halves is CheckOut@12:00 in (now-24h, now],
+    # so the date is today after 12:00 UTC and yesterday before it.
     sql("update bookings set "
-        "\"CheckIn\" = (now() at time zone 'utc')::date - 2, "
-        "\"CheckOut\" = now() at time zone 'utc' - interval '2 hours', "
+        "\"CheckOut\" = (case when extract(hour from (now() at time zone 'utc')) >= 12 "
+        "                    then (now() at time zone 'utc')::date "
+        "                    else (now() at time zone 'utc')::date - 1 end), "
         "\"Status\" = 6 where \"Id\"=%d" % bid)
+    sql("update bookings set \"CheckIn\" = \"CheckOut\" - 2 where \"Id\"=%d" % bid)
 
     host_email = sql(
         'select u."Email" from bookings b '
@@ -473,7 +484,7 @@ def scenario_refund_handed_back():
     granted = sql(f'''select count(*) from credit_entries
                       where "UserId"={guest_id} and "BookingId"={bid}''')
     told = sql(f'''select count(*) from notifications
-                   where "Title" like '%số dư StayHost%' and "UserId"={guest_id}''')
+                   where "Title" like '%số dư Staylio%' and "UserId"={guest_id}''')
     off = ledger_off()
 
     ok("8. The chet: tien hoan vao so du",

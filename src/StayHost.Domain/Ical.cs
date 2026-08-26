@@ -20,7 +20,7 @@ public static class Ical
         var sb = new StringBuilder();
         sb.Append("BEGIN:VCALENDAR\r\n");
         sb.Append("VERSION:2.0\r\n");
-        sb.Append("PRODID:-//StayHost//Lich cho nghi//VI\r\n");
+        sb.Append("PRODID:-//Staylio//Lich cho nghi//VI\r\n");
         sb.Append("CALSCALE:GREGORIAN\r\n");
         sb.Append("METHOD:PUBLISH\r\n");
         Line(sb, "X-WR-CALNAME", calendarName);

@@ -103,7 +103,7 @@ export function ShieldModal() {
   const total = items.reduce((sum, i) => sum + (Number((i.value || '').replace(/\D/g, '')) || 0), 0);
 
   return (
-    <Modal title={t('Báo vấn đề với StayHost')} foot={<>
+    <Modal title={t('Báo vấn đề với Staylio')} foot={<>
       <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>
         {t('Đơn')} {booking.reference}
       </span>
@@ -112,7 +112,7 @@ export function ShieldModal() {
       </button>
     </>}>
       <div className="shield-note">
-        {t('StayShield là chính sách hỗ trợ của StayHost. Hãy nhắn cho')} {forHost ? t('khách') : t('chủ nhà')} {t('trong StayHost trước — trao đổi trong sàn là bằng chứng bắt buộc.')}
+        {t('Staylio Shield là chính sách hỗ trợ của StayHost. Hãy nhắn cho')} {forHost ? t('khách') : t('chủ nhà')} {t('trong Staylio trước — trao đổi trong sàn là bằng chứng bắt buộc.')}
       </div>
 
       <section className="modal-section">

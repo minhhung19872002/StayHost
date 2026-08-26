@@ -110,8 +110,8 @@ public class ProfilesTests
     [Fact]
     public void Somebody_with_no_name_at_all_still_has_something_to_show()
     {
-        Assert.Equal("Người dùng StayHost", Profiles.DisplayNameOf(null, null));
-        Assert.Equal("N", Profiles.InitialsOf("Người dùng StayHost")[..1]);
+        Assert.Equal("Người dùng Staylio", Profiles.DisplayNameOf(null, null));
+        Assert.Equal("N", Profiles.InitialsOf("Người dùng Staylio")[..1]);
     }
 
     [Fact]
@@ -200,6 +200,6 @@ public class ProfilesTests
     {
         var august = new DateTime(2026, 8, 7, 3, 45, 0, DateTimeKind.Utc);
         Assert.Equal("Tháng 8, 2026", Profiles.MonthLabel(august));
-        Assert.Equal("Tham gia StayHost tháng 8, 2026", Profiles.JoinedLabel(august));
+        Assert.Equal("Tham gia Staylio tháng 8, 2026", Profiles.JoinedLabel(august));
     }
 }

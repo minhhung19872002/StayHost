@@ -63,9 +63,9 @@ export function Header() {
 
   return <>
     <div className="header-main">
-      <button className="brand" onClick={() => navigate('/')} aria-label="StayHost OS — về trang chủ">
+      <button className="brand" onClick={() => navigate('/')} aria-label="Staylio — về trang chủ">
         <span className="brand-mark" aria-hidden="true">S</span>
-        <span className="brand-text">StayHost<span> OS</span></span>
+        <span className="brand-text">Staylio</span>
       </button>
 
       <nav className="nav-tabs" aria-label="Loại dịch vụ">
@@ -472,7 +472,7 @@ function AccountMenu() {
         <button role="menuitem" aria-current={here('/trips')} onClick={() => goTo('/trips')}>{t('Chuyến đi của tôi')}</button>
         <button role="menuitem" aria-current={here('/trip-plans')} onClick={() => goTo('/trip-plans')}>{t('Lịch trình chuyến đi')}</button>
         <button role="menuitem" aria-current={here('/friends')} onClick={() => goTo('/friends')}>{t('Bạn bè')}</button>
-        <button role="menuitem" aria-current={here('/host')} onClick={() => goTo('/host')}>{t('Cho thuê nhà trên StayHost')}</button>
+        <button role="menuitem" aria-current={here('/host')} onClick={() => goTo('/host')}>{t('Cho thuê nhà trên Staylio')}</button>
         <hr />
         <button role="menuitem" onClick={() => openOverlay('language')}>{t('Ngôn ngữ & tiền tệ')}</button>
         <button role="menuitem" aria-current={here('/help')} onClick={() => goTo('/help')}>{t('Trung tâm trợ giúp')}</button>
@@ -506,11 +506,11 @@ function AccountMenu() {
       <button role="menuitem" aria-current={here('/services/bookings')} onClick={() => goTo('/services/bookings')}>{t('Dịch vụ đã đặt')}</button>
       <button role="menuitem" aria-current={here('/wallet')} onClick={() => goTo('/wallet')}>{t('Số dư & thẻ quà tặng')}</button>
       <button role="menuitem" aria-current={here('/resolutions')} onClick={() => goTo('/resolutions')}>{t('Trung tâm giải quyết')}</button>
-      <button role="menuitem" aria-current={here('/shield')} onClick={() => goTo('/shield')}>StayShield</button>
+      <button role="menuitem" aria-current={here('/shield')} onClick={() => goTo('/shield')}>Staylio Shield</button>
       <hr />
       {u.isHost
         ? <button className="bold" role="menuitem" aria-current={here('/hosting')} onClick={() => goTo('/hosting')}>{t('Trang chủ nhà')} ({u.listingCount})</button>
-        : <button className="bold" role="menuitem" onClick={startHosting}>{t('Cho thuê nhà trên StayHost')}</button>}
+        : <button className="bold" role="menuitem" onClick={startHosting}>{t('Cho thuê nhà trên Staylio')}</button>}
       {u.role === 'Admin' && <button className="bold" role="menuitem" aria-current={here('/admin')} onClick={() => goTo('/admin')}>{t('Trang quản trị')}</button>}
       <button role="menuitem" onClick={() => openOverlay('profile')}>{t('Tài khoản')}</button>
       <button role="menuitem" aria-current={here(`/users/${u.id}`)} onClick={() => goTo(`/users/${u.id}`)}>{t('Hồ sơ công khai')}</button>

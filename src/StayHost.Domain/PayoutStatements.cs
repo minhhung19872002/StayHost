@@ -4,7 +4,7 @@ namespace StayHost.Domain;
 /// docs/07 §15.4 — reading the bank's own record of what left the account, and
 /// checking it against the transfers this platform said it made.
 ///
-/// The transfer file is the only place money leaves StayHost, and until now the
+/// The transfer file is the only place money leaves Staylio, and until now the
 /// only thing that recorded a transfer as done was a person pressing *Đã
 /// chuyển*. That button posts the ledger entry, so a mis-press writes "paid the
 /// host" for a transfer the bank never executed — and nothing anywhere would

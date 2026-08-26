@@ -488,7 +488,7 @@ function Detail({ slug }) {
               experience. That is a selling point, so it is said out loud. */}
           <section className="detail-section">
             <div className="svc-trust">
-              <h3>{t('Nhà cung cấp trên StayHost đều được thẩm định')}</h3>
+              <h3>{t('Nhà cung cấp trên Staylio đều được thẩm định')}</h3>
               <p>
                 {t('Mỗi hồ sơ được người thật xét duyệt: xác minh danh tính, kiểm tra lý lịch tư pháp với dịch vụ tới tận nhà, và chứng chỉ hành nghề còn hạn theo từng nghề.')}
               </p>

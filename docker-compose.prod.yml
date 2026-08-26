@@ -68,7 +68,7 @@ services:
       Email__User: ${EMAIL_USER:-}
       Email__Password: ${EMAIL_PASSWORD:-}
       Email__FromAddress: ${EMAIL_FROM:-no-reply@staylio.vn}
-      Email__FromName: ${EMAIL_FROM_NAME:-StayHost}
+      Email__FromName: ${EMAIL_FROM_NAME:-Staylio}
       Email__UseImplicitTls: ${EMAIL_IMPLICIT_TLS:-false}
       # What a link inside those emails is prefixed with — the reader is outside
       # the browser tab, so a relative path is not clickable. Left unset it falls

@@ -1,6 +1,6 @@
 """docs/07 §4, §13, §15.5 — one booking paid for real, on VNPay's own pages.
 
-Every other suite stops at the gateway's door: it proves StayHost hands over a
+Every other suite stops at the gateway's door: it proves Staylio hands over a
 request VNPay accepts, and then signs the reply itself. This one goes through.
 It drives a real browser to VNPay's sandbox, types their published test card,
 answers the OTP, and comes back — so the return leg, the signature check, the
@@ -145,7 +145,7 @@ def press(page, *labels):
     return False
 
 
-print("StayHost · nghiệm thu VNPay trên trình duyệt thật (docs/07 §15.5) — %s\n" % BASE)
+print("Staylio · nghiệm thu VNPay trên trình duyệt thật (docs/07 §15.5) — %s\n" % BASE)
 
 _, catalogue = call("/api/payment-methods/catalogue")
 live = {m["key"]: (m.get("live"), m.get("tokens")) for m in (catalogue or {}).get("methods", [])}
@@ -266,7 +266,7 @@ with sync_playwright() as p:
     page.screenshot(path=os.path.join(SHOTS, "3-back.png"), full_page=True)
     browser.close()
 
-check("Khách được đưa về StayHost", "/thanh-toan/ket-qua" in landed, landed[-70:])
+check("Khách được đưa về Staylio", "/thanh-toan/ket-qua" in landed, landed[-70:])
 print("     ảnh chụp: %s" % SHOTS)
 
 # --- 3: what the platform now knows ------------------------------------------

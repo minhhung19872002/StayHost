@@ -86,7 +86,7 @@ public static class DataRequests
         var list = new List<string>();
         if (b.HasUnfinishedBooking) list.Add("còn đơn chưa hoàn tất");
         if (b.HasOpenDispute) list.Add("còn tranh chấp đang mở");
-        if (b.OwesThePlatform) list.Add("còn nợ StayHost");
+        if (b.OwesThePlatform) list.Add("còn nợ Staylio");
         if (b.UnderInvestigation) list.Add("đang bị điều tra");
         return list;
     }
@@ -123,7 +123,7 @@ public static class DataRequests
     /// docs/08 §9 — "Xoá đánh giá đã viết: không xoá — đánh giá thuộc về cộng
     /// đồng. Chỉ ẩn tên người viết."
     /// </summary>
-    public static string AnonymousReviewerName() => "Người dùng đã rời StayHost";
+    public static string AnonymousReviewerName() => "Người dùng đã rời Staylio";
 
     public static string AnonymisedName(int userId) => $"Người dùng #{userId}";
 

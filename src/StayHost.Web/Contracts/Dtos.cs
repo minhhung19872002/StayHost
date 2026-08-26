@@ -1313,7 +1313,7 @@ public record RefundPreviewDto(
     /* ------------------------------------------------------ docs/07 §10 */
     /// <summary>Back to the card the stay was paid with.</summary>
     decimal ToCard = 0,
-    /// <summary>Back to the StayHost balance, which is where balance-funded money returns.</summary>
+    /// <summary>Back to the Staylio balance, which is where balance-funded money returns.</summary>
     decimal ToCredit = 0,
     /// <summary>Said before the guest confirms: where each part goes and how long it takes.</summary>
     string RefundTiming = "");
@@ -2130,7 +2130,7 @@ public record BuyGiftCardRequest(decimal Amount, string? RecipientEmail, string?
 public record RedeemGiftCardRequest(string? Code);
 public record InviteFriendRequest(string? Email);
 
-/* ---- docs/06 — StayShield ------------------------------------------------ */
+/* ---- docs/06 — Staylio Shield ------------------------------------------------ */
 
 public record ShieldEvidenceDto(int Id, string Url, string? Caption, string Kind);
 
@@ -2392,7 +2392,7 @@ public record HostCancelPreviewDto(
     decimal GuestRefund,
     decimal GoodwillCredit,
     decimal HostPayoutLost,
-    /// <summary>docs/06 K1 — inside 30 days of check-in a StayShield case opens automatically.</summary>
+    /// <summary>docs/06 K1 — inside 30 days of check-in a Staylio Shield case opens automatically.</summary>
     bool OpensShieldCase,
     /// <summary>docs/03 §8 — what this does to the self-cancellation criterion.</summary>
     string CancelRateNote,
@@ -2452,7 +2452,7 @@ public record SavedCardDto(
     bool HasOpenBooking,
     /// <summary>
     /// docs/07 §4 with §14.2 — true when a licensed gateway holds this card and
-    /// StayHost holds only four digits and a token. A card typed into the
+    /// Staylio holds only four digits and a token. A card typed into the
     /// stand-in cannot be charged at VNPay and the other way round, so the
     /// checkout offers one kind or the other and never mixes them.
     /// </summary>

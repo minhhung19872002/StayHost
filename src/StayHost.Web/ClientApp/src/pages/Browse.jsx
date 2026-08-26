@@ -60,7 +60,7 @@ function Discovery() {
 
   return <>
     <div className="shell" style={{ paddingBlock: '26px 60px' }}>
-      <h1 className="sr-only">{t('StayHost OS — thuê nhà ngắn hạn khắp Việt Nam')}</h1>
+      <h1 className="sr-only">{t('Staylio — thuê nhà ngắn hạn khắp Việt Nam')}</h1>
       {home.sections.map(s => <Rail key={s.key} section={s} />)}
       {/* docs/01 TM-02 — the "Tất cả" row is the one that has to show more than
           places to stay, or it is the same page as "Chỗ ở" under another name. */}

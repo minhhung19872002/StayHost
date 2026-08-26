@@ -27,7 +27,7 @@ public class PayoutStatementTests
     [Fact]
     public void The_bank_moving_exactly_what_the_file_asked_is_the_only_thing_that_posts()
     {
-        var o = Judge("CK den StayHost PO-20260818-42 tra chu nha", 4_500_000m);
+        var o = Judge("CK den Staylio PO-20260818-42 tra chu nha", 4_500_000m);
 
         Assert.Equal(PayoutStatements.Verdict.Transferred, o.Verdict);
         Assert.Equal("PO-20260818-42", o.Batch);
@@ -54,7 +54,7 @@ public class PayoutStatementTests
     [Fact]
     public void A_transfer_that_left_short_is_not_posted()
     {
-        var o = Judge("StayHost PO-20260818-42", 4_400_000m);
+        var o = Judge("Staylio PO-20260818-42", 4_400_000m);
 
         Assert.Equal(PayoutStatements.Verdict.WrongAmount, o.Verdict);
         Assert.Equal(4_500_000m, o.Expected);
@@ -77,7 +77,7 @@ public class PayoutStatementTests
     [Fact]
     public void A_transfer_confirmed_earlier_is_old_news_rather_than_a_new_one()
     {
-        var o = Judge("StayHost PO-20260817-9", 900_000m);
+        var o = Judge("Staylio PO-20260817-9", 900_000m);
 
         Assert.Equal(PayoutStatements.Verdict.AlreadySeen, o.Verdict);
         Assert.False(PayoutStatements.Settles(o.Verdict));
@@ -99,7 +99,7 @@ public class PayoutStatementTests
         };
 
         var o = PayoutStatements.Judge(
-            new PayoutStatements.Debit("FT1", 4_500_000m, "StayHost PO202608184 2"),
+            new PayoutStatements.Debit("FT1", 4_500_000m, "Staylio PO202608184 2"),
             outstanding, new HashSet<string>());
 
         Assert.Equal(PayoutStatements.Verdict.Ambiguous, o.Verdict);
@@ -122,7 +122,7 @@ public class PayoutStatementTests
         };
 
         var o = PayoutStatements.Judge(
-            new PayoutStatements.Debit("FT2", 4_500_000m, "StayHost PO-20260818-42"),
+            new PayoutStatements.Debit("FT2", 4_500_000m, "Staylio PO-20260818-42"),
             outstanding, new HashSet<string>());
 
         Assert.Equal(PayoutStatements.Verdict.Transferred, o.Verdict);
@@ -133,7 +133,7 @@ public class PayoutStatementTests
     public void A_reference_with_nothing_outstanding_under_it_is_not_a_match()
     {
         var o = PayoutStatements.Judge(
-            new PayoutStatements.Debit("FT3", 500_000m, "StayHost PO-20260101-1"),
+            new PayoutStatements.Debit("FT3", 500_000m, "Staylio PO-20260101-1"),
             Outstanding, Settled);
 
         Assert.Equal(PayoutStatements.Verdict.Unidentified, o.Verdict);

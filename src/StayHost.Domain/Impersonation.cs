@@ -125,5 +125,5 @@ public static class Impersonation
     /// <summary>docs/08 §7.4 — what the account holder is told, and when.</summary>
     public static string TargetNotice(string adminName, DateTime at, string reason) =>
         $"Nhân viên hỗ trợ {adminName} đã truy cập tài khoản của bạn lúc {at:HH:mm dd/MM/yyyy}. " +
-        $"Lý do: {reason}. Nếu bạn thấy bất thường, hãy liên hệ StayHost ngay.";
+        $"Lý do: {reason}. Nếu bạn thấy bất thường, hãy liên hệ Staylio ngay.";
 }

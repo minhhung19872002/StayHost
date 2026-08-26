@@ -90,7 +90,7 @@ def pay(call, op, booking_id, body=None, amount=None):
         "vnp_BankCode": "NCB",
         "vnp_BankTranNo": "VNP" + str(order_ref)[-8:],
         "vnp_CardType": "ATM",
-        "vnp_OrderInfo": "StayHost",
+        "vnp_OrderInfo": "Staylio",
         "vnp_PayDate": str(order_ref)[:12] + "00",
         "vnp_ResponseCode": "00",
         "vnp_TmnCode": tmn,

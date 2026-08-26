@@ -1,7 +1,7 @@
 namespace StayHost.Domain;
 
 /// <summary>
-/// One StayShield case. Never deleted; the decision and the money that moved
+/// One Staylio Shield case. Never deleted; the decision and the money that moved
 /// are part of the record (docs/06 §6).
 /// </summary>
 public class ShieldClaim

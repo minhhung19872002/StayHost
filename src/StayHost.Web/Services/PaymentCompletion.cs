@@ -43,7 +43,7 @@ public class PaymentCompletion(
             fresh = fresh with { CouponAmount = booking.CouponDiscount, CouponLabel = "Mã giảm giá" };
 
         if (booking.CreditUsed > 0)
-            fresh = fresh with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư StayHost" };
+            fresh = fresh with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư Staylio" };
 
         return Pricing.Quote(fresh);
     }

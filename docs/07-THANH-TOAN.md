@@ -12,7 +12,7 @@ Tiền của khách **luôn đi qua sàn**, không đi thẳng cho chủ nhà. S
 Đây không phải lựa chọn kỹ thuật mà là điều kiện tồn tại của mô hình. Không giữ tiền thì:
 - Không hoàn tiền được khi khách huỷ → chính sách huỷ vô nghĩa
 - Không có gì ràng buộc chủ nhà giữ lời → khách không dám đặt
-- Không có StayShield, không có phân xử tranh chấp
+- Không có Staylio Shield, không có phân xử tranh chấp
 - Không thu được phí dịch vụ
 
 Hệ quả bắt buộc:
@@ -221,7 +221,7 @@ Chủ nhà đăng ký nhiều tài khoản nhận tiền, chọn một cái mặ
 ### 12.4. Tạm giữ không chuyển
 
 Có bất kỳ điều nào sau đây → giữ lại, báo chủ nhà lý do:
-- Đơn đang có tranh chấp hoặc hồ sơ StayShield mở
+- Đơn đang có tranh chấp hoặc hồ sơ Staylio Shield mở
 - Khách đang khiếu nại với ngân hàng
 - Tin đăng đang bị đình chỉ xem xét
 - Tài khoản nhận tiền chưa xác minh hoặc vừa đổi
@@ -256,7 +256,7 @@ Dùng VNPay / OnePay / MoMo / ZaloPay làm đơn vị thu hộ. Họ có giấy 
 Khách trả thẳng chủ nhà, sàn thu phí riêng.
 
 - **Được:** nhẹ nhất về pháp lý
-- **Mất:** **phá vỡ toàn bộ mô hình.** Không hoàn tiền được, không có chính sách huỷ thực thi được, không có StayShield, không có phân xử. Sàn tụt xuống thành trang rao vặt.
+- **Mất:** **phá vỡ toàn bộ mô hình.** Không hoàn tiền được, không có chính sách huỷ thực thi được, không có Staylio Shield, không có phân xử. Sàn tụt xuống thành trang rao vặt.
 - Tui không khuyến nghị. Nếu chọn phương án này thì phải viết lại `03 §4`, `03 §5` và bỏ hẳn file `06`.
 
 ### Nếu bán cho khách quốc tế
@@ -620,5 +620,5 @@ trả về giao dịch thanh toán gốc), nên trạng thái cuối của một
 9. Chia hoá đơn 4 người, 1 người không trả → hoàn cả 3 người kia, huỷ đơn, không phạt ai
 10. Huỷ đơn đã trả bằng thẻ quà tặng + thẻ Visa → hoàn ngược thứ tự, từng nguồn đúng số
 11. Chủ nhà đổi tài khoản nhận tiền → khoản chuyển bị hoãn 3 ngày, email cũ nhận cảnh báo
-12. Đơn có hồ sơ StayShield đang mở → khoản chuyển bị giữ, chủ nhà thấy lý do
+12. Đơn có hồ sơ Staylio Shield đang mở → khoản chuyển bị giữ, chủ nhà thấy lý do
 13. Đối soát cuối ngày phát hiện một giao dịch lệch → hệ thống báo động, không tự làm ngơ

@@ -607,7 +607,7 @@ public static class DbSeeder
                 CheckInMethod = (CheckInMethod)(i % 5),
                 AddressLine = $"{12 + i} Đường Nguyễn Văn Linh, {s.City}",
                 Directions = "Từ sân bay đi taxi khoảng 20 phút.\nToà nhà nằm ngay góc ngã tư, cổng sơn xanh.",
-                WifiName = $"StayHost-{i + 1:000}",
+                WifiName = $"Staylio-{i + 1:000}",
                 WifiPassword = $"staycation{1000 + i}",
                 ApplianceNotes = "Điều hoà: bấm nút xanh trên điều khiển, để 26°C là mát nhất.\n"
                                  + "Bình nóng lạnh: bật công tắc ngoài phòng tắm, chờ 10 phút.\n"

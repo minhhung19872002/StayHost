@@ -29,7 +29,7 @@ public static class Pricing
 
         /// <summary>The guest's own balance applied last, on its own line (step 9).</summary>
         public decimal PromotionAmount { get; init; }
-        public string PromotionLabel { get; init; } = "Số dư StayHost";
+        public string PromotionLabel { get; init; } = "Số dư Staylio";
 
         /// <summary>
         /// docs/01 ĐP-09, TC-09 — a promo code's discount. Its own step-9 line,
@@ -236,7 +236,7 @@ public static class Pricing
         if (petFee > 0) lines.Add(new("pet", l.PetFeePerNight ? $"Phí thú cưng × {nights} đêm" : "Phí thú cưng", petFee));
         if (cleaningFee > 0) lines.Add(new("cleaning", "Phí dọn dẹp", cleaningFee));
 
-        lines.Add(new("guest-service-fee", "Phí dịch vụ StayHost", guestServiceFee));
+        lines.Add(new("guest-service-fee", "Phí dịch vụ Staylio", guestServiceFee));
         lines.AddRange(taxLines);
         if (coupon > 0) lines.Add(new("coupon", req.CouponLabel, -coupon));
         if (promotion > 0) lines.Add(new("promotion", req.PromotionLabel, -promotion));
@@ -358,7 +358,7 @@ public static class Pricing
             new("subtotal",
                 req.Private ? "Thuê trọn nhóm riêng" : $"{FormatVnd(req.Experience.PricePerPerson)} × {seats} người",
                 subtotal),
-            new("service-fee", "Phí dịch vụ StayHost", guestServiceFee)
+            new("service-fee", "Phí dịch vụ Staylio", guestServiceFee)
         };
         lines.AddRange(taxLines);
 
@@ -490,7 +490,7 @@ public static class Pricing
             lines.Add(new("travel-fee",
                 $"Phí di chuyển ngoài {o.ServiceRadiusKm} km", travelFee));
 
-        lines.Add(new("service-fee", "Phí dịch vụ StayHost", guestServiceFee));
+        lines.Add(new("service-fee", "Phí dịch vụ Staylio", guestServiceFee));
         lines.AddRange(taxLines);
 
         return new ServiceBreakdown

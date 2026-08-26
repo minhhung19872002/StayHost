@@ -103,7 +103,7 @@ public static class Cancellation
                 RuleKey = ctx.By == CancelledBy.ForceMajeure ? "force-majeure" : "platform",
                 Explanation = ctx.By == CancelledBy.ForceMajeure
                     ? "Trường hợp bất khả kháng được công nhận: hoàn 100%."
-                    : "StayHost huỷ đơn này: hoàn 100%."
+                    : "Staylio huỷ đơn này: hoàn 100%."
             };
         }
 

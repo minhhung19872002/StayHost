@@ -133,7 +133,7 @@ function Overview({ d, navigate }) {
   const cards = [
     [t('Chỗ nghỉ đang hiển thị'), `${d.publishedCount}/${d.listingCount}`, t('Bản nháp không hiện với khách')],
     [t('Lượt đặt sắp tới'), String(d.upcomingBookings), `${money(d.earningsUpcoming)} ${t('sẽ nhận')}`],
-    [t('Đã nhận đến nay'), money(d.earningsToDate), t('Sau phí dịch vụ StayHost')],
+    [t('Đã nhận đến nay'), money(d.earningsToDate), t('Sau phí dịch vụ Staylio')],
     [t('Điểm đánh giá'), d.totalReviews ? `★ ${d.averageRating.toFixed(2)}` : t('Chưa có'), `${d.totalReviews} ${t('đánh giá')}`]
   ];
 
@@ -312,7 +312,7 @@ function HostExperiences() {
         <div>
           <h2 className="section-title" style={{ fontSize: 20 }}>{t('Trải nghiệm của bạn')}</h2>
           <p className="section-sub">
-            {t('Hoạt động bán theo vé. Gửi duyệt xong, StayHost xem trong 5 ngày làm việc rồi mới mở bán.')}
+            {t('Hoạt động bán theo vé. Gửi duyệt xong, Staylio xem trong 5 ngày làm việc rồi mới mở bán.')}
           </p>
         </div>
         <button className="btn btn-primary btn-sm" onClick={() => open(null)}>{t('+ Đăng trải nghiệm')}</button>
@@ -783,11 +783,11 @@ function Earnings({ d }) {
       <TaxReport />
 
       <section style={{ marginTop: 34 }}>
-        <h2 className="section-title" style={{ fontSize: 20 }}>{t('Cách StayHost tính tiền')}</h2>
+        <h2 className="section-title" style={{ fontSize: 20 }}>{t('Cách Staylio tính tiền')}</h2>
         <div className="know-grid" style={{ marginTop: 16 }}>
           <div className="know">
             <h3><Icon name="star" size={18} /> {t('Phí dịch vụ')}</h3>
-            <ul><li>{t('StayHost giữ')} {pct}% {t('trên tạm tính của mỗi lượt đặt thành công.')}</li></ul>
+            <ul><li>{t('Staylio giữ')} {pct}% {t('trên tạm tính của mỗi lượt đặt thành công.')}</li></ul>
           </div>
           <div className="know">
             <h3><Icon name="heart" size={18} /> {t('Bạn nhận')}</h3>

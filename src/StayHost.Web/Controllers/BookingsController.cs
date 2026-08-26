@@ -160,7 +160,7 @@ public class BookingsController(
                 quoteRequest = quoteRequest! with
                 {
                     PromotionAmount = creditUsed,
-                    PromotionLabel = "Số dư StayHost"
+                    PromotionLabel = "Số dư Staylio"
                 };
         }
 
@@ -386,7 +386,7 @@ public class BookingsController(
             });
         }
 
-        // The money has moved. Whether the guest makes it back to StayHost is now
+        // The money has moved. Whether the guest makes it back to Staylio is now
         // out of everyone's hands — which is exactly why the sweep exists.
         return Ok(new CardAuthChallengeDto(
             pending.AttemptKey, booking.HoldExpiresAt, pending.CodeAttempts, 0,
@@ -485,7 +485,7 @@ public class BookingsController(
         // were shown, so the re-price has to include it or every credit booking
         // would fail its own "did the price move" check.
         if (booking.CreditUsed > 0)
-            fresh = fresh! with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư StayHost" };
+            fresh = fresh! with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư Staylio" };
 
         var price = Pricing.Quote(fresh!);
 
@@ -838,7 +838,7 @@ public class BookingsController(
         if (booking.CouponDiscount > 0)
             fresh = fresh with { CouponAmount = booking.CouponDiscount, CouponLabel = "Mã giảm giá" };
         if (booking.CreditUsed > 0)
-            fresh = fresh with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư StayHost" };
+            fresh = fresh with { PromotionAmount = booking.CreditUsed, PromotionLabel = "Số dư Staylio" };
 
         return Pricing.Quote(fresh);
     }
@@ -1137,7 +1137,7 @@ public class BookingsController(
             await notifications.QueueWithEmailAsync(
                 await db.Users.FirstOrDefaultAsync(u => u.Id == guestId, ct),
                 NotificationKind.RefundIssued,
-                "Tiền hoàn đã vào số dư StayHost",
+                "Tiền hoàn đã vào số dư Staylio",
                 Refunds.RedirectNotice(outcome.Amount), $"/trips/{booking.Id}", ct);
     }
 

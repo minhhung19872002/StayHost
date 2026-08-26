@@ -212,7 +212,7 @@ function Assistant({ navigate }) {
 
   return (
     <section className="assistant-card" style={{ marginTop: 20, padding: 16, background: 'var(--surface-2,#f6f6f6)', borderRadius: 14 }}>
-      <h2 className="section-title" style={{ fontSize: 16, marginBottom: 4 }}>{t('Trợ lý StayHost')}</h2>
+      <h2 className="section-title" style={{ fontSize: 16, marginBottom: 4 }}>{t('Trợ lý Staylio')}</h2>
       <p className="section-sub" style={{ marginTop: 0 }}>{t('Gợi ý theo tình huống hiện tại của bạn:')}</p>
       <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
         {rows.map((s, i) => (

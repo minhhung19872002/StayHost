@@ -88,6 +88,6 @@ public class NotificationService(
         // this pointed at a domain the platform does not own for as long as it did.
         var url = site.Absolute(link);
         var cta = url is null ? "" : $"\n\nXem chi tiết: {url}";
-        return $"Chào {name},\n\n{title}\n\n{body}{cta}\n\n— Đội ngũ StayHost";
+        return $"Chào {name},\n\n{title}\n\n{body}{cta}\n\n— Đội ngũ Staylio";
     }
 }

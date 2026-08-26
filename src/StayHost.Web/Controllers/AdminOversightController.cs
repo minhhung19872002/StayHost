@@ -807,7 +807,7 @@ public class AdminOversightController(
         await db.SaveChangesAsync(ct);
 
         await notifications.QueueWithEmailAsync(into, NotificationKind.System,
-            "Hai tài khoản StayHost của bạn đã được gộp",
+            "Hai tài khoản Staylio của bạn đã được gộp",
             moved.Count > 0
                 ? $"Chúng tôi đã chuyển {string.Join(", ", moved)} sang tài khoản này."
                 : "Tài khoản trùng đã được đóng lại; không có dữ liệu nào cần chuyển.",
@@ -867,7 +867,7 @@ public class AdminOversightController(
         if (scope != AdminScope.None && !user.TwoFactorEnabled)
         {
             await notifications.QueueWithEmailAsync(user, NotificationKind.System,
-                "Bạn được cấp quyền quản trị StayHost",
+                "Bạn được cấp quyền quản trị Staylio",
                 AdminActions.TwoFactorRequiredMessage(), "/account/security", ct);
         }
 

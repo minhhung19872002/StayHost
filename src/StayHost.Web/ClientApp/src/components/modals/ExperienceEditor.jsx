@@ -256,7 +256,7 @@ export function ExperienceEditor() {
     }
     const saved = await persist(true);
     if (saved) {
-      toast(t('Đã gửi trải nghiệm đi duyệt. StayHost trả lời trong 5 ngày làm việc.'));
+      toast(t('Đã gửi trải nghiệm đi duyệt. Staylio trả lời trong 5 ngày làm việc.'));
       closeOverlay();
     }
   };
@@ -474,7 +474,7 @@ export function ExperienceEditor() {
           <div className="notice notice-ok">{t('Đã đủ hồ sơ cho mức rủi ro này. Bạn gửi duyệt được.')}</div>
         )}
         <p className="field-note" style={{ marginTop: 12 }}>
-          {t('Gửi duyệt không phải là mở bán. Trải nghiệm vào hàng chờ để một người của StayHost xem, thường trong')}
+          {t('Gửi duyệt không phải là mở bán. Trải nghiệm vào hàng chờ để một người của Staylio xem, thường trong')}
           {' '}{REVIEW_WORKING_DAYS} {t('ngày làm việc. Chỉ khi được duyệt thì mới bán vé được.')}
         </p>
       </section>

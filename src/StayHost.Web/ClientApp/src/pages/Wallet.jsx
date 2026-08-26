@@ -31,7 +31,7 @@ export function Wallet() {
 
   return (
     <div className="shell" style={{ paddingBlock: '30px 90px' }}>
-      <h1 className="section-title">{t('Số dư StayHost')}</h1>
+      <h1 className="section-title">{t('Số dư Staylio')}</h1>
       <p className="section-sub">{t('Số dư được trừ vào tiền phòng, không trừ vào phí và thuế.')}</p>
 
       <div className="wallet-balance">

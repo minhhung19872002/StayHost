@@ -45,6 +45,6 @@ public class NeighborReportsController(StayHostDbContext db) : ControllerBase
         });
         await db.SaveChangesAsync(ct);
 
-        return Ok(new { message = "Đã gửi phản ánh. Đội ngũ StayHost sẽ xem xét. Cảm ơn bạn đã lên tiếng." });
+        return Ok(new { message = "Đã gửi phản ánh. Đội ngũ Staylio sẽ xem xét. Cảm ơn bạn đã lên tiếng." });
     }
 }

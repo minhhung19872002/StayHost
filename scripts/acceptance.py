@@ -154,10 +154,14 @@ email = f"acceptance{int(time.time())}@staylio.vn"
 st, user = call(newbie, "/api/account/register",
                 {"email": email, "password": "stayhost123", "fullName": "Khách Nghiệm Thu",
                  "phone": None, "dateOfBirth": "1995-06-15"})   # docs/01 TK-03: đủ 18 tuổi
-st_v, verify = call(newbie, "/api/account/send-verification")
+st_v, verify = call(newbie, "/api/account/send-verification", m="POST")
 _, listings = call(newbie, "/api/listings?pageSize=3")
 first = listings['items'][0]
-st_f, fav = call(newbie, f"/api/favorites/{first['id']}")
+# POST, spelled out. Favouriting is a POST endpoint and this line sent a GET:
+# it "passed" only because the SPA fallback used to answer 200 with the app
+# shell for every unmatched address, so a 405 looked like a success and the
+# count printed as "?" every run. The server answers 404 there now.
+st_f, fav = call(newbie, f"/api/favorites/{first['id']}", m="POST")
 st_w, lists = call(newbie, "/api/wishlists")
 record(2, "Đăng ký, xác minh email, lưu yêu thích, xem danh sách",
        st == 200 and st_v == 200 and st_f == 200 and st_w == 200 and len(lists) >= 1,

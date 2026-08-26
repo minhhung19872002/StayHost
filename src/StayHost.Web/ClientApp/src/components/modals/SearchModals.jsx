@@ -389,7 +389,7 @@ export function LanguageModal() {
 
 const HELP = [
   ['Tôi cần thay đổi ngày đặt chỗ', 'Vào Chuyến đi của tôi → chọn đặt chỗ → Chỉnh sửa ngày.'],
-  ['Chủ nhà chưa phản hồi', 'Sau 24 giờ, StayHost sẽ tự huỷ và hoàn tiền toàn bộ.'],
+  ['Chủ nhà chưa phản hồi', 'Sau 24 giờ, Staylio sẽ tự huỷ và hoàn tiền toàn bộ.'],
   ['Tôi muốn được hoàn tiền', 'Huỷ trước 48 giờ nhận phòng để được hoàn 100% tiền phòng.'],
   ['Liên hệ hỗ trợ 24/7', 'Hotline 1900 1234 hoặc chat trực tiếp trong ứng dụng.']
 ];
@@ -459,7 +459,7 @@ export function ReportModal() {
         <p style={{ margin: '0 0 6px', fontSize: 14, fontWeight: 700 }}>{subject.title}</p>
       )}
       <p style={{ margin: '0 0 16px', fontSize: 13.5, color: 'var(--ink-muted)', lineHeight: 1.6 }}>
-        {t('Đội an toàn StayHost sẽ xem xét báo cáo của bạn. Người bị báo cáo không biết ai đã gửi.')}
+        {t('Đội an toàn Staylio sẽ xem xét báo cáo của bạn. Người bị báo cáo không biết ai đã gửi.')}
       </p>
 
       {!config ? (

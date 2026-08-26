@@ -133,6 +133,6 @@ public static class PaymentMethods
     public static IReadOnlyList<string> RefusedLabels => Refused.Values.ToList();
 
     public static string RefusalReason() =>
-        "StayHost giữ tiền cho tới khi bạn nhận phòng để bảo vệ cả bạn và chủ nhà, " +
+        "Staylio giữ tiền cho tới khi bạn nhận phòng để bảo vệ cả bạn và chủ nhà, " +
         "nên chỉ nhận các cách trả tiền qua hệ thống.";
 }

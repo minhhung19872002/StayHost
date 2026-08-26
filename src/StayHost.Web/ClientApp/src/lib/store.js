@@ -49,6 +49,11 @@ export const state = {
   loadingMore: false,
   detail: null,
   detailLoading: false,
+  // Told apart from "not loaded yet": a listing that is gone renders a 404
+  // page, while a null detail with nothing else known renders the skeleton.
+  // Until this existed an unknown slug left the skeleton on screen forever,
+  // which is what a crawler saw as a blank page answering 200.
+  detailMissing: false,
   quote: null,
   suggestions: [],
 
@@ -135,7 +140,7 @@ export const state = {
   payCardLast4: null,
   // docs/01 ĐP-06 — take a deposit now instead of the whole amount.
   payDeposit: false,
-  // docs/06 — the booking a StayShield case is being opened for.
+  // docs/06 — the booking a Staylio Shield case is being opened for.
   shieldBooking: null,
   shieldSide: 'guest',
   // Spend the guest's balance on this booking.
@@ -605,6 +610,7 @@ export async function openWishlist(id) {
 export async function loadDetail(idOrSlug) {
   state.detailLoading = true;
   state.detail = null;
+  state.detailMissing = false;
   state.bookingResult = null;
   state.bookingError = null;
   notify();
@@ -618,7 +624,10 @@ export async function loadDetail(idOrSlug) {
     await refreshQuote();
   } catch (err) {
     state.detail = null;
-    toast(err.message);
+    // A listing that is not there is not an error to apologise for in a toast —
+    // the page itself says so. Anything else (offline, a 500) still is.
+    state.detailMissing = err.status === 404;
+    if (!state.detailMissing) toast(err.message);
   } finally {
     state.detailLoading = false;
     notify();
@@ -876,7 +885,7 @@ export async function respondChange(bookingId, reqId, accept) {
 
 /**
  * docs/01 QL-13 — a host cancelling a confirmed stay is shown what follows
- * before they confirm, not after: the refund, the automatic StayShield case
+ * before they confirm, not after: the refund, the automatic Staylio Shield case
  * inside 30 days, and what it does to their Superhost cancellation rate.
  */
 export async function previewHostCancel(id) {

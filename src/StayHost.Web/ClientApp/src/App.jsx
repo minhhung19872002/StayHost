@@ -39,6 +39,7 @@ import { MySanctions, AppealByToken } from './pages/Sanctions.jsx';
 import { Neighbors } from './pages/Neighbors.jsx';
 import { Friends } from './pages/Friends.jsx';
 import { TripPlans } from './pages/TripPlans.jsx';
+import { NotFound } from './pages/NotFound.jsx';
 
 export function App() {
   const state = useStore();
@@ -178,7 +179,10 @@ export function App() {
             <Route path="/friends" element={<Friends />} />
             <Route path="/trip-plans" element={<TripPlans />} />
             <Route path="/admin" element={<Admin />} />
-            <Route path="*" element={<Browse />} />
+            {/* An address no route answers is a 404, not the home page. Rendering
+                Browse here meant every typo and every stale link came back as a
+                working page — see the soft-404 note in Program.cs. */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         )}
       </main>

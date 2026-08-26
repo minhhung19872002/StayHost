@@ -131,7 +131,7 @@ Xử lý ngay, thông báo sau, nhưng vẫn phải ghi lý do và chuyển hồ
 | Tiền chưa chuyển | Giữ lại cho tới khi xử lý xong vi phạm; không tịch thu tự động |
 | Tin đăng | Ẩn khỏi tìm kiếm ngay |
 
-Ngoại lệ: vi phạm liên quan an toàn khách → hỗ trợ chuyển khách đang ở sang chỗ khác ngay, chi phí theo StayShield (`06 §2.3`).
+Ngoại lệ: vi phạm liên quan an toàn khách → hỗ trợ chuyển khách đang ở sang chỗ khác ngay, chi phí theo Staylio Shield (`06 §2.3`).
 
 ### Khoá một khách
 

@@ -159,4 +159,87 @@ public class SeoTests
             Assert.True(Seo.IsPrivate(sample), $"Luật {rule} không chặn được {sample}");
         }
     }
+
+    // ------------------------------------------------------- which addresses exist
+
+    [Fact]
+    public void An_address_no_route_answers_is_not_a_page()
+    {
+        // The soft 404. Until SpaRoutes existed, every one of these came back 200
+        // carrying the home page title and an empty body, and Google filed them.
+        Assert.Equal(PageKind.Unknown, SpaRoutes.Resolve("/khong-co-gi-o-day").Kind);
+        Assert.Equal(PageKind.Unknown, SpaRoutes.Resolve("/rooms").Kind);
+        Assert.Equal(PageKind.Unknown, SpaRoutes.Resolve("/a/b/c/d").Kind);
+        Assert.Equal(PageKind.Unknown, SpaRoutes.Resolve("").Kind);
+    }
+
+    [Fact]
+    public void A_content_address_carries_its_slug()
+    {
+        Assert.Equal(new PageRoute(PageKind.Listing, "bai-dai-pool-villa-34"),
+                     SpaRoutes.Resolve("/rooms/bai-dai-pool-villa-34"));
+        Assert.Equal(new PageRoute(PageKind.City, "da-lat"),
+                     SpaRoutes.Resolve("/thanh-pho/da-lat"));
+        Assert.Equal(new PageRoute(PageKind.HelpArticle, "huy-dat-phong"),
+                     SpaRoutes.Resolve("/help/huy-dat-phong"));
+
+        // A trailing slash is the same page, not a second one.
+        Assert.Equal(SpaRoutes.Resolve("/rooms/x"), SpaRoutes.Resolve("/rooms/x/"));
+    }
+
+    [Fact]
+    public void A_fixed_page_sitting_where_a_slug_would_wins()
+    {
+        // "/experiences/bookings" is a real screen. Resolved as a slug it would
+        // send the server looking for an experience called "bookings", find none,
+        // and answer 404 on a page that works.
+        Assert.Equal(PageKind.App, SpaRoutes.Resolve("/experiences/bookings").Kind);
+        Assert.Equal(PageKind.App, SpaRoutes.Resolve("/services/bookings").Kind);
+        Assert.Equal(PageKind.Experience, SpaRoutes.Resolve("/experiences/lan-bien-nha-trang").Kind);
+    }
+
+    [Fact]
+    public void A_checkout_address_is_answered_without_a_lookup()
+    {
+        // Behind a session and noindex anyway; a 404 here would land on a screen
+        // that cannot show one.
+        Assert.Equal(PageKind.App, SpaRoutes.Resolve("/experiences/x/thanh-toan").Kind);
+        Assert.Equal(PageKind.App, SpaRoutes.Resolve("/services/x/thanh-toan").Kind);
+        Assert.Equal(PageKind.App, SpaRoutes.Resolve("/thanh-toan/ket-qua").Kind);
+        Assert.Equal(PageKind.App, SpaRoutes.Resolve("/split/abc123").Kind);
+        Assert.Equal(PageKind.App, SpaRoutes.Resolve("/users/12").Kind);
+    }
+
+    [Fact]
+    public void Only_content_addresses_ask_the_database()
+    {
+        Assert.True(SpaRoutes.Resolve("/rooms/x").NeedsLookup);
+        Assert.True(SpaRoutes.Resolve("/thanh-pho/hue").NeedsLookup);
+        Assert.False(SpaRoutes.Resolve("/trips").NeedsLookup);
+        Assert.False(SpaRoutes.Resolve("/khong-co-gi").NeedsLookup);
+    }
+
+    [Fact]
+    public void Every_fixed_route_resolves_to_itself()
+    {
+        // Catches a route added to the list in a shape Resolve cannot match, which
+        // would answer 404 on a screen that works.
+        foreach (var route in SpaRoutes.Fixed)
+            Assert.Equal(PageKind.App, SpaRoutes.Resolve(route).Kind);
+    }
+
+    [Fact]
+    public void A_missing_file_is_not_answered_with_the_app_shell()
+    {
+        // A <script> tag that receives HTML fails as a syntax error inside the
+        // app, which reads nothing like "that bundle name is stale".
+        Assert.True(SpaRoutes.LooksLikeAsset("/assets/index-ABC123.js"));
+        Assert.True(SpaRoutes.LooksLikeAsset("/uploads/1-abc.png"));
+        Assert.True(SpaRoutes.LooksLikeAsset("/favicon.svg"));
+
+        // A slug is not a file, even when it carries a dot.
+        Assert.False(SpaRoutes.LooksLikeAsset("/rooms/villa-2.5-sao"));
+        Assert.False(SpaRoutes.LooksLikeAsset("/thanh-pho/da-lat"));
+        Assert.False(SpaRoutes.LooksLikeAsset("/"));
+    }
 }

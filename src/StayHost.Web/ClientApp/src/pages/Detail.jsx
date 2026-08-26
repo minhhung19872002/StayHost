@@ -15,6 +15,7 @@ import { TranslatedText } from '../components/TranslatedText.jsx';
 import { PriceLines } from '../components/modals/ListingModals.jsx';
 import { t } from '../lib/i18n.js';
 import { setPageMeta, setStructuredData, listingJsonLd, breadcrumbJsonLd, canonicalUrl } from '../lib/seo.js';
+import { NotFound } from './NotFound.jsx';
 
 const RATING_LABELS = {
   cleanliness: 'Mức độ sạch sẽ',
@@ -53,9 +54,12 @@ export function Detail() {
     const citySlug = state.meta?.cityLinks?.find(x => x.name === c.city)?.slug;
 
     setPageMeta({
-      title: `${c.title} — ${c.city} | StayHost OS`,
+      title: `${c.title} — ${c.city} | Staylio`,
       description: (d.description || '').replace(/\s+/g, ' ').trim().slice(0, 155)
         || `${c.typeLabel} tại ${c.city}, ${c.maxGuests} khách, ${c.bedrooms} phòng ngủ.`,
+      // The room's own first photo, so pasting the link into Zalo or Messenger
+      // shows the place rather than the site's default card.
+      image: (c.images || [])[0],
     });
 
     setStructuredData({
@@ -87,6 +91,14 @@ export function Detail() {
     document.body.classList.add('page-detail');
     return () => document.body.classList.remove('page-detail');
   }, []);
+
+  // A slug with nothing behind it used to sit on the skeleton forever, which is
+  // both a dead end for a guest and the blank 200 page a crawler indexes.
+  if (state.detailMissing) return (
+    <NotFound
+      title={t('Không tìm thấy chỗ nghỉ này')}
+      body={t('Tin đăng có thể đã được gỡ, hoặc đường dẫn bị sai một ký tự.')} />
+  );
 
   if (state.detailLoading || !state.detail) return <DetailSkeleton />;
 
@@ -248,7 +260,7 @@ function GuestFavoriteBanner({ detail, card }) {
         <span className="gf-laurel"><Icon name="star" size={30} filled weight={0} /></span>
         <div>
           <b>{t('Khách yêu thích')}</b>
-          <span>{t('Một trong những chỗ nghỉ được yêu thích nhất trên StayHost')}</span>
+          <span>{t('Một trong những chỗ nghỉ được yêu thích nhất trên Staylio')}</span>
         </div>
       </div>
       <div className="gf-metric"><b>{card.rating.toFixed(2)}</b><span>★★★★★</span></div>

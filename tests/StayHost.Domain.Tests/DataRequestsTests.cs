@@ -40,7 +40,7 @@ public class DataRequestsTests
         Assert.False(DataRequests.MayErase(blockers));
         Assert.Contains("còn đơn chưa hoàn tất", message);
         Assert.Contains("còn tranh chấp đang mở", message);
-        Assert.Contains("còn nợ StayHost", message);
+        Assert.Contains("còn nợ Staylio", message);
         Assert.Contains("đang bị điều tra", message);
     }
 
@@ -85,7 +85,7 @@ public class DataRequestsTests
     public void A_review_keeps_its_words_and_loses_its_name()
     {
         // docs/08 §9 — "đánh giá thuộc về cộng đồng. Chỉ ẩn tên người viết."
-        Assert.Contains("đã rời StayHost", DataRequests.AnonymousReviewerName());
+        Assert.Contains("đã rời Staylio", DataRequests.AnonymousReviewerName());
     }
 
     [Fact]

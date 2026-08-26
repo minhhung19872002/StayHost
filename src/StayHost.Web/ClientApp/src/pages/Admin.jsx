@@ -55,7 +55,7 @@ export function Admin() {
 
   return (
     <div className="shell" style={{ paddingBlock: '30px 90px' }}>
-      <h1 className="section-title">{t('Quản trị StayHost')}</h1>
+      <h1 className="section-title">{t('Quản trị Staylio')}</h1>
       <p className="section-sub">{t('Tổng quan nền tảng, kiểm duyệt chỗ nghỉ và xử lý báo cáo')}</p>
 
       <div className="stat-grid" style={{ marginTop: 22 }}>
@@ -796,7 +796,7 @@ function Gate({ message, showLogin }) {
 }
 
 /**
- * docs/06 §8 AT-06-09 and AT-06-12 — the queue of StayShield cases and the fund
+ * docs/06 §8 AT-06-09 and AT-06-12 — the queue of Staylio Shield cases and the fund
  * behind them. Deciding one pays it in the same step, so nothing sits decided
  * but unpaid.
  */
@@ -858,7 +858,7 @@ function ShieldPanel() {
 
   return (
     <section style={{ marginTop: 40 }}>
-      <h2 className="section-title" style={{ fontSize: 20 }}>StayShield</h2>
+      <h2 className="section-title" style={{ fontSize: 20 }}>Staylio Shield</h2>
       <p className="section-sub">
         {t('Chính sách hỗ trợ của sàn. Quyết định nào cũng phải nêu lý do và được ghi vào nhật ký.')}
       </p>

@@ -291,7 +291,7 @@ gồm cả 12 kịch bản bắt buộc của §9.
 4. **`03 §5`** — thời điểm trả tiền: chỗ ở tính từ nhận phòng, hai dòng này tính từ khi buổi kết thúc.
 5. **`03 §7`** — trải nghiệm và dịch vụ ưu tiên xếp hạng theo khoảng cách tới nơi khách đang ở, không phải tới trung tâm khu vực tìm.
 6. **`05`** — thực thể Trải nghiệm và Dịch vụ bổ sung: hồ sơ thẩm định, giấy phép và hạn, mức rủi ro, bảo hiểm.
-7. **`06`** — StayShield hiện chỉ viết cho chỗ ở. Hai dòng này cần nhánh riêng: khách bị thương trong trải nghiệm, dịch vụ làm hỏng đồ của khách. **Chưa có, cần bổ sung.**
+7. **`06`** — Staylio Shield hiện chỉ viết cho chỗ ở. Hai dòng này cần nhánh riêng: khách bị thương trong trải nghiệm, dịch vụ làm hỏng đồ của khách. **Chưa có, cần bổ sung.**
 
 ---
 

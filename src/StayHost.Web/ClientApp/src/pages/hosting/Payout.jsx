@@ -74,7 +74,7 @@ export function Payout() {
         )}
         {data.owedToPlatform > 0 && (
           <p className="notice notice-warn">
-            {t('Bạn còn nợ StayHost')} {money(data.owedToPlatform)} {t('— khoản này được khấu trừ vào lần chuyển kế tiếp.')}
+            {t('Bạn còn nợ Staylio')} {money(data.owedToPlatform)} {t('— khoản này được khấu trừ vào lần chuyển kế tiếp.')}
           </p>
         )}
 
@@ -104,7 +104,7 @@ export function Payout() {
           </div>
 
           <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.5, margin: '14px 0' }}>
-            {t('StayHost chỉ lưu 4 số cuối của tài khoản.')}
+            {t('Staylio chỉ lưu 4 số cuối của tài khoản.')}
           </p>
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy ? t('Đang lưu…') : t('Lưu tài khoản')}

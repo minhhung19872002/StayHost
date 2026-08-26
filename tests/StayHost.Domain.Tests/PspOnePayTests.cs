@@ -139,7 +139,7 @@ public class PspOnePayTests
 
     /// <summary>
     /// docs/07 §10 — a lost call is "unknown", never "refused". Refused sends
-    /// the guest's money to their StayHost balance, so mistaking one for the
+    /// the guest's money to their Staylio balance, so mistaking one for the
     /// other after a refund that did land pays them twice.
     /// </summary>
     [Fact]

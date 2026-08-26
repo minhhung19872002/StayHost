@@ -386,7 +386,7 @@ function UserProfilePanel({ d, reload }) {
             {thread.messages.length === 0 && <span className="field-note">{t('Đơn này chưa có tin nhắn nào.')}</span>}
             {thread.messages.map((m, i) => (
               <div key={i}>
-                <b>{m.isSystem ? 'StayHost' : m.sender}</b>{' '}
+                <b>{m.isSystem ? 'Staylio' : m.sender}</b>{' '}
                 <span style={{ color: 'var(--ink-muted)' }}>{dateTime(m.sentAt)}</span>
                 <div>{m.body}</div>
               </div>

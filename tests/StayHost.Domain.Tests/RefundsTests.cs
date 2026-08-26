@@ -120,7 +120,7 @@ public class RefundsTests
     [Fact]
     public void The_guest_is_told_when_money_lands_somewhere_they_did_not_expect()
     {
-        Assert.Contains("số dư StayHost", Refunds.RedirectNotice(1_000_000m));
+        Assert.Contains("số dư Staylio", Refunds.RedirectNotice(1_000_000m));
     }
 
     /* ------------------------------------------------------- what is said */

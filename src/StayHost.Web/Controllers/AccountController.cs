@@ -703,7 +703,7 @@ public class AccountController(
                 {
                     ToEmail = user.Email,
                     ToName = user.FullName,
-                    Subject = "Đặt lại mật khẩu StayHost",
+                    Subject = "Đặt lại mật khẩu Staylio",
                     Body = "Bạn vừa yêu cầu đặt lại mật khẩu. Mở liên kết sau trong 2 giờ:\n" +
                            $"/reset-password?token={token}\n\n" +
                            "Nếu không phải bạn yêu cầu, hãy bỏ qua thư này — mật khẩu hiện tại vẫn nguyên."

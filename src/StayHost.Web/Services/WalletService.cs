@@ -119,7 +119,7 @@ public class WalletService(StayHostDbContext db, NotificationService notificatio
         {
             ToEmail = email,
             ToName = card.RecipientName ?? email,
-            Subject = $"{buyer.FullName} tặng bạn {amount:#,##0}₫ trên StayHost",
+            Subject = $"{buyer.FullName} tặng bạn {amount:#,##0}₫ trên Staylio",
             Body = $"Mã thẻ của bạn: {card.Code}\n" +
                    (string.IsNullOrWhiteSpace(card.Message) ? "" : $"\"{card.Message}\"\n") +
                    "Nhập mã trong mục Số dư để cộng vào tài khoản."
@@ -179,7 +179,7 @@ public class WalletService(StayHostDbContext db, NotificationService notificatio
         {
             ToEmail = trimmed,
             ToName = trimmed,
-            Subject = $"{referrer.FullName} mời bạn dùng StayHost",
+            Subject = $"{referrer.FullName} mời bạn dùng Staylio",
             Body = $"Đăng ký bằng mã {referral.Code} và bạn được {CreditRules.InviteeReward:#,##0}₫ " +
                    "vào số dư sau chuyến đi đầu tiên."
         });

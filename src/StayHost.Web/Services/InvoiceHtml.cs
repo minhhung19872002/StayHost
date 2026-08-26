@@ -61,7 +61,7 @@ public static class InvoiceHtml
         </style></head>
         <body>
           <div class="head">
-            <div class="brand">StayHost<span> OS</span></div>
+            <div class="brand">Staylio<span> OS</span></div>
             <div class="meta"><b>Hoá đơn {{Enc(Invoices.Number(booking))}}</b><br>
               Ngày lập: {{booking.CreatedAt.ToString("dd/MM/yyyy", Vn)}}<br>
               Mã đơn: {{Enc(booking.Reference)}}</div>
@@ -86,8 +86,8 @@ public static class InvoiceHtml
           </table>
 
           <p class="note">
-            Giá đã gồm thuế và phí dịch vụ. Thuế do khách trả và StayHost nộp thay cơ quan thuế
-            (docs/03 §1). Đây là hoá đơn xác nhận giao dịch trên nền tảng StayHost OS.
+            Giá đã gồm thuế và phí dịch vụ. Thuế do khách trả và Staylio nộp thay cơ quan thuế
+            (docs/03 §1). Đây là hoá đơn xác nhận giao dịch trên nền tảng Staylio.
           </p>
 
           <div class="noprint"><button class="btn" onclick="window.print()">In hoặc lưu PDF</button></div>

@@ -18,7 +18,7 @@ public class EmailSettings
 
     /// <summary>The address recipients see, and reply to.</summary>
     public string FromAddress { get; set; } = "no-reply@staylio.vn";
-    public string FromName { get; set; } = "StayHost";
+    public string FromName { get; set; } = "Staylio";
 
     /// <summary>
     /// Port 465 is TLS from the first byte; 587 starts plain and upgrades. Most

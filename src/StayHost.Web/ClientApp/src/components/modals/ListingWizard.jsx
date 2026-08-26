@@ -398,7 +398,7 @@ function StepPlace({ form, field, meta }) {
       </div>
       {!form.latitude && (
         <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', marginTop: 10 }}>
-          {t('Chưa ghim thì StayHost dùng toạ độ trung tâm')} {form.city || t('thành phố')} {t('— kém chính xác hơn.')}
+          {t('Chưa ghim thì Staylio dùng toạ độ trung tâm')} {form.city || t('thành phố')} {t('— kém chính xác hơn.')}
         </p>
       )}
       {/* meta is unused here but kept in the signature so every step takes the same props */}
@@ -955,7 +955,7 @@ function StepCheckIn({ form, arrival }) {
 
       <div className="grid-2">
         <label className="form-field"><span className="cap">{t('Tên wifi')}</span>
-          <input value={c.wifiName ?? ''} placeholder="StayHost-201"
+          <input value={c.wifiName ?? ''} placeholder="Staylio-201"
                  onChange={e => arrival('wifiName', e.target.value)} /></label>
         <label className="form-field"><span className="cap">{t('Mật khẩu wifi')}</span>
           <input value={c.wifiPassword ?? ''} onChange={e => arrival('wifiPassword', e.target.value)} /></label>

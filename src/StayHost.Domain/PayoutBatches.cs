@@ -91,7 +91,7 @@ public static class PayoutFiles
         ["STT", "SoTaiKhoan", "TenNguoiHuong", "NganHang", "SoTien", "NoiDung"];
 
     /// <summary>What goes in the transfer's description field, and what comes back on the statement.</summary>
-    public static string Memo(string reference) => $"StayHost {reference}";
+    public static string Memo(string reference) => $"Staylio {reference}";
 
     /// <summary>
     /// One line per transfer. UTF-8 with a BOM because the operator opens this in
@@ -167,7 +167,7 @@ public static class PayoutFiles
     /// name what they can do about it.
     /// </summary>
     public static string RefusedNotice(string reference) =>
-        $"Khoản chuyển {reference} bị ngân hàng từ chối. StayHost sẽ thử lại; " +
+        $"Khoản chuyển {reference} bị ngân hàng từ chối. Staylio sẽ thử lại; " +
         "nếu tài khoản nhận tiền của bạn có gì thay đổi, hãy cập nhật lại giúp.";
 
     /// <summary>Said to a host the moment a transfer is lined up, which is not the moment it lands.</summary>

@@ -85,7 +85,7 @@ def future(days):
     return (datetime.date.today() + datetime.timedelta(days=days)).isoformat()
 
 
-print("StayHost · nghiệm thu chuyển tiền cho chủ nhà (docs/07 §13) — %s\n" % BASE)
+print("Staylio · nghiệm thu chuyển tiền cho chủ nhà (docs/07 §13) — %s\n" % BASE)
 
 # --- the cast -----------------------------------------------------------------
 guest = opener()
@@ -232,7 +232,7 @@ if st == 200:
     # Exactly this reference. PO-20260817-1 is a prefix of PO-20260817-10, so a
     # loose match finds an older batch's row and then reports its account number
     # as this host's — a failure that reads like the encryption is broken.
-    row = next((l for l in lines[1:] if ('"StayHost %s"' % batch_ref) in l), "")
+    row = next((l for l in lines[1:] if ('"Staylio %s"' % batch_ref) in l), "")
 
     # The whole point of the encryption: this is the one place the number is in
     # the clear, and it has to be the real one or the bank pays nobody.
@@ -346,11 +346,11 @@ else:
         "note": "Đối chiếu sao kê VIB ngày hôm nay",
         "lines": [
             {"bankReference": "FT0001", "amount": waiting_amount - 1000,
-             "description": "CK StayHost %s" % waiting_ref},
+             "description": "CK Staylio %s" % waiting_ref},
             {"bankReference": "FT0002", "amount": 3000000,
              "description": "THANH TOAN TIEN DIEN THANG 8"},
             {"bankReference": "FT0003", "amount": waiting_amount,
-             "description": "CK StayHost %s tra chu nha" % waiting_ref},
+             "description": "CK Staylio %s tra chu nha" % waiting_ref},
         ]})
 
     check("Đối chiếu chạy được", st == 200, "HTTP %s: %s" % (st, res))
@@ -375,7 +375,7 @@ else:
     st, again = call(admin, "/api/admin/finance/payout-batches/reconcile", {
         "note": "Dán lại đúng sao kê đó",
         "lines": [{"bankReference": "FT0003", "amount": waiting_amount,
-                   "description": "CK StayHost %s tra chu nha" % waiting_ref}]})
+                   "description": "CK Staylio %s tra chu nha" % waiting_ref}]})
 
     twice = int(sql("""select count(*) from ledger_entries where "TransactionKind"='host-payout';""") or 0)
     check("Dán lại sao kê không trả tiền hai lần", twice == after, "%d → %d" % (after, twice))

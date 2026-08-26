@@ -1,6 +1,6 @@
-# StayHost OS — Roadmap
+# Staylio — Roadmap
 
-Mục tiêu: đưa StayHost từ bản demo lên mức **vận hành kinh doanh thật**, ngang tính
+Mục tiêu: đưa Staylio từ bản demo lên mức **vận hành kinh doanh thật**, ngang tính
 năng cốt lõi với airbnb.com.
 
 Trạng thái: ✅ xong · 🔨 đang làm · ⬜ chưa bắt đầu

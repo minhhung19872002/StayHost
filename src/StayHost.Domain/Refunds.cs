@@ -69,7 +69,7 @@ public static class Refunds
 
     public static string RedirectNotice(decimal amount) =>
         $"Thẻ dùng cho đơn này không nhận được hoàn tiền, nên {amount:#,##0}₫ đã được chuyển vào " +
-        "số dư StayHost của bạn. Bạn rút về ngân hàng bất cứ lúc nào.";
+        "số dư Staylio của bạn. Bạn rút về ngân hàng bất cứ lúc nào.";
 
     /// <summary>How long a card refund takes to appear, in the bank's hands rather than ours.</summary>
     public const int CardRefundDaysMin = 5;
@@ -87,7 +87,7 @@ public static class Refunds
                    "Đây là thời gian xử lý của ngân hàng, không phải của StayHost.";
 
         return split.ToCredit > 0
-            ? $"{split.ToCredit:#,##0}₫ về số dư StayHost của bạn ngay lập tức."
+            ? $"{split.ToCredit:#,##0}₫ về số dư Staylio của bạn ngay lập tức."
             : "Không có khoản nào được hoàn cho đơn này.";
     }
 }

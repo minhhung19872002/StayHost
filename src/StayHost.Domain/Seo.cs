@@ -185,3 +185,137 @@ public static class Seo
         return string.Join("\n", lines) + "\n";
     }
 }
+
+/// <summary>What kind of page an address names, once the SPA has finished with it.</summary>
+public enum PageKind
+{
+    /// <summary>No route in the app answers this address. It is a 404.</summary>
+    Unknown,
+
+    /// <summary>
+    /// A route that exists whether or not anything is behind it — somebody's own
+    /// trips, an admin screen, a checkout. These are noindex anyway, and asking
+    /// the database whether the row exists would only move the 404 to a place
+    /// that cannot render it, so they are always answered 200.
+    /// </summary>
+    App,
+
+    /// <summary>/rooms/{slug} — real only if that listing is published.</summary>
+    Listing,
+
+    /// <summary>/thanh-pho/{slug} — real only if that city has something to show.</summary>
+    City,
+
+    /// <summary>/experiences/{slug}</summary>
+    Experience,
+
+    /// <summary>/services/{slug}</summary>
+    Service,
+
+    /// <summary>/help/{slug}</summary>
+    HelpArticle,
+}
+
+/// <summary>An address, resolved to the kind of page it names and the slug it carries.</summary>
+public readonly record struct PageRoute(PageKind Kind, string Slug)
+{
+    /// <summary>True when the answer depends on a row existing in the database.</summary>
+    public bool NeedsLookup => Kind is PageKind.Listing or PageKind.City
+        or PageKind.Experience or PageKind.Service or PageKind.HelpArticle;
+}
+
+public static class SpaRoutes
+{
+    /// <summary>
+    /// Addresses the app answers with no parameter of their own.
+    ///
+    /// This list is a copy of the route table in App.jsx, and a copy is a thing
+    /// that goes stale — but the alternative is worse. Without it every address
+    /// on the site answers 200, which is how a typo, an old link and a crawler
+    /// guessing all end up indexed as blank pages carrying the home page title.
+    /// A route added to the app and forgotten here shows up as a 404 on a page
+    /// that works, which is loud; the reverse, an address that quietly returns
+    /// 200 forever, is what this exists to stop.
+    /// </summary>
+    public static readonly string[] Fixed =
+    [
+        "/",
+        "/wishlists", "/trips", "/host", "/hosting", "/messages", "/resolutions",
+        "/help", "/experiences", "/experiences/bookings", "/services",
+        "/services/bookings", "/wallet", "/shield", "/shield/terms",
+        "/thanh-toan/ket-qua", "/account/sanctions", "/appeal", "/neighbors",
+        "/friends", "/trip-plans", "/admin",
+    ];
+
+    /// <summary>
+    /// What page <paramref name="path"/> names.
+    ///
+    /// Order matters in one place: "/experiences/bookings" and
+    /// "/services/bookings" are fixed pages that sit exactly where a slug would,
+    /// so the fixed list is consulted first. Reversed, the app would go looking
+    /// for an experience whose slug is "bookings", find none, and answer 404 on
+    /// a page that works.
+    /// </summary>
+    public static PageRoute Resolve(string? rawPath)
+    {
+        var path = (rawPath ?? "").Split('?')[0].Split('#')[0].Trim();
+        if (path.Length == 0) return new(PageKind.Unknown, "");
+
+        // "/rooms/x/" and "/rooms/x" are the same page.
+        if (path.Length > 1) path = path.TrimEnd('/');
+        if (path.Length == 0) path = "/";
+
+        if (Fixed.Any(r => string.Equals(r, path, StringComparison.OrdinalIgnoreCase)))
+            return new(PageKind.App, "");
+
+        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0) return new(PageKind.App, "");
+
+        var slug = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+
+        // Two segments: /section/slug
+        if (parts.Length == 2)
+        {
+            return parts[0].ToLowerInvariant() switch
+            {
+                "rooms" => new(PageKind.Listing, slug),
+                "thanh-pho" => new(PageKind.City, slug),
+                "experiences" => new(PageKind.Experience, slug),
+                "services" => new(PageKind.Service, slug),
+                "help" => new(PageKind.HelpArticle, slug),
+
+                // Behind a login or a token, and noindex either way.
+                "wishlist" or "trips" or "messages" or "shield" or "split"
+                    or "chuyen-khoan" or "users" => new(PageKind.App, slug),
+
+                _ => new(PageKind.Unknown, slug),
+            };
+        }
+
+        // Three segments: only the two checkout addresses.
+        if (parts.Length == 3
+            && parts[2].Equals("thanh-toan", StringComparison.OrdinalIgnoreCase)
+            && (parts[0].Equals("experiences", StringComparison.OrdinalIgnoreCase)
+                || parts[0].Equals("services", StringComparison.OrdinalIgnoreCase)))
+            return new(PageKind.App, slug);
+
+        return new(PageKind.Unknown, slug);
+    }
+
+    /// <summary>
+    /// True for an address that asks for a file rather than a page — a stale
+    /// bundle name, a missing image. These must never be answered with the app
+    /// shell: a script tag that receives HTML fails in a way that reads as a
+    /// syntax error somewhere in the app rather than as a missing file.
+    /// </summary>
+    public static bool LooksLikeAsset(string? rawPath)
+    {
+        var path = (rawPath ?? "").Split('?')[0];
+        var last = path.Split('/').LastOrDefault() ?? "";
+        var dot = last.LastIndexOf('.');
+        if (dot <= 0 || dot == last.Length - 1) return false;
+
+        var ext = last[(dot + 1)..];
+        return ext.Length is >= 2 and <= 5 && ext.All(char.IsLetterOrDigit);
+    }
+}

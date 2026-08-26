@@ -37,7 +37,7 @@ export function PaymentMethods({ idPrefix = 'card' }) {
 
   useEffect(() => {
     // The list is the server's, so a checkout and the saved-methods screen
-    // cannot disagree about what StayHost takes. The balance has a control of
+    // cannot disagree about what Staylio takes. The balance has a control of
     // its own on a stay, so it is not a method to pick here.
     api.paymentCatalogue()
       .then(d => {
@@ -80,7 +80,7 @@ export function PaymentMethods({ idPrefix = 'card' }) {
           {state.payMethod === m.key && m.live && (
             <p className="pay-demo" style={{ margin: 0 }}>
               <Icon name="shield" size={16} />
-              {t('Bạn sẽ được chuyển sang trang thanh toán của {} để hoàn tất. StayHost không nhìn thấy số thẻ của bạn.')
+              {t('Bạn sẽ được chuyển sang trang thanh toán của {} để hoàn tất. Staylio không nhìn thấy số thẻ của bạn.')
                 .replace('{}', GATEWAY_NAME[m.provider] ?? t('cổng thanh toán'))}
             </p>
           )}
@@ -90,7 +90,7 @@ export function PaymentMethods({ idPrefix = 'card' }) {
 
     {/* docs/07 §4 — the guest chooses whether the gateway keeps this card. It is
         not only a convenience: with a live gateway this is also the only way
-        StayHost ever learns the card's last four digits (§14.2 means the number
+        Staylio ever learns the card's last four digits (§14.2 means the number
         is typed on their page), and §10's closed-card refund rule reads exactly
         that field. So the wording says what it is for. */}
     {live?.tokens && !state.payCardId && (
@@ -99,7 +99,7 @@ export function PaymentMethods({ idPrefix = 'card' }) {
                onChange={e => set({ paySaveCard: e.target.checked })} />
         <span className="opt-tx">
           <b>{t('Lưu thẻ này cho lần sau')}</b>
-          <span>{t('Thẻ do cổng thanh toán giữ. StayHost chỉ thấy 4 số cuối, dùng để hoàn tiền và nhắc khi thẻ hết hạn.')}</span>
+          <span>{t('Thẻ do cổng thanh toán giữ. Staylio chỉ thấy 4 số cuối, dùng để hoàn tiền và nhắc khi thẻ hết hạn.')}</span>
         </span>
       </label>
     )}

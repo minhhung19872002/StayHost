@@ -484,7 +484,7 @@ public class UserAdminController(
         await db.SaveChangesAsync(ct);
 
         await notifications.QueueWithEmailAsync(user, NotificationKind.System,
-            $"StayHost: {Sanctions.Label(level).ToLowerInvariant()}",
+            $"Staylio: {Sanctions.Label(level).ToLowerInvariant()}",
             Sanctions.Notice(sanction) +
             $" Bạn có thể khiếu nại một lần trong {Appeals.WindowDays} ngày theo liên kết trong thư này.",
             appealLink, ct);
@@ -719,7 +719,7 @@ public class UserAdminController(
         await db.SaveChangesAsync(ct);
 
         await notifications.QueueWithEmailAsync(user, NotificationKind.System,
-            "Tài khoản StayHost đã được khôi phục",
+            "Tài khoản Staylio đã được khôi phục",
             $"Các hạn chế trên tài khoản của bạn đã được gỡ. Lý do: {req.Reason!.Trim()}",
             "/", ct);
 
@@ -748,7 +748,7 @@ public class UserAdminController(
         await db.SaveChangesAsync(ct);
 
         await notifications.QueueWithEmailAsync(user, NotificationKind.System,
-            "Cần đặt lại mật khẩu StayHost",
+            "Cần đặt lại mật khẩu Staylio",
             $"Vì lý do an toàn, mọi phiên đăng nhập của bạn đã bị huỷ và bạn cần đặt lại mật khẩu. " +
             $"Lý do: {req.Reason!.Trim()}",
             $"/reset-password?token={token}", ct);
@@ -902,7 +902,7 @@ public class UserAdminController(
         await db.SaveChangesAsync(ct);
 
         await notifications.QueueWithEmailAsync(user, NotificationKind.System,
-            "Hồ sơ của bạn vừa được StayHost chỉnh sửa",
+            "Hồ sơ của bạn vừa được Staylio chỉnh sửa",
             $"Nhân viên hỗ trợ đã sửa thông tin hồ sơ của bạn. Lý do: {req.Reason!.Trim()}. " +
             "Nếu bạn thấy bất thường, hãy liên hệ ngay.",
             "/account", ct);

@@ -14,7 +14,7 @@ namespace StayHost.Domain;
 /// So the matching does not parse columns. Bank exports disagree about column
 /// order, headings, date format and decimal separator, and a parser tuned to one
 /// bank's CSV breaks the week they change it. It scans each line for something
-/// shaped like a StayHost reference instead — two letters and eight hex digits is
+/// shaped like a Staylio reference instead — two letters and eight hex digits is
 /// distinctive enough that a false positive would have to be deliberate — and
 /// reads the amount off the same line. That works on MB's export, on anybody
 /// else's, and on a block of text pasted out of internet banking.

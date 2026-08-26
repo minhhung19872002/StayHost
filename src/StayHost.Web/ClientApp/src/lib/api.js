@@ -470,7 +470,7 @@ export const api = {
     request('/api/account/external', { method: 'POST', body: JSON.stringify({ provider, credential }) }),
   unlinkProvider: provider => request(`/api/account/external/${provider}`, { method: 'DELETE' }),
 
-  /* docs/06 — StayShield. */
+  /* docs/06 — Staylio Shield. */
   shieldTerms: side => request(`/api/shield/terms${qs({ side })}`),
   shieldClaims: () => request('/api/shield'),
   shieldClaim: id => request(`/api/shield/${id}`),

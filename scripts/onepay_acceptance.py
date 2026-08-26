@@ -1,5 +1,5 @@
 """
-StayHost · nghiệm thu OnePay trên trình duyệt thật (docs/07 §13, §15.3)
+Staylio · nghiệm thu OnePay trên trình duyệt thật (docs/07 §13, §15.3)
 
 Trả tiền bằng **thẻ Visa quốc tế** trên chính trang của OnePay, rồi kiểm những
 gì sàn biết sau đó. Đây là thứ không chạy được với VNPay: sandbox của họ chỉ
@@ -141,7 +141,7 @@ def hold_a_booking(from_day):
     return None
 
 
-print("StayHost · nghiệm thu OnePay, thẻ Visa quốc tế (docs/07 §13) — %s\n" % BASE)
+print("Staylio · nghiệm thu OnePay, thẻ Visa quốc tế (docs/07 §13) — %s\n" % BASE)
 
 _, catalogue = call("/api/payment-methods/catalogue")
 card = next((m for m in (catalogue or {}).get("methods", []) if m["key"] == "card"), None)
@@ -218,7 +218,7 @@ with sync_playwright() as p:
         page.screenshot(path=os.path.join(SHOTS, "onepay-back.png"), full_page=True)
     browser.close()
 
-check("Khách được đưa về StayHost",
+check("Khách được đưa về Staylio",
       any("/thanh-toan/ket-qua" in u or "/api/payments/onepay/return" in u for u in came_back),
       (came_back[-1][-70:] if came_back else "(không quay về)"))
 

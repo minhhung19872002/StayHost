@@ -39,8 +39,8 @@ public class MoMoProvider(
         var body = new Dictionary<string, object>
         {
             ["partnerCode"] = Cfg.PartnerCode,
-            ["partnerName"] = "StayHost",
-            ["storeId"] = "StayHost",
+            ["partnerName"] = "Staylio",
+            ["storeId"] = "Staylio",
             ["requestId"] = requestId,
             ["amount"] = amount,
             ["orderId"] = order.OrderRef,

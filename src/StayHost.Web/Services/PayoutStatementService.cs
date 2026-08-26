@@ -10,7 +10,7 @@ namespace StayHost.Web.Services;
 ///
 /// Until this existed, the only thing standing between "the bank paid the host"
 /// and the ledger saying so was a person pressing a button. That button is the
-/// single place a payout is posted, so a mis-press writes money out of StayHost
+/// single place a payout is posted, so a mis-press writes money out of Staylio
 /// that never left the bank, and the books balance either way. docs/07 §7 asks
 /// exactly this question of the gateways and answers it by comparing against
 /// their list; this is the same answer for the outgoing side.

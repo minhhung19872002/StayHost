@@ -124,7 +124,7 @@ public static class HelpSeeder
             """
             Trước khi một đơn được xác nhận, số điện thoại, email và đường liên kết trong tin nhắn sẽ được che.
 
-            Lý do rất thực tế: giao dịch bên ngoài StayHost không được bảo vệ. Nếu có chuyện xảy ra, chúng tôi không thể hoàn tiền, không thể phân xử và không có gì trong tay để giúp bạn.
+            Lý do rất thực tế: giao dịch bên ngoài Staylio không được bảo vệ. Nếu có chuyện xảy ra, chúng tôi không thể hoàn tiền, không thể phân xử và không có gì trong tay để giúp bạn.
 
             Ngay khi đơn được xác nhận, hai bên nhìn thấy đầy đủ thông tin của nhau.
             """),
@@ -136,7 +136,7 @@ public static class HelpSeeder
 
             Bên còn lại có 24 giờ để phản hồi. Trong thời gian đó hai bên vẫn có thể tự thoả thuận, và phần lớn vụ việc kết thúc ở đây.
 
-            Không thoả thuận được thì StayHost vào phân xử, xem bằng chứng cả hai bên gửi và quyết định số tiền. Mọi khoản tiền đều được ghi vào sổ, không sửa không xoá.
+            Không thoả thuận được thì Staylio vào phân xử, xem bằng chứng cả hai bên gửi và quyết định số tiền. Mọi khoản tiền đều được ghi vào sổ, không sửa không xoá.
             """),
 
         new("nhan-tien-khi-nao", "Khi nào chủ nhà nhận được tiền?", "Tiền bạc", HelpAudience.Host,
@@ -146,7 +146,7 @@ public static class HelpSeeder
 
             Khoảng chờ này để hai bên kịp xử lý nếu chỗ nghỉ không đúng như mô tả.
 
-            Bạn chọn nhận từng đơn một hoặc gộp theo tuần, theo tháng trong mục Nhận tiền. StayHost chỉ lưu 4 số cuối của tài khoản.
+            Bạn chọn nhận từng đơn một hoặc gộp theo tuần, theo tháng trong mục Nhận tiền. Staylio chỉ lưu 4 số cuối của tài khoản.
             """),
 
         new("dong-bo-lich", "Nối lịch với nền tảng khác", "Lịch", HelpAudience.Host,

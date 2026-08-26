@@ -34,7 +34,7 @@ public static class CalendarConflicts
         var first = clashes.OrderBy(c => c.From).First();
         var extra = clashes.Count - 1;
         var tail = extra > 0 ? $" và {extra} đơn khác" : "";
-        return $"Lịch nhập về trùng đơn đã xác nhận trên StayHost: "
+        return $"Lịch nhập về trùng đơn đã xác nhận trên Staylio: "
              + $"{first.From:dd/MM}–{first.ToExclusive:dd/MM}{tail}. "
              + "Kiểm tra để tránh nhận trùng khách.";
     }

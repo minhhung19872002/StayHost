@@ -64,7 +64,7 @@ public class PspCheckout(
         await db.SaveChangesAsync(ct);
 
         var start = await provider.StartAsync(
-            new PspOrder(orderRef, amount, $"StayHost {booking.Reference}", method, clientIp,
+            new PspOrder(orderRef, amount, $"Staylio {booking.Reference}", method, clientIp,
                 SaveCard: saveCard,
                 // The gateway keeps its tokens per user of ours, so it needs a
                 // handle on the guest that survives them saving a second card.

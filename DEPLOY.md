@@ -41,7 +41,7 @@ tự sinh theo từng lần chạy.
 |---|---|
 | `~/deploy/stayhost.env` | Mật khẩu Postgres, image đang chạy, SMTP và địa chỉ quản trị. `chmod 600`, **không nằm trong git**. Dòng `STAYHOST_IMAGE` do job deploy ghi lại sau mỗi lần lên khoẻ mạnh, nên nó luôn đúng bằng bản đang chạy. |
 | `~/actions-runner/` | GitHub Actions self-hosted runner, chạy như systemd service. |
-| `~/actions-runner/_work/StayHost/StayHost/` | Bản checkout mà job deploy dùng để chạy compose. |
+| `~/actions-runner/_work/Staylio/Staylio/` | Bản checkout mà job deploy dùng để chạy compose. |
 | `/etc/nginx/sites-enabled/stayhost` | Reverse proxy + TLS. |
 | Docker volume `stayhost_pgdata` | Dữ liệu Postgres. |
 | Docker volume `stayhost_uploads` | Ảnh tin đăng (`wwwroot/uploads`). |
@@ -146,7 +146,7 @@ BANK_ACCOUNT_NUMBER=<số tài khoản>
 BANK_ACCOUNT_NAME=<TEN CHU TAI KHOAN KHONG DAU>
 EOF
 
-cd ~/actions-runner/_work/StayHost/StayHost
+cd ~/actions-runner/_work/Staylio/Staylio
 docker compose -p stayhost -f docker-compose.prod.yml --env-file ~/deploy/stayhost.env up -d web
 
 curl -s https://staylio.vn/api/payment-methods/catalogue | grep -o vietqr
@@ -231,7 +231,7 @@ ZALOPAY_KEY2=<...>
 ZALOPAY_ENDPOINT=https://openapi.zalopay.vn/v2
 EOF
 
-cd ~/actions-runner/_work/StayHost/StayHost
+cd ~/actions-runner/_work/Staylio/Staylio
 docker compose -p stayhost -f docker-compose.prod.yml --env-file ~/deploy/stayhost.env up -d web
 
 # Ô nào đã có cổng thật thì trả "live": true
@@ -286,7 +286,7 @@ cat >> ~/deploy/stayhost.env <<'EOF'
 PAYOUTS_ACCOUNT_KEY=<chuỗi vừa sinh>
 EOF
 
-cd ~/actions-runner/_work/StayHost/StayHost
+cd ~/actions-runner/_work/Staylio/Staylio
 docker compose -p stayhost -f docker-compose.prod.yml --env-file ~/deploy/stayhost.env up -d web
 ```
 
@@ -360,7 +360,7 @@ Sửa `~/deploy/stayhost.env` **không** cần khởi động lại ngay: lần 
 Tất cả chạy với user `hung`:
 
 ```bash
-cd ~/actions-runner/_work/StayHost/StayHost
+cd ~/actions-runner/_work/Staylio/Staylio
 alias shc='docker compose -p stayhost -f docker-compose.prod.yml --env-file ~/deploy/stayhost.env'
 
 shc ps                 # trạng thái
@@ -447,7 +447,7 @@ triệu chứng lại đúng chữ "offline" khó truy.
 
 ## 4. Dựng lại từ đầu
 
-> **Phần này viết cho một máy chủ chỉ chạy StayHost, và cho một tài khoản có `sudo`.**
+> **Phần này viết cho một máy chủ chỉ chạy Staylio, và cho một tài khoản có `sudo`.**
 > Máy `bluestar01` hiện tại **không** thoả cả hai:
 >
 > - Nó dùng chung Caddy với bốn dự án khác → **bỏ qua bước 1 và bước 5**, thêm tên miền
@@ -466,7 +466,7 @@ Claude Code không có TTY để nhập mật khẩu).
 2. Tạo `~/deploy/stayhost.env` theo mẫu `deploy/stayhost.env.example`, rồi `chmod 600`.
 3. `bash deploy/install-runner.sh <REGISTRATION_TOKEN>` — lấy token tại
    *Settings → Actions → Runners → New self-hosted runner* của repo, hoặc
-   `gh api -X POST /repos/minhhung19872002/StayHost/actions/runners/registration-token --jq .token`.
+   `gh api -X POST /repos/minhhung19872002/Staylio/actions/runners/registration-token --jq .token`.
    Runner phải có nhãn **`stayhost-vps`**. Rồi `sudo bash deploy/setup-runner-service.sh`
    để nó chạy như systemd service và sống qua reboot.
 4. Push lên `main` (hoặc bấm *Run workflow*) để CI/CD chạy lần đầu và dựng stack.

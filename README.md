@@ -1,7 +1,7 @@
-# StayHost OS
+# Staylio
 
 Marketplace thuê nhà ngắn hạn theo mô hình Airbnb, dựng từ thiết kế
-**StayHost Marketplace.dc.html** (Claude Design).
+**Staylio Marketplace.dc.html** (Claude Design).
 
 Stack: **ASP.NET Core 9** · **PostgreSQL 17** (EF Core / Npgsql) · **Docker Compose** ·
 frontend vanilla ES modules (không build step).

@@ -25,6 +25,24 @@
 // this whole arrangement exists to prevent.
 const KEEP = ['trang'];
 
+/**
+ * The one host this site admits to living at.
+ *
+ * staylio.vn and www.staylio.vn both answer, and both served a canonical
+ * pointing at themselves — so Google saw two complete copies of the catalogue,
+ * each claiming to be the original, and split the ranking between them. The
+ * redirect at the proxy is the real fix; this is the half that travels with the
+ * code, and it holds even on a deployment whose proxy has not been told yet.
+ *
+ * Only the "www." prefix is dropped. Rewriting the host to a configured value
+ * would break every preview deployment and localhost, where the address the
+ * page is being read at is the only correct answer.
+ */
+function canonicalOrigin() {
+  const { protocol, host } = window.location;
+  return `${protocol}//${host.replace(/^www\./i, '')}`;
+}
+
 /** Absolute address of a path on this origin, keeping only the params that name a page. */
 export function canonicalUrl(pathname, search) {
   const raw = (pathname || '/');
@@ -44,7 +62,7 @@ export function canonicalUrl(pathname, search) {
   }
 
   const tail = kept.toString();
-  return window.location.origin + (tidy || '/') + (tail ? `?${tail}` : '');
+  return canonicalOrigin() + (tidy || '/') + (tail ? `?${tail}` : '');
 }
 
 function put(selector, make) {
@@ -89,6 +107,7 @@ export function applyCanonical(pathname, search) {
 const DEFAULTS = {
   title: document.title,
   description: document.head.querySelector('meta[name="description"]')?.content || '',
+  image: document.head.querySelector('meta[property="og:image"]')?.content || '',
 };
 
 function meta(attr, name) {
@@ -110,7 +129,7 @@ function meta(attr, name) {
  * whose title never says "Đà Lạt" cannot rank for "khách sạn Đà Lạt" — the
  * catalogue can be crawled and still be invisible.
  */
-export function setPageMeta({ title, description } = {}) {
+export function setPageMeta({ title, description, image } = {}) {
   const t = title || DEFAULTS.title;
   const d = description || DEFAULTS.description;
 
@@ -118,11 +137,53 @@ export function setPageMeta({ title, description } = {}) {
   meta('name', 'description').setAttribute('content', d);
   meta('property', 'og:title').setAttribute('content', t);
   meta('property', 'og:description').setAttribute('content', d);
+
+  // The picture on the card Zalo, Messenger and Facebook draw when somebody
+  // pastes the link — which in Vietnam is how most of a listing's traffic
+  // arrives. Until this ran there was no og:image anywhere on the site, so
+  // every share came out as a bare grey rectangle with a line of text under it.
+  //
+  // Absolute, because the scrapers fetch the image on their own without the
+  // page around it and a path beginning with "/" means nothing to them.
+  const img = absolute(image || DEFAULTS.image);
+  meta('property', 'og:image').setAttribute('content', img);
+  meta('property', 'og:image:alt').setAttribute('content', t);
+  meta('name', 'twitter:image').setAttribute('content', img);
+}
+
+/** A share picture as a full address, whatever shape it arrived in. */
+function absolute(src) {
+  const s = (src || '').trim();
+  if (!s) return '';
+  if (/^https?:\/\//i.test(s)) return s;
+  return canonicalOrigin() + (s.startsWith('/') ? s : `/${s}`);
+}
+
+/**
+ * Keeps this page out of the index, or lets it back in.
+ *
+ * The server already answers 404 for an address with nothing behind it, but a
+ * route change inside the app never reaches the server — a guest who clicks
+ * through to a listing that was unpublished a minute ago gets a "không tìm
+ * thấy" screen at an address that returned 200 when the document loaded.
+ */
+export function setNoIndex(on) {
+  if (!on) {
+    // Queried rather than created-then-removed: meta() appends when it finds
+    // nothing, and every navigation would add a tag only to delete it again.
+    document.head.querySelector('meta[name="robots"]')?.remove();
+    return;
+  }
+  // "follow" and not "none": the links on a not-found page still lead to real
+  // pages, and there is no reason to make a crawler forget them too.
+  meta('name', 'robots').setAttribute('content', 'noindex, follow');
 }
 
 /** Back to what index.html shipped with — called on every navigation. */
 export function resetPageMeta() {
   setPageMeta(DEFAULTS);
+  // A page that set noindex must not leave it behind for the next one.
+  setNoIndex(false);
 }
 
 // ----------------------------------------------------------- structured data
@@ -228,14 +289,14 @@ export function siteJsonLd() {
       {
         '@type': 'Organization',
         '@id': `${origin}/#org`,
-        name: 'StayHost OS',
+        name: 'Staylio',
         url: origin,
       },
       {
         '@type': 'WebSite',
         '@id': `${origin}/#site`,
         url: origin,
-        name: 'StayHost OS',
+        name: 'Staylio',
         inLanguage: 'vi-VN',
         publisher: { '@id': `${origin}/#org` },
         potentialAction: {
