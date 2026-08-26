@@ -109,7 +109,7 @@ def sign_in(email):
 
 def make_admin(slug, name, scope):
     """scope is the AdminScope flag: 1 Support, 2 Moderation, 4 Finance, 31 Super."""
-    email = f"{slug}{RUN}@stayhost.vn"
+    email = f"{slug}{RUN}@staylio.vn"
     _, uid = register(email, name)
     sql_ok(f'update users set "Role"=2, "AdminScope"={scope}, "TwoFactorEnabled"=true where "Id"={uid}')
     return sign_in(email), uid
@@ -125,7 +125,7 @@ moderation2, mod2_id = make_admin("mod2", "Kiểm duyệt Hai", 2)
 finance, fin_id = make_admin("fin", "Tài chính Test", 4)
 super_admin, super_id = make_admin("super", "Tối cao Test", 31)
 
-victim_op, victim_id = register(f"victim{RUN}@stayhost.vn", "Người Dùng Test")
+victim_op, victim_id = register(f"victim{RUN}@staylio.vn", "Người Dùng Test")
 
 
 # --- 1. Support tries to lock somebody out -----------------------------------
@@ -151,7 +151,7 @@ record(2, "Admin thử thao tác lên tài khoản của chính mình → bị c
 # --- 3. Locking a host mid-season --------------------------------------------
 # One guest already staying, five confirmed stays still to come.
 
-host_email = f"lockhost{RUN}@stayhost.vn"
+host_email = f"lockhost{RUN}@staylio.vn"
 host_op, host_id = register(host_email, "Chủ Nhà Test")
 call(host_op, "/api/account/become-host", {})
 host_profile = int(sql_ok(f'select "Id" from hosts where "UserId"={host_id}'))
@@ -175,7 +175,7 @@ for i in range(6):
         listing_ids.append(made["id"])
         call(host_op, f"/api/host/listings/{made['id']}/publish", {"published": True})
 
-guest_op, guest_id = register(f"lockguest{RUN}@stayhost.vn", "Khách Test")
+guest_op, guest_id = register(f"lockguest{RUN}@staylio.vn", "Khách Test")
 
 booked = []
 for i, lid in enumerate(listing_ids):
@@ -183,7 +183,7 @@ for i, lid in enumerate(listing_ids):
     end = f"2027-0{(i % 6) + 3}-12"
     st, bk = call(guest_op, "/api/bookings", {
         "listingId": lid, "checkIn": start, "checkOut": end, "guests": 1,
-        "guestName": "Khách Test", "guestEmail": f"lockguest{RUN}@stayhost.vn",
+        "guestName": "Khách Test", "guestEmail": f"lockguest{RUN}@staylio.vn",
         "paymentMethod": "card", "cardLast4": "4242", "agreedToRules": True})
     if st in (200, 201):
         # docs/07 §13 — the card row leaves for VNPay when one is wired, and §6's
@@ -392,11 +392,11 @@ record(8, "Xem giấy tờ → bắt nhập lý do → nhật ký riêng → ả
 
 # --- 9. Erasing an account that has already travelled ------------------------
 
-erase_op, erase_id = register(f"erase{RUN}@stayhost.vn", "Người Xoá Test")
+erase_op, erase_id = register(f"erase{RUN}@staylio.vn", "Người Xoá Test")
 
 st, done_booking = call(erase_op, "/api/bookings", {
     "listingId": listing_ids[-1], "checkIn": "2027-11-10", "checkOut": "2027-11-12",
-    "guests": 1, "guestName": "Người Xoá Test", "guestEmail": f"erase{RUN}@stayhost.vn",
+    "guests": 1, "guestName": "Người Xoá Test", "guestEmail": f"erase{RUN}@staylio.vn",
     "paymentMethod": "card", "cardLast4": "4242", "agreedToRules": True})
 
 if st in (200, 201):

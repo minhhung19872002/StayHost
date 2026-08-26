@@ -89,7 +89,7 @@ print("StayHost · nghiệm thu chuyển tiền cho chủ nhà (docs/07 §13) �
 
 # --- the cast -----------------------------------------------------------------
 guest = opener()
-st, _ = call(guest, "/api/account/login", {"email": "guest@stayhost.vn", "password": "stayhost123"})
+st, _ = call(guest, "/api/account/login", {"email": "guest@staylio.vn", "password": "stayhost123"})
 if st != 200:
     raise SystemExit("Không đăng nhập được khách.")
 
@@ -101,10 +101,10 @@ if st != 200:
 # ChallengeDtoAsync passes the refusal's empty DevCode through without comment,
 # which reads as "not running in Development". Clear the slate first.
 sql("""delete from one_time_codes where "UserId" in """
-    """(select "Id" from users where "Email"='admin@stayhost.vn')""")
+    """(select "Id" from users where "Email"='admin@staylio.vn')""")
 
 admin = opener()
-st, res = call(admin, "/api/account/login", {"email": "admin@stayhost.vn", "password": "stayhost123"})
+st, res = call(admin, "/api/account/login", {"email": "admin@staylio.vn", "password": "stayhost123"})
 
 if res and res.get("challenge"):
     if not res.get("devCode"):
@@ -133,7 +133,7 @@ for week in range(0, 10):
         st, held = call(guest, "/api/bookings", {
             "listingId": listing["id"], "checkIn": future(at), "checkOut": future(at + 3),
             "guests": 1, "adults": 1, "children": 0, "infants": 0, "pets": 0,
-            "guestName": "Khách Demo", "guestEmail": "guest@stayhost.vn",
+            "guestName": "Khách Demo", "guestEmail": "guest@staylio.vn",
             "agreedToRules": True, "paymentMethod": "card"})
 
         if st == 201:
@@ -294,7 +294,7 @@ for week in range(0, 40):
             "listingId": booking["listingId"], "checkIn": future(at),
             "checkOut": future(at + nights),
             "guests": 1, "adults": 1, "children": 0, "infants": 0, "pets": 0,
-            "guestName": "Khách Demo", "guestEmail": "guest@stayhost.vn",
+            "guestName": "Khách Demo", "guestEmail": "guest@staylio.vn",
             "agreedToRules": True, "paymentMethod": "card"})
         if st == 201:
             second = held

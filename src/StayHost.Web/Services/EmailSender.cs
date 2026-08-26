@@ -17,7 +17,7 @@ public class EmailSettings
     public string? Password { get; set; }
 
     /// <summary>The address recipients see, and reply to.</summary>
-    public string FromAddress { get; set; } = "no-reply@stayhost.vn";
+    public string FromAddress { get; set; } = "no-reply@staylio.vn";
     public string FromName { get; set; } = "StayHost";
 
     /// <summary>

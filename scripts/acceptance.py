@@ -23,7 +23,7 @@ def admin_login():
     """docs/08 §3 - an admin account cannot sign in without the second factor,
     so the demo admin goes through the code step like everybody else."""
     st, res = call(admin, "/api/account/login",
-                   {"email": "admin@stayhost.vn", "password": "stayhost123"})
+                   {"email": "admin@staylio.vn", "password": "stayhost123"})
 
     if not (res and res.get("challenge")):
         return st
@@ -119,7 +119,7 @@ def body_for(listing, offset, nights, **kw):
     # listings all have rules, so the booking carries the agreement like the UI does.
     return {"listingId": listing['id'], "checkIn": future(offset), "checkOut": future(offset + nights),
             "guests": 1, "adults": 1, "children": 0, "infants": 0, "pets": 0,
-            "guestName": "Khách Demo", "guestEmail": "guest@stayhost.vn", "guestNote": None,
+            "guestName": "Khách Demo", "guestEmail": "guest@staylio.vn", "guestNote": None,
             "paymentMethod": "card", "cardLast4": "4242", "agreedToRules": True} | kw
 
 
@@ -150,7 +150,7 @@ record(1, "Tìm Đà Lạt 2 khách 3 đêm, giá giống nhau ở 3 nơi",
 
 # --- 2 ---------------------------------------------------------------------
 newbie = opener()
-email = f"acceptance{int(time.time())}@stayhost.vn"
+email = f"acceptance{int(time.time())}@staylio.vn"
 st, user = call(newbie, "/api/account/register",
                 {"email": email, "password": "stayhost123", "fullName": "Khách Nghiệm Thu",
                  "phone": None, "dateOfBirth": "1995-06-15"})   # docs/01 TK-03: đủ 18 tuổi
@@ -166,7 +166,7 @@ record(2, "Đăng ký, xác minh email, lưu yêu thích, xem danh sách",
 
 # --- 3 ---------------------------------------------------------------------
 guest = opener()
-call(guest, "/api/account/login", {"email": "guest@stayhost.vn", "password": "stayhost123"})
+call(guest, "/api/account/login", {"email": "guest@staylio.vn", "password": "stayhost123"})
 _, s3 = call(guest, f"/api/listings?pageSize=60&checkIn={future(45)}&checkOut={future(48)}")
 inst = next(i for i in s3['items'] if i['instantBook'])
 st3, paid = book_and_pay(guest, inst, 45)
@@ -191,7 +191,7 @@ _, det4 = call(guest, f"/api/listings/{req_listing['slug']}")
 owner = None
 for n in range(1, 11):
     op = opener()
-    call(op, "/api/account/login", {"email": f"host{n}@stayhost.vn", "password": "stayhost123"})
+    call(op, "/api/account/login", {"email": f"host{n}@staylio.vn", "password": "stayhost123"})
     _, me = call(op, "/api/account/me")
     if me and me['id'] == det4['host']['userId']:
         owner = op
@@ -212,7 +212,7 @@ record(4, "Yêu cầu đặt, chủ nhà chấp nhận, trừ tiền, xác nhậ
 # is the cancellation policy rather than the yearly cap.
 canceller = opener()
 call(canceller, "/api/account/register",
-     {"email": f"acceptance-huy{int(time.time())}@stayhost.vn", "password": "stayhost123",
+     {"email": f"acceptance-huy{int(time.time())}@staylio.vn", "password": "stayhost123",
       "fullName": "Khách Huỷ Nghiệm Thu", "phone": None, "dateOfBirth": "1993-04-02"})
 
 _, s5 = call(canceller, f"/api/listings?pageSize=60&checkIn={future(80)}&checkOut={future(83)}")
@@ -238,7 +238,7 @@ record(5, "Huỷ trước 5 ngày, hoàn 100%, sổ sách cân bằng",
 
 # --- 6 ---------------------------------------------------------------------
 host1 = opener()
-call(host1, "/api/account/login", {"email": "host1@stayhost.vn", "password": "stayhost123"})
+call(host1, "/api/account/login", {"email": "host1@staylio.vn", "password": "stayhost123"})
 title = f"Nhà nghiệm thu {int(time.time())}"
 st6, created = call(host1, "/api/host/listings", {
     "title": title, "city": "Quy Nhơn", "typeKey": "house", "roomTypeKey": "entire",
@@ -275,8 +275,8 @@ record(7, "Chủ nhà đổi giá 5 ngày, khách thấy ngay",
 
 # --- 8 ---------------------------------------------------------------------
 a, c = opener(), opener()
-call(a, "/api/account/login", {"email": "guest@stayhost.vn", "password": "stayhost123"})
-call(c, "/api/account/login", {"email": "host2@stayhost.vn", "password": "stayhost123"})
+call(a, "/api/account/login", {"email": "guest@staylio.vn", "password": "stayhost123"})
+call(c, "/api/account/login", {"email": "host2@staylio.vn", "password": "stayhost123"})
 race_body = body_for(created, 120, 3)
 out = queue.Queue()
 

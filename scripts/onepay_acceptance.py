@@ -41,7 +41,7 @@ SHOTS = os.environ.get("STAYHOST_SHOTS") or ""
 
 # OnePay's published international test card. Not a secret and not real money.
 CARD, EXPIRY, CSC = "4005550000000001", "1227", "100"
-HOLDER, EMAIL = "NGUYEN VAN A", "guest@stayhost.vn"
+HOLDER, EMAIL = "NGUYEN VAN A", "guest@staylio.vn"
 
 passed, failed = [], []
 op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
@@ -134,7 +134,7 @@ def hold_a_booking(from_day):
             st, booking = call("/api/bookings", {
                 "listingId": listing["id"], "checkIn": future(at), "checkOut": future(at + 2),
                 "guests": 1, "adults": 1, "children": 0, "infants": 0, "pets": 0,
-                "guestName": "Khách Demo", "guestEmail": "guest@stayhost.vn",
+                "guestName": "Khách Demo", "guestEmail": "guest@staylio.vn",
                 "agreedToRules": True, "paymentMethod": "card"})
             if st == 201:
                 return booking
@@ -150,7 +150,7 @@ if not card or not card.get("live"):
     print("Ô thẻ chưa nối cổng thật nào — không có gì để chạy.")
     sys.exit(0)
 
-st, _ = call("/api/account/login", {"email": "guest@stayhost.vn", "password": "stayhost123"})
+st, _ = call("/api/account/login", {"email": "guest@staylio.vn", "password": "stayhost123"})
 if st != 200:
     print("Không đăng nhập được khách.")
     sys.exit(1)

@@ -67,11 +67,16 @@ services:
       Email__Port: ${EMAIL_PORT:-587}
       Email__User: ${EMAIL_USER:-}
       Email__Password: ${EMAIL_PASSWORD:-}
-      Email__FromAddress: ${EMAIL_FROM:-no-reply@stayhost.vn}
+      Email__FromAddress: ${EMAIL_FROM:-no-reply@staylio.vn}
       Email__FromName: ${EMAIL_FROM_NAME:-StayHost}
       Email__UseImplicitTls: ${EMAIL_IMPLICIT_TLS:-false}
+      # What a link inside those emails is prefixed with — the reader is outside
+      # the browser tab, so a relative path is not clickable. Left unset it falls
+      # back to PSP_PUBLIC_URL below, which is the same address; set it only if
+      # this app is somehow reached on two different names.
+      Site__PublicUrl: ${SITE_PUBLIC_URL:-}
       # Which inbox the console account signs in with, and where its six-digit
-      # code goes. Empty leaves the seeded admin@stayhost.vn alone.
+      # code goes. Empty leaves the seeded admin@staylio.vn alone.
       Admin__Email: ${ADMIN_EMAIL:-}
       # docs/08 §3 says no exceptions. false is the exception, for a server that
       # cannot post the code anywhere yet — see DEPLOY.md §2.1.

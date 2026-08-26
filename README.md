@@ -96,9 +96,9 @@ khi đăng nhập, dữ liệu đó được chuyển sang tài khoản.
 
 | Vai trò | Email | Mật khẩu |
 |---|---|---|
-| Khách | `guest@stayhost.vn` | `stayhost123` |
-| Chủ nhà | `host1@stayhost.vn` … `host10@stayhost.vn` | `stayhost123` |
-| Quản trị | `admin@stayhost.vn` | `stayhost123` |
+| Khách | `guest@staylio.vn` | `stayhost123` |
+| Chủ nhà | `host1@staylio.vn` … `host10@staylio.vn` | `stayhost123` |
+| Quản trị | `admin@staylio.vn` | `stayhost123` |
 
 ## Tính năng
 

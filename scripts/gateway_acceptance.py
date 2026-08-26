@@ -174,7 +174,7 @@ def body_for(listing, offset, nights, **kw):
     return {"listingId": listing["id"], "checkIn": future(offset),
             "checkOut": future(offset + nights), "guests": 1, "adults": 1,
             "children": 0, "infants": 0, "pets": 0, "guestName": "Khách Demo",
-            "guestEmail": "guest@stayhost.vn", "guestNote": None,
+            "guestEmail": "guest@staylio.vn", "guestNote": None,
             "agreedToRules": True} | kw
 
 
@@ -215,9 +215,9 @@ print("Cổng đang bật: %s\n" % (", ".join(k for k, v in live.items() if v) o
 
 guest = opener()
 st, _ = call(guest, "/api/account/login",
-             {"email": "guest@stayhost.vn", "password": "stayhost123"})
+             {"email": "guest@staylio.vn", "password": "stayhost123"})
 if st != 200:
-    print("Không đăng nhập được guest@stayhost.vn — dừng.")
+    print("Không đăng nhập được guest@staylio.vn — dừng.")
     sys.exit(1)
 
 momo_ref = momo_booking = None

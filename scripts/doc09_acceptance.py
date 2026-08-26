@@ -96,7 +96,7 @@ def book(op, slot_id, seats, private=False):
 def scenario_1():
     """10 seats; three guests ask for 4 + 4 + 3 → the third is told 2 are left."""
     _, slot = a_session_with(10)
-    g1, g2, g3 = login("guest@stayhost.vn"), login("host1@stayhost.vn"), login("host2@stayhost.vn")
+    g1, g2, g3 = login("guest@staylio.vn"), login("host1@staylio.vn"), login("host2@staylio.vn")
 
     s1, _ = book(g1, slot, 4)
     s2, _ = book(g2, slot, 4)
@@ -119,7 +119,7 @@ def scenario_1():
 def scenario_2():
     """Two guests going for the last two seats at the same instant: one wins."""
     _, slot = a_session_with(2)
-    a, b = login("guest@stayhost.vn"), login("host1@stayhost.vn")
+    a, b = login("guest@staylio.vn"), login("host1@staylio.vn")
 
     out = {}
     barrier = threading.Barrier(2)
@@ -148,7 +148,7 @@ def scenario_5():
     xid, slot = a_session_with(8)
     sql(f'update experiences set "PrivateGroupPrice" = 5000000 where "Id" = {xid};')
 
-    g = login("guest@stayhost.vn")
+    g = login("guest@staylio.vn")
     st, _ = book(g, slot, 8, private=True)
 
     priv = sql(f'select "IsPrivate", "SeatsTaken" from experience_slots where "Id" = {slot};')
@@ -165,7 +165,7 @@ def scenario_5():
 # --------------------------------------------------------------- scenario 11
 def scenario_11():
     """A guest with no trip at all can still book an experience."""
-    g = login("guest@stayhost.vn")
+    g = login("guest@staylio.vn")
     _, slot = a_session_with(6)
     st, _ = book(g, slot, 1)
     ok(11, "Khach khong co chuyen di nao van dat trai nghiem duoc", st == 200)
@@ -175,7 +175,7 @@ def scenario_11():
 def scenario_12():
     """The provider is paid 24 hours after the session ENDS, not after it starts."""
     _, slot = a_session_with(6)
-    g = login("guest@stayhost.vn")
+    g = login("guest@staylio.vn")
     st, _ = book(g, slot, 2)
     if st != 200:
         return ok(12, "Tra tien nguoi dan tinh tu khi suat ket thuc 24 gio", False, "khong dat duoc")
@@ -244,7 +244,7 @@ def scenario_9():
 def vetting():
     """A high-risk experience cannot go on sale, and cannot be approved, until
     its licence, cover and emergency number are on file (§2.2, §2.3)."""
-    host = login("host1@stayhost.vn")
+    host = login("host1@staylio.vn")
 
     body = {
         "title": "Lan bien Nha Trang cho nguoi moi",
@@ -287,7 +287,7 @@ def vetting():
        st2 == 200 and state == "1|0", f"trang thai={state} (1|0 = cho duyet, chua hien)")
 
     # The reviewer decides — and only a moderator may.
-    admin = login("admin@stayhost.vn")
+    admin = login("admin@staylio.vn")
     st3, _ = call(admin, f"/api/experiences/{xid}/review", {"decision": "approve"})
     after = sql(f'select "ModerationStatus"::int || \'|\' || "IsPublished"::int '
                 f'from experiences where "Id" = {xid};') if xid else "?"
@@ -304,7 +304,7 @@ def vetting():
 def service_options():
     """A provider lists their own service, prices extras and the journey, and
     cannot be booked until the guest confirms the place is suitable."""
-    host = login("host2@stayhost.vn")
+    host = login("host2@staylio.vn")
 
     body = {
         "title": "Dau bep tai nha - com Viet",
@@ -340,7 +340,7 @@ def service_options():
 
     # The extras and the journey are priced, and both land in the subtotal.
     addon = sql(f'select "Id" from service_add_ons where "OfferingId" = {oid} limit 1;')
-    guest = login("guest@stayhost.vn")
+    guest = login("guest@staylio.vn")
     when = (datetime.datetime.now(datetime.timezone.utc)
             + datetime.timedelta(days=2)).replace(hour=3, minute=0, second=0, microsecond=0)
 
@@ -374,7 +374,7 @@ def seat_hold():
     """Seats leave the count the moment checkout starts, and come back if the
     guest walks away (§2.7, ten minutes)."""
     _, slot = a_session_with(4)
-    a, b = login("guest@stayhost.vn"), login("host1@stayhost.vn")
+    a, b = login("guest@staylio.vn"), login("host1@staylio.vn")
 
     st, hold = call(a, f"/api/experiences/slots/{slot}/hold", {"seats": 3})
     held = seats_taken(slot)

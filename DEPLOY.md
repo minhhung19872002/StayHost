@@ -46,7 +46,8 @@ luôn đi qua **mã 6 số gửi tới email của chính tài khoản đó**. H
 `~/deploy/stayhost.env` quyết định mã có tới nơi hay không:
 
 - `ADMIN_EMAIL` — hòm thư thật của người quản trị. Bỏ trống thì tài khoản vẫn là
-  `admin@stayhost.vn`, một tên miền không ai sở hữu, nên **mã gửi vào hư không**.
+  `admin@staylio.vn` — địa chỉ đó chỉ nhận được thư nếu hòm thư ấy thật sự tồn tại
+  trên tên miền, nếu không thì **mã gửi vào hư không**.
   Đặt giá trị rồi khởi động lại là tài khoản chuyển sang địa chỉ đó, và từ đó
   đăng nhập cũng bằng địa chỉ đó.
 - `EMAIL_HOST` và bạn bè — chưa đặt thì **không có thư nào rời hàng đợi**. Với
@@ -87,10 +88,10 @@ vậy, thà thiếu nút còn hơn có nút bấm vào không chạy. Bỏ trố
 lẫn gạch ngang "hoặc" đều biến mất, hộp đăng nhập trở lại chỉ có email và mật khẩu.
 
 Với máy chủ hiện tại, "Authorised JavaScript origins" của Google phải có đúng
-`https://staylio.bluestar.com.vn` (không dấu `/` ở cuối). Kiểm tra sau khi bật:
+`https://staylio.vn` (không dấu `/` ở cuối). Kiểm tra sau khi bật:
 
 ```bash
-curl -s https://staylio.bluestar.com.vn/api/account/external/config
+curl -s https://staylio.vn/api/account/external/config
 ```
 
 Trả về `googleClientId` khác `null` là máy chủ đã nhận cấu hình; còn `null` nghĩa là
@@ -108,7 +109,7 @@ cần làm gì thêm**: deploy xong là nút "Dịch" tự hiện.
   ```bash
   docker compose -p stayhost -f docker-compose.prod.yml exec libretranslate \
     python -c "import urllib.request,json; print([x['code'] for x in json.load(urllib.request.urlopen('http://localhost:5000/languages'))])"
-  curl -s https://staylio.bluestar.com.vn/api/translate/config   # enabled:true là đã bật
+  curl -s https://staylio.vn/api/translate/config   # enabled:true là đã bật
   ```
 - Kết quả dịch được **cache trong DB** (`translation_caches`) nên mỗi câu chỉ dịch một lần.
 - Thêm/bớt ngôn ngữ: đặt `TRANSLATE_LANGS` trong env file (mặc định `en,vi,zh,ko,ja,fr`).
@@ -138,7 +139,7 @@ EOF
 cd ~/actions-runner/_work/StayHost/StayHost
 docker compose -p stayhost -f docker-compose.prod.yml --env-file ~/deploy/stayhost.env up -d web
 
-curl -s https://staylio.bluestar.com.vn/api/payment-methods/catalogue | grep -o vietqr
+curl -s https://staylio.vn/api/payment-methods/catalogue | grep -o vietqr
 ```
 
 - `BANK_BIN` là mã NAPAS của ngân hàng, tra ở vietqr.io/danh-sach-ngan-hang
@@ -181,7 +182,7 @@ thì miễn phí và không cần giấy tờ.
 ```bash
 cat >> ~/deploy/stayhost.env <<'EOF'
 # Địa chỉ cổng gọi ngược về. Phải là tên miền thật, không phải localhost.
-PSP_PUBLIC_URL=https://staylio.bluestar.com.vn
+PSP_PUBLIC_URL=https://staylio.vn
 
 # OnePay — cổng thứ hai cho ô "Thẻ tín dụng / ghi nợ" (thẻ quốc tế)
 # Đặt PSP_METHODS_CARD=
@@ -224,7 +225,7 @@ cd ~/actions-runner/_work/StayHost/StayHost
 docker compose -p stayhost -f docker-compose.prod.yml --env-file ~/deploy/stayhost.env up -d web
 
 # Ô nào đã có cổng thật thì trả "live": true
-curl -s https://staylio.bluestar.com.vn/api/payment-methods/catalogue | python3 -m json.tool
+curl -s https://staylio.vn/api/payment-methods/catalogue | python3 -m json.tool
 ```
 
 - **VNPay sandbox không có thẻ quốc tế để thử.** Thẻ test họ công bố là NCB, thẻ nội

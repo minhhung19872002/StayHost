@@ -49,7 +49,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (18/08/2026).** 1093 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (18/08/2026).** 1101 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **34/34** kịch bản chuyển tiền cho chủ nhà và đối chiếu sao kê (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
@@ -357,6 +357,17 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 - **`app_trans_id` của ZaloPay phải mang ngày của Việt Nam.** Lại đúng bảy tiếng cũ:
   một đơn mở lúc 18:00 UTC là 01:00 hôm sau ở TP.HCM, và ZaloPay từ chối mọi mã
   không mở đầu bằng ngày hôm nay của **họ**. `Psp.ZaloTransId` quy đổi, có test.
+- **Một tên miền viết thẳng vào mã nguồn không có gì báo sai.** `NotificationService`
+  dựng dòng "Xem chi tiết" bằng `https://stayhost.vn{link}` — một tên miền sàn không
+  sở hữu — nên **mọi email thông báo** gửi khách đều dẫn vào hư không. Thư vẫn rời
+  hàng đợi, log vẫn sạch, test vẫn xanh: không có ai ở phía nào để kêu. Chỉ lộ ra khi
+  đi soát tên miền để đổi. Giờ là `Site:PublicUrl`, và nó **rơi về `Psp:PublicUrl`**
+  khi để trống — cùng một địa chỉ, nên không đẻ ra biến thứ hai phải nhớ sửa cùng lúc.
+  Không có địa chỉ nào thì **bỏ hẳn dòng link** chứ không đoán tên miền.
+- **Đổi tên miền thì DB đang chạy không đổi theo.** Email tài khoản seed nằm trong
+  `DbSeeder`, mà seeder chỉ chạy trên DB trắng — bản prod vẫn giữ `admin@stayhost.vn`
+  cũ sau khi deploy. Đường đổi tài khoản quản trị là `ADMIN_EMAIL`; các tài khoản
+  demo còn lại thì đổi bằng `UPDATE` hoặc chấp nhận giữ nguyên.
 
 ---
 
@@ -375,8 +386,8 @@ docker exec stayhost-db psql -U stayhost -d stayhost -c "DROP SCHEMA public CASC
 ```
 
 ### Tài khoản demo (mật khẩu `stayhost123`)
-`guest@stayhost.vn` · `host1@stayhost.vn` … `host10@stayhost.vn` · `admin@stayhost.vn`
-`khach1@stayhost.vn` … `khach6@stayhost.vn` — sáu khách đã ký tên dưới các đánh giá
+`guest@staylio.vn` · `host1@staylio.vn` … `host10@staylio.vn` · `admin@staylio.vn`
+`khach1@staylio.vn` … `khach6@staylio.vn` — sáu khách đã ký tên dưới các đánh giá
 trải nghiệm và dịch vụ được seed sẵn (`ReviewSeeder`).
 
 **Tài khoản admin bắt buộc có bảo mật 2 lớp** (`docs/08 §3`, không có ngoại lệ), nên
@@ -463,7 +474,7 @@ riêng `FacebookAppSecret` đặt qua biến môi trường `ExternalLogin__Face
 
 | Khoá | Lấy ở đâu |
 |---|---|
-| `GoogleClientId` | console.cloud.google.com → Credentials → OAuth client ID (Web). Khai **Authorised JavaScript origins**: `https://staylio.bluestar.com.vn` và `http://localhost:5199` |
+| `GoogleClientId` | console.cloud.google.com → Credentials → OAuth client ID (Web). Khai **Authorised JavaScript origins**: `https://staylio.vn` và `http://localhost:5199` |
 | `AppleServicesId` + `AppleRedirectUri` | developer.apple.com → Services ID. Return URL phải **trùng từng ký tự** với `AppleRedirectUri`. Cần tài khoản Apple Developer trả phí |
 | `FacebookAppId` + `FacebookAppSecret` | developers.facebook.com → App → Facebook Login for Web |
 
@@ -477,7 +488,7 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 1093 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1101 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
@@ -525,6 +536,31 @@ Remote: **https://github.com/minhhung19872002/StayHost**
 Cả ngày 17/08 làm **tiền thật**: nối ba cổng thanh toán, chuyển tiền cho chủ nhà,
 token hoá thẻ, hoàn tiền, và đưa bồi thường ra khỏi sàn theo quyết định của khách.
 Tám commit, từ `a8ee0a3` tới `904cce2`. Mọi bộ nghiệm thu xanh.
+
+### 8.0. Đổi tên miền sang `staylio.vn` (26/08/2026)
+
+Khách chốt bỏ `staylio.bluestar.com.vn`, và bỏ luôn domain email `stayhost.vn`.
+Trong repo đã đổi hết: tài khoản seed (`guest@staylio.vn`…), `Email:FromAddress`,
+User-Agent gọi VNPay, mọi script nghiệm thu, `DEPLOY.md`, `README.md`.
+
+**Phần còn lại nằm trên máy chủ, không nằm trong repo** — làm theo thứ tự:
+
+1. `sudo bash deploy/setup-nginx.sh staylio.vn <email>` — site mới + chứng chỉ
+   Let's Encrypt mới. Tên miền cũ vẫn chạy cho tới khi gỡ khỏi `sites-enabled`.
+2. `~/deploy/stayhost.env`: `PSP_PUBLIC_URL=https://staylio.vn`. **Đây là biến
+   quan trọng nhất** — cổng thanh toán gọi ngược về địa chỉ này, sai là IPN không
+   tới nơi và đơn treo ở "chờ thanh toán" cho tới khi `PspSweeper` tự hỏi lại.
+3. Khai lại **Authorised JavaScript origins** của Google (`console.cloud.google.com`)
+   và **Return URL** của Apple. Không khai thì nút đăng nhập báo `origin_mismatch`,
+   và đó là lỗi ở phía nhà cung cấp nên không có log nào bên mình.
+4. Khai lại địa chỉ website ở cổng quản trị VNPay/MoMo/ZaloPay/OnePay — mỗi bên
+   chặn IPN theo tên miền đã đăng ký.
+5. `EMAIL_FROM=no-reply@staylio.vn` chỉ gửi được khi SPF/DKIM của tên miền mới đã
+   dựng; chưa có thì thư bị đánh dấu spam chứ không báo lỗi.
+
+**Cơ sở dữ liệu đang chạy giữ nguyên email cũ.** `DbSeeder` chỉ chạy trên DB trắng,
+nên bản prod vẫn còn `admin@stayhost.vn`. Đổi tài khoản quản trị bằng `ADMIN_EMAIL`;
+các tài khoản demo còn lại thì `UPDATE` tay hoặc để nguyên — chúng chỉ là dữ liệu mẫu.
 
 ### 8.1. Đang chờ khách
 

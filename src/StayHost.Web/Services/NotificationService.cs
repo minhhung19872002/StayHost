@@ -8,7 +8,8 @@ namespace StayHost.Web.Services;
 /// Writes an in-app notification and queues the matching email in one step, so a
 /// feature never remembers to do one and forget the other.
 /// </summary>
-public class NotificationService(StayHostDbContext db, ILogger<NotificationService> log)
+public class NotificationService(
+    StayHostDbContext db, ILogger<NotificationService> log, SiteSettings site)
 {
     /// <summary>Queues without saving; the caller's SaveChanges commits it with the rest.</summary>
     public void Queue(int userId, NotificationKind kind, string title, string body, string? link = null)
@@ -79,9 +80,14 @@ public class NotificationService(StayHostDbContext db, ILogger<NotificationServi
         await db.SaveChangesAsync(ct);
     }
 
-    private static string BuildEmailBody(string name, string title, string body, string? link)
+    private string BuildEmailBody(string name, string title, string body, string? link)
     {
-        var cta = link is null ? "" : $"\n\nXem chi tiết: https://stayhost.vn{link}";
+        // Absolute() answers null when this deployment has no public address, and
+        // then the line is left out entirely. A link the reader cannot click is
+        // worse than no link — and a host written into the source is exactly how
+        // this pointed at a domain the platform does not own for as long as it did.
+        var url = site.Absolute(link);
+        var cta = url is null ? "" : $"\n\nXem chi tiết: {url}";
         return $"Chào {name},\n\n{title}\n\n{body}{cta}\n\n— Đội ngũ StayHost";
     }
 }

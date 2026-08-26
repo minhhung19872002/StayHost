@@ -78,6 +78,16 @@ else builder.Services.AddScoped<IEmailSender, UnconfiguredEmailSender>();
 builder.Services.AddScoped<EmailDispatcher>();
 builder.Services.AddHostedService<EmailWorker>();
 
+// The address a link in an email has to carry, because the reader is outside the
+// browser tab that would have made a relative path work. Any deployment taking
+// real money already had to tell the gateways the same address, so Site:PublicUrl
+// falls back to Psp:PublicUrl rather than becoming a second value that must agree
+// with the first — two settings for one address is how they drift apart.
+var site = builder.Configuration.GetSection("Site").Get<SiteSettings>() ?? new();
+if (site.PublicUrl.Length == 0)
+    site.PublicUrl = (builder.Configuration["Psp:PublicUrl"] ?? "").Trim();
+builder.Services.AddSingleton(site);
+
 var connectionString =
     builder.Configuration.GetConnectionString("Postgres")
     ?? Environment.GetEnvironmentVariable("DATABASE_URL")
@@ -143,7 +153,7 @@ builder.Services.AddHttpClient("psp", c =>
     // call and the querydr self-check of docs/07 §5 — the safety net for a guest
     // whose connection drops mid-payment — while every log line said only that
     // the reply could not be parsed as JSON.
-    c.DefaultRequestHeaders.UserAgent.ParseAdd("StayHost/1.0 (+https://staylio.bluestar.com.vn)");
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("StayHost/1.0 (+https://staylio.vn)");
 });
 
 builder.Services.AddHttpClient("ical");
@@ -207,11 +217,12 @@ await using (var scope = app.Services.CreateAsyncScope())
                     "Bật lại ngay khi gửi được email.", stoodDown);
             }
 
-            // The seeded console account is admin@stayhost.vn, a domain nobody
-            // owns — so the six-digit code of §3 is posted to an address that
-            // cannot be read. Setting Admin:Email (ADMIN_EMAIL in the deploy env
-            // file) moves the account to a real inbox, which is also the address
-            // it is then signed in with. Left unset, nothing changes.
+            // The seeded console account is admin@staylio.vn. Owning the domain
+            // is not the same as having that mailbox, so unless someone created
+            // it the six-digit code of §3 is posted to an address nobody reads.
+            // Setting Admin:Email (ADMIN_EMAIL in the deploy env file) moves the
+            // account to a real inbox, which is also the address it is then
+            // signed in with. Left unset, nothing changes.
             var adminEmail = (builder.Configuration["Admin:Email"] ?? "").Trim().ToLowerInvariant();
             if (adminEmail.Length > 0)
             {

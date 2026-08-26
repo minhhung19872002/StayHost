@@ -97,7 +97,7 @@ def register(email, name):
 
 
 def make_admin(slug, scope=31):
-    email = f"{slug}{RUN}@stayhost.vn"
+    email = f"{slug}{RUN}@staylio.vn"
     _, uid = register(email, "Kiem tra " + slug)
     sql(f'update users set "Role"=2, "AdminScope"={scope}, "TwoFactorEnabled"=true where "Id"={uid}')
     return sign_in(email), uid
@@ -178,7 +178,7 @@ def book_a_slot(op, offering_id, note, quantity=1):
 
 def scenario_force_majeure():
     """docs/06 §8 Q-A — the host is paid 25% from the fund, without filing."""
-    guest, _ = register(f"fm{RUN}@stayhost.vn", "Khach bat kha khang")
+    guest, _ = register(f"fm{RUN}@staylio.vn", "Khach bat kha khang")
     bid, err = book_and_pay(guest, "sunset-villa-ho-boi-rieng-1", days_out=OFFSET + 20)
     if err:
         return ok("1. Bat kha khang: chu nha duoc den bu 25%", False, err)
@@ -218,7 +218,7 @@ def scenario_force_majeure_needs_reason():
 
 def scenario_c3_cap():
     """docs/06 §10 C-D — a lost-income claim stops at five nights."""
-    guest, _ = register(f"c3g{RUN}@stayhost.vn", "Khach C3")
+    guest, _ = register(f"c3g{RUN}@staylio.vn", "Khach C3")
     bid, err = book_and_pay(guest, "riverside-loft-pho-co-7", days_out=OFFSET + 30)
     if err:
         return ok("3. Ho so C3 bi chan boi tran 5 dem", False, err)
@@ -278,7 +278,7 @@ def scenario_damage_never_touches_the_fund():
     """
     name = "10. Hu hong: san phan xu nhung khong chi tu quy"
 
-    guest, _ = register(f"dmg{RUN}@stayhost.vn", "Khach lam vo do")
+    guest, _ = register(f"dmg{RUN}@staylio.vn", "Khach lam vo do")
     bid, err = book_and_pay(guest, "riverside-loft-pho-co-7", days_out=OFFSET + 44)
     if err:
         return ok(name, False, err)
@@ -347,7 +347,7 @@ def scenario_damage_never_touches_the_fund():
 
 def scenario_provider_sees_jobs():
     """docs/09 §3.5 — the provider can finally read the note written for them."""
-    host = sign_in("host1@stayhost.vn")
+    host = sign_in("host1@staylio.vn")
     st, jobs = call(host, "/api/services/jobs")
     ok("4. Nha cung cap xem duoc don cua minh", st == 200 and isinstance(jobs, list),
        f"http={st}, {len(jobs) if isinstance(jobs, list) else '?'} don")
@@ -355,7 +355,7 @@ def scenario_provider_sees_jobs():
 
 def scenario_misdeclared():
     """docs/09 §3.6 DV-D — half the order stays with the provider who travelled."""
-    guest, guest_id = register(f"dvd{RUN}@stayhost.vn", "Khach khai sai")
+    guest, guest_id = register(f"dvd{RUN}@staylio.vn", "Khach khai sai")
 
     st, offerings = call(guest, "/api/services?category=chef")
     if not offerings:
@@ -397,7 +397,7 @@ def scenario_misdeclared():
 
 def scenario_misdeclared_needs_the_hour():
     """Nobody reports a site they have not been to yet."""
-    guest, _ = register(f"dvd2{RUN}@stayhost.vn", "Khach hai")
+    guest, _ = register(f"dvd2{RUN}@staylio.vn", "Khach hai")
     st, offerings = call(guest, "/api/services?category=chef")
     slug = offerings[0]["slug"]
     st, detail = call(guest, f"/api/services/{slug}")
@@ -419,7 +419,7 @@ def scenario_misdeclared_needs_the_hour():
 
 def scenario_repeat_chargebacks():
     """docs/07 §11 step 6 — two lost disputes and the next booking needs ID."""
-    guest, guest_id = register(f"cb{RUN}@stayhost.vn", "Khach khieu nai")
+    guest, guest_id = register(f"cb{RUN}@staylio.vn", "Khach khieu nai")
     bid, err = book_and_pay(guest, "han-river-loft-tang-22-21", days_out=OFFSET)
     if err:
         return ok("7. Thua khieu nai 2 lan -> don sau phai xac minh", False, err)
@@ -452,7 +452,7 @@ def scenario_repeat_chargebacks():
 
 def scenario_refund_handed_back():
     """docs/07 §10 — a closed card cannot take the money, so it becomes balance."""
-    guest, guest_id = register(f"rr{RUN}@stayhost.vn", "Khach the chet")
+    guest, guest_id = register(f"rr{RUN}@staylio.vn", "Khach the chet")
 
     # A card ending 0009 always hands a refund back (PaymentGateway.RefundRejectingCard).
     bid, err = book_and_pay(guest, "palm-paradise-can-ho-bien-3",
@@ -485,7 +485,7 @@ def scenario_refund_handed_back():
 
 def scenario_good_card_still_goes_to_the_card():
     """The ordinary path must be untouched by the branch above."""
-    guest, _ = register(f"rg{RUN}@stayhost.vn", "Khach the tot")
+    guest, _ = register(f"rg{RUN}@staylio.vn", "Khach the tot")
     bid, err = book_and_pay(guest, "camelback-views-penthouse-5", days_out=OFFSET + 50)
     if err:
         return ok("9. The tot van hoan ve the", False, err)

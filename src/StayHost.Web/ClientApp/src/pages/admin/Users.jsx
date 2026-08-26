@@ -67,7 +67,7 @@ export function UserAdminPanel() {
           <span className="cap">{t('Từ khoá')}</span>
           <input value={q} onChange={e => setQ(e.target.value)}
                  onKeyDown={e => e.key === 'Enter' && search(q)}
-                 placeholder="guest@stayhost.vn" />
+                 placeholder="guest@staylio.vn" />
         </label>
         <button className="btn btn-outline btn-sm" onClick={() => search(q)}>{t('Tìm')}</button>
       </div>

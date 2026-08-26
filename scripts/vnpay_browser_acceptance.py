@@ -154,7 +154,7 @@ if not live.get("napas", (False,))[0]:
     print("VNPay chưa bật cho ô thẻ nội địa — không có gì để chạy.")
     sys.exit(0)
 
-st, _ = call("/api/account/login", {"email": "guest@stayhost.vn", "password": "stayhost123"})
+st, _ = call("/api/account/login", {"email": "guest@staylio.vn", "password": "stayhost123"})
 if st != 200:
     print("Không đăng nhập được khách.")
     sys.exit(1)
@@ -172,7 +172,7 @@ for week in range(0, 14):
         st, booking = call("/api/bookings", {
             "listingId": listing["id"], "checkIn": future(at), "checkOut": future(at + 2),
             "guests": 1, "adults": 1, "children": 0, "infants": 0, "pets": 0,
-            "guestName": "Khách Demo", "guestEmail": "guest@stayhost.vn",
+            "guestName": "Khách Demo", "guestEmail": "guest@staylio.vn",
             "agreedToRules": True, "paymentMethod": "napas"})
         if st == 201:
             held = booking

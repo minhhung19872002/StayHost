@@ -25,7 +25,7 @@ public class PspOnePayTests
     /// <summary>The approved Visa payment, exactly as it came back.</summary>
     private static Dictionary<string, string> Approved() => new()
     {
-        ["AgainLink"] = "https://staylio.bluestar.com.vn/",
+        ["AgainLink"] = "https://staylio.vn/",
         ["vpc_AVSResultCode"] = "1",
         ["vpc_AcqResponseCode"] = "00",
         ["vpc_Amount"] = "100000",

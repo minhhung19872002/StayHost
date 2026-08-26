@@ -152,7 +152,7 @@ check("Sàn giữ được giờ VNPay báo đã thu", bool(paid_at),
 # --- 2: cancel, and watch the money leave ------------------------------------
 print("\n2. Huỷ đơn — tiền phải đi ngược qua chính VNPay")
 
-st, _ = call("/api/account/login", {"email": "guest@stayhost.vn", "password": "stayhost123"})
+st, _ = call("/api/account/login", {"email": "guest@staylio.vn", "password": "stayhost123"})
 st, preview = call("/api/bookings/%d/refund-preview" % booking_id)
 expected = (preview or {}).get("refund", 0)
 check("Có khoản phải hoàn", expected > 0, "%s₫" % expected)

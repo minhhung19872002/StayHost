@@ -111,8 +111,8 @@ export function AuthModal() {
       <div style={{ marginTop: 22, padding: 14, background: 'var(--surface-soft)', borderRadius: 12 }}>
         <b style={{ fontSize: 12.5 }}>{t('Tài khoản dùng thử')}</b>
         <div style={{ fontSize: 12.5, color: 'var(--ink-muted)', marginTop: 6, lineHeight: 1.6 }}>
-          {t('Khách:')} <code>guest@stayhost.vn</code><br />
-          {t('Chủ nhà:')} <code>host1@stayhost.vn</code><br />
+          {t('Khách:')} <code>guest@staylio.vn</code><br />
+          {t('Chủ nhà:')} <code>host1@staylio.vn</code><br />
           {t('Mật khẩu:')} <code>stayhost123</code>
         </div>
         {/* Tài khoản quản trị cố tình KHÔNG nằm ở đây. Hộp này hiện cho mọi khách
@@ -122,7 +122,7 @@ export function AuthModal() {
         <button className="btn btn-outline btn-sm btn-block" style={{ marginTop: 10 }} onClick={() => {
           const form = document.getElementById('auth-form');
           if (!form) return;
-          form.email.value = 'host1@stayhost.vn';
+          form.email.value = 'host1@staylio.vn';
           form.password.value = 'stayhost123';
         }}>{t('Điền tài khoản chủ nhà')}</button>
       </div>

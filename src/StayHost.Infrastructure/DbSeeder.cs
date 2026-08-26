@@ -485,9 +485,9 @@ public static class DbSeeder
         // Every demo host gets a real account so messaging and the host dashboard work
         // out of the box. Password for all demo accounts: "stayhost123".
         var hostUsers = HostSeeds.Select((h, i) => NewUser(
-            $"host{i + 1}@stayhost.vn", h.Name, UserRole.Host, h.Bio)).ToList();
+            $"host{i + 1}@staylio.vn", h.Name, UserRole.Host, h.Bio)).ToList();
         db.Users.AddRange(hostUsers);
-        db.Users.Add(NewUser("guest@stayhost.vn", "Khách Demo", UserRole.Guest,
+        db.Users.Add(NewUser("guest@staylio.vn", "Khách Demo", UserRole.Guest,
             "Mình hay đi cuối tuần quanh miền Trung."));
         // An experience or a service review is signed by the account that booked
         // it (docs/09 §5), unlike a stay review, which carries a name typed into
@@ -495,8 +495,8 @@ public static class DbSeeder
         // every session and every job on the demo would show an empty review
         // block under a rating the card is already advertising.
         db.Users.AddRange(GuestSeeds.Select((g, i) => NewUser(
-            $"khach{i + 1}@stayhost.vn", g.Name, UserRole.Guest, g.Bio)));
-        var admin = NewUser("admin@stayhost.vn", "Quản trị viên", UserRole.Admin,
+            $"khach{i + 1}@staylio.vn", g.Name, UserRole.Guest, g.Bio)));
+        var admin = NewUser("admin@staylio.vn", "Quản trị viên", UserRole.Admin,
             "Đội vận hành StayHost.");
         admin.AdminScope = AdminScope.Super;
         // docs/08 §3 — "Bắt buộc bảo mật 2 lớp. Không bật thì không đăng nhập

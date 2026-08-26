@@ -323,13 +323,13 @@ public class PspTests
     public void The_momo_create_signature_follows_their_published_field_order()
     {
         var signature = Psp.MoMoCreateSign(
-            MomoAccess, MomoSecret, 50_000, "", "https://stayhost.vn/ipn",
-            "MM1540456472575", "SDK team.", "MOMO", "https://stayhost.vn/return",
+            MomoAccess, MomoSecret, 50_000, "", "https://staylio.vn/ipn",
+            "MM1540456472575", "SDK team.", "MOMO", "https://staylio.vn/return",
             "MM1540456472575", "captureWallet");
 
-        var raw = $"accessKey={MomoAccess}&amount=50000&extraData=&ipnUrl=https://stayhost.vn/ipn" +
+        var raw = $"accessKey={MomoAccess}&amount=50000&extraData=&ipnUrl=https://staylio.vn/ipn" +
                   "&orderId=MM1540456472575&orderInfo=SDK team.&partnerCode=MOMO" +
-                  "&redirectUrl=https://stayhost.vn/return&requestId=MM1540456472575" +
+                  "&redirectUrl=https://staylio.vn/return&requestId=MM1540456472575" +
                   "&requestType=captureWallet";
 
         Assert.Equal(HmacHex(HMACSHA256.HashData(
