@@ -4,12 +4,12 @@ Máy chủ hiện tại: VPS Ubuntu, IP `14.225.83.93`, hostname `bluestar01`. T
 chính là **`staylio.vn`** (kèm `www`); `staylio.bluestar.com.vn` vẫn trỏ về đây trong
 thời gian chuyển tiếp.
 
-> **Máy này không của riêng StayHost.** Nó chạy chung với `bluedental`, `blueidea`,
+> **Máy này không của riêng Staylio.** Nó chạy chung với `bluedental`, `blueidea`,
 > `foodsafe`, `starlab`. Cổng 80/443 do **một container Caddy dùng chung** (`proxy-caddy`)
 > giữ — **không có Nginx và không có Certbot trên host**. Vì thế
 > `deploy/setup-nginx.sh` và `deploy/nginx/stayhost.conf` **không áp dụng cho máy này**:
 > chạy chúng sẽ cài Nginx giành cổng 443 với Caddy và làm sập cả năm dự án, không riêng
-> StayHost. Hai file đó giữ lại cho một máy chủ chỉ chạy StayHost. Cách thêm tên miền ở
+> Staylio. Hai file đó giữ lại cho một máy chủ chỉ chạy Staylio. Cách thêm tên miền ở
 > đây xem §2.7.
 
 ## 1. Kiến trúc
@@ -269,7 +269,7 @@ phiên đang chờ tự hết hạn sau 15 phút và nhả chỗ, chưa có bút
 
 ## 2.6. Bật chuyển tiền cho chủ nhà
 
-`docs/07 §13`, `§15.4`. Cổng thanh toán trả **toàn bộ** tiền đơn về tài khoản StayHost.
+`docs/07 §13`, `§15.4`. Cổng thanh toán trả **toàn bộ** tiền đơn về tài khoản Staylio.
 Phần của chủ nhà — phần lớn nhất — sàn phải tự chuyển đi. Không có API nào cho việc đó:
 mỗi ngày một người tải file, đưa lên internet banking, rồi quay lại nói ngân hàng có
 thực hiện hay không.

@@ -166,7 +166,7 @@ public static class HelpSeeder
             """
             Bạn có thể mời người khác giúp mình vận hành: mở lịch, đổi giá, trả lời tin nhắn, duyệt đơn, sửa nội dung tin đăng — chọn đúng những việc bạn muốn giao.
 
-            Lời mời gửi theo email, kể cả khi người đó chưa có tài khoản StayHost.
+            Lời mời gửi theo email, kể cả khi người đó chưa có tài khoản Staylio.
 
             Người đồng quản lý không bao giờ nhìn thấy tài khoản nhận tiền của bạn, dù được cấp quyền nào.
 

@@ -83,7 +83,7 @@ public class ShieldController(
                 "Staylio Shield cho Khách",
                 "Khi chỗ ở không có, không vào được hoặc khác xa mô tả, Staylio đứng ra tìm chỗ khác " +
                 "hoặc hoàn tiền cho bạn. Đây là chính sách hỗ trợ của sàn, áp dụng cho đơn đặt và " +
-                "thanh toán qua StayHost.",
+                "thanh toán qua Staylio.",
                 [
                     new ShieldTermsSectionDto("Bốn tình huống được hỗ trợ", [
                         "Chủ nhà huỷ đơn đã xác nhận trong vòng 30 ngày trước ngày nhận phòng",

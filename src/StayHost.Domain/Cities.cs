@@ -95,7 +95,7 @@ public static class Cities
             "nha trang" => "Nha Trang biển xanh cát trắng, hải sản tươi và đảo gần bờ — nhiều căn hộ nhìn thẳng ra vịnh.",
             "phu quoc" => "Phú Quốc đảo ngọc với hoàng hôn Bãi Trường và chợ đêm — villa có bể bơi hoặc bungalow sát biển.",
             "" => "Khám phá những chỗ nghỉ được yêu thích trên khắp Việt Nam.",
-            _ => $"Khám phá những chỗ nghỉ được yêu thích ở {name} trên StayHost."
+            _ => $"Khám phá những chỗ nghỉ được yêu thích ở {name} trên Staylio."
         };
     }
 }

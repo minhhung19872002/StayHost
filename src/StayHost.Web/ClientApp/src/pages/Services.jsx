@@ -430,7 +430,7 @@ function Detail({ slug }) {
               </div>
 
               <p className="svc-safe">
-                {t('Để được bảo vệ, hãy luôn thanh toán và trao đổi qua StayHost.')}
+                {t('Để được bảo vệ, hãy luôn thanh toán và trao đổi qua Staylio.')}
               </p>
             </div>
           </section>

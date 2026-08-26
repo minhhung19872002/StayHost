@@ -46,7 +46,7 @@ export function PayoutBatchPanel() {
     <section style={{ marginTop: 40 }}>
       <h2 className="section-title" style={{ fontSize: 20 }}>{t('Chuyển tiền cho chủ nhà')}</h2>
       <p className="section-sub">
-        {t('Cổng thanh toán trả toàn bộ tiền đơn về tài khoản StayHost. Phần của chủ nhà phải chuyển đi bằng lệnh hàng loạt, và chỉ được ghi sổ khi ngân hàng đã thực hiện.')}
+        {t('Cổng thanh toán trả toàn bộ tiền đơn về tài khoản Staylio. Phần của chủ nhà phải chuyển đi bằng lệnh hàng loạt, và chỉ được ghi sổ khi ngân hàng đã thực hiện.')}
       </p>
 
       {/* The one thing that must not be silent: with no encryption key the sweep

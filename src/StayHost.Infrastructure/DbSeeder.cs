@@ -497,7 +497,7 @@ public static class DbSeeder
         db.Users.AddRange(GuestSeeds.Select((g, i) => NewUser(
             $"khach{i + 1}@staylio.vn", g.Name, UserRole.Guest, g.Bio)));
         var admin = NewUser("admin@staylio.vn", "Quản trị viên", UserRole.Admin,
-            "Đội vận hành StayHost.");
+            "Đội vận hành Staylio.");
         admin.AdminScope = AdminScope.Super;
         // docs/08 §3 — "Bắt buộc bảo mật 2 lớp. Không bật thì không đăng nhập
         // được, không có ngoại lệ." The demo account is not an exception, so

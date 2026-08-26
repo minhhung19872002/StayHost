@@ -84,7 +84,7 @@ public static class Refunds
 
         if (split.ToCard > 0)
             return $"{split.ToCard:#,##0}₫ về thẻ trong {CardRefundDaysMin}–{CardRefundDaysMax} ngày làm việc. " +
-                   "Đây là thời gian xử lý của ngân hàng, không phải của StayHost.";
+                   "Đây là thời gian xử lý của ngân hàng, không phải của Staylio.";
 
         return split.ToCredit > 0
             ? $"{split.ToCredit:#,##0}₫ về số dư Staylio của bạn ngay lập tức."

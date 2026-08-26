@@ -31,7 +31,7 @@ export function Messages() {
       <div className="shell" style={{ paddingBlock: '60px 90px' }}>
         <div className="empty-state">
           <h3>{t('Đăng nhập để xem tin nhắn')}</h3>
-          <p>{t('Trao đổi với chủ nhà hoặc khách của bạn ngay trong StayHost.')}</p>
+          <p>{t('Trao đổi với chủ nhà hoặc khách của bạn ngay trong Staylio.')}</p>
           <button className="btn btn-primary" style={{ marginTop: 18 }}
                   onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>{t('Đăng nhập')}</button>
         </div>

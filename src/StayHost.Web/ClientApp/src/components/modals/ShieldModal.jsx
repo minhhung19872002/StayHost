@@ -112,7 +112,7 @@ export function ShieldModal() {
       </button>
     </>}>
       <div className="shield-note">
-        {t('Staylio Shield là chính sách hỗ trợ của StayHost. Hãy nhắn cho')} {forHost ? t('khách') : t('chủ nhà')} {t('trong Staylio trước — trao đổi trong sàn là bằng chứng bắt buộc.')}
+        {t('Staylio Shield là chính sách hỗ trợ của Staylio. Hãy nhắn cho')} {forHost ? t('khách') : t('chủ nhà')} {t('trong Staylio trước — trao đổi trong sàn là bằng chứng bắt buộc.')}
       </div>
 
       <section className="modal-section">

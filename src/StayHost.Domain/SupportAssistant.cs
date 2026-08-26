@@ -51,7 +51,7 @@ public static class SupportAssistant
 
         // Always available, so the panel is never empty and a human is one tap away.
         list.Add(new("Không thấy điều bạn cần? Xem Trung tâm trợ giúp.", "Mở trợ giúp", "/help"));
-        list.Add(new("Cần người thật hỗ trợ? Gửi yêu cầu cho đội StayHost.", "Liên hệ hỗ trợ", "/help?support=1"));
+        list.Add(new("Cần người thật hỗ trợ? Gửi yêu cầu cho đội Staylio.", "Liên hệ hỗ trợ", "/help?support=1"));
 
         return list;
     }

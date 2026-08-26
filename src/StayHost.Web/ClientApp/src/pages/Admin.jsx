@@ -785,7 +785,7 @@ function Gate({ message, showLogin }) {
     <div className="shell" style={{ paddingBlock: '60px 90px' }}>
       <div className="empty-state">
         <h3>{message}</h3>
-        <p>{t('Trang này dành cho đội vận hành StayHost.')}</p>
+        <p>{t('Trang này dành cho đội vận hành Staylio.')}</p>
         {showLogin && (
           <button className="btn btn-primary" style={{ marginTop: 18 }}
                   onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>{t('Đăng nhập')}</button>

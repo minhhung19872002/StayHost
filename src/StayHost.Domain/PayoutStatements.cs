@@ -168,7 +168,7 @@ public static class PayoutStatements
         Verdict.Transferred =>
             "Ngân hàng đã chuyển đúng số tiền của lệnh này. Đã ghi sổ.",
         Verdict.Unidentified =>
-            "Khoản này rời tài khoản nhưng không mang mã lệnh nào của StayHost. "
+            "Khoản này rời tài khoản nhưng không mang mã lệnh nào của Staylio. "
             + "Có thể là chi tiêu khác của công ty — kiểm tra trước khi bỏ qua.",
         Verdict.NotAwaited =>
             "Mã lệnh có thật nhưng không có lệnh nào đang chờ dưới mã đó.",

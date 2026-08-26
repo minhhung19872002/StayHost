@@ -185,7 +185,7 @@ export function Payout() {
                   ))}
                   {g.deducted > 0 && (
                     <div style={{ fontSize: 12.5, color: 'var(--ink-muted)', marginTop: 2 }}>
-                      {t('Đã khấu trừ')} {money(g.deducted)} {t('vào khoản nợ StayHost.')}
+                      {t('Đã khấu trừ')} {money(g.deducted)} {t('vào khoản nợ Staylio.')}
                     </div>
                   )}
                 </div>

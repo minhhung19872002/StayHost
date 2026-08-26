@@ -92,7 +92,7 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
         if (user.IsBanned)
         {
             return "Tài khoản này đã bị khoá vĩnh viễn. " +
-                   "Nếu bạn cho rằng đây là nhầm lẫn, hãy liên hệ hỗ trợ StayHost.";
+                   "Nếu bạn cho rằng đây là nhầm lẫn, hãy liên hệ hỗ trợ Staylio.";
         }
 
         if (!user.IsSuspended) return null;
@@ -136,7 +136,7 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
 
     public static string BannedComebackMessage() =>
         "Không thể tạo tài khoản với thông tin này. " +
-        "Nếu bạn cho rằng có nhầm lẫn, hãy liên hệ hỗ trợ StayHost.";
+        "Nếu bạn cho rằng có nhầm lẫn, hãy liên hệ hỗ trợ Staylio.";
 
     public async Task<AuthResult> LoginAsync(string email, string password, CancellationToken ct)
     {

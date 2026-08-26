@@ -278,7 +278,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 - **Một cổng đang rảnh hôm qua không có nghĩa hôm nay còn rảnh.** Ba script nghiệm
   thu đóng cứng `localhost:5199`, và cổng đó đã bị **một project khác** (`BlueOne.Web`)
   chiếm. Nó là SPA nên trả **200 cho mọi đường dẫn**, thành ra cả bước "chờ server
-  sẵn sàng" lẫn script đều tưởng đang nói chuyện với StayHost. Giờ cả ba đọc
+  sẵn sàng" lẫn script đều tưởng đang nói chuyện với Staylio. Giờ cả ba đọc
   `STAYHOST_URL`, và bước chờ phải kiểm tra **nội dung**, không phải mã 200.
   Route đúng là **`/api/meta`** (`ListingsController` gắn `[Route("api")]`, không
   phải `api/listings`) — chờ ở `/api/listings/meta` thì nhận 404 vĩnh viễn và vòng
@@ -471,6 +471,16 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   12:00 UTC thì "đơn chưa trả phòng" → kịch bản 10 hỏng mỗi buổi sáng, đạt mỗi buổi
   chiều, và trông hệt như một test chập chờn. Cửa sổ đúng là `CheckOut@12:00` nằm
   trong `(now-24h, now]`.
+- **Quy tắc "đừng đổi identifier" cũng che mất chữ hiển thị.** Đổi tên thương hiệu
+  bằng regex `StayHost(?![.\w])` — cốt giữ `StayHost.Domain` và `StayHostDbContext` —
+  bỏ sót **166 dòng**: `StayHost.` cuối câu (dấu chấm câu, không phải namespace),
+  `StayHost.org` ở footer, và **toàn bộ bản dịch tiếng Nhật/Hàn** (`\w` của Python
+  khớp cả chữ CJK và Hangul, nên `StayHost残高`, `StayHost에서` đều thoát). Cách đúng
+  là **kể tên thứ cần giữ**, đừng đoán theo ký tự liền sau. Tệ hơn: lần soát đầu ra
+  "0 dòng còn sót" vì `grep -v "StayHost.Domain"` lọc theo **cả dòng output kèm đường
+  dẫn**, mà mọi file trong `src/StayHost.Domain/` đều có chuỗi đó trong tên — nên nó
+  giấu sạch thư mục lớn nhất. Soát tên trong repo thì lọc **nội dung**, đừng lọc dòng
+  có lẫn đường dẫn.
 - **Đổi tên miền thì DB đang chạy không đổi theo.** Email tài khoản seed nằm trong
   `DbSeeder`, mà seeder chỉ chạy trên DB trắng — bản prod vẫn giữ `admin@stayhost.vn`
   cũ sau khi deploy. Đường đổi tài khoản quản trị là `ADMIN_EMAIL`; các tài khoản

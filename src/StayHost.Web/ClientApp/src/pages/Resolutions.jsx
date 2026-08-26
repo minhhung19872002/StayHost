@@ -33,7 +33,7 @@ export function Resolutions() {
       <div className="shell" style={{ paddingBlock: '60px 90px' }}>
         <div className="empty-state">
           <h3>{t('Đăng nhập để xem hồ sơ')}</h3>
-          <p>{t('Trung tâm giải quyết dành cho khách và chủ nhà có đơn đặt trên StayHost.')}</p>
+          <p>{t('Trung tâm giải quyết dành cho khách và chủ nhà có đơn đặt trên Staylio.')}</p>
           <button className="btn btn-primary" style={{ marginTop: 18 }}
                   onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>{t('Đăng nhập')}</button>
         </div>

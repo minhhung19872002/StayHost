@@ -253,7 +253,7 @@ public static class Shield
             return Check.Fail(Refusal.WrongSide, "Chủ nhà huỷ được xử lý tự động, không cần mở hồ sơ.");
 
         if (!req.PaidThroughPlatform)
-            return Check.Fail(Refusal.BookedOffPlatform, "Chỉ áp dụng cho đơn đặt và thanh toán qua StayHost.");
+            return Check.Fail(Refusal.BookedOffPlatform, "Chỉ áp dụng cho đơn đặt và thanh toán qua Staylio.");
 
         if (req.AlreadyHasOpenCase)
             return Check.Fail(Refusal.AlreadyOpen, "Đơn này đã có một hồ sơ Staylio Shield đang mở.");

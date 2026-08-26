@@ -583,7 +583,7 @@ public class UserAdminController(
                         var city = booking.Listing?.City ?? "";
                         await notifications.QueueWithEmailAsync(booking.GuestUser, NotificationKind.BookingCancelled,
                             "Đơn của bạn đã được hoàn tiền đầy đủ",
-                            $"Đơn {booking.Reference} bị huỷ vì chỗ nghỉ ngừng hoạt động trên StayHost. " +
+                            $"Đơn {booking.Reference} bị huỷ vì chỗ nghỉ ngừng hoạt động trên Staylio. " +
                             $"Bạn được hoàn {outcome.Amount:#,##0}₫ — không phải do bạn. " +
                             $"Chúng tôi đã chọn sẵn các chỗ tương tự ở {city} cho bạn.",
                             $"/search?city={Uri.EscapeDataString(city)}", ct);

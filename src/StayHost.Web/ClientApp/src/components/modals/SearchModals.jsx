@@ -604,7 +604,7 @@ export function ContactHostModal() {
         </button>
       </> : (
         <p style={{ fontSize: 14, color: 'var(--ink-muted)', lineHeight: 1.6, margin: 0 }}>
-          {t('Chủ nhà này chưa mở hộp thư trên StayHost. Bạn đặt chỗ trước, rồi nhắn qua trang chuyến đi.')}
+          {t('Chủ nhà này chưa mở hộp thư trên Staylio. Bạn đặt chỗ trước, rồi nhắn qua trang chuyến đi.')}
         </p>
       )}
     </Modal>

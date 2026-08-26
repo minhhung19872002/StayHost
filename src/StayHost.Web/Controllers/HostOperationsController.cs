@@ -847,7 +847,7 @@ public class HostOperationsController(
                 return BadRequest(new
                 {
                     message = "Không dùng được tài khoản nhận tiền này. " +
-                              "Nếu bạn cho rằng có nhầm lẫn, hãy liên hệ hỗ trợ StayHost."
+                              "Nếu bạn cho rằng có nhầm lẫn, hãy liên hệ hỗ trợ Staylio."
                 });
             }
         }
