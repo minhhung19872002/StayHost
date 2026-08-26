@@ -94,11 +94,20 @@ khi đăng nhập, dữ liệu đó được chuyển sang tài khoản.
 
 ## Tài khoản dùng thử
 
+Dành cho **cơ sở dữ liệu dựng trên máy mình**. Repo này công khai, nên coi mọi dòng
+dưới đây như đã nằm trong tay người lạ.
+
 | Vai trò | Email | Mật khẩu |
 |---|---|---|
 | Khách | `guest@staylio.vn` | `stayhost123` |
 | Chủ nhà | `host1@staylio.vn` … `host10@staylio.vn` | `stayhost123` |
-| Quản trị | `admin@staylio.vn` | `stayhost123` |
+
+> **Tài khoản quản trị (`admin@staylio.vn`) dùng chung mật khẩu này lúc seed, và trên
+> máy chủ thật thì phải đổi ngay sau lần seed đầu tiên.** Trang quản trị mở ra hồ sơ
+> người dùng, ảnh giấy tờ tuỳ thân và lệnh chuyển tiền; thứ duy nhất chặn lại là mã 6
+> số của `docs/08 §3`, mà mã ấy **đang tắt** trên máy chủ nào chưa gửi được email
+> (`ADMIN_REQUIRE_2FA=false`, xem `DEPLOY.md §2.1`). Mật khẩu seed cộng với 2FA tắt
+> cộng với repo công khai là trang quản trị bỏ ngỏ — đã xảy ra thật ngày 26/08/2026.
 
 ## Tính năng
 

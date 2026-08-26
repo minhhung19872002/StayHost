@@ -364,6 +364,13 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   đi soát tên miền để đổi. Giờ là `Site:PublicUrl`, và nó **rơi về `Psp:PublicUrl`**
   khi để trống — cùng một địa chỉ, nên không đẻ ra biến thứ hai phải nhớ sửa cùng lúc.
   Không có địa chỉ nào thì **bỏ hẳn dòng link** chứ không đoán tên miền.
+- **Mật khẩu seed + 2FA tắt + repo công khai = trang quản trị bỏ ngỏ.** Ngày 26/08
+  phát hiện `admin@stayhost.vn` / `stayhost123` **đăng nhập được vào prod**: `README.md`
+  in nguyên bảng đó trên một repo PUBLIC, còn `ADMIN_REQUIRE_2FA=false` — ngoại lệ khẩn
+  cấp của `DEPLOY.md §2.1` cho máy chủ chưa gửi được email. Từng mảnh đều "đúng theo tài
+  liệu"; ghép lại thì ai đọc README cũng vào được hồ sơ, ảnh giấy tờ và lệnh chuyển tiền.
+  Comment trong `AccountModals.jsx` đã lường trước đúng tình huống này mà không ai nối
+  hai đầu lại. Bật một ngoại lệ bảo mật thì phải hỏi luôn "cái gì đang che thay nó?".
 - **Đổi tên miền thì DB đang chạy không đổi theo.** Email tài khoản seed nằm trong
   `DbSeeder`, mà seeder chỉ chạy trên DB trắng — bản prod vẫn giữ `admin@stayhost.vn`
   cũ sau khi deploy. Đường đổi tài khoản quản trị là `ADMIN_EMAIL`; các tài khoản
@@ -570,7 +577,7 @@ không áp dụng.
 | Việc | Vì sao chưa xong |
 |---|---|
 | **Runner chạy tạm, chưa thành service** | Nó **chưa bao giờ được cài systemd**: không có `.service`, không có unit — nên `sudo ./svc.sh start` không có gì để khởi động, mà cũng không báo gì ra ngoài ngoài chữ "offline" trên GitHub. Hiện đang chạy bằng `setsid nohup ./run.sh` nên **chết khi máy khởi động lại**. Cài hẳn: `cd ~/actions-runner && sudo ./svc.sh install hung && sudo ./svc.sh start` |
-| 86 thư cũ trong hàng đợi | Chúng mang link `https://stayhost.vn/…` sinh ra trước bản vá. `EMAIL_HOST` bật lên là chúng bay đi kèm link chết. Hoặc `UPDATE` lại thân thư, hoặc bỏ — phần lớn là thông báo đã cũ |
+
 | Google origins + Apple Return URL | Khai ở console của nhà cung cấp. Quên thì báo `origin_mismatch`, **không có log nào bên mình** |
 | Địa chỉ website ở cổng VNPay/MoMo/ZaloPay/OnePay | Mỗi bên chặn IPN theo tên miền đã đăng ký |
 | `EMAIL_HOST` | **Không có trong env file** — nên thư nằm im trong hàng đợi, kể cả mã 6 số đăng nhập quản trị. Tên miền mới đã có sẵn SPF + DKIM trỏ `maychuemail.com`, nên chỉ cần tạo hòm thư rồi điền SMTP |
@@ -578,9 +585,15 @@ không áp dụng.
 **Prod đang chạy toàn khoá sandbox** (`VNPAY_TMN_CODE=GLQWM7J8`, MoMo `MOMOBKUN…`,
 ZaloPay `2553`, OnePay `TESTONEPAY`) — chưa đồng nào là tiền thật, đúng như `§8.1`.
 
-**Cơ sở dữ liệu đang chạy giữ nguyên email cũ.** `DbSeeder` chỉ chạy trên DB trắng,
-nên bản prod vẫn còn `admin@stayhost.vn`. Đổi tài khoản quản trị bằng `ADMIN_EMAIL`;
-các tài khoản demo còn lại thì `UPDATE` tay hoặc để nguyên — chúng chỉ là dữ liệu mẫu.
+**Đã dọn trong DB prod (26/08):** 12 tài khoản demo đổi sang `@staylio.vn` bằng
+`UPDATE` — `DbSeeder` chỉ chạy trên DB trắng nên deploy không tự đổi, mà hộp "Tài khoản
+dùng thử" trên giao diện thì đã đổi rồi, để lệch là nút "Điền tài khoản chủ nhà" điền
+vào một tài khoản không tồn tại. 77 thư chưa gửi cũng đã thay link `stayhost.vn` →
+`staylio.vn`; để nguyên thì ngày bật `EMAIL_HOST` chúng bay đi kèm link chết.
+
+**Mật khẩu quản trị prod đã đổi (26/08)**, không còn là `stayhost123`. Xem bài học ở
+`§4`. Vẫn nên đặt `ADMIN_EMAIL` về hòm thư thật rồi bật lại `ADMIN_REQUIRE_2FA=true` —
+nhưng **chỉ sau khi `EMAIL_HOST` chạy**, bật trước thì chính mình cũng không vào được.
 
 ### 8.1. Đang chờ khách
 
