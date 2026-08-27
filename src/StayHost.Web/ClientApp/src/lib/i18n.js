@@ -152,6 +152,9 @@ const EN = {
   'Giá đã gồm mọi khoản phí': 'Prices include all fees',
   'Gợi ý cho chuyến đi sắp tới': 'Ideas for your next trip',
   'Hiện bản đồ': 'Show map',
+  'Mở bản đồ toàn màn hình': 'Open map full screen',
+  'Thu nhỏ bản đồ': 'Close full screen map',
+  'Bấm vào bản đồ rồi lăn chuột để phóng to': 'Click the map, then scroll to zoom',
   'Hiện danh sách': 'Show list',
   // Common
   'Đặt chỗ ngay': 'Reserve now',

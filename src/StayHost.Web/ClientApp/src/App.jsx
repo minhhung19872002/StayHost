@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { useStore } from './lib/useStore.js';
 import {
@@ -119,6 +119,26 @@ export function App() {
     // has to canonicalise to itself, not to page 1.
   }, [location.pathname, location.search]);
 
+  /*
+   * --header-h was a constant: 152px, which is the desktop header and nothing
+   * else. Below 720px the real header is nearer 192px, because the search row
+   * and the filter chips are stacked rather than beside each other — so every
+   * sticky offset and every scroll-margin computed from it was wrong on a phone
+   * by the height of a whole row. Measuring costs one ResizeObserver and makes
+   * the number true at any width.
+   */
+  const headerRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return undefined;
+    const apply = () => document.documentElement.style
+      .setProperty('--header-h', `${Math.round(el.getBoundingClientRect().height)}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [state.metaError]);
+
   if (state.metaError) {
     return (
       <div className="shell" style={{ padding: '60px 0' }}>
@@ -134,7 +154,7 @@ export function App() {
     <div id="app">
       {/* docs/08 §7.5 — above everything, for as long as the session lasts. */}
       {state.me?.role === 'Admin' && <ImpersonationBanner />}
-      <header className="site-header"><Header /></header>
+      <header className="site-header" ref={headerRef}><Header /></header>
       <main id="main">
         {booted && (
           <Routes>

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
+import { useMedia } from '../lib/useMedia.js';
 import {
   set, state as store, isDiscovery, activeFilterCount, guestLabel, totalGuests,
   loadSuggestions, loadNotifications, becomeHost, logout, toast, openOverlay, openMenu, toggleAmenity, settleDates,
@@ -11,7 +12,7 @@ import { applySearch } from '../lib/nav.js';
 import { dateRangeLabel, shortDate, debounce } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 import { Avatar } from './Avatar.jsx';
-import { Icon } from './Icon.jsx';
+import { Icon, BrandMark } from './Icon.jsx';
 import { DateFields, GuestFields, Suggestions } from './modals/SearchModals.jsx';
 
 // docs/01 TM-02 — four rows, and each one goes somewhere. The last two used to
@@ -63,7 +64,7 @@ export function Header() {
   return <>
     <div className="header-main">
       <button className="brand" onClick={() => navigate('/')} aria-label="Staylio — về trang chủ">
-        <span className="brand-mark" aria-hidden="true">S</span>
+        <BrandMark />
         <span className="brand-text">Staylio</span>
       </button>
 
@@ -152,18 +153,7 @@ const DROPDOWN_FROM = '(min-width: 900px)';
  */
 const MINI_BELOW = '(max-width: 719px)';
 
-/** Re-renders the bar when the window crosses `query`. */
-function useMedia(query) {
-  const [on, setOn] = useState(() => window.matchMedia(query).matches);
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    const onChange = e => setOn(e.matches);
-    mq.addEventListener('change', onChange);
-    setOn(mq.matches);
-    return () => mq.removeEventListener('change', onChange);
-  }, [query]);
-  return on;
-}
+
 
 /**
  * The landing page keeps the tall "Địa điểm · Ngày · Khách" pill; every other

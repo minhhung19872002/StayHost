@@ -125,6 +125,9 @@ export default {
   'Giá đã gồm mọi khoản phí': 'すべての手数料込みの価格',
   'Gợi ý cho chuyến đi sắp tới': '次の旅のアイデア',
   'Hiện bản đồ': '地図を表示',
+  'Mở bản đồ toàn màn hình': '地図を全画面で開く',
+  'Thu nhỏ bản đồ': '全画面表示を閉じる',
+  'Bấm vào bản đồ rồi lăn chuột để phóng to': '地図をクリックしてからスクロールで拡大',
   'Hiện danh sách': 'リストを表示',
   // Common
   'Đặt chỗ ngay': '今すぐ予約',

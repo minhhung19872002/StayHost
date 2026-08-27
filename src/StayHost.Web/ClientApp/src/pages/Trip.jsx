@@ -4,7 +4,7 @@ import { useStore } from '../lib/useStore.js';
 import { loadTrip, set, requireAuth, toast, payBalance } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate, dateTime } from '../lib/format.js';
-import { Icon } from '../components/Icon.jsx';
+import { Icon, BrandMark } from '../components/Icon.jsx';
 import { CardCarousel } from '../components/CardCarousel.jsx';
 import { Deadline, previewCancel, openReview } from './Trips.jsx';
 import { duration } from './Experiences.jsx';
@@ -552,7 +552,7 @@ function Receipt({ booking: b }) {
   return (
     <aside className="receipt" id="receipt">
       <div className="receipt-head">
-        <span className="brand-mark" aria-hidden="true">S</span>
+        <BrandMark />
         <div><b>{t('Hoá đơn Staylio')}</b><span>{b.reference}</span></div>
       </div>
 

@@ -125,6 +125,9 @@ export default {
   'Giá đã gồm mọi khoản phí': 'Preise inkl. aller Gebühren',
   'Gợi ý cho chuyến đi sắp tới': 'Ideen für deine nächste Reise',
   'Hiện bản đồ': 'Karte anzeigen',
+  'Mở bản đồ toàn màn hình': 'Karte im Vollbild öffnen',
+  'Thu nhỏ bản đồ': 'Vollbild schließen',
+  'Bấm vào bản đồ rồi lăn chuột để phóng to': 'Karte anklicken, dann zum Zoomen scrollen',
   'Hiện danh sách': 'Liste anzeigen',
   // Common
   'Đặt chỗ ngay': 'Jetzt reservieren',

@@ -1,6 +1,7 @@
 // 24×24 line icons drawn with currentColor so they inherit the surrounding
 // active/inactive colours. Inline to avoid an icon-font request.
 
+
 const P = {
   all: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18" /></>,
   villa: <><path d="M3 11.5 12 4l9 7.5" /><path d="M5.5 10.5V20h13v-9.5" /><path d="M3 20h18" /><path d="M9.5 20v-4.5h5V20" /></>,
@@ -77,3 +78,14 @@ export const CATEGORY_ICON = {
   all: 'all', villa: 'villa', apartment: 'apartment',
   homestay: 'homestay', house: 'house', cabin: 'cabin', boutique: 'boutique'
 };
+
+/**
+ * The brand mark. The artwork is the file the client supplied (public/logo.png,
+ * white background lifted to alpha and trimmed to the pin), not a redrawing of
+ * it — a redrawing is a second logo that has to be kept in step with the first.
+ * One file, and index.html points the tab icon at the same one.
+ */
+export function BrandMark({ size = 32, className = 'brand-mark' }) {
+  return <img className={className} src="/logo.png" width={size} height={size}
+              alt="" aria-hidden="true" decoding="async" />;
+}

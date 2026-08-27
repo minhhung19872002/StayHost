@@ -125,6 +125,9 @@ export default {
   'Giá đã gồm mọi khoản phí': "Prix tous frais compris",
   'Gợi ý cho chuyến đi sắp tới': "Idées pour votre prochain voyage",
   'Hiện bản đồ': "Afficher la carte",
+  'Mở bản đồ toàn màn hình': "Ouvrir la carte en plein écran",
+  'Thu nhỏ bản đồ': "Quitter le plein écran",
+  'Bấm vào bản đồ rồi lăn chuột để phóng to': "Cliquez sur la carte, puis faites défiler pour zoomer",
   'Hiện danh sách': "Afficher la liste",
   // Common
   'Đặt chỗ ngay': "Réserver",

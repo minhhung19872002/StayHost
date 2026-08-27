@@ -125,6 +125,9 @@ export default {
   'Giá đã gồm mọi khoản phí': '价格含全部费用',
   'Gợi ý cho chuyến đi sắp tới': '下一趟旅程的灵感',
   'Hiện bản đồ': '显示地图',
+  'Mở bản đồ toàn màn hình': '全屏打开地图',
+  'Thu nhỏ bản đồ': '退出全屏地图',
+  'Bấm vào bản đồ rồi lăn chuột để phóng to': '点击地图后滚动即可缩放',
   'Hiện danh sách': '显示列表',
   // Common
   'Đặt chỗ ngay': '立即预订',
