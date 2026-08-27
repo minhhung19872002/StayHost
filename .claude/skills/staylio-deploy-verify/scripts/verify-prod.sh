@@ -67,7 +67,11 @@ slug=$(curl -s -m 30 "$URL/sitemap.xml" \
        | grep -o '<loc>[^<]*/rooms/[^<]*</loc>' | head -1 \
        | sed 's|.*/rooms/||; s|</loc>||')
 if [ -n "$slug" ]; then
-  head=$(curl -s -m 20 "$URL/rooms/$slug")
+  # Bo comment truoc khi dem. index.html co mot khoi comment giai thich vi sao
+  # KHONG dat <link rel="canonical"> co dinh — va no viet nguyen ca the do ra,
+  # nen dem tho se ra 2 canonical tren mot trang chi co mot. Bao dong gia keo
+  # dai tu 08c1069.
+  head=$(curl -s -m 20 "$URL/rooms/$slug" | perl -0777 -pe 's/<!--.*?-->//gs')
   check "og:image co mat"   "$(printf '%s' "$head" | grep -c 'property="og:image"' | tr -d ' ')" "1"
   check "canonical co mat"  "$(printf '%s' "$head" | grep -c 'rel="canonical"'     | tr -d ' ')" "1"
   printf '  --    %-46s %s\n' "tin dem thu" "$slug"
