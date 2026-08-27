@@ -128,7 +128,6 @@ export default {
   'Mở bản đồ toàn màn hình': "Ouvrir la carte en plein écran",
   'Vẽ vùng trên bản đồ': "Dessiner une zone sur la carte",
   'Thu nhỏ bản đồ': "Quitter le plein écran",
-  'Bấm vào bản đồ rồi lăn chuột để phóng to': "Cliquez sur la carte, puis faites défiler pour zoomer",
   'Hiện danh sách': "Afficher la liste",
   // Common
   'Đặt chỗ ngay': "Réserver",

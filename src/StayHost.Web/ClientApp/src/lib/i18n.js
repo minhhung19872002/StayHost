@@ -155,7 +155,6 @@ const EN = {
   'Mở bản đồ toàn màn hình': 'Open map full screen',
   'Vẽ vùng trên bản đồ': 'Draw an area on the map',
   'Thu nhỏ bản đồ': 'Close full screen map',
-  'Bấm vào bản đồ rồi lăn chuột để phóng to': 'Click the map, then scroll to zoom',
   'Hiện danh sách': 'Show list',
   // Common
   'Đặt chỗ ngay': 'Reserve now',

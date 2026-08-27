@@ -941,18 +941,6 @@ body.is-map-full .split .split-map,
 body.is-map-full .detail-map { isolation: auto; z-index: auto; }
 body.is-map-full .split .split-map { position: static; overflow: visible; }
 body.is-map-full .site-header { z-index: 0; }
-/*
- * The wheel is off until the map is clicked, so the map has to say so —
- * otherwise "scrolling does nothing" is all anybody learns. Nothing to say on a
- * touch screen: pinch has always worked there.
- */
-.map-hint {
-  position: absolute; left: 12px; bottom: 12px; z-index: 401;
-  padding: 6px 12px; border-radius: var(--r-pill);
-  background: rgba(28, 28, 28, .78); color: #fff;
-  font-size: 12px; font-weight: 600; pointer-events: none;
-}
-@media (hover: none) { .map-hint { display: none; } }
 
 /*
  * Leaflet numbers its own layers high — panes at 400, controls at 1000 — and those

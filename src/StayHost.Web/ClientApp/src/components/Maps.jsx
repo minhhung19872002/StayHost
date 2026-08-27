@@ -107,49 +107,17 @@ function keepCentred(map) {
 }
 
 /*
- * Every map here was built with the wheel switched off, and that is defensible
- * for the two that sit inside flowing content: a small map that eats the wheel
- * traps the reader halfway down the page with no way out. It is not defensible
- * for a map you cannot zoom at all.
- *
- * So the wheel is handed over on a click and taken back when the pointer
- * leaves — one click, and the hint says so — while the results pane, which is
- * the only thing under the cursor, simply has it on.
- */
-function wheelOnClick(map, setOn) {
-  const el = map.getContainer();
-  const enable = () => { map.scrollWheelZoom.enable(); setOn(true); };
-  // Full screen turns the wheel on for good; leaving the box must not undo that.
-  const disable = () => { if (map.__full) return; map.scrollWheelZoom.disable(); setOn(false); };
-  el.addEventListener('click', enable);
-  el.addEventListener('mouseleave', disable);
-  return () => {
-    el.removeEventListener('click', enable);
-    el.removeEventListener('mouseleave', disable);
-  };
-}
-
-/*
  * Full screen without the Fullscreen API. iOS Safari grants it to <video> and
  * nothing else, so requestFullscreen fails silently on a large share of the
  * traffic this site actually gets. A fixed wrapper works everywhere; Leaflet
  * only has to be told the box changed size, and it has to be told after the
  * class has landed, not before.
  */
-function useFullMap(full, setFull, mapRef, setWheel) {
+function useFullMap(full, setFull, mapRef) {
   useEffect(() => {
-    const map = mapRef.current;
-    // No setWheel means the map already has the wheel and keeps it — the results
-    // pane. Taking it away on the way out of full screen would be a regression
-    // dressed up as cleanup.
-    if (map && setWheel) {
-      map.__full = full;
-      if (full) map.scrollWheelZoom.enable();
-      else map.scrollWheelZoom.disable();
-      setWheel(full);
-    }
-    // No invalidateSize here: keepCentred's observer sees the box change and
-    // holds the centre, which a bare invalidateSize would not.
+    // Nothing to do about the wheel: every map here has it from the start.
+    // No invalidateSize here either — keepCentred's observer sees the box change
+    // and holds the centre, which a bare invalidateSize would not.
     if (!full) return undefined;
 
     const onKey = e => { if (e.key === 'Escape') setFull(false); };
@@ -170,19 +138,25 @@ function useFullMap(full, setFull, mapRef, setWheel) {
       document.body.style.overflow = prev;
       document.body.classList.remove('is-map-full');
     };
-  }, [full, setFull, mapRef, setWheel]);
+  }, [full, setFull, mapRef]);
 }
 
-/** The expand button and the wheel hint, shared by the two inline maps. */
-function MapChrome({ full, setFull, wheel }) {
-  return <>
+/**
+ * The expand button, shared by the two inline maps.
+ *
+ * There was a hint here — "bấm vào bản đồ rồi lăn chuột" — because the wheel
+ * used to need a click first. The client asked for the wheel to work on hover,
+ * so the click is gone and the hint has nothing left to explain. The cost is
+ * the reason the gate existed: with the pointer over one of these maps the
+ * wheel zooms rather than scrolls the page.
+ */
+function MapChrome({ full, setFull }) {
+  return (
     <button type="button" className="map-expand" onClick={() => setFull(!full)}
             aria-label={full ? t('Thu nhỏ bản đồ') : t('Mở bản đồ toàn màn hình')}>
       {full ? '✕' : '⤡'}
     </button>
-    {/* Only where there is a wheel to lean on — a phone pinches and always could. */}
-    {!wheel && <span className="map-hint">{t('Bấm vào bản đồ rồi lăn chuột để phóng to')}</span>}
-  </>;
+  );
 }
 
 /** docs/01 TM-10 — below this zoom, nearby pins merge into a count. */
@@ -505,7 +479,6 @@ export function CardsMap({ cards, height = 320 }) {
   const hostRef = useRef(null);
   const mapRef = useRef(null);
   const [full, setFull] = useState(false);
-  const [wheel, setWheel] = useState(false);
   const navigate = useNavigate();
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
@@ -517,10 +490,9 @@ export function CardsMap({ cards, height = 320 }) {
   useEffect(() => {
     if (!pinned.length) return undefined;
 
-    const map = L.map(hostRef.current, { scrollWheelZoom: false });
+    const map = L.map(hostRef.current, { scrollWheelZoom: true });
     addBaseLayer(map);
     mapRef.current = map;
-    const detach = wheelOnClick(map, setWheel);
 
     for (const c of pinned) {
       const marker = L.marker([c.latitude, c.longitude], {
@@ -540,17 +512,17 @@ export function CardsMap({ cards, height = 320 }) {
     else map.fitBounds(pinned.map(c => [c.latitude, c.longitude]), { padding: [40, 40], maxZoom: 13 });
 
     const stopCentring = keepCentred(map);
-    return () => { stopCentring(); detach(); map.remove(); mapRef.current = null; };
+    return () => { stopCentring(); map.remove(); mapRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  useFullMap(full, setFull, mapRef, setWheel);
+  useFullMap(full, setFull, mapRef);
 
   if (!pinned.length) return null;
   return (
     <div className={`map-box ${full ? 'is-full' : ''}`}>
       <div className="cards-map" ref={hostRef} style={{ height, borderRadius: 14, overflow: 'hidden' }} />
-      <MapChrome full={full} setFull={setFull} wheel={wheel} />
+      <MapChrome full={full} setFull={setFull} />
     </div>
   );
 }
@@ -559,29 +531,27 @@ export function DetailMap({ latitude, longitude }) {
   const hostRef = useRef(null);
   const mapRef = useRef(null);
   const [full, setFull] = useState(false);
-  const [wheel, setWheel] = useState(false);
 
   useEffect(() => {
     if (latitude == null || longitude == null) return undefined;
 
-    const map = L.map(hostRef.current, { scrollWheelZoom: false }).setView([latitude, longitude], 13);
+    const map = L.map(hostRef.current, { scrollWheelZoom: true }).setView([latitude, longitude], 13);
     addBaseLayer(map);
     L.circle([latitude, longitude], {
       radius: 900, color: '#e01a2b', fillColor: '#e01a2b', fillOpacity: 0.15, weight: 2
     }).addTo(map);
 
     mapRef.current = map;
-    const detach = wheelOnClick(map, setWheel);
     const stopCentring = keepCentred(map);
-    return () => { stopCentring(); detach(); map.remove(); mapRef.current = null; };
+    return () => { stopCentring(); map.remove(); mapRef.current = null; };
   }, [latitude, longitude]);
 
-  useFullMap(full, setFull, mapRef, setWheel);
+  useFullMap(full, setFull, mapRef);
 
   return (
     <div className={`map-box ${full ? 'is-full' : ''}`}>
       <div className="detail-map" ref={hostRef} />
-      <MapChrome full={full} setFull={setFull} wheel={wheel} />
+      <MapChrome full={full} setFull={setFull} />
     </div>
   );
 }

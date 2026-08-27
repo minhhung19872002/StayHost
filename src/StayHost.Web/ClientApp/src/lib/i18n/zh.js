@@ -128,7 +128,6 @@ export default {
   'Mở bản đồ toàn màn hình': '全屏打开地图',
   'Vẽ vùng trên bản đồ': '在地图上绘制区域',
   'Thu nhỏ bản đồ': '退出全屏地图',
-  'Bấm vào bản đồ rồi lăn chuột để phóng to': '点击地图后滚动即可缩放',
   'Hiện danh sách': '显示列表',
   // Common
   'Đặt chỗ ngay': '立即预订',
