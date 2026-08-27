@@ -103,14 +103,18 @@ function Month({ monthStart, isFirst, isLast, state, nights }) {
 
   return (
     <div className="cal-month">
+      {/* Both arrows on every month; the stylesheet decides which ones show.
+          Side by side, "previous" belongs to the left month and "next" to the
+          right one. Stacked on a phone they both belong to the first, and the
+          old markup had no button there to reveal — the "next" arrow ended up
+          floating beside the second month's name, halfway down the sheet.
+          `visibility` rather than `display` so the name stays centred. */}
       <div className="cal-head">
-        {isFirst
-          ? <button type="button" className="round-btn" onClick={() => shiftCalendar(-1)} aria-label="Tháng trước">‹</button>
-          : <span style={{ width: 28 }} />}
+        <button type="button" className="round-btn cal-prev" onClick={() => shiftCalendar(-1)}
+                aria-label="Tháng trước" tabIndex={isFirst ? 0 : -1}>‹</button>
         <b>{MONTH_NAME(month)} {year}</b>
-        {isLast
-          ? <button type="button" className="round-btn" onClick={() => shiftCalendar(1)} aria-label="Tháng sau">›</button>
-          : <span style={{ width: 28 }} />}
+        <button type="button" className="round-btn cal-next" onClick={() => shiftCalendar(1)}
+                aria-label="Tháng sau" tabIndex={isLast ? 0 : -1}>›</button>
       </div>
       <div className="cal-grid" role="grid">
         {DOW_NAMES().map((d, i) => <span className="cal-dow" key={i}>{d}</span>)}

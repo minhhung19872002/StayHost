@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../lib/useStore.js';
 import {
-  set, state as store, activeFilterCount, resetFilters, totalGuests,
+  set, state as store, activeFilterCount, resetFilters, totalGuests, guestLabel, loadSuggestions,
   toggleAmenity, toggleHostLanguage, bumpCount, bumpGuest, applyDatePreset, clearDates, setStayShape,
   applyCurrency, applyLanguage, closeOverlay, settleDates, toast,
   shareViaDevice, copyShareLink, saveCurrentSearch, requireAuth
 } from '../../lib/store.js';
 import { api } from '../../lib/api.js';
 import { applySearch, go } from '../../lib/nav.js';
-import { money, longDate, nightsBetween } from '../../lib/format.js';
+import { money, longDate, nightsBetween, dateRangeLabel } from '../../lib/format.js';
+import { recentSearches, clearSearchHistory } from '../../lib/history.js';
 import { t } from '../../lib/i18n.js';
 import { Icon, AmenityIcon, CATEGORY_ICON } from '../Icon.jsx';
 import { Calendar } from '../Calendar.jsx';
@@ -55,6 +57,19 @@ export function FiltersModal() {
         {t(`Hiện ${state.results.total} chỗ nghỉ`)}{activeFilterCount() ? ` ${t(`(${activeFilterCount()} bộ lọc)`)}` : ''}
       </button>
     </>}>
+      {/*
+        * The same switch the header carries on wide screens. Below 720px the
+        * header row has no space for a 198px pill that will not shrink — it was
+        * squeezing the chip scroller down to 36px — so on a phone it lives here,
+        * one tap away, instead of taking a band off every screen of results.
+        * Two buttons, one `showTotalPrice`: nothing to keep in sync.
+        */}
+      <button className={`total-toggle is-phone-only ${state.showTotalPrice ? 'is-on' : ''}`}
+              aria-pressed={state.showTotalPrice}
+              onClick={() => set({ showTotalPrice: !state.showTotalPrice })}>
+        <span className="switch" aria-hidden="true" /> {t('Giá đã gồm thuế và phí')}
+      </button>
+
       <section className="modal-section">
         <h3>{t('Khoảng giá')}</h3>
         <span className="hint">{t('Giá mỗi đêm, đã gồm phí và thuế')}</span>
@@ -354,6 +369,69 @@ export function GuestsModal() {
   );
 }
 
+/*
+ * The whole search, on a screen that has no room for three fields side by side.
+ * The header bar below 720px is a single summary pill; this is what it opens.
+ *
+ * One section is expanded at a time and the other two are one-line summaries,
+ * which is the only way the destination field, two months of calendar and four
+ * guest counters all fit without the sheet turning into a scroll marathon. The
+ * pieces are the same DateFields / GuestFields / Suggestions the desktop
+ * dropdown uses — a second copy of any of them would drift within the week.
+ */
+export function SearchModal() {
+  const state = useStore();
+  const [step, setStep] = useState(state.q.trim() ? 'when' : 'where');
+
+  // The destination field owns the suggestion list, so opening any other step
+  // has to take the list off the screen with it.
+  useEffect(() => {
+    set({ suggestOpen: step === 'where' });
+    if (step === 'where') loadSuggestions();
+    return () => set({ suggestOpen: false });
+  }, [step]);
+
+  const submit = () => { settleDates(); set({ suggestOpen: false }); closeOverlay(); applySearch({ replace: false }); };
+
+  const where = state.q.trim() || t('Mọi nơi');
+  const rows = [
+    ['where', t('Địa điểm'), where],
+    ['when', t('Ngày'), dateRangeLabel(state.checkIn, state.checkOut)],
+    ['who', t('Khách'), guestLabel()]
+  ];
+
+  return (
+    <Modal title={t('Tìm kiếm')} foot={<>
+      <button className="text-btn" onClick={() => { set({ q: '' }); clearDates(); applySearch(); }}>
+        {t('Xoá tất cả')}
+      </button>
+      <button className="btn btn-dark btn-sm" onClick={submit}>{t('Tìm kiếm')}</button>
+    </>}>
+      <div className="ssheet">
+        {rows.map(([key, cap, value]) => (
+          <section className={`ssheet-card ${step === key ? 'is-open' : ''}`} key={key}>
+            {step === key ? <>
+              <h3>{cap}</h3>
+              {key === 'where' && <>
+                <input className="ssheet-input" type="text" value={state.q} autoFocus
+                       placeholder={t('Tìm điểm đến')} autoComplete="off"
+                       onChange={e => { set({ q: e.target.value, suggestOpen: true }); loadSuggestions(); }} />
+                <Suggestions onDone={closeOverlay} />
+              </>}
+              {key === 'when' && <DateFields />}
+              {key === 'who' && <GuestFields />}
+            </> : (
+              <button type="button" className="ssheet-row" onClick={() => setStep(key)}>
+                <span>{cap}</span><b>{value}</b>
+              </button>
+            )}
+          </section>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
 export function LanguageModal() {
   const state = useStore();
   const meta = state.meta;
@@ -608,5 +686,77 @@ export function ContactHostModal() {
         </p>
       )}
     </Modal>
+  );
+}
+
+/**
+ * Destination dropdown. With nothing typed it leads with the guest's recent
+ * searches (docs/01 TM-04); cities jump to a search, listings open the room page.
+ */
+export function Suggestions({ onDone }) {
+  const state = useStore();
+  const navigate = useNavigate();
+  const [recent, setRecent] = useState(() => recentSearches());
+
+  // The list is re-read each time the panel opens, so a search made a moment
+  // ago is already there.
+  useEffect(() => { if (state.suggestOpen) setRecent(recentSearches()); }, [state.suggestOpen]);
+
+  const showRecent = !state.q.trim() && recent.length > 0;
+  if (!state.suggestOpen || (!state.suggestions?.length && !showRecent)) return null;
+
+  const pick = s => {
+    set({ suggestOpen: false });
+    onDone?.();
+    if (s.kind === 'listing') { navigate(`/rooms/${s.value}`); return; }
+    set({ q: s.value });
+    applySearch({ replace: false });
+  };
+
+  const replay = entry => {
+    onDone?.();
+    set({
+      suggestOpen: false,
+      q: entry.q,
+      checkIn: entry.checkIn ?? state.checkIn,
+      checkOut: entry.checkOut ?? state.checkOut,
+      guests: entry.guests ?? state.guests
+    });
+    applySearch({ replace: false });
+  };
+
+  return (
+    <div className="suggest-list" role="listbox">
+      {showRecent && <>
+        <div className="suggest-head">
+          {t('Tìm kiếm gần đây')}
+          <button className="link-btn" style={{ float: 'right', fontSize: 12 }}
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => { clearSearchHistory(); setRecent([]); }}>{t('Xoá')}</button>
+        </div>
+        {recent.map(entry => (
+          <button type="button" className="suggest-row" role="option" key={`recent:${entry.q}`}
+                  onMouseDown={e => e.preventDefault()} onClick={() => replay(entry)}>
+            <span className="suggest-ic"><Icon name="search" size={18} /></span>
+            <span style={{ minWidth: 0 }}>
+              <b>{entry.q}</b>
+              <span>{entry.checkIn ? dateRangeLabel(entry.checkIn, entry.checkOut) : t('Mọi ngày')}</span>
+            </span>
+          </button>
+        ))}
+      </>}
+
+      <div className="suggest-head">{state.q.trim() ? t('Kết quả gợi ý') : t('Điểm đến phổ biến')}</div>
+      {(state.suggestions ?? []).map(s => (
+        <button type="button" className="suggest-row" role="option" key={`${s.kind}:${s.value}`}
+                onMouseDown={e => e.preventDefault()} onClick={() => pick(s)}>
+          <span className="suggest-ic"><Icon name={s.kind === 'city' ? 'map' : 'house'} size={18} /></span>
+          <span style={{ minWidth: 0 }}>
+            <b>{s.label}</b>
+            <span>{s.sub}</span>
+          </span>
+        </button>
+      ))}
+    </div>
   );
 }

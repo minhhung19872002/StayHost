@@ -15,6 +15,12 @@
   --surface: #ffffff;
   --surface-soft: #fafafa;
   --surface-placeholder: #f2f2f2;
+  /* Seven rules ask for --wash and nothing ever defined it, so seven soft-grey
+     boxes were painting transparent: the date tabs' track, the wallet balance,
+     the help footer, the Shield disclaimer, the re-house box, the feed URL and
+     the social-login hover. Nothing errors when a custom property is missing —
+     the declaration is simply dropped — so all seven just quietly went white. */
+  --wash: #f5f5f5;
 
   --shell: 1280px;
   --gutter: clamp(16px, 3vw, 32px);
@@ -376,6 +382,8 @@ img { max-width: 100%; display: block; }
 .switch { width: 32px; height: 18px; border-radius: 999px; background: #d4d4d4; position: relative; transition: background .18s; flex: 0 0 auto; }
 .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .18s; }
 .total-toggle.is-on .switch { background: var(--ink); }
+/* Lives in the filter sheet; only phones get to see it — see the phone block. */
+.total-toggle.is-phone-only { display: none; }
 .total-toggle.is-on .switch::after { transform: translateX(14px); }
 
 /* ------------------------------------------------------------ inline filters */
@@ -402,9 +410,18 @@ img { max-width: 100%; display: block; }
 }
 select.field { width: 100%; padding: 10px 12px; }
 
+/*
+ * inline-flex, not the browser's default. Seven of these are <a>, and an inline
+ * anchor ignores width and vertical margins and lets its padding bleed over the
+ * line above: "Tải hoá đơn" on the trip receipt sat on top of "Thẻ •••• 4242",
+ * and `btn-block`'s width: 100% did nothing at all. `.btn svg { flex: 0 0 auto }`
+ * further down has assumed a flex box here since the day it was written.
+ */
 .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   border: 0; border-radius: var(--r-field); padding: 13px 22px;
   font-size: 15px; font-weight: 700; white-space: nowrap;
+  text-decoration: none;
 }
 .btn-primary { background: var(--brand); color: #fff; }
 .btn-primary:hover { background: var(--brand-dark); }
@@ -412,7 +429,7 @@ select.field { width: 100%; padding: 10px 12px; }
 .btn-dark:hover { background: #000; }
 .btn-outline { background: #fff; color: var(--ink); border: 1px solid var(--ink); }
 .btn-outline:hover { background: #f4f4f4; }
-.btn-block { width: 100%; }
+.btn-block { display: flex; width: 100%; }
 .btn-sm { padding: 10px 16px; font-size: 13px; }
 
 /* ------------------------------------------------------------------ results */
@@ -420,7 +437,7 @@ select.field { width: 100%; padding: 10px 12px; }
   display: flex; align-items: baseline; justify-content: space-between;
   gap: 14px; flex-wrap: wrap; margin-bottom: 4px;
 }
-.results-title { font-size: clamp(19px, 2.4vw, 22px); font-weight: 800; letter-spacing: -0.4px; text-wrap: pretty; }
+.results-title { margin: 0; font-size: clamp(19px, 2.4vw, 22px); font-weight: 800; letter-spacing: -0.4px; text-wrap: pretty; }
 .results-meta { font-size: 13px; color: var(--ink-muted); }
 .results-context { margin: 0 0 18px; font-size: 13.5px; color: var(--ink-muted); }
 .fee-note {
@@ -576,7 +593,11 @@ select.field { width: 100%; padding: 10px 12px; }
 .card-body { padding-top: 11px; display: block; color: inherit; text-decoration: none; }
 a.card-body:hover { color: inherit; }
 .card-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+/* An <h3> with the browser's own 1em margins still on it: the rating beside it
+   sits on the row's top edge while the title starts 15px lower, and the card
+   carries 30px of empty air it never asked for. Narrow cards make it obvious. */
 .card-title {
+  margin: 0;
   font-size: 15px; font-weight: 700; letter-spacing: -0.2px; line-height: 1.35; flex: 1; min-width: 0;
   display: -webkit-box; -webkit-line-clamp: 1; line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
 }
@@ -906,6 +927,37 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
 .mobile-bar .amount { font-size: 15px; font-weight: 800; }
 .mobile-bar .meta { font-size: 12.5px; color: var(--ink-muted); white-space: nowrap; }
 
+/* ------------------------------------------------ mobile search sheet */
+/*
+ * One section open, the other two folded to a line. The destination field, two
+ * months of calendar and four guest counters cannot share a phone screen, and
+ * putting them all in one long scroll means the "Tìm kiếm" button is never in
+ * sight of what you just changed.
+ */
+.ssheet { display: grid; gap: 12px; }
+.ssheet-card { border: 1px solid var(--divider); border-radius: var(--r-panel); background: #fff; }
+.ssheet-card.is-open { padding: 18px 16px; box-shadow: var(--shadow-md); border-color: var(--line); }
+.ssheet-card h3 { margin: 0 0 12px; font-size: 17px; font-weight: 800; }
+.ssheet-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; border: 0; background: transparent; padding: 15px 16px; font: inherit;
+}
+.ssheet-row > span { font-size: 13.5px; color: var(--ink-muted); flex: 0 0 auto; }
+.ssheet-row > b {
+  font-size: 14px; font-weight: 700; color: var(--ink); min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ssheet-input {
+  width: 100%; padding: 13px 14px; border: 1px solid var(--line);
+  border-radius: var(--r-field); background: var(--surface-soft); color: var(--ink);
+}
+.ssheet-input:focus { outline: 0; border-color: var(--ink); background: #fff; }
+/* The suggestion list is drawn for a dropdown that has its own 24px of padding;
+   inside the sheet the card already provides it. */
+.ssheet .suggest-list { margin-top: 12px; }
+.ssheet .suggest-head { padding-inline: 0; }
+.ssheet .suggest-row { padding-inline: 0; }
+
 /* ------------------------------------------------------------------ modals */
 .overlay {
   position: fixed; inset: 0; z-index: 100; background: rgba(0, 0, 0, .5);
@@ -1064,6 +1116,10 @@ a.opt { color: inherit; text-decoration: none; display: block; }
 .cal-wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 26px; }
 .cal-wrap[data-months="4"] { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
 .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+/* Two months side by side share one pair of arrows: back on the left month,
+   forward on the right. The other two keep their 28px so the names stay put. */
+.cal-month:not(:first-child) .cal-prev,
+.cal-month:not(:last-child) .cal-next { visibility: hidden; }
 .cal-head b { font-size: 15px; font-weight: 700; }
 /* No gap between columns: a chosen run has to read as one band, and a 2px white
    line every day chopped it into separate squares. Rows still breathe. */
@@ -1730,6 +1786,70 @@ a.opt { color: inherit; text-decoration: none; display: block; }
 @media (max-width: 469px) {
   .brand-text { display: none; }
   .card-grid { grid-template-columns: 1fr; }
+}
+
+/* ------------------------------------------------------------ phone layout */
+/*
+ * Everything below is about the widths a phone actually has. The rules above
+ * shrink the desktop layout step by step and stop; these replace the pieces
+ * that have no smaller version of themselves.
+ */
+
+/*
+ * The three-segment pill has no phone size. At 390px the destination field
+ * came out 45px wide — "Mọi nơi" rendered as "Mọi nc" — so the one field a
+ * search starts with was the one you could not read or type in. Below 720px
+ * the bar becomes a single tappable summary and the fields move into a sheet
+ * with the whole screen to use.
+ */
+@media (max-width: 719px) {
+  .searchbar.is-mini {
+    display: flex; align-items: center; gap: 12px; width: 100%; max-width: none;
+    padding: 9px 16px; text-align: left;
+  }
+  .searchbar.is-mini .seg-lead { color: var(--brand); }
+  .mini-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .mini-tx b {
+    font-size: 14px; font-weight: 700; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mini-tx span {
+    font-size: 12.5px; color: var(--ink-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /*
+   * The "giá đã gồm thuế" switch is 198px of unshrinkable pill, and it was
+   * taking that out of the same row as the filter chips: the scroller was left
+   * 36px wide, so fourteen chips lived behind a gap narrower than one of them.
+   * On a phone the switch gets its own line.
+   */
+  .quickbar > .total-toggle { display: none; }
+  .quick-scroll { flex: 1 1 0; }
+  .total-toggle.is-phone-only { display: flex; width: 100%; justify-content: space-between; margin-bottom: 4px; }
+
+  /* A dialog on a phone should use the screen, not sit in a 20px frame. */
+  .overlay { padding: 0; align-items: stretch; }
+  .modal {
+    max-width: none; max-height: 100dvh; height: 100dvh;
+    border-radius: 0; animation: none;
+  }
+  .modal-body { padding: 18px 16px; }
+  .modal-head, .modal-foot { padding-inline: 16px; }
+
+  /* "Ngày cụ thể" wrapped onto a second line inside its own pill. */
+  .date-tab { padding: 9px 6px; font-size: 13px; white-space: nowrap; }
+
+  /* Stacked, the months are one above the other, so both arrows belong to the
+     one on top — otherwise "next month" sits beside the second month's name,
+     a screen and a half down. */
+  .cal-month:first-child .cal-next { visibility: visible; }
+  .cal-month:not(:first-child) .cal-head .round-btn { visibility: hidden; }
+}
+
+@media (max-width: 520px) {
+  /* Three money columns at ~106px each, and every one of them holds a price. */
+  .market-band { grid-template-columns: 1fr; }
 }
 
 /* TN-04 — a line the platform wrote, centred and visually apart from the two

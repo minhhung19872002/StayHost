@@ -8,12 +8,11 @@ import {
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { applySearch } from '../lib/nav.js';
-import { recentSearches, clearSearchHistory } from '../lib/history.js';
 import { dateRangeLabel, shortDate, debounce } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 import { Avatar } from './Avatar.jsx';
 import { Icon } from './Icon.jsx';
-import { DateFields, GuestFields } from './modals/SearchModals.jsx';
+import { DateFields, GuestFields, Suggestions } from './modals/SearchModals.jsx';
 
 // docs/01 TM-02 — four rows, and each one goes somewhere. The last two used to
 // answer with a toast saying the demo only had homes, which stopped being true
@@ -144,6 +143,28 @@ function UnreadBadge() {
  */
 const DROPDOWN_FROM = '(min-width: 900px)';
 
+/*
+ * And below this the bar itself has nowhere to stand. Three segments plus the
+ * button need ~500px; a phone gives ~358px, which left the destination field
+ * 45px wide with its placeholder cut mid-word — the one field a search starts
+ * from was the one nobody could read. Under this width the bar is a single
+ * summary that opens the search sheet.
+ */
+const MINI_BELOW = '(max-width: 719px)';
+
+/** Re-renders the bar when the window crosses `query`. */
+function useMedia(query) {
+  const [on, setOn] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = e => setOn(e.matches);
+    mq.addEventListener('change', onChange);
+    setOn(mq.matches);
+    return () => mq.removeEventListener('change', onChange);
+  }, [query]);
+  return on;
+}
+
 /**
  * The landing page keeps the tall "Địa điểm · Ngày · Khách" pill; every other
  * route gets the compact summary bar, the same way airbnb.com collapses it.
@@ -156,6 +177,7 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
   const [openSeg, setOpenSeg] = useState(null);
   const barRef = useRef(null);
   const [roomy, setRoomy] = useState(() => window.matchMedia(DROPDOWN_FROM).matches);
+  const mini = useMedia(MINI_BELOW);
 
   useEffect(() => {
     const mq = window.matchMedia(DROPDOWN_FROM);
@@ -269,6 +291,20 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
     </label>
   );
 
+  if (mini) {
+    return (
+      <div className="search-row is-mini">
+        <button type="button" className="searchbar is-mini" onClick={() => openOverlay('search')}>
+          <span className="seg-lead" aria-hidden="true"><Icon name="search" size={17} /></span>
+          <span className="mini-tx">
+            <b>{state.q.trim() || t('Mọi nơi')}</b>
+            <span>{dateRangeLabel(state.checkIn, state.checkOut)} · {guestLabel()}</span>
+          </span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className={`search-row ${wide ? 'is-wide' : ''}`} ref={barRef}>
       {/* The panels hang off this rather than off the row, so they line up with
@@ -335,77 +371,6 @@ function SearchBar({ wide, onSubmit, onQueryInput }) {
   );
 }
 
-/**
- * Destination dropdown. With nothing typed it leads with the guest's recent
- * searches (docs/01 TM-04); cities jump to a search, listings open the room page.
- */
-function Suggestions({ onDone }) {
-  const state = useStore();
-  const navigate = useNavigate();
-  const [recent, setRecent] = useState(() => recentSearches());
-
-  // The list is re-read each time the panel opens, so a search made a moment
-  // ago is already there.
-  useEffect(() => { if (state.suggestOpen) setRecent(recentSearches()); }, [state.suggestOpen]);
-
-  const showRecent = !state.q.trim() && recent.length > 0;
-  if (!state.suggestOpen || (!state.suggestions?.length && !showRecent)) return null;
-
-  const pick = s => {
-    set({ suggestOpen: false });
-    onDone?.();
-    if (s.kind === 'listing') { navigate(`/rooms/${s.value}`); return; }
-    set({ q: s.value });
-    applySearch({ replace: false });
-  };
-
-  const replay = entry => {
-    onDone?.();
-    set({
-      suggestOpen: false,
-      q: entry.q,
-      checkIn: entry.checkIn ?? state.checkIn,
-      checkOut: entry.checkOut ?? state.checkOut,
-      guests: entry.guests ?? state.guests
-    });
-    applySearch({ replace: false });
-  };
-
-  return (
-    <div className="suggest-list" role="listbox">
-      {showRecent && <>
-        <div className="suggest-head">
-          {t('Tìm kiếm gần đây')}
-          <button className="link-btn" style={{ float: 'right', fontSize: 12 }}
-                  onMouseDown={e => e.preventDefault()}
-                  onClick={() => { clearSearchHistory(); setRecent([]); }}>{t('Xoá')}</button>
-        </div>
-        {recent.map(entry => (
-          <button type="button" className="suggest-row" role="option" key={`recent:${entry.q}`}
-                  onMouseDown={e => e.preventDefault()} onClick={() => replay(entry)}>
-            <span className="suggest-ic"><Icon name="search" size={18} /></span>
-            <span style={{ minWidth: 0 }}>
-              <b>{entry.q}</b>
-              <span>{entry.checkIn ? dateRangeLabel(entry.checkIn, entry.checkOut) : t('Mọi ngày')}</span>
-            </span>
-          </button>
-        ))}
-      </>}
-
-      <div className="suggest-head">{state.q.trim() ? t('Kết quả gợi ý') : t('Điểm đến phổ biến')}</div>
-      {(state.suggestions ?? []).map(s => (
-        <button type="button" className="suggest-row" role="option" key={`${s.kind}:${s.value}`}
-                onMouseDown={e => e.preventDefault()} onClick={() => pick(s)}>
-          <span className="suggest-ic"><Icon name={s.kind === 'city' ? 'map' : 'house'} size={18} /></span>
-          <span style={{ minWidth: 0 }}>
-            <b>{s.label}</b>
-            <span>{s.sub}</span>
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function BellMenu() {
   const state = useStore();
