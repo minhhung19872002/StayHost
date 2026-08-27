@@ -900,6 +900,15 @@ body.page-detail [id^="section-"] { scroll-margin-top: calc(var(--header-h) + 12
   font-size: 16px; line-height: 1; color: var(--ink);
 }
 .map-expand:hover { border-color: var(--ink); }
+/* Street View sits under the expand button, the way airbnb.com stacks its map
+   controls. A link, so it gets the link colours reset. */
+.map-street {
+  position: absolute; top: 58px; right: 12px; z-index: 502;
+  width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line);
+  background: #fff; box-shadow: var(--shadow-md); color: var(--ink);
+  display: flex; align-items: center; justify-content: center; text-decoration: none;
+}
+.map-street:hover { border-color: var(--ink); color: var(--brand); }
 .map-box.is-full .map-expand { top: max(12px, env(safe-area-inset-top)); }
 /*
  * The results pane stacks expand over zoom at the top right, the way airbnb.com

@@ -126,6 +126,7 @@ export default {
   'Gợi ý cho chuyến đi sắp tới': '下一趟旅程的灵感',
   'Hiện bản đồ': '显示地图',
   'Mở bản đồ toàn màn hình': '全屏打开地图',
+  'Xem đường phố quanh đây': '查看附近街景',
   'Vẽ vùng trên bản đồ': '在地图上绘制区域',
   'Thu nhỏ bản đồ': '退出全屏地图',
   'Hiện danh sách': '显示列表',

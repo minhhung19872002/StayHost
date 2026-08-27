@@ -153,6 +153,7 @@ const EN = {
   'Gợi ý cho chuyến đi sắp tới': 'Ideas for your next trip',
   'Hiện bản đồ': 'Show map',
   'Mở bản đồ toàn màn hình': 'Open map full screen',
+  'Xem đường phố quanh đây': 'See the streets around here',
   'Vẽ vùng trên bản đồ': 'Draw an area on the map',
   'Thu nhỏ bản đồ': 'Close full screen map',
   'Hiện danh sách': 'Show list',

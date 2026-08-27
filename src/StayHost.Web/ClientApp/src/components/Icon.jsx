@@ -3,6 +3,8 @@
 
 
 const P = {
+  // A person on a pavement — Google's pegman without borrowing Google's art.
+  street: <><circle cx="12" cy="4.6" r="2.1" /><path d="M9.2 21v-5.2H7.8l1.7-5a2.6 2.6 0 0 1 2.5-1.8 2.6 2.6 0 0 1 2.5 1.8l1.7 5h-1.4V21" /><path d="M3 21h18" /></>,
   all: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18" /></>,
   villa: <><path d="M3 11.5 12 4l9 7.5" /><path d="M5.5 10.5V20h13v-9.5" /><path d="M3 20h18" /><path d="M9.5 20v-4.5h5V20" /></>,
   apartment: <><rect x="5" y="3" width="14" height="18" rx="1.5" /><path d="M9 7h1.5M13.5 7H15M9 11h1.5M13.5 11H15M9 15h1.5M13.5 15H15" /><path d="M10.5 21v-3h3v3" /></>,

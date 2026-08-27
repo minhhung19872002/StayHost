@@ -126,6 +126,7 @@ export default {
   'Gợi ý cho chuyến đi sắp tới': "Idées pour votre prochain voyage",
   'Hiện bản đồ': "Afficher la carte",
   'Mở bản đồ toàn màn hình': "Ouvrir la carte en plein écran",
+  'Xem đường phố quanh đây': "Voir les rues alentour",
   'Vẽ vùng trên bản đồ': "Dessiner une zone sur la carte",
   'Thu nhỏ bản đồ': "Quitter le plein écran",
   'Hiện danh sách': "Afficher la liste",

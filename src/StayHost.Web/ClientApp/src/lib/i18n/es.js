@@ -126,6 +126,7 @@ export default {
   'Gợi ý cho chuyến đi sắp tới': 'Ideas para tu próximo viaje',
   'Hiện bản đồ': 'Mostrar mapa',
   'Mở bản đồ toàn màn hình': 'Abrir el mapa en pantalla completa',
+  'Xem đường phố quanh đây': 'Ver las calles de alrededor',
   'Vẽ vùng trên bản đồ': 'Dibujar un área en el mapa',
   'Thu nhỏ bản đồ': 'Salir de pantalla completa',
   'Hiện danh sách': 'Mostrar lista',

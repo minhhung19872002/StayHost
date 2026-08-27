@@ -9,6 +9,7 @@ import 'leaflet/dist/leaflet.css';
 import { useStore } from '../lib/useStore.js';
 import { useMedia } from '../lib/useMedia.js';
 import { t } from '../lib/i18n.js';
+import { Icon } from './Icon.jsx';
 import { money } from '../lib/format.js';
 
 /*
@@ -139,6 +140,30 @@ function useFullMap(full, setFull, mapRef) {
       document.body.classList.remove('is-map-full');
     };
   }, [full, setFull, mapRef]);
+}
+
+/*
+ * Street View, without a Google Maps key.
+ *
+ * The pegman only exists inside a Google Maps instance, and embedding one means
+ * the Maps JavaScript API, a billing account and a per-load charge — a first for
+ * a repo that self-hosts its translator precisely to avoid that. This is the
+ * official Google Maps URL scheme instead: no key, no cost, opens in its own tab.
+ *
+ * The coordinates go over as stored, without extra rounding. A first cut rounded
+ * them to three decimals for privacy and that was the wrong instinct twice over:
+ * what is stored is already only three or four decimals — a hundred metres of
+ * slack, which is why the page can draw a 900m circle instead of a pin in the
+ * first place — and `viewpoint` snaps to the *nearest* panorama, so pushing the
+ * point another hundred metres only moves it further from the road that has one.
+ * Rounded, a Đà Nẵng listing landed mid-river and Google answered with a black
+ * screen; unrounded, the same listing opens on the street it is on.
+ *
+ * That snap is also the limit of this approach: with no panorama in range there
+ * is nothing to fall back to, and Google says so on a black page.
+ */
+function streetViewUrl(latitude, longitude) {
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${latitude},${longitude}`;
 }
 
 /**
@@ -552,6 +577,15 @@ export function DetailMap({ latitude, longitude }) {
     <div className={`map-box ${full ? 'is-full' : ''}`}>
       <div className="detail-map" ref={hostRef} />
       <MapChrome full={full} setFull={setFull} />
+      {/* An anchor, not a button: middle-click and "open in new tab" are how
+          people actually use a link that leaves the site. */}
+      {latitude != null && longitude != null && (
+        <a className="map-street" href={streetViewUrl(latitude, longitude)}
+           target="_blank" rel="noreferrer"
+           title={t('Xem đường phố quanh đây')} aria-label={t('Xem đường phố quanh đây')}>
+          <Icon name="street" size={19} />
+        </a>
+      )}
     </div>
   );
 }
