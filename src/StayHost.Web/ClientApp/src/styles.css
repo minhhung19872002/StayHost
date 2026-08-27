@@ -262,7 +262,16 @@ img { max-width: 100%; display: block; }
 .avatar.is-anon { background: var(--ink-muted); }
 .avatar svg { display: block; }
 
-.header-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+/*
+ * margin-left: auto, not "the tabs will push it over". On wide screens .nav-tabs
+ * is flex: 1 and absorbs the gap, so the actions land on the right for free —
+ * but below 720px the tabs are display: none, the spacer goes with them, and
+ * brand + actions bunched up against the left edge. The account menu hangs off
+ * this group (position: absolute; right: 0), so on a phone it opened halfway
+ * across the screen under a button that was nowhere near the right edge.
+ * With the tabs present this is a no-op: there is no free space left to absorb.
+ */
+.header-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; margin-left: auto; }
 
 .ghost-btn {
   border: 0; background: transparent; font-size: 14px; font-weight: 600; color: var(--ink);
