@@ -126,6 +126,7 @@ export default {
   'Gợi ý cho chuyến đi sắp tới': '다음 여행을 위한 추천',
   'Hiện bản đồ': '지도 보기',
   'Mở bản đồ toàn màn hình': '지도 전체 화면으로 열기',
+  'Vẽ vùng trên bản đồ': '지도에 영역 그리기',
   'Thu nhỏ bản đồ': '전체 화면 닫기',
   'Bấm vào bản đồ rồi lăn chuột để phóng to': '지도를 클릭한 뒤 스크롤하여 확대',
   'Hiện danh sách': '목록 보기',

@@ -70,6 +70,16 @@ export function FiltersModal() {
         <span className="switch" aria-hidden="true" /> {t('Giá đã gồm thuế và phí')}
       </button>
 
+      {/*
+        * docs/01 TM-24. This used to be a permanent button on the map, in the
+        * bar the client asked us to take off it. The tool still draws on the
+        * map — it has to — so the sheet closes itself and hands over.
+        */}
+      <button className="btn btn-outline btn-sm btn-block" style={{ marginBottom: 4 }}
+              onClick={() => { set({ drawRequest: store.drawRequest + 1, hideMap: false }); closeOverlay(); }}>
+        <Icon name="map" size={16} /> {t('Vẽ vùng trên bản đồ')}
+      </button>
+
       <section className="modal-section">
         <h3>{t('Khoảng giá')}</h3>
         <span className="hint">{t('Giá mỗi đêm, đã gồm phí và thuế')}</span>

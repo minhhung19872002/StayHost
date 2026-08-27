@@ -111,7 +111,14 @@ img { max-width: 100%; display: block; }
 /* The mark carries its own shape and colour now (Icon.jsx BrandMark); the box
    only has to reserve the space and sit on the text baseline. */
 .brand-mark { width: 32px; height: 32px; display: block; flex: 0 0 auto; }
-.brand-text { font-size: 18px; font-weight: 800; letter-spacing: -0.4px; white-space: nowrap; color: var(--ink); }
+/* The wordmark, and only the wordmark: Sora 700 beside the pin. Figtree
+   still runs the rest of the page. Sora sits wider than Figtree, so the
+   tracking Figtree needed at this size would close the letters up. */
+.brand-text {
+  font-family: Sora, Figtree, system-ui, sans-serif;
+  font-size: 18px; font-weight: 700; letter-spacing: -0.2px;
+  white-space: nowrap; color: var(--ink);
+}
 
 /* nav tabs (Chỗ ở / Trải nghiệm / Dịch vụ) */
 .nav-tabs { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; }

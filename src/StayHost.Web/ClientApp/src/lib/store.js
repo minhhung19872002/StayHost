@@ -90,8 +90,16 @@ export const state = {
   // any handler can flip it without prop-drilling.
   hideMap: false,
   showTotalPrice: false,
-  /** docs/01 TM-12 — re-run the search whenever the map is moved. */
-  searchOnMapMove: false,
+  /**
+   * docs/01 TM-24 — a bump asks the map to start the draw tool. The button that
+   * does it lives in the filter sheet, which is a different component tree; a
+   * counter rather than a boolean so a second request after the first has been
+   * served still registers.
+   *
+   * TM-12 ("tìm khi di chuyển bản đồ") used to be a `searchOnMapMove` flag with
+   * a checkbox on the map. It is now simply how the map behaves — see Maps.jsx.
+   */
+  drawRequest: 0,
   /** The map rectangle the current results were searched in, if any. */
   searchArea: null,
   /** docs/01 TM-24 — a hand-drawn search area, [{lat,lng}], if any. */

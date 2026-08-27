@@ -9,7 +9,6 @@ import 'leaflet/dist/leaflet.css';
 import { useStore } from '../lib/useStore.js';
 import { useMedia } from '../lib/useMedia.js';
 import { t } from '../lib/i18n.js';
-import { set } from '../lib/store.js';
 import { money } from '../lib/format.js';
 
 /*
@@ -86,6 +85,28 @@ function addBaseLayer(map, index = 0) {
 }
 
 /*
+ * Leaflet anchors the top-left when the box changes size, so the geographic
+ * centre drifts by half the delta. That is why a listing's circle could end up
+ * off in a corner: the map is built, setView centres it on the place, and then
+ * the column settles a few pixels wider once the photos above it have loaded.
+ * The same drift on the way in and out of full screen.
+ *
+ * A 60ms timeout was the old guess at "when the layout is done". An observer
+ * does not have to guess, and it holds the centre rather than the corner.
+ */
+function keepCentred(map) {
+  const fix = () => {
+    if (!map._loaded) return;
+    const centre = map.getCenter();
+    map.invalidateSize({ pan: false, animate: false });
+    map.setView(centre, map.getZoom(), { animate: false });
+  };
+  const ro = new ResizeObserver(fix);
+  ro.observe(map.getContainer());
+  return () => ro.disconnect();
+}
+
+/*
  * Every map here was built with the wheel switched off, and that is defensible
  * for the two that sit inside flowing content: a small map that eats the wheel
  * traps the reader halfway down the page with no way out. It is not defensible
@@ -127,8 +148,9 @@ function useFullMap(full, setFull, mapRef, setWheel) {
       else map.scrollWheelZoom.disable();
       setWheel(full);
     }
-    const resize = setTimeout(() => mapRef.current?.invalidateSize(), 0);
-    if (!full) return () => clearTimeout(resize);
+    // No invalidateSize here: keepCentred's observer sees the box change and
+    // holds the centre, which a bare invalidateSize would not.
+    if (!full) return undefined;
 
     const onKey = e => { if (e.key === 'Escape') setFull(false); };
     document.addEventListener('keydown', onKey);
@@ -144,7 +166,6 @@ function useFullMap(full, setFull, mapRef, setWheel) {
      */
     document.body.classList.add('is-map-full');
     return () => {
-      clearTimeout(resize);
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
       document.body.classList.remove('is-map-full');
@@ -287,8 +308,14 @@ export function ResultsMap({ onSearchArea, onDrawArea }) {
     mapRef.current = map;
     layerRef.current = L.layerGroup().addTo(map);
 
-    // docs/01 TM-12 — offer to search again once the guest has moved the map.
-    // `refitting` suppresses the offer when it was our own fitBounds that moved it.
+    /*
+     * docs/01 TM-12 — the search re-runs whenever the guest moves the map, the
+     * way airbnb.com/s does it. It used to be a checkbox, defaulted off, sitting
+     * in a white bar across the top of the map with two buttons for company; the
+     * client asked for the bar gone and this behaviour on by default.
+     * `refitting` still suppresses it when it was our own fitBounds that moved
+     * the map, or the search would answer itself in a loop.
+     */
     const onMoveEnd = () => {
       setZoom(map.getZoom());
       if (map.__refitting) { map.__refitting = false; return; }
@@ -304,11 +331,12 @@ export function ResultsMap({ onSearchArea, onDrawArea }) {
     };
     map.on('click', onClick);
 
-    // The pane is laid out by CSS grid, so its final size is only known after paint.
-    const t = setTimeout(() => map.invalidateSize(), 60);
+    // The pane is laid out by CSS grid and changes size on the way in and out of
+    // full screen; the observer covers both without guessing at a delay.
+    const stopCentring = keepCentred(map);
 
     return () => {
-      clearTimeout(t);
+      stopCentring();
       map.off('moveend', onMoveEnd);
       map.off('click', onClick);
       map.remove();
@@ -375,8 +403,7 @@ export function ResultsMap({ onSearchArea, onDrawArea }) {
       setMoved(false);
     }
 
-    const t = setTimeout(() => map.invalidateSize(), 60);
-    return () => clearTimeout(t);
+    return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, zoom]);
 
@@ -389,12 +416,28 @@ export function ResultsMap({ onSearchArea, onDrawArea }) {
     });
   };
 
-  // A moved map with "search as I move" on searches immediately; otherwise the
-  // guest is offered the button and stays in control (docs/01 TM-12).
+  /*
+   * Moving the map is the search. Not while a polygon is being drawn: the taps
+   * that place its vertices move nothing, but finishing it does.
+   *
+   * Debounced, because a wheel zoom is several moveends in a row and each one
+   * would otherwise be its own query — eight requests for one gesture, and the
+   * results flickering through eight answers on the way to the one that counts.
+   */
   useEffect(() => {
-    if (moved && state.searchOnMapMove) searchHere();
+    if (!moved || drawing) return undefined;
+    const t = setTimeout(searchHere, 400);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [moved, state.searchOnMapMove]);
+  }, [moved, drawing]);
+
+  // docs/01 TM-24 — the draw tool now lives in the filter sheet, which closes
+  // itself and asks the map to start. A counter rather than a flag, so asking
+  // twice in a row works.
+  useEffect(() => {
+    if (state.drawRequest) startDraw();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.drawRequest]);
 
   useFullMap(full, setFull, mapRef);
 
@@ -411,8 +454,7 @@ export function ResultsMap({ onSearchArea, onDrawArea }) {
     if (!narrow) return undefined;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const t = setTimeout(() => mapRef.current?.invalidateSize(), 0);
-    return () => { clearTimeout(t); document.body.style.overflow = prev; };
+    return () => { document.body.style.overflow = prev; };
   }, [narrow]);
 
   return (
@@ -425,22 +467,22 @@ export function ResultsMap({ onSearchArea, onDrawArea }) {
           {full ? '✕' : '⤡'}
         </button>
       )}
-      <div className="map-search-again">
-        {moved && !state.searchOnMapMove && !drawing && <button onClick={searchHere}>{t('Tìm ở khu vực này')}</button>}
-        {/* docs/01 TM-24 — vẽ vùng tìm kiếm trên bản đồ. */}
-        {!drawing && !state.searchPolygon && <button onClick={startDraw}>✎ {t('Vẽ vùng')}</button>}
-        {!drawing && state.searchPolygon && <button onClick={clearDraw}>✕ {t('Bỏ vùng đã vẽ')}</button>}
-        {drawing && <button onClick={finishDraw}>✓ {t('Xong')} ({drawRef.current.points.length})</button>}
-        {drawing && <button onClick={clearDraw}>{t('Huỷ')}</button>}
-        {!drawing && (
-          <label>
-            <input type="checkbox" checked={state.searchOnMapMove}
-                   onChange={e => set({ searchOnMapMove: e.target.checked })} />
-            {t('Tìm khi di chuyển bản đồ')}
-          </label>
-        )}
-        {drawing && <span className="map-draw-hint">{t('Chạm để thêm điểm, rồi bấm Xong')}</span>}
-      </div>
+      {/*
+        * Nothing across the top of the map unless the moment calls for it. The
+        * bar used to be permanent — two buttons and a checkbox in a white pill
+        * over the part of the map you were looking at — and none of it had to
+        * be: moving the map searches by itself, and drawing is started from the
+        * filter sheet. What is left is only ever on screen while it applies.
+        */}
+      {(drawing || state.searchPolygon) && (
+        <div className="map-search-again">
+          {drawing && <button onClick={finishDraw}>✓ {t('Xong')} ({drawRef.current.points.length})</button>}
+          {drawing && <button onClick={clearDraw}>{t('Huỷ')}</button>}
+          {drawing && <span className="map-draw-hint">{t('Chạm để thêm điểm, rồi bấm Xong')}</span>}
+          {!drawing && state.searchPolygon &&
+            <button onClick={clearDraw}>✕ {t('Bỏ vùng đã vẽ')}</button>}
+        </div>
+      )}
       <div id="map" ref={hostRef} />
     </div>
   );
@@ -497,8 +539,8 @@ export function CardsMap({ cards, height = 320 }) {
     if (pinned.length === 1) map.setView([pinned[0].latitude, pinned[0].longitude], 13);
     else map.fitBounds(pinned.map(c => [c.latitude, c.longitude]), { padding: [40, 40], maxZoom: 13 });
 
-    const timer = setTimeout(() => map.invalidateSize(), 60);
-    return () => { clearTimeout(timer); detach(); map.remove(); mapRef.current = null; };
+    const stopCentring = keepCentred(map);
+    return () => { stopCentring(); detach(); map.remove(); mapRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
@@ -530,8 +572,8 @@ export function DetailMap({ latitude, longitude }) {
 
     mapRef.current = map;
     const detach = wheelOnClick(map, setWheel);
-    const timer = setTimeout(() => map.invalidateSize(), 60);
-    return () => { clearTimeout(timer); detach(); map.remove(); mapRef.current = null; };
+    const stopCentring = keepCentred(map);
+    return () => { stopCentring(); detach(); map.remove(); mapRef.current = null; };
   }, [latitude, longitude]);
 
   useFullMap(full, setFull, mapRef, setWheel);

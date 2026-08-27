@@ -431,6 +431,24 @@ kèm số 👍/👎 và phiếu của người xem. UI nút 👍/👎 trên từ
 Xác minh sống: 2 session bầu đếm riêng (1→2), lật phiếu, bấm lại để bỏ, tallies bền, chặn tin
 ngoài danh sách.
 
+### §9.7 — Thanh công cụ trên bản đồ đã gỡ (khách chốt 27/08/2026)
+
+Khách chỉ vào khối trắng nằm vắt ngang đỉnh bản đồ ("Tìm ở khu vực này · Vẽ vùng ·
+Tìm khi di chuyển bản đồ") và yêu cầu bỏ, lấy bản đồ của `airbnb.com/s` làm chuẩn —
+trang đó không có thanh nào, chỉ nút mở rộng và +/− ở góc phải.
+
+Hai mã trong khối vẫn còn, chỉ đổi chỗ:
+
+- **`TM-12`** không còn ô bật/tắt: di chuyển bản đồ **là** tìm kiếm, luôn bật, có
+  debounce 400ms để một cử chỉ kéo/zoom chỉ sinh một truy vấn. `searchOnMapMove`
+  đã xoá khỏi store. `docs/01` đã sửa dòng TM-12 cho khớp.
+- **`TM-24`** mở từ nút "Vẽ vùng trên bản đồ" trong sheet **Bộ lọc**; sheet tự đóng
+  và bump `drawRequest` để bản đồ vào chế độ vẽ. Trong lúc vẽ, một thanh nhỏ hiện lại
+  với "Xong (n) / Huỷ" — nó phải ở trên bản đồ vì các đỉnh được thả bằng cách chạm
+  vào bản đồ. Vẽ xong thì thanh biến mất, chỉ còn "✕ Bỏ vùng đã vẽ" khi có vùng.
+
+Nói cách khác: bản đồ sạch ở trạng thái mặc định, và chỉ mọc điều khiển khi có việc.
+
 `TM-24` (vẽ vùng tìm kiếm trên bản đồ) làm xong 10/08/2026. `GeoPolygon.cs` (thuần, có test)
 làm point-in-polygon (ray-casting, chịu cả đa giác lõm) + bounding box + parse. Search nhận
 param `polygon`; `CatalogService.ResolveAreaAsync` lọc thô bằng bbox trong SQL rồi soi chính

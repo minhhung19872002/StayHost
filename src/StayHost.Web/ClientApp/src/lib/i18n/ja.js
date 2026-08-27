@@ -126,6 +126,7 @@ export default {
   'Gợi ý cho chuyến đi sắp tới': '次の旅のアイデア',
   'Hiện bản đồ': '地図を表示',
   'Mở bản đồ toàn màn hình': '地図を全画面で開く',
+  'Vẽ vùng trên bản đồ': '地図上でエリアを描く',
   'Thu nhỏ bản đồ': '全画面表示を閉じる',
   'Bấm vào bản đồ rồi lăn chuột để phóng to': '地図をクリックしてからスクロールで拡大',
   'Hiện danh sách': 'リストを表示',

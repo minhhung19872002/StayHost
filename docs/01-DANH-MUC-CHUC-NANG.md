@@ -38,7 +38,7 @@ Mỗi chức năng có mã `FR-<module>-<số>` để tham chiếu và theo dõi
 | TM-09 | Kết quả tìm kiếm dạng lưới thẻ, mỗi thẻ có ảnh trượt, giá cho cả kỳ, điểm đánh giá | P0 |
 | TM-10 | Bản đồ song song danh sách; ghim hiển thị giá; gộp ghim khi thu nhỏ | P0 |
 | TM-11 | Rê chuột lên thẻ thì ghim tương ứng nổi lên và ngược lại | P1 |
-| TM-12 | Tìm lại khi di chuyển bản đồ (bật/tắt được) | P0 |
+| TM-12 | Tìm lại khi di chuyển bản đồ — **luôn bật, không còn ô bật/tắt** (khách chốt 27/08/2026, xem `docs/PLAN.md §9.7`) | P0 |
 | TM-13 | Lọc: khoảng giá (có biểu đồ phân bố), loại chỗ ở, số phòng ngủ/giường/phòng tắm | P0 |
 | TM-14 | Lọc tiện nghi theo nhóm | P0 |
 | TM-15 | Lọc tuỳ chọn đặt: đặt ngay, tự nhận phòng, cho thú cưng, huỷ miễn phí | P0 |
@@ -50,7 +50,7 @@ Mỗi chức năng có mã `FR-<module>-<số>` để tham chiếu và theo dõi
 | TM-21 | Sắp xếp kết quả theo mức độ phù hợp / giá / đánh giá | P1 |
 | TM-22 | Khi không có kết quả: gợi ý bỏ bớt bộ lọc và hiện chỗ ở khu vực lân cận | P0 |
 | TM-23 | Lưu bộ tìm kiếm và nhận thông báo khi có chỗ mới phù hợp | P2 |
-| TM-24 | Vẽ vùng tìm kiếm trên bản đồ | P2 |
+| TM-24 | Vẽ vùng tìm kiếm trên bản đồ — mở từ **sheet Bộ lọc**, không còn nút thường trực trên bản đồ (khách chốt 27/08/2026) | P2 |
 | TM-25 | Trang chủ: các dải gợi ý theo thành phố, theo cuối tuần này, theo cảm hứng | P0 |
 | TM-26 | Trang giới thiệu theo thành phố/loại hình để người dùng tìm từ công cụ tìm kiếm | P1 |
 
