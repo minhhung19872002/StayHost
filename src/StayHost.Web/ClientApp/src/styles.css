@@ -1457,8 +1457,25 @@ a.opt { color: inherit; text-decoration: none; display: block; }
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 14px 16px; border-bottom: 1px solid var(--divider); position: sticky; top: 0; background: #fff;
 }
-.bell-head b { font-size: 15px; font-weight: 800; }
-.bell-row {
+.bell-head b { font-size: 15px; font-weight: 800; flex: 0 0 auto; }
+/*
+ * Same rule, same trick: `.menu button` also gave "Đánh dấu đã đọc" width: 100%
+ * and 16px of side padding, because it was written for full-width menu rows and
+ * this is the one button in the panel that is not one. At 229px it crowded the
+ * title into 55px and wrapped "Thông báo" onto two lines. `.link-btn` already
+ * says padding: 0 — it just needed the specificity to be heard.
+ */
+.menu .bell-head .link-btn { display: inline; width: auto; padding: 0; font-size: 13px; }
+/*
+ * `.menu button` — one class and one element, so it outranks a lone `.bell-row`
+ * whatever the order — was forcing display: flex on these, and the title and the
+ * text became two columns instead of two lines. Both children below say
+ * `display: block`, which is only meaningful under a block parent: the stacked
+ * layout was written and then quietly overruled. It squeezed "Hồ sơ đã được phân
+ * xử" into a five-line column on a phone and a four-line one on desktop. The
+ * padding lost the same argument.
+ */
+.menu button.bell-row {
   display: block; width: 100%; text-align: left; border: 0; background: transparent;
   padding: 13px 16px; border-bottom: 1px solid var(--divider);
 }
@@ -1848,6 +1865,26 @@ a.opt { color: inherit; text-decoration: none; display: block; }
 
   /* "Ngày cụ thể" wrapped onto a second line inside its own pill. */
   .date-tab { padding: 9px 6px; font-size: 13px; white-space: nowrap; }
+
+  /*
+   * Both header menus hang right: 0 off their own button. That works for the
+   * account pill, which is the last thing in the row — but the bell sits 153px
+   * from the left edge, and its panel is 88vw wide, so hanging it off the bell
+   * put its left edge at -126px and most of "Thông báo" off the screen.
+   *
+   * Taking the anchors out of the flow hands both panels to .header-actions
+   * instead, whose right edge is the account pill's right edge — the same place
+   * the account menu already lined up with, and the edge a phone reaches for.
+   * The vertical offset is unchanged: the group is exactly as tall as the
+   * buttons in it, so `top: calc(100% + 8px)` still lands under the row.
+   */
+  .header-actions { position: relative; }
+  .menu-anchor { position: static; }
+  /* Its own width, not the group's: the containing block is now .header-actions,
+     which is only as wide as three buttons, and `100%` of that plus .menu's
+     240px min-width left the notification rows in a 240px column. The right
+     edge is pinned at the group, so the screen minus one gutter fits exactly. */
+  .bell-menu { width: min(360px, calc(100vw - 2 * var(--gutter))); }
 
   /* Stacked, the months are one above the other, so both arrows belong to the
      one on top — otherwise "next month" sits beside the second month's name,
