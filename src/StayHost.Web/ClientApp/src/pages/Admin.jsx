@@ -302,7 +302,8 @@ function IdentityQueue() {
               {rows.map(r => (
                 <tr key={r.id}>
                   <td><b>{r.userName}</b><span>{r.userEmail ?? '—'}</span></td>
-                  <td>{t(r.documentLabel)}{r.documentLast4 ? ` •••• ${r.documentLast4}` : ''}</td>
+                  <td><b>{t(r.documentLabel)}</b>
+                    {r.documentLast4 ? <span>•••• {r.documentLast4}</span> : null}</td>
                   <td>{dateTime(r.submittedAt)}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button className="btn btn-outline btn-sm"
@@ -441,10 +442,13 @@ function CouponsPanel() {
               {rows.map(c => (
                 <tr key={c.id}>
                   <td><b>{c.code}</b><span>{c.campaign || '—'}</span></td>
-                  <td>{c.kind === 'Percentage' ? `${c.value}%` : money(c.value)}
+                  {/* The table's own convention: <b> is the value and breaks
+                      the line, <span> is the note under it. Bare text followed
+                      by a span runs the two together — "920.000₫bên mình". */}
+                  <td><b>{c.kind === 'Percentage' ? `${c.value}%` : money(c.value)}</b>
                     {c.maxDiscount ? <span>{t('tối đa')} {money(c.maxDiscount)}</span> : null}</td>
                   <td>
-                    {c.minBookingTotal ? `${t('đơn từ')} ${money(c.minBookingTotal)}` : t('không giới hạn')}
+                    <b>{c.minBookingTotal ? `${t('đơn từ')} ${money(c.minBookingTotal)}` : t('không giới hạn')}</b>
                     <span>
                       {c.startsAt ? longDate(c.startsAt.slice(0, 10)) : '—'} → {c.endsAt ? longDate(c.endsAt.slice(0, 10)) : '—'}
                     </span>
@@ -522,15 +526,16 @@ function PriceMatchPanel() {
               {rows.map(r => (
                 <tr key={r.id}>
                   <td><b>{r.reference}</b><span>{longDate(r.createdAt.slice(0, 10))}</span></td>
-                  <td>{money(r.competitorNightlyRate)}<span>{t('bên mình')} {money(r.ourNightlyRate)}</span></td>
-                  <td>{money(r.difference)}</td>
+                  <td><b>{money(r.competitorNightlyRate)}</b>
+                    <span>{t('bên mình')} {money(r.ourNightlyRate)}</span></td>
+                  <td><b>{money(r.difference)}</b></td>
                   <td style={{ maxWidth: 260, overflowWrap: 'anywhere' }}>
                     <a href={r.competitorUrl} target="_blank" rel="noreferrer">{r.competitorUrl}</a>
                   </td>
                   <td>
                     <span className={`badge ${r.status === 'Approved' ? 'confirmed'
                       : r.status === 'Rejected' ? 'cancelled' : 'pending'}`}>{t(r.statusLabel)}</span>
-                    {r.decision ? <span>{r.decision}</span> : null}
+                    {r.decision ? <span style={{ display: 'block', marginTop: 4 }}>{r.decision}</span> : null}
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     {r.status === 'Submitted' && <>

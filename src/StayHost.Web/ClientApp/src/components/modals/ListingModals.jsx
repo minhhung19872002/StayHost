@@ -177,11 +177,13 @@ export function ReviewThemes({ themes }) {
       <div className="pill-row">
         {themes.map(x => (
           <span className="pill" key={x.key}>
-            {t(x.label)} · ★ {x.rating.toFixed(1)}
+            {t(x.label)} · ★ {x.rating.toFixed(1)} ·
             {/* One whole-sentence key with a slot: gluing "{n}" to a translated
                 "lượt nhắc" puts the number on the wrong side in Japanese, and a
-                template literal is invisible to scripts/i18n_audit.py. */}
-            <b style={{ marginLeft: 6, fontWeight: 500, opacity: 0.7 }}>
+                template literal is invisible to scripts/i18n_audit.py.
+                The separator before it is a middot, not just a margin: six
+                pixels between "4.7" and "96" reads as "4.796". */}
+            <b style={{ marginLeft: 5, fontWeight: 500, opacity: 0.7 }}>
               {t('{} lượt nhắc').replace('{}', x.mentions)}
             </b>
           </span>
