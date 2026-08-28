@@ -55,7 +55,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (28/08/2026).** 1173 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (28/08/2026).** 1182 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **34/34** kịch bản chuyển tiền cho chủ nhà và đối chiếu sao kê (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
@@ -67,8 +67,9 @@ toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay 
 (`scripts/doc09_acceptance.py`, gồm cả 12 tình huống bắt buộc của `docs/09 §9`) ·
 **10/10** kịch bản của `scripts/unwired_acceptance.py` (`docs/PLAN.md §9.6` — các
 quy tắc từng có mã mà không đường nào gọi tới) ·
-**11/11** kịch bản của `scripts/rolegaps_acceptance.py` (`docs/PLAN.md §9.8` — soát
-theo **vai** khách/chủ nhà, 12 chỗ hở là mã hoàn chỉnh mà không màn hình nào gọi).
+**14/14** kịch bản của `scripts/rolegaps_acceptance.py` (`docs/PLAN.md §9.8` và `§9.9`
+— soát theo **vai** khách/chủ nhà rồi soát ngược theo `docs/02`; 16 chỗ hở là mã
+hoàn chỉnh mà không màn hình nào gọi).
 Sổ sách lệch 0. Cả 203 mã của `docs/01` đã làm xong (`docs/PLAN.md §9`).
 
 > **`acceptance.py` cần DB sạch.** Nó ra 8/10 trên DB đã chạy nhiều lần — **không phải
@@ -537,6 +538,14 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   controller trừ đi đường dẫn `lib/api.js` thật sự gọi, và hàm `api.js` trừ đi
   component thật sự dùng. Nhanh, và bắt được thứ mà đọc theo danh sách mã không bắt
   được. Xem `docs/PLAN.md §9.8`.
+- **Fixture tự bịa dữ liệu đầu vào chỉ kiểm được luật với chính nó.** Kịch bản
+  `TK-06` gửi thẳng ba đường dẫn `/uploads/…` cho `/api/account/identity` vì đó là
+  thứ `Profiles.IsOwnUpload` muốn — và nó xanh. Nhưng ảnh giấy tờ đã chuyển ra
+  ngoài `wwwroot` từ lâu, `UploadsController` trả `/api/identity-files/…`, nên
+  **mọi lần nộp thật đều bị từ chối** bằng "Cần ảnh mặt trước giấy tờ" — nghe như
+  lỗi tấm ảnh của khách. `IdentityChecksTests` cũng đóng đinh đúng cái sai đó bằng
+  ba hằng số `/uploads/`. Kịch bản nghiệm thu phải đi qua **đúng đường mà người
+  dùng đi**, kể cả khi đường đó dài hơn hai dòng.
 - **Ghi bút toán không phải là cộng số dư.** `PriceMatchController` duyệt bù chênh
   lệch thì cộng `booking.GoodwillCredit` và ghi `Ledger.GrantCredit` — nhưng số dư
   tiêu được là tổng các `CreditEntry` (`WalletService.BalanceAsync`), và không dòng
@@ -677,7 +686,7 @@ python scripts/acceptance.py                       # 10 tình huống của docs
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
 python scripts/unwired_acceptance.py               # 10 quy tắc từng không ai gọi (PLAN §9.6)
-python scripts/rolegaps_acceptance.py              # 11 chỗ hở của lượt soát theo vai (PLAN §9.8)
+python scripts/rolegaps_acceptance.py              # 14 chỗ hở của hai lượt soát vai (PLAN §9.8, §9.9)
 python scripts/gateway_acceptance.py               # 30 kịch bản cổng thanh toán, gọi sandbox thật
 python scripts/payout_acceptance.py                # 34 kịch bản chuyển tiền + đối chiếu sao kê (docs/07 §15.4)
 python scripts/vnpay_browser_acceptance.py         # 14 kịch bản: trả tiền THẬT trên trang VNPay (cần playwright)
@@ -789,6 +798,17 @@ Mười hai chỗ hở, tất cả là **mã hoàn chỉnh có test mà không m
 - **`QT-08`** giờ gác hai thứ có thật (`price-match`, `trip-plans`). Hai cờ được seed
   trước đó đặt tên cho hai tính năng chưa từng được xây, và **không mã nào đọc cờ**;
   chúng đã bị xoá khỏi bảng khi ứng dụng khởi động.
+
+### 8.0c. Soát lại lần hai, theo `docs/02` (28/08/2026)
+
+Bốn chỗ nữa, xem `docs/PLAN.md §9.9`. `TK-06` **hỏng ngay bước nộp** (bộ nghiệm
+thu của lượt trước đã che mất — xem bài học ở `§4`); `TK-12` mới làm nửa "xoá",
+thiếu hẳn nửa "tạm vô hiệu hoá"; đơn của chủ nhà và trang đánh giá đều thiếu cách
+gom nhóm mà `docs/02 G6`/`H1` mô tả.
+
+**Cố ý chưa làm:** chia % thu nhập cho co-host (`docs/02 G8`) là **luồng tiền
+mới** mà `docs/01 QL-19` không nhắc — phải hỏi khách trước, như đã làm với tham
+số `docs/06 §10`. Bốn việc nhỏ khác của `docs/02` liệt kê trong `PLAN §9.9`.
 
 ### 8.1. Đang chờ khách
 

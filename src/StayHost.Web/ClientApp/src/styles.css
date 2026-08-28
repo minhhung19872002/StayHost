@@ -1721,6 +1721,12 @@ a.opt { color: inherit; text-decoration: none; display: block; }
 
 /* ------------------------------------------------------- map/card linking */
 .price-marker.is-active { background: var(--ink); color: #fff; transform: scale(1.08); z-index: 500; }
+/* docs/02 C1 — a place already on a wishlist, told apart at a glance. Border and
+   colour, not just colour: a pin has to be readable to somebody who cannot
+   separate the two hues. */
+.price-marker.is-saved { border-color: var(--brand); color: var(--brand-dark); font-weight: 800; }
+.price-marker.is-saved::before { content: '♥'; margin-right: 4px; }
+.price-marker.is-saved.is-active { color: #fff; }
 .card.is-hovered .card-media { box-shadow: 0 0 0 3px var(--ink); }
 
 /* ------------------------------------------------------- checkout stepper */

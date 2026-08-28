@@ -122,6 +122,8 @@ export const api = {
   review: (bookingId, body) =>
     request(`/api/bookings/${bookingId}/review`, { method: 'POST', body: JSON.stringify(body) }),
 
+  /* docs/02 H1 — ba nhóm: cần viết, mình đã viết, viết về mình. */
+  myReviews: () => request('/api/account/reviews'),
   /** docs/01 ĐG-08 — what the guest wrote, and whether it is still theirs to change. */
   myReview: bookingId => request(`/api/bookings/${bookingId}/review`),
   /** docs/01 ĐG-08 — correct a review inside 48 hours, before it goes public. */
@@ -268,6 +270,10 @@ export const api = {
     request(`/api/account/sanctions/${id}/appeal`, { method: 'POST', body: JSON.stringify(body) }),
   appealByToken: body =>
     request('/api/account/sanctions/appeal-by-token', { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/01 TK-12 — nửa "tạm vô hiệu hoá" của mã này. Xoá là nửa còn lại. */
+  pauseState: () => request('/api/account/pause'),
+  pauseAccount: () => request('/api/account/pause', { method: 'POST' }),
+  resumeAccount: () => request('/api/account/resume', { method: 'POST' }),
   myDataRequests: () => request('/api/account/data/requests'),
   askDataRequest: kind =>
     request('/api/account/data/requests', { method: 'POST', body: JSON.stringify({ kind }) }),

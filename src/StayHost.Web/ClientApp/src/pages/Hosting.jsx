@@ -894,7 +894,41 @@ function SessionRegister({ experience }) {
   );
 }
 
+/**
+ * docs/02 G6 — six groups, not one list. The host side had exactly the same
+ * shape the guest's /trips had: every booking in one run, so "who is arriving"
+ * and "who left last spring" sat in the same column.
+ *
+ * The order matters. A stay ending today is read out of "đang ở" into "sắp trả
+ * phòng" because that is the one the host has work for; a booking is only in one
+ * group, and the first rule that claims it wins.
+ */
+const HOST_GROUPS = [
+  ['awaiting', 'Chờ duyệt'],
+  ['leaving', 'Sắp trả phòng'],
+  ['inhouse', 'Đang ở'],
+  ['upcoming', 'Sắp tới'],
+  ['done', 'Đã hoàn tất'],
+  ['cancelled', 'Đã huỷ']
+];
+
+const HOST_CANCELLED = ['Declined', 'Expired', 'PaymentFailed', 'CancelledByGuest', 'CancelledByHost'];
+
+export function hostGroupOf(b, today, tomorrow) {
+  if (b.status === 'PendingHostApproval') return 'awaiting';
+  if (HOST_CANCELLED.includes(b.status)) return 'cancelled';
+  if (b.status === 'Completed' || b.checkOut < today) return 'done';
+
+  const inHouse = b.status === 'InProgress' || (b.checkIn <= today && today < b.checkOut);
+  if (inHouse) return b.checkOut <= tomorrow ? 'leaving' : 'inhouse';
+
+  // Still to be paid for, still to arrive: both are work ahead, not work now.
+  return 'upcoming';
+}
+
 function Bookings({ d, navigate }) {
+  const [group, setGroup] = useState(null);
+
   if (!d.bookings.length) {
     return (
       <div className="empty-state" style={{ marginTop: 24 }}>
@@ -903,7 +937,34 @@ function Bookings({ d, navigate }) {
       </div>
     );
   }
-  return <div style={{ marginTop: 24 }}>{d.bookings.map(b => <BookingRow key={b.id} booking={b} navigate={navigate} />)}</div>;
+
+  const today = todayIso();
+  const tomorrow = todayIso(1);
+  const counts = Object.fromEntries(HOST_GROUPS.map(([key]) => [key, 0]));
+  for (const b of d.bookings) counts[hostGroupOf(b, today, tomorrow)] += 1;
+
+  // Open on the first group with something in it, so a host whose only work is
+  // an arrival next week does not land on an empty "chờ duyệt".
+  const active = group ?? HOST_GROUPS.find(([key]) => counts[key] > 0)?.[0] ?? 'awaiting';
+  const rows = d.bookings.filter(b => hostGroupOf(b, today, tomorrow) === active);
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div className="seg-tabs" role="tablist" style={{ marginBottom: 18 }}>
+        {HOST_GROUPS.map(([key, label]) => (
+          <button role="tab" key={key} aria-selected={active === key}
+                  className={`seg-tab ${active === key ? 'is-active' : ''}`}
+                  onClick={() => setGroup(key)}>
+            {t(label)} ({counts[key]})
+          </button>
+        ))}
+      </div>
+
+      {rows.length
+        ? rows.map(b => <BookingRow key={b.id} booking={b} navigate={navigate} />)
+        : <p className="section-sub">{t('Không có đơn nào trong nhóm này.')}</p>}
+    </div>
+  );
 }
 
 /** docs/03 §3 — the host has 24 hours before the request expires by itself. */

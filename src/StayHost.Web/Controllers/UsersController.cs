@@ -26,6 +26,13 @@ public class UsersController(StayHostDbContext db, CatalogService catalog) : Con
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
         if (user is null) return NotFound(new { message = "Không tìm thấy người dùng này." });
 
+        // docs/01 TK-12 — somebody who paused their own account is not on the
+        // platform for the moment, and a profile page that still answers is the
+        // one place they would still be. The same message as a missing account:
+        // whether a particular person has stepped away is their business.
+        if (user.PausedAt is not null)
+            return NotFound(new { message = "Không tìm thấy người dùng này." });
+
         var host = await db.Hosts.FirstOrDefaultAsync(h => h.UserId == user.Id, ct);
         var displayName = Profiles.DisplayNameOf(user.DisplayName, user.FullName);
 

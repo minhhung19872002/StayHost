@@ -862,9 +862,16 @@ function BookingOutcome({ result }) {
     <div className="book-alert">
       <b>{t('Đã đặt xong')} · {result.reference}</b>
       <span>{summary} {t('Chi tiết nằm trong mục Chuyến đi.')}</span>
-      <button className="text-btn" style={{ marginTop: 8 }} onClick={() => navigate('/trips')}>
-        {t('Xem chuyến đi')}
-      </button>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' }}>
+        <button className="text-btn" onClick={() => navigate('/trips')}>
+          {t('Xem chuyến đi')}
+        </button>
+        {/* docs/02 D3 — the confirmation is the moment somebody puts the dates
+            in their own calendar, not a week later on the trip page. */}
+        <a className="text-btn" href={`/api/bookings/${result.id}/calendar.ics`}>
+          {t('Thêm vào lịch của tôi')}
+        </a>
+      </div>
     </div>
   );
 }

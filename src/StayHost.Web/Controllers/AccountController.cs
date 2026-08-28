@@ -346,6 +346,258 @@ public class AccountController(
         return Ok(await ToDtoAsync(user, ct));
     }
 
+
+    /* ------------------------------------------ docs/02 H1: my reviews */
+
+    /// <summary>
+    /// docs/02 H1 — the three groups a person's reviews fall into: the ones
+    /// still owed, the ones they wrote, and the ones written about them.
+    ///
+    /// Every piece of this existed and none of it was gathered anywhere: a guest
+    /// could review a stay only from the trip it belonged to, could not read
+    /// back what they had written without opening each trip, and could see what
+    /// hosts said about them only by visiting their own public profile — a page
+    /// built for other people to look at.
+    ///
+    /// Both sides are answered in one call because one account is often both: a
+    /// host owes reviews of their guests under docs/01 ĐG-06 exactly as a guest
+    /// owes reviews of the stay under ĐG-01.
+    /// </summary>
+    [HttpGet("reviews")]
+    public async Task<ActionResult<MyReviewsDto>> MyReviews(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var now = DateTime.UtcNow;
+        var hostId = await db.Hosts.Where(h => h.UserId == user.Id)
+            .Select(h => (int?)h.Id).FirstOrDefaultAsync(ct);
+
+        // docs/01 ĐG-01 — only a completed stay is reviewable, and docs/01 ĐG-02
+        // closes the window fourteen days after check-out.
+        var completed = await db.Bookings
+            .Where(b => b.Status == BookingStatus.Completed
+                        && (b.GuestUserId == user.Id
+                            || (hostId != null && b.Listing!.HostId == hostId)))
+            .OrderByDescending(b => b.CheckOut)
+            .Take(200)
+            .Select(b => new
+            {
+                b.Id, b.Reference, b.CheckOut, b.GuestUserId,
+                ListingTitle = b.Listing!.Title,
+                HostId = b.Listing.HostId,
+                Image = b.Listing.Images.OrderBy(i => i.SortOrder).Select(i => i.Url).FirstOrDefault(),
+                GuestName = b.GuestUser!.DisplayName ?? b.GuestUser.FullName,
+                HostName = b.Listing.Host!.Name,
+                HasGuestReview = db.Reviews.Any(r => r.BookingId == b.Id),
+                HasHostReview = db.GuestReviews.Any(r => r.BookingId == b.Id)
+            })
+            .ToListAsync(ct);
+
+        var todo = new List<ReviewTodoDto>();
+        foreach (var b in completed)
+        {
+            var deadline = b.CheckOut.ToDateTime(TimeOnly.MinValue) + ReviewService.Window;
+            if (now >= deadline) continue;
+
+            var days = (int)Math.Ceiling((deadline - now).TotalDays);
+
+            if (b.GuestUserId == user.Id && !b.HasGuestReview)
+                todo.Add(new ReviewTodoDto(b.Id, b.Reference, b.ListingTitle, b.Image,
+                    b.CheckOut, deadline, days, "guest", b.HostName));
+
+            if (hostId != null && b.HostId == hostId && !b.HasHostReview)
+                todo.Add(new ReviewTodoDto(b.Id, b.Reference, b.ListingTitle, b.Image,
+                    b.CheckOut, deadline, days, "host", b.GuestName));
+        }
+
+        // What this person wrote: about a place as a guest, and about a guest as
+        // a host. Unpublished ones are theirs to see — they wrote them.
+        var mineOfStays = await db.Reviews
+            .Where(r => r.AuthorUserId == user.Id)
+            .OrderByDescending(r => r.CreatedAt).Take(100)
+            .Select(r => new MyReviewDto(
+                r.Id, r.BookingId, r.Text, r.Rating, r.When, r.CreatedAt,
+                r.Listing!.Title, null,
+                r.PublishedAt != null,
+                r.PublishedAt == null && (r.EditableUntil == null || r.EditableUntil >= now),
+                r.HostReply, null))
+            .ToListAsync(ct);
+
+        var mineOfGuests = await db.GuestReviews
+            .Where(r => r.HostUserId == user.Id)
+            .OrderByDescending(r => r.CreatedAt).Take(100)
+            .Select(r => new MyReviewDto(
+                r.Id, r.BookingId, r.Text, r.Rating,
+                Profiles.MonthLabel(r.CreatedAt), r.CreatedAt,
+                r.Booking!.Listing!.Title,
+                r.GuestUser!.DisplayName ?? r.GuestUser.FullName,
+                r.PublishedAt != null,
+                false, null, r.WouldHostAgain))
+            .ToListAsync(ct);
+
+        // docs/03 §7 — what others said is only readable once it is public. A
+        // blind review shown early to the person it is about is not blind.
+        var aboutMeAsGuest = await db.GuestReviews
+            .Where(r => r.GuestUserId == user.Id && r.PublishedAt != null)
+            .OrderByDescending(r => r.CreatedAt).Take(100)
+            .Select(r => new MyReviewDto(
+                r.Id, r.BookingId, r.Text, r.Rating,
+                Profiles.MonthLabel(r.CreatedAt), r.CreatedAt,
+                r.Booking!.Listing!.Title,
+                r.HostUser!.DisplayName ?? r.HostUser.FullName,
+                true, false, null, r.WouldHostAgain))
+            .ToListAsync(ct);
+
+        var aboutMyPlaces = hostId is null
+            ? []
+            : await db.Reviews
+                .Where(r => r.Listing!.HostId == hostId && r.PublishedAt != null)
+                .OrderByDescending(r => r.CreatedAt).Take(100)
+                .Select(r => new MyReviewDto(
+                    r.Id, r.BookingId, r.Text, r.Rating, r.When, r.CreatedAt,
+                    r.Listing!.Title, r.AuthorName,
+                    true, false, r.HostReply, null))
+                .ToListAsync(ct);
+
+        return Ok(new MyReviewsDto(
+            todo.OrderBy(x => x.Deadline).ToList(),
+            mineOfStays.Concat(mineOfGuests).OrderByDescending(r => r.CreatedAt).ToList(),
+            aboutMeAsGuest.Concat(aboutMyPlaces).OrderByDescending(r => r.CreatedAt).ToList()));
+    }
+
+
+    /* ------------------------------------ docs/01 TK-12: pausing an account */
+
+    /// <summary>
+    /// docs/01 TK-12 — "tạm vô hiệu hoá hoặc xoá tài khoản". The erase half has
+    /// existed since the data-request work; this half had no column, no endpoint
+    /// and no button, and the code was ticked anyway because one clause of an
+    /// "hoặc" was done.
+    ///
+    /// Listings come off sale the way a sanction takes them off — by
+    /// unpublishing, which <see cref="Availability"/> already refuses to book
+    /// against — rather than by a new condition threaded through the six search
+    /// queries. One mechanism, already tested, and nothing to keep in sync.
+    /// </summary>
+    [HttpPost("pause")]
+    public async Task<ActionResult<AccountPauseDto>> Pause(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+        if (user.PausedAt is not null) return Ok(await PauseStateAsync(user, ct));
+
+        var live = await LiveBookingCountAsync(user, ct);
+        // docs/01 TC-01 — money the platform is still holding for this host has
+        // to land before they disappear; the payout state lives on the payment,
+        // not on the booking.
+        var owed = await db.Payments
+            .Where(p => p.Booking!.Listing!.Host!.UserId == user.Id
+                        && (p.PayoutStatus == PayoutStatus.Scheduled
+                            || p.PayoutStatus == PayoutStatus.OnHold
+                            || p.PayoutStatus == PayoutStatus.Sent)
+                        && p.Status == PaymentStatus.Captured)
+            .SumAsync(p => (decimal?)p.HostPayout, ct) ?? 0m;
+
+        var check = AccountPause.CanPause(user.IsSuspended, user.IsBanned, live, owed);
+        if (!check.Ok) return BadRequest(new { message = check.Message, reason = check.Reason.ToString() });
+
+        var now = DateTime.UtcNow;
+        user.PausedAt = now;
+
+        var host = await db.Hosts.FirstOrDefaultAsync(h => h.UserId == user.Id, ct);
+        if (host is not null)
+        {
+            foreach (var l in await db.Listings
+                         .Where(l => l.HostId == host.Id && l.IsPublished).ToListAsync(ct))
+            {
+                l.IsPublished = false;
+                l.HiddenByPauseAt = now;
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+        return Ok(await PauseStateAsync(user, ct));
+    }
+
+    /// <summary>
+    /// docs/01 TK-12 — coming back. Signing in does this on its own
+    /// (<see cref="AccountPause.ResumesOnSignIn"/>); this is the same gesture for
+    /// somebody already signed in who changed their mind on the settings page.
+    /// </summary>
+    [HttpPost("resume")]
+    public async Task<ActionResult<AccountPauseDto>> Resume(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        await ResumeAsync(db, user, ct);
+        await db.SaveChangesAsync(ct);
+        return Ok(await PauseStateAsync(user, ct));
+    }
+
+    [HttpGet("pause")]
+    public async Task<ActionResult<AccountPauseDto>> PauseState(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+        return Ok(await PauseStateAsync(user, ct));
+    }
+
+    /// <summary>
+    /// Lifts a pause and puts back exactly the listings the pause took down.
+    ///
+    /// A listing a sanction is also holding down stays down: resuming your own
+    /// pause must not undo somebody else's decision (docs/08 §5.5).
+    /// </summary>
+    internal static async Task ResumeAsync(StayHostDbContext db, User user, CancellationToken ct)
+    {
+        if (user.PausedAt is null) return;
+        user.PausedAt = null;
+
+        var host = await db.Hosts.FirstOrDefaultAsync(h => h.UserId == user.Id, ct);
+        if (host is null) return;
+
+        foreach (var l in await db.Listings
+                     .Where(l => l.HostId == host.Id && l.HiddenByPauseAt != null).ToListAsync(ct))
+        {
+            l.HiddenByPauseAt = null;
+            if (l.HiddenBySanctionAt is null) l.IsPublished = true;
+        }
+    }
+
+    /// <summary>
+    /// Stays that would be left without one of their two sides. Counted for both
+    /// roles because one account is often both.
+    /// </summary>
+    private async Task<int> LiveBookingCountAsync(User user, CancellationToken ct)
+    {
+        BookingStatus[] live =
+        [
+            BookingStatus.PendingHostApproval, BookingStatus.PendingPayment,
+            BookingStatus.Confirmed, BookingStatus.InProgress
+        ];
+
+        return await db.Bookings.CountAsync(
+            b => live.Contains(b.Status)
+                 && (b.GuestUserId == user.Id || b.Listing!.Host!.UserId == user.Id), ct);
+    }
+
+    private async Task<AccountPauseDto> PauseStateAsync(User user, CancellationToken ct)
+    {
+        var live = await LiveBookingCountAsync(user, ct);
+        var check = AccountPause.CanPause(user.IsSuspended, user.IsBanned, live, 0m);
+
+        var hidden = await db.Listings.CountAsync(
+            l => l.HiddenByPauseAt != null && l.Host!.UserId == user.Id, ct);
+
+        return new AccountPauseDto(
+            user.PausedAt is not null, user.PausedAt, hidden, live,
+            user.PausedAt is null && check.Ok,
+            user.PausedAt is null && !check.Ok ? check.Message : null,
+            AccountPause.Notice);
+    }
+
     /* --------------------------------------- docs/01 TM-23: saved searches */
 
     /// <summary>docs/01 TM-23 — the searches this account asked to be alerted about.</summary>

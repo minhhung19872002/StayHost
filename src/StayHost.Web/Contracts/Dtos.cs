@@ -424,6 +424,57 @@ public record ReviewGuestRequest(double Rating, string Text, bool WouldHostAgain
 
 public record CreateBlockRequest(int ListingId, DateOnly From, DateOnly To, string? Note);
 
+/// <summary>docs/01 TK-12 — whether this account is paused, and whether it may be.</summary>
+public record AccountPauseDto(
+    bool IsPaused,
+    DateTime? PausedAt,
+    int HiddenListings,
+    int LiveBookings,
+    bool CanPause,
+    string? Blocker,
+    string Notice);
+
+/* ---- docs/02 H1: everything one person's reviews add up to ---------------- */
+
+/// <summary>One stay still waiting to be reviewed, and how long is left.</summary>
+public record ReviewTodoDto(
+    int BookingId,
+    string Reference,
+    string ListingTitle,
+    string? ListingImage,
+    DateOnly CheckOut,
+    DateTime Deadline,
+    int DaysLeft,
+    /// <summary>"guest" writes about the stay, "host" writes about the guest.</summary>
+    string Side,
+    string? CounterpartName);
+
+/// <summary>One review this person wrote, or one written about them.</summary>
+public record MyReviewDto(
+    int Id,
+    int? BookingId,
+    string Text,
+    double Rating,
+    string When,
+    DateTime CreatedAt,
+    string? ListingTitle,
+    /// <summary>Who wrote it, for the ones about this person.</summary>
+    string? AuthorName,
+    /// <summary>docs/03 §7 — false while the other side has not written theirs.</summary>
+    bool IsPublic,
+    /// <summary>docs/01 ĐG-08 — still inside the 48 hours, and still unpublished.</summary>
+    bool CanEdit,
+    /// <summary>docs/01 TĐ-12 — the host's public answer, when there is one.</summary>
+    string? HostReply,
+    /// <summary>docs/01 ĐG-06 — set only on a host's review of a guest.</summary>
+    bool? WouldHostAgain);
+
+/// <summary>docs/02 H1 — the three groups the reviews screen is made of.</summary>
+public record MyReviewsDto(
+    IReadOnlyList<ReviewTodoDto> ToWrite,
+    IReadOnlyList<MyReviewDto> Written,
+    IReadOnlyList<MyReviewDto> AboutMe);
+
 /// <summary>
 /// docs/01 ĐG-08 — a guest's own review, read back so they can correct it
 /// inside the 48 hours. <c>IsPublic</c> and <c>EditableUntil</c> are both said

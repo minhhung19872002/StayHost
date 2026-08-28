@@ -1065,6 +1065,71 @@ function NotificationMatrix() {
  * and docs/08 §9, the formal requests that go to a person: a copy delivered by
  * a time-limited link, or the account itself erased.
  */
+/**
+ * docs/01 TK-12 — stepping away without deleting anything.
+ *
+ * Deliberately not the same thing as the suspensions of docs/08 §5: those are
+ * something the platform does to somebody, with a policy and an appeal. This is
+ * somebody's own choice, and it ends the moment they sign back in.
+ */
+function PauseAccount() {
+  const [state, setState] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = () => api.pauseState().then(setState).catch(() => setState(null));
+  useEffect(() => { load(); }, []);
+
+  if (!state) return null;
+
+  const run = async (fn, done) => {
+    setBusy(true);
+    try { setState(await fn()); toast(done); await loadMe(); }
+    catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
+  if (state.isPaused) {
+    return (
+      <div className="notice" style={{ display: 'grid', gap: 10 }}>
+        <b>{t('Tài khoản đang tạm dừng')}</b>
+        <span style={{ fontSize: 13.5, lineHeight: 1.55, color: 'var(--ink-body)' }}>{state.notice}</span>
+        {state.hiddenListings > 0 && (
+          <span className="field-note" style={{ margin: 0 }}>
+            {t('{} tin đăng đang được ẩn và sẽ hiện lại khi bạn quay lại.').replace('{}', state.hiddenListings)}
+          </span>
+        )}
+        <div>
+          <button className="btn btn-primary btn-sm" disabled={busy}
+                  onClick={() => run(api.resumeAccount, 'Đã mở lại tài khoản.')}>
+            {t('Mở lại tài khoản')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      <p className="field-note" style={{ margin: 0 }}>
+        {t('Tạm dừng là bước nhẹ hơn xoá: tin đăng được ẩn, không ai đặt hay nhắn tin được, và hồ sơ công khai của bạn không hiện. Không có gì bị xoá, đăng nhập lại là mở lại.')}
+      </p>
+      {state.canPause ? (
+        <div>
+          <button className="btn btn-outline btn-sm" disabled={busy}
+                  onClick={() => {
+                    if (!confirm(t('Tạm dừng tài khoản? Đăng nhập lại bất cứ lúc nào để mở lại.'))) return;
+                    run(api.pauseAccount, 'Đã tạm dừng tài khoản.');
+                  }}>
+            {t('Tạm dừng tài khoản')}
+          </button>
+        </div>
+      ) : (
+        <p className="notice notice-warn" style={{ margin: 0 }}>{state.blocker}</p>
+      )}
+    </div>
+  );
+}
+
 function DataPanel() {
   const [requests, setRequests] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -1095,6 +1160,13 @@ function DataPanel() {
       <p className="field-note" style={{ margin: 0 }}>
         {t('Tệp gồm cả dữ liệu giao dịch mà sàn phải giữ cho nghĩa vụ kế toán.')}
       </p>
+
+      <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '4px 0' }} />
+
+      {/* docs/01 TK-12 — "tạm vô hiệu hoá hoặc xoá". Only the erase half was
+          ever built, and the code counted as done because one clause of an
+          "hoặc" was there. */}
+      <PauseAccount />
 
       <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '4px 0' }} />
 

@@ -18,6 +18,7 @@ import { Browse } from './pages/Browse.jsx';
 import { Detail } from './pages/Detail.jsx';
 import { Wishlists } from './pages/Wishlists.jsx';
 import { Trips } from './pages/Trips.jsx';
+import { Reviews } from './pages/Reviews.jsx';
 import { Trip } from './pages/Trip.jsx';
 import { Host } from './pages/Host.jsx';
 import { Hosting } from './pages/Hosting.jsx';
@@ -164,6 +165,8 @@ export function App() {
             <Route path="/wishlist/:token" element={<SharedWishlist />} />
             <Route path="/wishlists" element={<Wishlists />} />
             <Route path="/trips" element={<Trips />} />
+            {/* docs/02 H1 — cần viết · tôi đã viết · về tôi */}
+            <Route path="/danh-gia" element={<Reviews />} />
             <Route path="/trips/:id" element={<Trip />} />
             <Route path="/host" element={<Host />} />
             <Route path="/hosting" element={<Hosting />} />

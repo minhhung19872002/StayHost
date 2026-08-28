@@ -116,21 +116,60 @@ def esc(s):
 
 
 # ----------------------------------------------------------------- TK-06
+def upload_identity_photo(op, label):
+    """docs/08 §4 — the real uploader, which stores the file outside the web root
+    and answers with the /api/identity-files/ address that serves it.
+
+    This suite used to hand /api/account/identity three made-up /uploads/ URLs
+    because that is what the validator wanted. It passed, and the product was
+    broken: the uploader has never answered that shape, so every real submission
+    was refused with a complaint about the guest's own photo. A fixture that
+    invents its input can only test the validator against itself."""
+    # A one-pixel PNG is a real image as far as the content-type check goes.
+    png = bytes([
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+        0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00,
+        0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+        0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
+        0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82])
+
+    boundary = "----staylio%s%s" % (RUN, label)
+    body = (
+        ("--%s\r\n" % boundary).encode()
+        + ('Content-Disposition: form-data; name="files"; filename="%s.png"\r\n' % label).encode()
+        + b"Content-Type: image/png\r\n\r\n" + png + b"\r\n"
+        + ("--%s--\r\n" % boundary).encode())
+
+    r = urllib.request.Request(
+        B + "/api/uploads/identity", data=body,
+        headers={"Content-Type": "multipart/form-data; boundary=" + boundary},
+        method="POST")
+    try:
+        return json.loads(op.open(r).read().decode())["urls"][0]
+    except urllib.error.HTTPError as e:
+        raise SystemExit("upload identity: %s %s" % (e.code, e.read().decode()[:200]))
+
+
 def s1_identity_queue():
     """A guest uploads papers; before this nothing on any screen could approve
-    them, so IdentityVerified could never turn true and docs/01 ĐP-03 / ĐP-10
+    them, so IsIdentityVerified could never turn true and docs/01 ĐP-03 / ĐP-10
     both read a flag that no path set."""
     op, uid = register("kyc%s@staylio.vn" % RUN, "Khach xac minh")
 
-    # docs/08 §4.2 — the three files must be this account's own uploads, which
-    # is what Profiles.IsOwnUpload checks; a URL from anywhere else is refused.
-    st, _ = call(op, "/api/account/identity", {
+    front = upload_identity_photo(op, "front")
+    back = upload_identity_photo(op, "back")
+    selfie = upload_identity_photo(op, "selfie")
+
+    # docs/08 §4 — the papers are stored outside the web root, so the uploader
+    # answers with the guarded route rather than the public /uploads/ folder.
+    stored_privately = all(u.startswith("/api/identity-files/") for u in (front, back, selfie))
+
+    st, res = call(op, "/api/account/identity", {
         "document": "NationalId", "documentNumber": "079090001234",
-        "frontImageUrl": "/uploads/kyc-%s-front.jpg" % RUN,
-        "backImageUrl": "/uploads/kyc-%s-back.jpg" % RUN,
-        "selfieImageUrl": "/uploads/kyc-%s-selfie.jpg" % RUN})
+        "frontImageUrl": front, "backImageUrl": back, "selfieImageUrl": selfie})
     if st not in (200, 201, 204):
-        return ok("TK-06 hang cho xac minh danh tinh", False, "submit %s" % st)
+        return ok("TK-06 hang cho xac minh danh tinh", False, "submit %s %s" % (st, res))
 
     admin, _ = make_admin("kycadmin")
     st, queue = call(admin, "/api/admin/identity")
@@ -144,8 +183,10 @@ def s1_identity_queue():
 
     verified = sql('select "IsIdentityVerified" from users where "Id"=%d' % uid)
     status = sql('select "Status" from identity_checks where "UserId"=%d' % uid)
-    ok("TK-06 hang cho xac minh danh tinh", st in (200, 204) and verified == "t" and status == "1",
-       "decide %s, IdentityVerified=%s, Status=%s" % (st, verified, status))
+    ok("TK-06 nop giay to that roi duoc duyet",
+       stored_privately and st in (200, 204) and verified == "t" and status == "1",
+       "luu ngoai wwwroot=%s, decide %s, IsIdentityVerified=%s, Status=%s"
+       % (stored_privately, st, verified, status))
 
 
 # ----------------------------------------------------------------- ĐG-07
@@ -541,6 +582,122 @@ def s10_feature_flags():
        % (flags.get(key), off.get(key), back.get(key), dead))
 
 
+# ----------------------------------------------------------------- TK-12
+def s11_pause_account():
+    """docs/01 TK-12 — "tạm vô hiệu hoá hoặc xoá tài khoản". The erase half has
+    existed for months; this one had no column, no endpoint and no button, and
+    the code counted as done because one clause of an "hoặc" was there."""
+    email = "pause%s@staylio.vn" % RUN
+    op, uid = register(email, "Khach tam dung")
+
+    # A host with a place on sale, so the effect is visible in the database
+    # rather than only in a flag.
+    call(op, "/api/account/become-host")
+    st, made = call(op, "/api/host/listings", {
+        "title": "Nha thu nghiem tam dung %s" % RUN,
+        "city": "Đà Nẵng", "description": "Mo ta du dai cho qua kiem tra toi thieu bon muoi ky tu.",
+        "pricePerNight": 900000, "maxGuests": 4, "bedrooms": 1, "beds": 2, "bathrooms": 1,
+        "minNights": 1, "typeKey": "villa", "roomTypeKey": "entire",
+        "cancellationTier": "Moderate",
+        "images": ["/uploads/a.jpg", "/uploads/b.jpg", "/uploads/c.jpg",
+                   "/uploads/d.jpg", "/uploads/e.jpg"],
+        "amenityKeys": [], "isPublished": True})
+    if st not in (200, 201):
+        return ok("TK-12 tam dung tai khoan", False, "listing %s %s" % (st, made))
+    lid = made["id"]
+    sql('update listings set "IsPublished"=true, "ReviewStatus"=0 where "Id"=%d' % lid)
+
+    st, before = call(op, "/api/account/pause")
+    st2, paused = call(op, "/api/account/pause", {})
+
+    hidden = sql('select "IsPublished" || \'|\' || (case when "HiddenByPauseAt" is null '
+                 'then \'no\' else \'yes\' end) from listings where "Id"=%d' % lid)
+    flag = sql('select case when "PausedAt" is null then \'no\' else \'yes\' end '
+               'from users where "Id"=%d' % uid)
+
+    # docs/01 TK-12 — the public profile is not somewhere a paused person is
+    # still on the platform.
+    st3, _ = call(opener(), "/api/users/%d" % uid)
+
+    # Signing in is the whole gesture that ends it (AccountPause.ResumesOnSignIn).
+    back = sign_in(email)
+    st4, state = call(back, "/api/account/pause")
+    restored = sql('select "IsPublished" || \'|\' || (case when "HiddenByPauseAt" is null '
+                   'then \'no\' else \'yes\' end) from listings where "Id"=%d' % lid)
+
+    ok("TK-12 tam dung tai khoan roi quay lai",
+       before.get("canPause") and st2 == 200 and paused.get("isPaused")
+       and hidden == "false|yes" and flag == "yes" and st3 == 404
+       and state.get("isPaused") is False and restored == "true|no",
+       "cho phep=%s, tin dang khi dung=%s, ho so cong khai=%s, sau khi dang nhap lai=%s"
+       % (before.get("canPause"), hidden, st3, restored))
+
+
+def s12_pause_refused_while_a_stay_is_live(guest_op):
+    """A pause that could strand a booked guest is not a pause, it is a
+    disappearance. Refused with the count said out loud."""
+    lid = int(sql('select "Id" from listings where "IsPublished"=true and "Type"<>7 '
+                  'and "InstantBook"=true order by "Id" limit 1'))
+    today = utc_today()
+    near = 90 + int(RUN) % 60
+    st, res = call(guest_op, "/api/bookings", {
+        "listingId": lid,
+        "checkIn": (today + datetime.timedelta(days=near)).isoformat(),
+        "checkOut": (today + datetime.timedelta(days=near + 2)).isoformat(),
+        "adults": 2, "children": 0, "infants": 0, "pets": 0, "agreedToRules": True})
+    if st not in (200, 201):
+        return ok("TK-12 khong tam dung khi con don hieu luc", False, "book %s %s" % (st, res))
+
+    st2, pay = gateway.pay(call, guest_op, res["id"], {"paymentMethod": "card", "cardLast4": "4242"})
+    if st2 not in (200, 201):
+        return ok("TK-12 khong tam dung khi con don hieu luc", False, "pay %s %s" % (st2, pay))
+
+    st3, state = call(guest_op, "/api/account/pause")
+    st4, refused = call(guest_op, "/api/account/pause", {})
+
+    still = sql('select count(*) from users u where u."PausedAt" is not null and u."Id"='
+                '(select "GuestUserId" from bookings where "Id"=%d)' % res["id"])
+
+    ok("TK-12 khong tam dung khi con don hieu luc",
+       state.get("canPause") is False and st4 == 400
+       and refused.get("reason") == "HasLiveBookings" and still == "0",
+       "canPause=%s, POST=%s, ly do=%s, van chua bi dung=%s"
+       % (state.get("canPause"), st4, refused.get("reason"), still == "0"))
+
+
+# ----------------------------------------------------------------- docs/02 H1
+def s13_my_reviews():
+    """docs/02 H1 — the three groups. Every piece existed and none of it was
+    gathered: a stay could be reviewed only from its own trip page, what you had
+    written could not be read back without opening each trip, and what hosts said
+    about you was visible only on your own public profile."""
+    uid = int(sql('select "GuestUserId" from bookings b where "GuestUserId" is not null '
+                  'and exists (select 1 from reviews r where r."BookingId"=b."Id" '
+                  'and r."AuthorUserId"=b."GuestUserId") order by b."Id" desc limit 1'))
+    op = sign_in(sql('select "Email" from users where "Id"=%d' % uid))
+
+    st, d = call(op, "/api/account/reviews")
+    if st != 200:
+        return ok("H1 trang danh gia ba nhom", False, "st %s" % st)
+
+    written = d.get("written") or []
+    todo = d.get("toWrite") or []
+
+    # docs/03 §7 — an unpublished review is the writer's to see and nobody
+    # else's, so the "about me" group must never carry one.
+    about_all_public = all(r["isPublic"] for r in (d.get("aboutMe") or []))
+    # docs/01 ĐG-02 — the fourteen days are the point of the "cần viết" group.
+    deadlines_sane = all(0 < r["daysLeft"] <= 14 for r in todo)
+    mine_only = int(sql('select count(*) from reviews where "AuthorUserId"=%d' % uid)) >= len(
+        [r for r in written if r["wouldHostAgain"] is None])
+
+    ok("H1 trang danh gia ba nhom",
+       written and about_all_public and deadlines_sane and mine_only,
+       "can viet=%d, da viet=%d, ve toi=%d, ve toi deu da cong khai=%s, han hop le=%s"
+       % (len(todo), len(written), len(d.get("aboutMe") or []),
+          about_all_public, deadlines_sane))
+
+
 def main():
     print("=" * 70)
     print("Soat vai tro khach & chu nha — cac quy tac tung khong co duong goi toi")
@@ -562,6 +719,9 @@ def main():
     s8_split_view(guest_op)
     s9_review_insights()
     s10_feature_flags()
+    s11_pause_account()
+    s12_pause_refused_while_a_stay_is_live(guest_op)
+    s13_my_reviews()
 
     after = ledger_off()
     ok("So sach van can bang", abs(float(after)) < 0.01,

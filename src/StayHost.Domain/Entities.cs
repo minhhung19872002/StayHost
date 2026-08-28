@@ -304,6 +304,18 @@ public class Listing
     /// had chosen to keep offline. While set, the host cannot republish.
     /// </summary>
     public DateTime? HiddenBySanctionAt { get; set; }
+
+    /// <summary>
+    /// docs/01 TK-12 — set when the host paused their own account, so coming
+    /// back republishes exactly the listings the pause took down and not the
+    /// drafts they had deliberately left offline.
+    ///
+    /// A separate column from <see cref="HiddenBySanctionAt"/> rather than a
+    /// shared one: a listing can be hidden by both at once, and resuming a
+    /// pause must not put a sanctioned listing back on sale.
+    /// </summary>
+    public DateTime? HiddenByPauseAt { get; set; }
+
     public bool InstantBook { get; set; } = true;
 
     /// <summary>docs/01 ĐP-03 — instant book only for identity-verified guests.</summary>

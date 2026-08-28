@@ -283,6 +283,12 @@ public class AuthService(StayHostDbContext db, IHttpContextAccessor accessor)
 
     private async Task IssueSessionAsync(User user, CancellationToken ct)
     {
+        // docs/01 TK-12 — a pause ends by coming back, and this is the one place
+        // every way in passes through: password, the second factor, and each of
+        // the three external providers. Hooking the password path alone would
+        // leave somebody who signs in with Google paused forever.
+        await Controllers.AccountController.ResumeAsync(db, user, ct);
+
         var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
         db.AuthSessions.Add(new AuthSession
         {

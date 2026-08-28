@@ -35,6 +35,7 @@ public static class Seo
         // Somebody's own account. Nothing here belongs in a public index, and
         // /users/ in particular is a real person's profile.
         "/trips",
+        "/danh-gia",
         "/hosting",
         "/messages",
         "/wishlists",
@@ -240,7 +241,7 @@ public static class SpaRoutes
     public static readonly string[] Fixed =
     [
         "/",
-        "/wishlists", "/trips", "/host", "/hosting", "/messages", "/resolutions",
+        "/wishlists", "/trips", "/danh-gia", "/host", "/hosting", "/messages", "/resolutions",
         "/help", "/experiences", "/experiences/bookings", "/services",
         "/services/bookings", "/wallet", "/shield", "/shield/terms",
         "/thanh-toan/ket-qua", "/account/sanctions", "/appeal", "/neighbors",

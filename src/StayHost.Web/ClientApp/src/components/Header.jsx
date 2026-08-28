@@ -427,6 +427,8 @@ function AccountMenu() {
         <button role="menuitem" aria-current={here('/trips')} onClick={() => goTo('/trips')}>{t('Chuyến đi của tôi')}</button>
         {/* docs/01 QT-08 — a real rollout switch on a real P2 feature, so the
             console's percentages move something. Unknown to the server means on. */}
+        {/* docs/02 H1 — the reviews screen, next to the trips it follows from. */}
+        <button role="menuitem" aria-current={here('/danh-gia')} onClick={() => goTo('/danh-gia')}>{t('Đánh giá')}</button>
         {featureOn('trip-plans') && (
           <button role="menuitem" aria-current={here('/trip-plans')} onClick={() => goTo('/trip-plans')}>{t('Lịch trình chuyến đi')}</button>
         )}

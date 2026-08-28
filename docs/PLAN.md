@@ -921,7 +921,44 @@ một kiểu mới — không phải thiếu mã, mà thiếu **đường vào**
 # Cả hai đều là "tín hiệu, không phải kết luận" (§9.6) — đi xem từng cái.
 ```
 
-Nghiệm thu: `python scripts/rolegaps_acceptance.py` — 11 kịch bản, mỗi cái lái
+### 9.9. Soát lại lần hai, từ những góc chưa dùng (28/08/2026)
+
+Lượt §9.8 soát bằng hai phép trừ endpoint ↔ giao diện. Lượt này đi ngược lại —
+đọc `docs/02` màn hình một, và soát **từng vế** của các yêu cầu ghép — và ra thêm
+bốn chỗ, trong đó **một lỗi mà chính bộ nghiệm thu của §9.8 đã che mất**.
+
+| Chỗ hở | Nội dung |
+|---|---|
+| **`TK-06` hỏng ngay bước đầu** | `IdentityChecks.CanSubmit` gọi `Profiles.IsOwnUpload`, hàm trả lời cho thư mục công khai `/uploads/`. Nhưng ảnh giấy tờ đã chuyển ra ngoài `wwwroot` từ lâu và `UploadsController` trả `/api/identity-files/…`, nên **mọi lần nộp thật đều bị từ chối** bằng câu "Cần ảnh mặt trước giấy tờ" — một lời phàn nàn về chính tấm ảnh của khách. Giờ có `IdentityChecks.IsIdentityUpload` |
+| **`TK-12` mới làm một nửa** | "Tạm vô hiệu hoá **hoặc** xoá tài khoản" — nửa xoá có từ lâu, nửa tạm dừng **không có cột, không có endpoint, không có nút**. Cùng kiểu đếm nhầm với `YT-08`. Giờ có `AccountPause`, `users.PausedAt`, `listings.HiddenByPauseAt` |
+| **`docs/02 G6`** | Danh sách đơn của chủ nhà là **một danh sách phẳng**, đúng y hệt `/trips` trước lượt trước. Tài liệu đòi sáu nhóm |
+| **`docs/02 H1`** | Không có trang đánh giá riêng. Mọi mảnh đều có mà **không nơi nào gom lại**: đánh giá chỉ viết được từ trang chuyến, thứ mình đã viết không đọc lại được nếu không mở từng chuyến, và thứ người khác viết về mình chỉ xem được ở **trang hồ sơ công khai của chính mình** |
+
+Kèm hai chi tiết nhỏ của `docs/02`: ghim chỗ đã lưu trên bản đồ giờ khác ghim
+thường (`C1`), và màn hình xác nhận đặt có nút thêm vào lịch (`D3`).
+
+**Bài học đắt nhất của lượt này** là chỗ `TK-06`. Kịch bản nghiệm thu §9.8 tự
+bịa ba đường dẫn `/uploads/…` cho vừa lòng bộ kiểm tra, nên nó **chứng minh bộ
+kiểm tra khớp với chính nó** chứ không chứng minh sản phẩm chạy. Test đơn vị
+`IdentityChecksTests` cũng đóng đinh đúng cái sai ấy bằng ba hằng số `/uploads/`.
+Giờ kịch bản đi qua **bộ tải ảnh thật** và nhận lại đường dẫn thật. Fixture nào
+tự tạo dữ liệu đầu vào thì chỉ kiểm được luật với chính nó.
+
+**Đã soát và không phải lỗi:** `TĐ-18` (chia sẻ đủ link/email), `TĐ-22` (có
+khoảng cách), `TM-05`, `TM-22`, `C6`, `G5` (chế độ một tin theo tháng chính là
+`HostCalendarModal`).
+
+**Còn lại, cố ý chưa làm — cần khách quyết hoặc giá trị thấp:**
+
+| Việc | Vì sao chưa |
+|---|---|
+| `docs/02 G8` — co-host **chia % thu nhập** | Là một luồng tiền mới. `docs/01 QL-19` chỉ nói "mời co-host, chọn tin đăng và phạm vi quyền, thu hồi"; chia doanh thu là `docs/02` đi xa hơn `docs/01`, nên phải hỏi khách trước như đã làm với tham số `docs/06 §10` |
+| `docs/02 B2` — màn hình thiết lập ban đầu | Chỉ có trong `docs/02`, và chính nó ghi "bỏ qua được". Thêm một bước chắn giữa đăng ký và tìm kiếm |
+| `docs/02 G7` — điểm theo hạng mục **qua thời gian** | `docs/01 QL-16` liệt kê năm chỉ số và cả năm đã có; biểu đồ theo thời gian là phần `docs/02` thêm |
+| `docs/02 C1` — ghim của chỗ **đã xem** | Cần lưu lịch sử xem của từng người, tức một bảng mới cho một chi tiết trang trí |
+| `docs/02 F1` — gom "lịch sử trả" vào trang cài đặt | `docs/01 CĐ-09` (hoá đơn theo từng đơn) đã có; đây là cách sắp xếp lại màn hình |
+
+Nghiệm thu: `python scripts/rolegaps_acceptance.py` — 14 kịch bản, mỗi cái lái
 server thật rồi **đọc lại cơ sở dữ liệu**.
 
 ---
@@ -929,7 +966,7 @@ server thật rồi **đọc lại cơ sở dữ liệu**.
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (1173 test)
+# Test nghiệp vụ (1182 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199.
@@ -940,7 +977,7 @@ STAYHOST_URL=http://localhost:5200 python scripts/acceptance.py
 # 10 kịch bản của §9.6 — các quy tắc từng có mã mà không ai gọi
 python scripts/unwired_acceptance.py
 
-# 11 kịch bản của §9.8 — các quy tắc có mã, có test, mà không màn hình nào gọi
+# 14 kịch bản của §9.8 và §9.9 — quy tắc có mã, có test, mà không màn hình nào gọi
 python scripts/rolegaps_acceptance.py
 
 # 30 kịch bản của §9.4 — cổng thanh toán thật. Gọi ra sandbox VNPay/MoMo/ZaloPay

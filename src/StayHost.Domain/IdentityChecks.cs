@@ -104,13 +104,13 @@ public static class IdentityChecks
         if (latest?.Status == IdentityCheckStatus.Pending)
             return Check.Fail("Hồ sơ trước của bạn đang chờ duyệt.");
 
-        if (!Profiles.IsOwnUpload(frontUrl))
+        if (!IsIdentityUpload(frontUrl))
             return Check.Fail("Cần ảnh mặt trước giấy tờ.");
 
-        if (NeedsBackImage(document) && !Profiles.IsOwnUpload(backUrl))
+        if (NeedsBackImage(document) && !IsIdentityUpload(backUrl))
             return Check.Fail("Cần ảnh mặt sau giấy tờ.");
 
-        if (!Profiles.IsOwnUpload(selfieUrl))
+        if (!IsIdentityUpload(selfieUrl))
             return Check.Fail("Cần ảnh chân dung tự chụp.");
 
         // A document photo submitted twice as both sides, or as the selfie, is
@@ -120,6 +120,43 @@ public static class IdentityChecks
             return Check.Fail("Mỗi ảnh phải là một ảnh khác nhau.");
 
         return Check.Pass;
+    }
+
+    /// <summary>
+    /// docs/08 §4 — an image this platform stored for an identity check.
+    ///
+    /// These three checks used to call <see cref="Profiles.IsOwnUpload"/>, which
+    /// answers for the public <c>/uploads/</c> folder — the one an avatar goes
+    /// in. Identity papers stopped going there when they were moved outside the
+    /// web root, and the uploader has answered <c>/api/identity-files/…</c> ever
+    /// since, so every real submission was refused with "Cần ảnh mặt trước giấy
+    /// tờ" and nobody could prove who they were at all. Nothing failed loudly:
+    /// the guest saw a plausible complaint about their own photo.
+    ///
+    /// The shape is the same one <c>IdentityFilesController</c> serves, so a URL
+    /// that passes here is one that route can find: user id, a GUID, an image
+    /// extension, and no path of its own.
+    /// </summary>
+    public static bool IsIdentityUpload(string? url)
+    {
+        var value = (url ?? "").Trim();
+        const string prefix = "/api/identity-files/";
+
+        if (!value.StartsWith(prefix, StringComparison.Ordinal)) return false;
+
+        var name = value[prefix.Length..];
+        if (name.Length == 0 || name.Contains('/') || name.Contains('\\') || name.Contains("..")) return false;
+
+        var dot = name.LastIndexOf('.');
+        if (dot <= 0) return false;
+
+        var extension = name[dot..].ToLowerInvariant();
+        if (extension is not (".jpg" or ".png" or ".webp" or ".avif")) return false;
+
+        var parts = name[..dot].Split('-');
+        return parts.Length == 2
+               && parts[0].Length > 0 && parts[0].All(char.IsAsciiDigit)
+               && parts[1].Length == 32 && parts[1].All(char.IsAsciiHexDigitLower);
     }
 
     /// <summary>The last four characters of whatever was typed, digits and letters only.</summary>

@@ -158,6 +158,16 @@ public class User
     public bool IsBanned { get; set; }
 
     /// <summary>
+    /// docs/01 TK-12 — the person stepped away from their own account. Kept
+    /// apart from <see cref="IsSuspended"/> on purpose: one is a decision the
+    /// platform made about somebody and carries a policy and an appeal, the
+    /// other is somebody's own choice and ends whenever they sign back in
+    /// (<see cref="AccountPause"/>). Storing both in one flag would make the two
+    /// unreadable in the admin console.
+    /// </summary>
+    public DateTime? PausedAt { get; set; }
+
+    /// <summary>
     /// docs/08 §6 — "giữ tài khoản mở đủ để họ phản hồi, không được cắt quyền tự
     /// vệ". A suspended account with this set can still reach its own disputes.
     /// </summary>

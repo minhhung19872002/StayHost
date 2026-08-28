@@ -370,10 +370,13 @@ export function ResultsMap({ onSearchArea, onDrawArea }) {
       }
 
       const item = group.items[0];
+      // docs/02 C1 — "ghim của chỗ đã lưu hiển thị khác". Somebody comparing a
+      // dozen pins needs to see which ones they have already picked out without
+      // opening each; the ♥ on the card said so and the map did not.
       const marker = L.marker([item.latitude, item.longitude], {
         icon: L.divIcon({
           className: '',
-          html: `<span class="price-marker">${money(item.pricePerNight)}</span>`,
+          html: `<span class="price-marker${item.isFavorite ? ' is-saved' : ''}">${money(item.pricePerNight)}</span>`,
           iconSize: null
         })
       });
