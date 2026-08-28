@@ -50,6 +50,20 @@ public static class Profiles
         ("lo", "Tiếng Lào")
     ];
 
+    /// <summary>
+    /// docs/01 TĐ-11 — a language code as it may be stored: lower case, two
+    /// letters, and only one this platform actually offers. Anything else
+    /// becomes null rather than being written down, so a client sending
+    /// "en-GB", "  ", or a paragraph cannot put a value in the column that the
+    /// filter will never match.
+    /// </summary>
+    public static string? LanguageCode(string? raw)
+    {
+        var key = (raw ?? "").Trim().ToLowerInvariant();
+        if (key.Length > 2) key = key[..2];
+        return key.Length == 2 && SpokenLanguages.Any(l => l.Code == key) ? key : null;
+    }
+
     /// <summary>An unknown code is shown as itself rather than dropped — data outlives lists.</summary>
     public static string LanguageLabel(string code)
     {

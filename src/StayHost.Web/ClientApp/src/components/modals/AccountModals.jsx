@@ -1336,7 +1336,31 @@ export function ReviewModal() {
   const state = useStore();
   const b = state.reviewBooking;
   const [draft, setDraft] = useState(() => state.reviewDraft ?? BLANK_REVIEW);
+  // docs/01 ĐG-08 — opened over a review the guest already wrote, this is the
+  // correction form: the same fields, filled in, saved with PUT instead of POST.
+  const [existing, setExisting] = useState(null);
+  const [loading, setLoading] = useState(!!state.reviewEditing);
+
+  useEffect(() => {
+    if (!state.reviewEditing || !b) return;
+    let live = true;
+    api.myReview(b.id)
+      .then(r => {
+        if (!live) return;
+        setExisting(r);
+        setDraft({
+          rating: r.rating, cleanliness: r.cleanliness, accuracy: r.accuracy,
+          checkIn: r.checkIn, communication: r.communication,
+          location: r.location, value: r.value, text: r.text
+        });
+      })
+      .catch(err => { if (live) { toast(err.message); closeOverlay(); } })
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [state.reviewEditing, b?.id]);
+
   if (!b) return null;
+  const editing = !!state.reviewEditing;
 
   const stars = (field, small) => (
     <div className="star-row" data-field={field}>
@@ -1353,12 +1377,34 @@ export function ReviewModal() {
     const form = e.currentTarget;
     const text = form.text.value.trim();
     const privateNote = form.privateNote.value.trim() || null;
-    const ok = await submitReview(b.id, { bookingId: b.id, ...draft, text, privateNote });
+    const ok = await submitReview(b.id, { bookingId: b.id, ...draft, text, privateNote }, editing);
     if (ok) closeOverlay();
   };
 
+  if (loading) {
+    return <Modal title={t('Sửa đánh giá')}><p>{t('Đang tải…')}</p></Modal>;
+  }
+
+  // The server refuses a correction once the review is public or the 48 hours
+  // are up; saying so here beats offering a form that cannot be saved.
+  if (editing && existing && !existing.canEdit) {
+    return (
+      <Modal title={t('Sửa đánh giá')} size="narrow">
+        <p style={{ fontSize: 14.5, lineHeight: 1.6 }}>
+          {existing.isPublic
+            ? t('Đánh giá đã công khai nên không sửa được nữa.')
+            : t('Đã quá 48 giờ kể từ khi gửi nên không sửa được nữa.')}
+        </p>
+        <div className="review-reply" style={{ marginLeft: 0, marginTop: 14 }}>
+          <b>★ {existing.rating.toFixed(1)}</b>
+          <p>{existing.text}</p>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
-    <Modal title={t('Đánh giá chuyến đi')}>
+    <Modal title={editing ? t('Sửa đánh giá') : t('Đánh giá chuyến đi')}>
       <div style={{ display: 'flex', gap: 14, alignItems: 'center', paddingBottom: 18, borderBottom: '1px solid var(--divider)' }}>
         <img src={b.listingImage} alt="" style={{ width: 88, height: 66, objectFit: 'cover', borderRadius: 12 }} />
         <div style={{ minWidth: 0 }}>
@@ -1389,7 +1435,7 @@ export function ReviewModal() {
 
         <label className="form-field">
           <span className="cap">{t('Góp ý riêng cho chủ nhà')} <span style={{ fontWeight: 400 }}>{t('(không công khai)')}</span></span>
-          <textarea name="privateNote" rows={3}
+          <textarea name="privateNote" rows={3} defaultValue={existing?.privateNote ?? ''}
                     placeholder={t('Điều gì có thể tốt hơn cho khách sau?')}
                     style={{ width: '100%', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, fontSize: 14 }} />
         </label>
@@ -1398,7 +1444,9 @@ export function ReviewModal() {
           {t('Đánh giá của bạn và của chủ nhà chỉ hiện khi cả hai đã gửi, hoặc sau 14 ngày. Không được ghi số điện thoại, email hay đường liên kết.')}
         </p>
 
-        <button type="submit" className="btn btn-primary btn-block">{t('Gửi đánh giá')}</button>
+        <button type="submit" className="btn btn-primary btn-block">
+          {editing ? t('Lưu thay đổi') : t('Gửi đánh giá')}
+        </button>
       </form>
     </Modal>
   );

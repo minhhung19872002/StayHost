@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
-import { set, toast, shareListing } from '../lib/store.js';
+import { set, toast, shareListing, openReport } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate, dateFormat } from '../lib/format.js';
 import { CardCarousel } from '../components/CardCarousel.jsx';
@@ -493,9 +493,17 @@ function Detail({ slug }) {
                 {t('Mỗi hồ sơ được người thật xét duyệt: xác minh danh tính, kiểm tra lý lịch tư pháp với dịch vụ tới tận nhà, và chứng chỉ hành nghề còn hạn theo từng nghề.')}
               </p>
             </div>
+            {/* docs/01 AT-02 — this used to walk to the help centre, which is a
+                reading room, not a report. A service is not one of the four
+                report targets, so what is reported is the person offering it. */}
             <p className="svc-report">
               {t('Thấy điều gì bất thường?')}{' '}
-              <button className="link-btn" onClick={() => navigate('/help')}>{t('Báo cáo tin này')}</button>
+              {s.hostUserId
+                ? <button className="link-btn"
+                          onClick={() => openReport('user', s.hostUserId, s.hostName)}>
+                    {t('Báo cáo nhà cung cấp này')}
+                  </button>
+                : <button className="link-btn" onClick={() => navigate('/help')}>{t('Liên hệ hỗ trợ')}</button>}
             </p>
           </section>
         </div>

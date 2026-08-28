@@ -77,7 +77,10 @@ export function Admin() {
 
       <RiskPanel />
 
+      <IdentityQueue />
+
       <Arbitration />
+      <PriceMatchPanel />
       <LedgerPanel ledger={d.ledger} />
       <FinancePanel />
       <ReconciliationPanel />
@@ -133,6 +136,8 @@ export function Admin() {
       <ModerationQueue />
 
       <ExperienceReviewPanel />
+
+      <CouponsPanel />
 
       <FeatureFlags />
 
@@ -232,6 +237,306 @@ function ModerationQueue() {
                     <button className="btn btn-primary btn-sm" onClick={() => decide(l.id, 'approve')}>{t('Duyệt')}</button>
                     <button className="btn btn-outline btn-sm" onClick={() => decide(l.id, 'reject')}>{t('Từ chối')}</button>
                     <button className="btn btn-outline btn-sm" onClick={() => navigate(`/rooms/${l.slug}`)}>{t('Xem')}</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * docs/01 TK-06 — the identity papers waiting on a human. The endpoints have
+ * been complete since the feature was written; nothing called them, so every
+ * document a guest uploaded sat at "đang chờ duyệt" for good and the verified
+ * badge — which docs/01 ĐP-03 and ĐP-10 both read — could never turn on.
+ */
+function IdentityQueue() {
+  const [rows, setRows] = useState(null);
+  const [open, setOpen] = useState(null);
+
+  const load = async () => {
+    try { setRows(await api.adminIdentityQueue()); }
+    catch { setRows([]); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const decide = async (row, approve) => {
+    // docs/08 §1.4 — a refusal has to say why, or the person cannot resubmit.
+    const note = approve
+      ? (prompt(t('Ghi chú khi duyệt (không bắt buộc)')) ?? '')
+      : (prompt(t('Lý do từ chối, gửi cho người dùng (bắt buộc)')) ?? '');
+    if (!approve && !note.trim()) return;
+    try {
+      await api.adminDecideIdentity(row.id, { approve, note: note.trim() || null });
+      setOpen(null);
+      await load();
+      toast(approve ? t('Đã xác minh danh tính.') : t('Đã từ chối hồ sơ danh tính.'));
+    } catch (err) { toast(err.message); }
+  };
+
+  if (!rows) return null;
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Chờ xác minh danh tính')}</h2>
+      <p className="section-sub">
+        {rows.length
+          ? `${rows.length} ${t('hồ sơ đang chờ người duyệt')}`
+          : t('Không có hồ sơ danh tính nào đang chờ')}
+      </p>
+
+      {rows.length > 0 && (
+        <div className="table-wrap" style={{ marginTop: 16 }}>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>{t('Người dùng')}</th><th>{t('Giấy tờ')}</th>
+                <th>{t('Gửi lúc')}</th><th />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r => (
+                <tr key={r.id}>
+                  <td><b>{r.userName}</b><span>{r.userEmail ?? '—'}</span></td>
+                  <td>{t(r.documentLabel)}{r.documentLast4 ? ` •••• ${r.documentLast4}` : ''}</td>
+                  <td>{dateTime(r.submittedAt)}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <button className="btn btn-outline btn-sm"
+                            onClick={() => setOpen(open?.id === r.id ? null : r)}>
+                      {open?.id === r.id ? t('Đóng ảnh') : t('Xem ảnh')}
+                    </button>
+                    <button className="btn btn-primary btn-sm" onClick={() => decide(r, true)}>{t('Duyệt')}</button>
+                    <button className="btn btn-outline btn-sm" onClick={() => decide(r, false)}>{t('Từ chối')}</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* docs/08 §4.2 — the pictures are served from a route that is not the
+          public uploads folder, and only ever inside this console. */}
+      {open && (
+        <div className="notice" style={{ marginTop: 14 }}>
+          <b>{open.userName}</b> — {t(open.documentLabel)}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+            {[open.frontImageUrl, open.backImageUrl, open.selfieImageUrl]
+              .filter(Boolean)
+              .map(src => (
+                <a key={src} href={src} target="_blank" rel="noreferrer">
+                  <img src={src} alt={t('Ảnh giấy tờ')} loading="lazy"
+                       style={{ width: 190, height: 130, objectFit: 'cover', borderRadius: 10 }} />
+                </a>
+              ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * docs/01 TC-09 — the campaigns behind the discount box at checkout. Without
+ * this screen the guest's "Mã giảm giá" field had no code it could ever accept:
+ * the only way to create one was a hand-written INSERT.
+ */
+function CouponsPanel() {
+  const [rows, setRows] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    try { setRows(await api.adminCoupons()); }
+    catch { setRows([]); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const create = async e => {
+    e.preventDefault();
+    const f = e.target;
+    const body = {
+      code: f.code.value.trim(),
+      campaign: f.campaign.value.trim(),
+      kind: f.kind.value,
+      value: Number(f.value.value) || 0,
+      maxDiscount: f.maxDiscount.value ? Number(f.maxDiscount.value) : null,
+      minBookingTotal: f.minBookingTotal.value ? Number(f.minBookingTotal.value) : null,
+      startsAt: f.startsAt.value || null,
+      endsAt: f.endsAt.value || null,
+      maxRedemptions: f.maxRedemptions.value ? Number(f.maxRedemptions.value) : null,
+      maxPerUser: f.maxPerUser.value ? Number(f.maxPerUser.value) : null
+    };
+    setBusy(true);
+    try {
+      await api.adminCreateCoupon(body);
+      f.reset();
+      await load();
+      toast(t('Đã tạo mã giảm giá.'));
+    } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
+  const stop = async row => {
+    if (!confirm(`${t('Ngừng mã')} ${row.code}?`)) return;
+    try { await api.adminDeactivateCoupon(row.id); await load(); toast(t('Đã ngừng mã giảm giá.')); }
+    catch (err) { toast(err.message); }
+  };
+
+  if (!rows) return null;
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Mã giảm giá')}</h2>
+      <p className="section-sub">
+        {rows.length} {t('chiến dịch · mã đã ngừng vẫn giữ lại để đối chiếu, không bị xoá')}
+      </p>
+
+      <form onSubmit={create} className="notice" style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,160px),1fr))' }}>
+          <label className="form-field"><span className="cap">{t('Mã')}</span>
+            <input name="code" className="field" required placeholder="HE2026" /></label>
+          <label className="form-field"><span className="cap">{t('Chiến dịch')}</span>
+            <input name="campaign" className="field" placeholder={t('Hè 2026')} /></label>
+          <label className="form-field"><span className="cap">{t('Kiểu giảm')}</span>
+            <select name="kind" className="field" defaultValue="Percentage">
+              <option value="Percentage">{t('Theo phần trăm')}</option>
+              <option value="Fixed">{t('Số tiền cố định')}</option>
+            </select></label>
+          <label className="form-field"><span className="cap">{t('Giá trị')}</span>
+            <input name="value" type="number" min={1} className="field" required /></label>
+          <label className="form-field"><span className="cap">{t('Giảm tối đa')}</span>
+            <input name="maxDiscount" type="number" min={0} className="field" /></label>
+          <label className="form-field"><span className="cap">{t('Đơn tối thiểu')}</span>
+            <input name="minBookingTotal" type="number" min={0} className="field" /></label>
+          <label className="form-field"><span className="cap">{t('Bắt đầu')}</span>
+            <input name="startsAt" type="date" className="field" /></label>
+          <label className="form-field"><span className="cap">{t('Kết thúc')}</span>
+            <input name="endsAt" type="date" className="field" /></label>
+          <label className="form-field"><span className="cap">{t('Tổng lượt dùng')}</span>
+            <input name="maxRedemptions" type="number" min={1} className="field" /></label>
+          <label className="form-field"><span className="cap">{t('Mỗi người')}</span>
+            <input name="maxPerUser" type="number" min={1} className="field" /></label>
+        </div>
+        <div>
+          <button className="btn btn-primary btn-sm" disabled={busy}>
+            {busy ? t('Đang tạo…') : t('Tạo mã')}
+          </button>
+        </div>
+      </form>
+
+      {rows.length > 0 && (
+        <div className="table-wrap" style={{ marginTop: 16 }}>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>{t('Mã')}</th><th>{t('Giảm')}</th><th>{t('Điều kiện')}</th>
+                <th>{t('Đã dùng')}</th><th>{t('Trạng thái')}</th><th />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(c => (
+                <tr key={c.id}>
+                  <td><b>{c.code}</b><span>{c.campaign || '—'}</span></td>
+                  <td>{c.kind === 'Percentage' ? `${c.value}%` : money(c.value)}
+                    {c.maxDiscount ? <span>{t('tối đa')} {money(c.maxDiscount)}</span> : null}</td>
+                  <td>
+                    {c.minBookingTotal ? `${t('đơn từ')} ${money(c.minBookingTotal)}` : t('không giới hạn')}
+                    <span>
+                      {c.startsAt ? longDate(c.startsAt.slice(0, 10)) : '—'} → {c.endsAt ? longDate(c.endsAt.slice(0, 10)) : '—'}
+                    </span>
+                  </td>
+                  <td>{c.timesUsed}{c.maxRedemptions ? ` / ${c.maxRedemptions}` : ''}</td>
+                  <td>
+                    <span className={`badge ${c.isActive ? 'confirmed' : 'cancelled'}`}>
+                      {c.isActive ? t('Đang chạy') : t('Đã ngừng')}
+                    </span>
+                  </td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    {c.isActive && (
+                      <button className="btn btn-outline btn-sm" onClick={() => stop(c)}>{t('Ngừng')}</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * docs/01 MR-10 — the best-price claims guests filed. The rule engine and both
+ * endpoints were written; nothing on either side called them, so a claim could
+ * neither be filed nor answered.
+ */
+function PriceMatchPanel() {
+  const [rows, setRows] = useState(null);
+
+  const load = async () => {
+    try { setRows(await api.adminPriceMatches()); }
+    catch { setRows([]); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const decide = async (row, decision) => {
+    const note = prompt(decision === 'approve'
+      ? t('Ghi chú khi chấp nhận (không bắt buộc)')
+      : t('Lý do từ chối, gửi cho khách (bắt buộc)')) ?? '';
+    if (decision === 'reject' && !note.trim()) return;
+    try {
+      // The endpoint reads `resolution`, the same field every other ruling uses.
+      await api.adminDecidePriceMatch(row.id, decision, { resolution: note.trim() || null });
+      await load();
+      toast(decision === 'approve' ? t('Đã bù chênh lệch vào số dư khách.') : t('Đã từ chối yêu cầu.'));
+    } catch (err) { toast(err.message); }
+  };
+
+  if (!rows) return null;
+
+  const open = rows.filter(r => r.status === 'Submitted');
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Cam kết giá tốt')}</h2>
+      <p className="section-sub">
+        {open.length
+          ? `${open.length} ${t('yêu cầu đang chờ')} · ${rows.length} ${t('tổng cộng')}`
+          : t('Không có yêu cầu bù chênh lệch nào đang chờ')}
+      </p>
+      {rows.length > 0 && (
+        <div className="table-wrap" style={{ marginTop: 16 }}>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>{t('Đơn')}</th><th>{t('Giá mỗi đêm')}</th><th>{t('Bù')}</th>
+                <th>{t('Nơi khách thấy rẻ hơn')}</th><th>{t('Trạng thái')}</th><th />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r => (
+                <tr key={r.id}>
+                  <td><b>{r.reference}</b><span>{longDate(r.createdAt.slice(0, 10))}</span></td>
+                  <td>{money(r.competitorNightlyRate)}<span>{t('bên mình')} {money(r.ourNightlyRate)}</span></td>
+                  <td>{money(r.difference)}</td>
+                  <td style={{ maxWidth: 260, overflowWrap: 'anywhere' }}>
+                    <a href={r.competitorUrl} target="_blank" rel="noreferrer">{r.competitorUrl}</a>
+                  </td>
+                  <td>
+                    <span className={`badge ${r.status === 'Approved' ? 'confirmed'
+                      : r.status === 'Rejected' ? 'cancelled' : 'pending'}`}>{t(r.statusLabel)}</span>
+                    {r.decision ? <span>{r.decision}</span> : null}
+                  </td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    {r.status === 'Submitted' && <>
+                      <button className="btn btn-primary btn-sm" onClick={() => decide(r, 'approve')}>{t('Chấp nhận')}</button>
+                      <button className="btn btn-outline btn-sm" onClick={() => decide(r, 'reject')}>{t('Từ chối')}</button>
+                    </>}
                   </td>
                 </tr>
               ))}

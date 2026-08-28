@@ -1171,6 +1171,11 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Text).HasMaxLength(2000);
             e.Property(x => x.HostReply).HasMaxLength(2000);
             e.Property(x => x.PrivateNote).HasMaxLength(2000);
+            // docs/01 TĐ-11. Nullable with no default on purpose: a default here
+            // would state a language for every review ever written, most of them
+            // wrongly. Null means "not recorded" and is answered from the text
+            // (`ReviewInsights.LanguageOf`) rather than asserted.
+            e.Property(x => x.Language).HasMaxLength(8);
             // Only published reviews are ever queried for display.
             e.HasIndex(x => new { x.ListingId, x.PublishedAt });
             e.HasOne(x => x.Listing).WithMany(l => l.Reviews)

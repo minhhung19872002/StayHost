@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { useStore } from './lib/useStore.js';
 import {
-  loadMeta, loadMe, loadFavorites, loadNotifications, set, state as store
+  loadMeta, loadMe, loadFeatures, loadFavorites, loadNotifications, set, state as store
 } from './lib/store.js';
 import { queryToSearch } from './lib/urlState.js';
 import { setNavigator } from './lib/nav.js';
@@ -57,7 +57,7 @@ export function App() {
       queryToSearch(location.search);
       setBooted(true);
       await loadMe();
-      await Promise.all([loadFavorites(), loadNotifications()]);
+      await Promise.all([loadFavorites(), loadNotifications(), loadFeatures()]);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

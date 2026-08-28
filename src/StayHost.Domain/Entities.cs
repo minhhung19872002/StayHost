@@ -460,6 +460,15 @@ public class Review
     public double Location { get; set; } = 5;
     public double Value { get; set; } = 5;
 
+    /// <summary>
+    /// docs/01 TĐ-11 — the language this was written in, taken from the writer's
+    /// own interface at the moment they wrote it. Null on everything written
+    /// before the column existed and on seeded rows;
+    /// <see cref="ReviewInsights.LanguageOf"/> answers for those from the text,
+    /// so the filter works over the whole set rather than only over new reviews.
+    /// </summary>
+    public string? Language { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 

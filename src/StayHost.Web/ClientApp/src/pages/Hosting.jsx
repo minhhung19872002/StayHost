@@ -18,7 +18,8 @@ const TABS = [
   ['today', 'Hôm nay'], ['overview', 'Tổng quan'], ['listings', 'Chỗ nghỉ'],
   ['experiences', 'Trải nghiệm'],
   ['services', 'Dịch vụ'],
-  ['calendar', 'Lịch'], ['bookings', 'Đơn đặt'], ['earnings', 'Doanh thu'],
+  ['calendar', 'Lịch'], ['bookings', 'Đơn đặt'], ['reviews', 'Đánh giá'],
+  ['earnings', 'Doanh thu'],
   ['payout', 'Nhận tiền'], ['team', 'Đồng quản lý']
 ];
 
@@ -122,6 +123,7 @@ export function Hosting() {
       {tab === 'services' && <HostServices />}
       {tab === 'calendar' && <MultiCalendar />}
       {tab === 'bookings' && <Bookings d={d} navigate={navigate} />}
+      {tab === 'reviews' && <HostReviews />}
       {tab === 'earnings' && <Earnings d={d} />}
       {tab === 'payout' && <><Payout /><SuperhostProgress /></>}
       {tab === 'team' && <Team />}
@@ -293,12 +295,16 @@ const SESSION_STAMP = () => dateFormat({
 });
 const SESSION_TIME = () => dateFormat({ hour: '2-digit', minute: '2-digit' });
 
+/** Sessions still on sale — a called-off one is history, not inventory. */
+const openSlotCount = x => (x.slots ?? []).filter(s => s.status !== 'Cancelled').length;
+
 function HostExperiences() {
   const state = useStore();
   const [rows, setRows] = useState(null);
   // Which experience has its register open. One at a time: the register is a
   // list of names to read down, not something to compare side by side.
   const [registerFor, setRegisterFor] = useState(null);
+  const [slotsFor, setSlotsFor] = useState(null);
 
   const load = () => api.myExperiences().then(setRows).catch(err => toast(err.message));
   // Reload when the editor closes, so a just-submitted experience shows up.
@@ -344,11 +350,23 @@ function HostExperiences() {
                           onClick={() => setRegisterFor(id => id === x.id ? null : x.id)}>
                     {registerFor === x.id ? t('Đóng điểm danh') : t('Điểm danh')}
                   </button>
+                  {/* docs/01 MR-02 — an experience with no session on the
+                      calendar cannot sell a single ticket, so this is the last
+                      step of listing one, not an extra. */}
+                  <button className="btn btn-outline btn-sm"
+                          onClick={() => setSlotsFor(id => id === x.id ? null : x.id)}>
+                    {slotsFor === x.id ? t('Đóng suất') : `${t('Suất')} (${openSlotCount(x)})`}
+                  </button>
                 </div>
                 {/* Full width of the card: the register is a list, not a column. */}
                 {registerFor === x.id && (
                   <div style={{ flexBasis: '100%', minWidth: 0 }}>
                     <SessionRegister experience={x} />
+                  </div>
+                )}
+                {slotsFor === x.id && (
+                  <div style={{ flexBasis: '100%', minWidth: 0 }}>
+                    <SessionPlanner experience={x} onChanged={load} />
                   </div>
                 )}
               </article>
@@ -536,6 +554,230 @@ function ProviderJobs() {
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * docs/01 ĐG-07, docs/03 §7 — the host's one public answer to a review, within
+ * thirty days. `HostReply` on the listing page has always rendered an answer;
+ * there was simply nowhere to write one, so it never rendered anything.
+ */
+function HostReviews() {
+  const [rows, setRows] = useState(null);
+  const [draft, setDraft] = useState({});
+  const [busyId, setBusyId] = useState(null);
+
+  const load = () => api.hostReviews().then(setRows).catch(err => toast(err.message));
+  useEffect(() => { load(); }, []);
+
+  const send = async r => {
+    const text = (draft[r.id] ?? '').trim();
+    if (text.length < 10) { toast(t('Phản hồi cần tối thiểu 10 ký tự.')); return; }
+    setBusyId(r.id);
+    try {
+      await api.replyToReview(r.id, text);
+      setDraft(d => ({ ...d, [r.id]: '' }));
+      await load();
+      toast(t('Đã gửi phản hồi công khai.'));
+    } catch (err) { toast(err.message); }
+    finally { setBusyId(null); }
+  };
+
+  if (!rows) return <div className="stat skeleton" style={{ height: 160, border: 0, marginTop: 24 }} />;
+
+  const waiting = rows.filter(r => r.canReply).length;
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Đánh giá về chỗ của bạn')}</h2>
+      <p className="section-sub">
+        {rows.length
+          ? `${rows.length} ${t('đánh giá')} · ${waiting} ${t('còn trả lời được')}`
+          : t('Chưa có đánh giá công khai nào.')}
+      </p>
+
+      <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+        {rows.map(r => (
+          <article className="host-booking" key={r.id}>
+            <div style={{ minWidth: 0, flexBasis: '100%' }}>
+              <h3>★ {r.rating.toFixed(1)} · {r.authorName}</h3>
+              <div className="meta">{r.listingTitle} · {longDate(r.createdAt.slice(0, 10))}</div>
+              <p style={{ margin: '10px 0 0', fontSize: 14.5, lineHeight: 1.6 }}>{r.text}</p>
+
+              {r.hostReply ? (
+                <div className="review-reply" style={{ marginLeft: 0, marginTop: 12 }}>
+                  <b>{t('Phản hồi của bạn')}</b>
+                  <p>{r.hostReply}</p>
+                </div>
+              ) : r.canReply ? (
+                <div style={{ marginTop: 12 }}>
+                  <textarea className="field" rows={3}
+                            placeholder={t('Trả lời công khai — chỉ được một lần cho mỗi đánh giá.')}
+                            value={draft[r.id] ?? ''}
+                            onChange={e => setDraft(d => ({ ...d, [r.id]: e.target.value }))} />
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 }}>
+                    <button className="btn btn-primary btn-sm" disabled={busyId === r.id} onClick={() => send(r)}>
+                      {busyId === r.id ? t('Đang gửi…') : t('Gửi phản hồi')}
+                    </button>
+                    <span className="meta">
+                      {t('Hạn trả lời:')} {longDate(r.replyDeadline.slice(0, 10))}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="meta" style={{ marginTop: 12 }}>
+                  {t('Đã quá 30 ngày, đánh giá này không trả lời được nữa.')}
+                </p>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* docs/09 §2.5 — Monday is bit 0, exactly as ExperienceRules reads the mask. */
+const WEEKDAYS = [
+  ['T2', 0], ['T3', 1], ['T4', 2], ['T5', 3], ['T6', 4], ['T7', 5], ['CN', 6]
+];
+
+/**
+ * docs/01 MR-02, docs/09 §2.5 — the sessions of one experience: what is on sale,
+ * one more start time, or a weekly pattern expanded by the server.
+ *
+ * The endpoints behind this have been complete and tested since the experience
+ * line was built; nothing on any screen called them, so the only sessions that
+ * ever existed were the seeded ones and a host who listed an experience of their
+ * own had nothing to sell.
+ */
+function SessionPlanner({ experience, onChanged }) {
+  const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState('one');
+  const [at, setAt] = useState('');
+  const [capacity, setCapacity] = useState(experience.maxGroup ?? 8);
+  const [mask, setMask] = useState([]);
+  const [repeatAt, setRepeatAt] = useState('09:00');
+  const [from, setFrom] = useState(todayIso());
+  const [weeks, setWeeks] = useState(4);
+
+  const slots = (experience.slots ?? []).filter(s => s.status !== 'Cancelled');
+
+  const toggleDay = bit =>
+    setMask(m => (m.includes(bit) ? m.filter(b => b !== bit) : [...m, bit]));
+
+  const submit = async () => {
+    // The server takes both shapes in one request, so a host who wants a weekly
+    // pattern plus one extra evening does not have to save twice.
+    const body = mode === 'one'
+      ? { startsAt: at ? [new Date(at).toISOString()] : [], capacity: Number(capacity) || null }
+      : {
+          capacity: Number(capacity) || null,
+          repeatWeekdayMask: mask.reduce((acc, bit) => acc | (1 << bit), 0),
+          repeatAt: `${repeatAt}:00`,
+          repeatFrom: from,
+          repeatWeeks: Number(weeks) || 0
+        };
+
+    if (mode === 'one' && !at) { toast(t('Chọn ngày giờ bắt đầu.')); return; }
+    if (mode === 'repeat' && !mask.length) { toast(t('Chọn ít nhất một thứ trong tuần.')); return; }
+
+    setBusy(true);
+    try {
+      await api.addExperienceSlots(experience.id, body);
+      setAt('');
+      await onChanged();
+      toast(t('Đã thêm suất.'));
+    } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
+  const cancel = async slot => {
+    // docs/09 §2.6 — calling a session off refunds everyone already on it, so
+    // the number of tickets is said out loud before the host confirms.
+    // One whole-sentence key with a slot, not three pieces glued together: the
+    // number sits in a different place in Japanese and Korean.
+    const reason = prompt(slot.seatsTaken > 0
+      ? t('Huỷ suất này sẽ hoàn tiền cho {} khách đã đặt. Lý do:').replace('{}', slot.seatsTaken)
+      : t('Lý do huỷ suất (khách sẽ đọc được):'));
+    if (!reason?.trim()) return;
+    try {
+      await api.cancelExperienceSlot(slot.id, reason.trim());
+      await onChanged();
+      toast(t('Đã huỷ suất.'));
+    } catch (err) { toast(err.message); }
+  };
+
+  return (
+    <div className="notice" style={{ marginTop: 14 }}>
+      <div className="pill-row" style={{ marginBottom: 14 }}>
+        <button className={`pill ${mode === 'one' ? 'is-on' : ''}`} onClick={() => setMode('one')}>
+          {t('Một suất')}
+        </button>
+        <button className={`pill ${mode === 'repeat' ? 'is-on' : ''}`} onClick={() => setMode('repeat')}>
+          {t('Lặp hằng tuần')}
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,160px),1fr))' }}>
+        {mode === 'one' ? (
+          <label className="form-field"><span className="cap">{t('Bắt đầu lúc')}</span>
+            <input type="datetime-local" className="field" value={at} onChange={e => setAt(e.target.value)} /></label>
+        ) : (
+          <>
+            <label className="form-field"><span className="cap">{t('Giờ bắt đầu')}</span>
+              <input type="time" className="field" value={repeatAt} onChange={e => setRepeatAt(e.target.value)} /></label>
+            <label className="form-field"><span className="cap">{t('Từ ngày')}</span>
+              <input type="date" className="field" value={from} onChange={e => setFrom(e.target.value)} /></label>
+            <label className="form-field"><span className="cap">{t('Số tuần')}</span>
+              <input type="number" min={1} max={26} className="field" value={weeks}
+                     onChange={e => setWeeks(e.target.value)} /></label>
+          </>
+        )}
+        <label className="form-field"><span className="cap">{t('Số chỗ mỗi suất')}</span>
+          <input type="number" min={1} max={experience.maxGroup ?? 30} className="field" value={capacity}
+                 onChange={e => setCapacity(e.target.value)} /></label>
+      </div>
+
+      {mode === 'repeat' && (
+        <div className="pill-row" style={{ marginTop: 12 }}>
+          {WEEKDAYS.map(([label, bit]) => (
+            <button key={bit} className={`pill ${mask.includes(bit) ? 'is-on' : ''}`}
+                    onClick={() => toggleDay(bit)}>{t(label)}</button>
+          ))}
+        </div>
+      )}
+
+      <button className="btn btn-primary btn-sm" style={{ marginTop: 14 }} disabled={busy} onClick={submit}>
+        {busy ? t('Đang thêm…') : t('Thêm vào lịch')}
+      </button>
+
+      {slots.length ? (
+        <div className="table-wrap" style={{ marginTop: 16 }}>
+          <table className="admin-table">
+            <thead>
+              <tr><th>{t('Suất')}</th><th>{t('Đã bán')}</th><th /></tr>
+            </thead>
+            <tbody>
+              {slots.map(s => (
+                <tr key={s.id}>
+                  <td>{SESSION_STAMP().format(new Date(s.startsAt))}
+                    {s.isPrivate ? <span>{t('Thuê trọn nhóm')}</span> : null}</td>
+                  <td>{s.seatsTaken}/{s.capacity}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => cancel(s)}>{t('Huỷ suất')}</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="meta" style={{ marginTop: 14 }}>
+          {t('Chưa có suất nào — trải nghiệm chưa bán được vé nào cho tới khi có ít nhất một suất.')}
+        </p>
+      )}
+    </div>
   );
 }
 

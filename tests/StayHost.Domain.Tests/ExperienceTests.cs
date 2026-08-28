@@ -297,6 +297,35 @@ public class ExperienceTests
     }
 
     [Fact]
+    public void Nine_in_the_morning_means_nine_where_the_host_lives()
+    {
+        // The same seven hours that broke the services picker (docs/09 §3.4).
+        // A host in Ho Chi Minh City typing 09:00 must not get sessions at
+        // 09:00Z, which is four in the afternoon to everybody involved.
+        var monday = 1 << 0;
+        var from = new DateOnly(2026, 9, 7);              // a Monday
+        var now = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var local = ExperienceRules.ExpandRecurrence(
+            monday, new TimeOnly(9, 0), from, 1, now, "Asia/Ho_Chi_Minh");
+
+        Assert.Single(local);
+        Assert.Equal(2, local[0].Hour);                   // 09:00 +07:00 == 02:00Z
+        Assert.Equal(DateTimeKind.Utc, local[0].Kind);
+
+        // Left unsaid the pattern is still read as UTC, so a caller that has
+        // already converted is not converted twice.
+        var utc = ExperienceRules.ExpandRecurrence(monday, new TimeOnly(9, 0), from, 1, now);
+        Assert.Equal(9, utc[0].Hour);
+
+        // An unknown zone falls back to UTC rather than throwing: a mistyped
+        // setting must not stop a host putting sessions on sale.
+        var unknown = ExperienceRules.ExpandRecurrence(
+            monday, new TimeOnly(9, 0), from, 1, now, "Mars/Olympus_Mons");
+        Assert.Equal(9, unknown[0].Hour);
+    }
+
+    [Fact]
     public void A_called_off_session_points_at_ones_the_guest_could_actually_take()
     {
         var now = new DateTime(2026, 9, 1, 8, 0, 0, DateTimeKind.Utc);

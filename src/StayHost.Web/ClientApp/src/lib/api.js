@@ -122,6 +122,8 @@ export const api = {
   review: (bookingId, body) =>
     request(`/api/bookings/${bookingId}/review`, { method: 'POST', body: JSON.stringify(body) }),
 
+  /** docs/01 ĐG-08 — what the guest wrote, and whether it is still theirs to change. */
+  myReview: bookingId => request(`/api/bookings/${bookingId}/review`),
   /** docs/01 ĐG-08 — correct a review inside 48 hours, before it goes public. */
   editReview: (bookingId, body) =>
     request(`/api/bookings/${bookingId}/review`, { method: 'PUT', body: JSON.stringify(body) }),
@@ -197,6 +199,8 @@ export const api = {
     request(`/api/host/bookings/${bookingId}/review-guest`, { method: 'POST', body: JSON.stringify(body) }),
   respondBooking: (id, decision, reason) =>
     request(`/api/host/bookings/${id}/${decision}`, { method: 'POST', body: JSON.stringify({ reason: reason ?? null }) }),
+  /* docs/01 ĐG-07 — đánh giá về chỗ của mình, và cái nào còn trả lời được. */
+  hostReviews: () => request('/api/host/reviews'),
   replyToReview: (reviewId, text) =>
     request(`/api/host/reviews/${reviewId}/reply`, { method: 'POST', body: JSON.stringify({ text }) }),
 
@@ -223,6 +227,13 @@ export const api = {
     request(`/api/admin/users/${id}/force-identity-recheck`, { method: 'POST', body: JSON.stringify(body) }),
   adminIdentity: (id, body) =>
     request(`/api/admin/users/${id}/identity`, { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/01 TK-06 — hàng chờ xác minh danh tính và quyết định của người duyệt.
+     Không có hai đường này thì giấy tờ khách nộp lên nằm ở "đang chờ" mãi mãi,
+     và huy hiệu xác minh không bao giờ bật được. */
+  adminIdentityQueue: (includeDecided = false) =>
+    request(`/api/admin/identity${includeDecided ? '?includeDecided=true' : ''}`),
+  adminDecideIdentity: (id, body) =>
+    request(`/api/admin/identity/${id}/decide`, { method: 'POST', body: JSON.stringify(body) }),
   adminAppeals: () => request('/api/admin/appeals'),
   adminDecideAppeal: (id, body) =>
     request(`/api/admin/appeals/${id}/decide`, { method: 'POST', body: JSON.stringify(body) }),
@@ -398,6 +409,14 @@ export const api = {
   /* docs/09 §2.1–§2.3 MR-E-01 — the host's own experiences and the vetting form. */
   myExperiences: () => request('/api/experiences/mine'),
   saveExperience: body => request('/api/experiences', { method: 'POST', body: JSON.stringify(body) }),
+  /* docs/01 MR-02, docs/09 §2.5 — các suất giờ của một trải nghiệm. Một trải
+     nghiệm không có suất nào thì không bán được vé nào, nên đây là bước cuối
+     của việc đăng chứ không phải tuỳ chọn. */
+  addExperienceSlots: (id, body) =>
+    request(`/api/experiences/${id}/slots`, { method: 'POST', body: JSON.stringify(body) }),
+  cancelExperienceSlot: (slotId, reason) =>
+    request(`/api/experiences/slots/${slotId}${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`,
+      { method: 'DELETE' }),
   /* docs/09 §2.9 MR-E-09 — the host's register for one session, and one mark on it. */
   experienceRoster: slotId => request(`/api/experiences/slots/${slotId}/roster`),
   markExperienceAttendance: (bookingId, attended) =>
@@ -503,6 +522,18 @@ export const api = {
   submitPriceMatch: (bookingId, body) =>
     request(`/api/bookings/${bookingId}/price-match`, { method: 'POST', body: JSON.stringify(body) }),
   priceMatch: bookingId => request(`/api/bookings/${bookingId}/price-match`),
+  adminPriceMatches: () => request('/api/admin/price-matches'),
+  adminDecidePriceMatch: (id, decision, body) =>
+    request(`/api/admin/price-matches/${id}/${decision}`, { method: 'POST', body: JSON.stringify(body ?? {}) }),
+
+  /* docs/01 TC-09 — chiến dịch mã giảm giá. Không có màn hình này thì ô "Mã
+     giảm giá" ở bước thanh toán vĩnh viễn không có mã nào để nhập. */
+  adminCoupons: () => request('/api/admin/coupons'),
+  adminCreateCoupon: body => request('/api/admin/coupons', { method: 'POST', body: JSON.stringify(body) }),
+  adminDeactivateCoupon: id => request(`/api/admin/coupons/${id}/deactivate`, { method: 'POST' }),
+
+  /* docs/01 QT-08 — cờ tính năng đã tính sẵn cho chính người đang hỏi. */
+  featureFlags: () => request('/api/features'),
 
   /* docs/01 MR-05 → MR-07 — services, booked by the slot. */
   services: params => request(`/api/services${qs(params ?? {})}`),

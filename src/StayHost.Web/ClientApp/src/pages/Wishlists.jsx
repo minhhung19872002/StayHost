@@ -186,6 +186,34 @@ function CompareTable({ cards, onClose, navigate }) {
   );
 }
 
+/**
+ * docs/01 YT-01 — many lists, so a saved place has to be able to move between
+ * them. The endpoint has always accepted it (an item already saved just changes
+ * list); nothing offered it, so the only way to reorganise was unsave and save
+ * again from the listing page, which threw away the note of YT-03 on the way.
+ */
+function MoveToList({ listId, listingId, lists }) {
+  const others = (lists ?? []).filter(l => l.id !== listId);
+  if (!others.length) return null;
+
+  const move = async id => {
+    if (!id) return;
+    try {
+      await api.moveToWishlist(Number(id), listingId);
+      await Promise.all([openWishlist(listId), loadWishlists()]);
+      toast('Đã chuyển sang danh sách khác.');
+    } catch (err) { toast(err.message); }
+  };
+
+  return (
+    <select className="wishlist-note-btn" value="" aria-label={t('Chuyển sang danh sách')}
+            onChange={e => move(e.target.value)}>
+      <option value="">↦ {t('Chuyển sang danh sách')}</option>
+      {others.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+    </select>
+  );
+}
+
 function One() {
   const state = useStore();
   const navigate = useNavigate();
@@ -265,6 +293,7 @@ function One() {
               <Card card={e.card} lazy />
               <WishlistNote listId={list.id} listingId={e.card.id} note={e.note}
                             onSaved={() => openWishlist(list.id)} />
+              <MoveToList listId={list.id} listingId={e.card.id} lists={state.wishlists} />
             </div>
           ))}
         </div>

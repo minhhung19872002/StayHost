@@ -38,6 +38,13 @@ export const state = {
   // reference data
   meta: null,
   metaError: null,
+  /**
+   * docs/01 QT-08 — which features are on for whoever is asking, already
+   * bucketed by the server for this identity. Empty until the boot pass
+   * answers, and `featureOn` treats an unknown key as on: a flag the server
+   * has never heard of must not take a working screen away.
+   */
+  features: {},
   currency: { code: 'VND', label: 'Việt Nam Đồng', symbol: '₫', rateFromVnd: 1 },
   language: { code: 'vi', label: 'Tiếng Việt', region: 'Việt Nam' },
 
@@ -188,8 +195,12 @@ export const state = {
   // reviews
   reviewBooking: null,
   reviewDraft: null,
+  /** docs/01 ĐG-08 — the review modal is opened over an existing review. */
+  reviewEditing: false,
   reviewQuery: '',
-  reviewSort: 'recent'
+  reviewSort: 'recent',
+  /** docs/01 TĐ-11 — 'all', or a language code present in this listing's reviews. */
+  reviewLanguage: 'all'
 };
 
 /* ------------------------------------------------------------ react bridge */
@@ -433,6 +444,20 @@ export async function loadSuggestions() {
 }
 
 /* ----------------------------------------------------------------- account */
+
+/**
+ * docs/01 QT-08 — the rollout, read once at boot. It was computed server-side
+ * from the first day and never asked for, so every flag an admin set moved
+ * nothing at all.
+ */
+export async function loadFeatures() {
+  try { state.features = await api.featureFlags() ?? {}; }
+  catch { state.features = {}; }
+  notify();
+}
+
+/** True unless the server has explicitly said this feature is off for them. */
+export const featureOn = key => state.features[key] !== false;
 
 export async function loadMe() {
   try {
@@ -813,11 +838,19 @@ export async function loadTrip(id) {
   }
 }
 
-export async function submitReview(bookingId, body) {
+export async function submitReview(bookingId, body, editing = false) {
   try {
     // docs/03 §7 — the server says whether it went public straight away or is
     // waiting on the host, and that is what the guest needs to hear.
-    const result = await api.review(bookingId, body);
+    // docs/01 ĐG-08 — the correction path answers 204, so there is no message
+    // to read back and the confirmation is written here instead.
+    // docs/01 TĐ-11 — the language the writer is reading the site in. Nothing
+    // on the server knows it: the choice lives in this browser.
+    const withLanguage = { ...body, language: state.language?.code ?? null };
+
+    const result = editing
+      ? (await api.editReview(bookingId, withLanguage), { message: 'Đã sửa đánh giá.' })
+      : await api.review(bookingId, withLanguage);
     toast(result?.message ?? 'Cảm ơn bạn đã đánh giá!');
     await loadBookings();
     if (state.trip?.id === bookingId) await loadTrip(bookingId);

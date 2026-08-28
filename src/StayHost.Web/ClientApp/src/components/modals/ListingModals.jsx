@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   set, holdDates, payHeld, releaseHold, openSplit, openOverlay, closeOverlay,
-  shareListing, toggleFavorite, applyCoupon, toast
+  shareListing, toggleFavorite, applyCoupon, toast, openReport
 } from '../../lib/store.js';
 import { money, longDate, parseIso, isoOf } from '../../lib/format.js';
 import { AmenityIcon } from '../Icon.jsx';
@@ -155,6 +155,41 @@ export function AmenitiesModal() {
 }
 
 const REVIEW_SORTS = [['recent', 'Mới nhất'], ['high', 'Điểm cao nhất'], ['low', 'Điểm thấp nhất']];
+
+/* docs/01 TĐ-11 — the codes the server can put on a review, named for reading. */
+const LANGUAGE_NAME = {
+  vi: 'Tiếng Việt', en: 'Tiếng Anh', ja: 'Tiếng Nhật', ko: 'Tiếng Hàn',
+  zh: 'Tiếng Trung', fr: 'Tiếng Pháp', de: 'Tiếng Đức', es: 'Tiếng Tây Ban Nha'
+};
+
+/**
+ * docs/01 TĐ-21 — what a hundred reviews keep saying, so they can be taken in
+ * without being read one by one. The score on each row is the average given by
+ * the people who raised that subject, not the overall score: that is the whole
+ * point of the row.
+ */
+export function ReviewThemes({ themes }) {
+  if (!themes?.length) return null;
+
+  return (
+    <div className="review-themes">
+      <h4>{t('Khách hay nhắc tới')}</h4>
+      <div className="pill-row">
+        {themes.map(x => (
+          <span className="pill" key={x.key}>
+            {t(x.label)} · ★ {x.rating.toFixed(1)}
+            {/* One whole-sentence key with a slot: gluing "{n}" to a translated
+                "lượt nhắc" puts the number on the wrong side in Japanese, and a
+                template literal is invisible to scripts/i18n_audit.py. */}
+            <b style={{ marginLeft: 6, fontWeight: 500, opacity: 0.7 }}>
+              {t('{} lượt nhắc').replace('{}', x.mentions)}
+            </b>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 // NOTE: labels above are wrapped with t() at the render site.
 
 export function ReviewsModal() {
@@ -163,13 +198,19 @@ export function ReviewsModal() {
   if (!d) return null;
 
   const term = state.reviewQuery.trim().toLowerCase();
-  const list = (term
-    ? d.reviews.filter(r => r.text.toLowerCase().includes(term) || r.authorName.toLowerCase().includes(term))
-    : d.reviews.slice()
-  ).sort((a, b) =>
-    state.reviewSort === 'high' ? b.rating - a.rating
-      : state.reviewSort === 'low' ? a.rating - b.rating
-        : 0);
+  const lang = state.reviewLanguage;
+
+  // docs/01 TĐ-11 — only the languages actually present, so the picker never
+  // offers a row that filters everything away.
+  const languages = [...new Set(d.reviews.map(r => r.language).filter(Boolean))];
+
+  const list = d.reviews
+    .filter(r => !term || r.text.toLowerCase().includes(term) || r.authorName.toLowerCase().includes(term))
+    .filter(r => lang === 'all' || r.language === lang)
+    .sort((a, b) =>
+      state.reviewSort === 'high' ? b.rating - a.rating
+        : state.reviewSort === 'low' ? a.rating - b.rating
+          : 0);
 
   return (
     <Modal title={`★ ${d.card.rating.toFixed(2)} · ${d.reviews.length} ${t('đánh giá')}`} size="wide">
@@ -180,8 +221,20 @@ export function ReviewsModal() {
                 value={state.reviewSort} onChange={e => set({ reviewSort: e.target.value })}>
           {REVIEW_SORTS.map(([v, l]) => <option key={v} value={v}>{t(l)}</option>)}
         </select>
+        {/* docs/01 TĐ-11 — read the ones written in a language you read. */}
+        {languages.length > 1 && (
+          <select className="field" style={{ flex: '0 0 180px', width: 'auto' }}
+                  aria-label={t('Lọc theo ngôn ngữ')}
+                  value={lang} onChange={e => set({ reviewLanguage: e.target.value })}>
+            <option value="all">{t('Mọi ngôn ngữ')}</option>
+            {languages.map(code => (
+              <option key={code} value={code}>{t(LANGUAGE_NAME[code] ?? code)}</option>
+            ))}
+          </select>
+        )}
       </div>
       <StarDistribution counts={d.ratingBreakdown.starCounts} total={d.reviews.length} />
+      <ReviewThemes themes={d.reviewThemes} />
 
       {!list.length && <p style={{ fontSize: 14, color: 'var(--ink-muted)' }}>{t('Không có đánh giá nào khớp từ khoá.')}</p>}
       <div className="review-grid">
@@ -197,6 +250,15 @@ export function ReviewsModal() {
             </div>
             <p>{r.text}</p>
             <HostReply review={r} />
+            {/* docs/01 ĐG-10 — the same flag the detail page carries. It was on
+                the four reviews shown there and not on the hundred behind
+                "xem tất cả", which is where somebody actually reads them. */}
+            {r.id && (
+              <button className="text-btn" style={{ marginTop: 8, fontSize: 12.5 }}
+                      onClick={() => { closeOverlay(); openReport('review', r.id, `Đánh giá của ${r.authorName}`); }}>
+                ⚑ {t('Báo cáo đánh giá')}
+              </button>
+            )}
           </article>
         ))}
       </div>

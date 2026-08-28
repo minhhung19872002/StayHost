@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
-import { loadTrip, set, requireAuth, toast, payBalance } from '../lib/store.js';
+import { loadTrip, set, requireAuth, toast, payBalance, featureOn } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { money, longDate, dateTime } from '../lib/format.js';
 import { Icon, BrandMark } from '../components/Icon.jsx';
@@ -115,6 +115,10 @@ export function Trip() {
           <ChangeTrip booking={b} />
 
           <ShieldPanel booking={b} />
+
+          <SplitPanel booking={b} />
+
+          <PriceMatchPanel booking={b} />
 
           <Balance booking={b} />
 
@@ -422,6 +426,160 @@ function ChangeTrip({ booking }) {
   );
 }
 
+/**
+ * docs/01 ĐP-07 — the organiser's own view of a split they opened. Everybody's
+ * link is here rather than only in the invitation email: the email is one
+ * delivery away from being lost, and on a deployment where SMTP is not
+ * configured at all (`docs/PLAN.md §8.0`) it is the only copy that exists.
+ */
+function SplitPanel({ booking }) {
+  const [split, setSplit] = useState(null);
+  const [missing, setMissing] = useState(false);
+
+  const load = () => api.splitOf(booking.id)
+    .then(setSplit)
+    .catch(() => setMissing(true));
+
+  useEffect(() => { load(); }, [booking.id]);
+
+  if (missing || !split) return null;
+
+  const open = split.status === 'Open';
+  const paid = split.shares.filter(s => s.status === 'Paid').length;
+
+  const copy = async share => {
+    try {
+      await navigator.clipboard.writeText(new URL(share.link, window.location.origin).href);
+      toast('Đã chép liên kết.');
+    } catch { toast('Trình duyệt không cho chép tự động — hãy chép thủ công.'); }
+  };
+
+  const cancel = async () => {
+    if (!confirm(t('Huỷ chia hoá đơn? Ai đã trả sẽ được hoàn lại.'))) return;
+    try { await api.cancelSplit(booking.id); await load(); toast('Đã huỷ chia hoá đơn.'); }
+    catch (err) { toast(err.message); }
+  };
+
+  return (
+    <section className="detail-section">
+      <h2>{t('Chia hoá đơn')}</h2>
+      <p className="section-sub">
+        {paid}/{split.shares.length} {t('người đã trả')} · {t(split.statusLabel, 'status')}
+        {open ? ` · ${t('hết hạn')} ${dateTime(split.expiresAt)}` : ''}
+      </p>
+
+      <div className="table-wrap" style={{ marginTop: 14 }}>
+        <table className="admin-table">
+          <thead>
+            <tr><th>{t('Người trả')}</th><th>{t('Phần')}</th><th>{t('Trạng thái')}</th><th /></tr>
+          </thead>
+          <tbody>
+            {split.shares.map(s => (
+              <tr key={s.id}>
+                <td><b>{s.name || s.email}</b>{s.name ? <span>{s.email}</span> : null}</td>
+                <td>{money(s.amount)}</td>
+                <td>
+                  <span className={`badge ${s.status === 'Paid' ? 'confirmed' : 'pending'}`}>
+                    {t(s.statusLabel, 'status')}
+                  </span>
+                </td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  {open && s.status !== 'Paid' && (
+                    <button className="btn btn-outline btn-sm" onClick={() => copy(s)}>{t('Chép liên kết')}</button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {open && (
+        <button className="btn btn-outline btn-sm" style={{ marginTop: 14 }} onClick={cancel}>
+          {t('Huỷ chia hoá đơn')}
+        </button>
+      )}
+    </section>
+  );
+}
+
+/**
+ * docs/01 MR-10 — found the same room cheaper elsewhere within a day of booking.
+ * The difference comes back as balance, not cash. Only offered where the server
+ * would take it: a hotel room, still inside the 24 hours (`canPriceMatch`).
+ */
+function PriceMatchPanel({ booking }) {
+  const [claim, setClaim] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api.priceMatch(booking.id).then(setClaim).catch(() => setClaim(null));
+  }, [booking.id]);
+
+  // docs/01 QT-08 — the rollout gate. A claim already filed is always shown:
+  // turning the feature off must not hide a decision the guest is waiting on.
+  if (!claim && (!booking.canPriceMatch || !featureOn('price-match'))) return null;
+
+  const submit = async e => {
+    e.preventDefault();
+    const f = e.target;
+    setBusy(true);
+    try {
+      setClaim(await api.submitPriceMatch(booking.id, {
+        competitorUrl: f.url.value.trim(),
+        competitorNightlyRate: Number(f.rate.value) || 0
+      }));
+      setOpen(false);
+      toast('Đã gửi yêu cầu, Staylio sẽ xem trong thời gian sớm nhất.');
+    } catch (err) { toast(err.message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <section className="detail-section">
+      <h2>{t('Cam kết giá tốt')}</h2>
+
+      {claim ? (
+        <>
+          <p className="section-sub">
+            {t('Bạn đã gửi yêu cầu')} · <span className={`badge ${claim.status === 'Approved' ? 'confirmed'
+              : claim.status === 'Rejected' ? 'cancelled' : 'pending'}`}>{t(claim.statusLabel, 'status')}</span>
+          </p>
+          <div className="kv-grid" style={{ marginTop: 12 }}>
+            <Kv label={t('Giá bên kia')} value={`${money(claim.competitorNightlyRate)} / ${t('đêm')}`} />
+            <Kv label={t('Giá bạn đã trả')} value={`${money(claim.ourNightlyRate)} / ${t('đêm')}`} />
+            <Kv label={t('Sẽ bù vào số dư')} value={money(claim.difference)} />
+          </div>
+          {claim.decision && <p className="guide-note">{claim.decision}</p>}
+        </>
+      ) : !open ? (
+        <>
+          <p className="section-sub">
+            {t('Thấy đúng phòng này rẻ hơn ở nơi khác trong 24 giờ kể từ khi đặt? Staylio bù phần chênh lệch vào số dư của bạn.')}
+          </p>
+          <button className="btn btn-outline btn-sm" style={{ marginTop: 12 }} onClick={() => setOpen(true)}>
+            {t('Gửi yêu cầu bù chênh lệch')}
+          </button>
+        </>
+      ) : (
+        <form onSubmit={submit} style={{ marginTop: 12, display: 'grid', gap: 12 }}>
+          <label className="form-field"><span className="cap">{t('Đường dẫn nơi bạn thấy giá rẻ hơn')}</span>
+            <input name="url" type="url" className="field" required placeholder="https://…" /></label>
+          <label className="form-field"><span className="cap">{t('Giá mỗi đêm ở đó')}</span>
+            <input name="rate" type="number" min={0} className="field" required /></label>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setOpen(false)}>{t('Huỷ')}</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
+              {busy ? t('Đang gửi…') : t('Gửi yêu cầu')}
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
 function ShieldPanel({ booking }) {
   const navigate = useNavigate();
   const [claims, setClaims] = useState(null);
@@ -586,6 +744,14 @@ function Receipt({ booking: b }) {
       <a className="btn btn-dark btn-block btn-sm" style={{ marginTop: 18 }}
          href={`/api/bookings/${b.id}/invoice`} target="_blank" rel="noreferrer">
         {t('Tải hoá đơn')}
+      </a>
+
+      {/* docs/01 ĐP-15, docs/02 D3 — one .ics the guest's own calendar reads.
+          A plain link, not a script-driven save: this is a file the server
+          serves, and a download attribute would add nothing. */}
+      <a className="btn btn-outline btn-block btn-sm" style={{ marginTop: 10 }}
+         href={`/api/bookings/${b.id}/calendar.ics`}>
+        {t('Thêm vào lịch của tôi')}
       </a>
     </aside>
   );

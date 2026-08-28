@@ -108,6 +108,41 @@ public class IcalTests
         Assert.Contains("SUMMARY:Khoá\\, để sửa nhà", text);
         Assert.Equal("Khoá, để sửa nhà", Ical.Read(text)[0].Summary);
     }
+
+    /* ------------------------------------------------------------- ĐP-15 */
+
+    [Fact]
+    public void A_guests_own_event_carries_where_and_what_it_is()
+    {
+        var text = Ical.Write("Staylio", [
+            new IcalEvent("booking-7@staylio.vn", new DateOnly(2026, 9, 10), new DateOnly(2026, 9, 13), "Villa A · SH7")
+            {
+                Location = "12 Trần Phú, Đà Nẵng",
+                Description = "Mã đặt chỗ: SH7\n3 đêm · 2 khách"
+            }
+        ], Stamp);
+
+        // A comma is escaped: unescaped it separates values in this format.
+        Assert.Contains(@"LOCATION:12 Trần Phú\, Đà Nẵng", text);
+
+        // A newline inside a property is escaped, not emitted raw: a bare one
+        // ends the property, and everything after it is read as a new field.
+        Assert.Contains(@"DESCRIPTION:Mã đặt chỗ: SH7\n3 đêm · 2 khách", text);
+        Assert.DoesNotContain("DESCRIPTION:Mã đặt chỗ: SH7\r\n3", text);
+    }
+
+    [Fact]
+    public void An_availability_feed_still_carries_dates_and_nothing_else()
+    {
+        // docs/01 QL-10 feeds are read by other booking sites; the two fields
+        // above are for the guest's own calendar and must stay out of them.
+        var text = Ical.Write("Nhà A", [
+            new IcalEvent("b1@staylio", new DateOnly(2026, 9, 10), new DateOnly(2026, 9, 13), "Đã đặt")
+        ], Stamp);
+
+        Assert.DoesNotContain("LOCATION:", text);
+        Assert.DoesNotContain("DESCRIPTION:", text);
+    }
 }
 
 /// <summary>docs/01 QL-19 — the scopes an owner hands out.</summary>

@@ -202,4 +202,27 @@ public class ProfilesTests
         Assert.Equal("Tháng 8, 2026", Profiles.MonthLabel(august));
         Assert.Equal("Tham gia Staylio tháng 8, 2026", Profiles.JoinedLabel(august));
     }
+
+    /* ------------------------------------------------------------- TĐ-11 */
+
+    [Fact]
+    public void A_language_code_is_only_written_down_when_it_is_one_we_offer()
+    {
+        Assert.Equal("vi", Profiles.LanguageCode("vi"));
+        Assert.Equal("en", Profiles.LanguageCode("  EN  "));
+
+        // A regional tag is cut to the language: "en-GB" is still English, and
+        // storing it whole would put a value in the column the filter never
+        // matches.
+        Assert.Equal("en", Profiles.LanguageCode("en-GB"));
+        Assert.Equal("zh", Profiles.LanguageCode("zh-Hans"));
+
+        // Anything else stays null rather than being written down, so a client
+        // sending rubbish cannot poison the filter.
+        Assert.Null(Profiles.LanguageCode(null));
+        Assert.Null(Profiles.LanguageCode(""));
+        Assert.Null(Profiles.LanguageCode("   "));
+        Assert.Null(Profiles.LanguageCode("xx"));
+        Assert.Null(Profiles.LanguageCode("Tiếng Việt"));
+    }
 }

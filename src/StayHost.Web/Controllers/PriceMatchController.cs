@@ -15,7 +15,8 @@ namespace StayHost.Web.Controllers;
 [ApiController]
 [Route("api")]
 public class PriceMatchController(
-    StayHostDbContext db, AuthService auth, AdminAudit audit, NotificationService notifications)
+    StayHostDbContext db, AuthService auth, AdminAudit audit,
+    NotificationService notifications, WalletService wallet)
     : ControllerBase
 {
     [HttpPost("bookings/{id:int}/price-match")]
@@ -134,6 +135,15 @@ public class PriceMatchController(
         {
             var booking = claim.Booking!;
             booking.GoodwillCredit += claim.Difference;
+
+            // The books said the guest had been given balance while the wallet
+            // said nothing: `GoodwillCredit` is a note on the booking and the
+            // ledger row moves money between platform accounts, but what a guest
+            // can actually spend is the run of CreditEntries. Without this line
+            // the notification below promised money that was never there — and
+            // docs/07 §16 stamps the twelve-month lifetime here, at the grant.
+            wallet.Add(claim.GuestUserId, claim.Difference, CreditReason.Goodwill,
+                $"Cam kết giá tốt · đơn {booking.Reference}", booking.Id);
 
             db.LedgerEntries.AddRange(Ledger.GrantCredit(
                 booking, claim.Difference, "Bù chênh lệch cam kết giá tốt", DateTime.UtcNow));

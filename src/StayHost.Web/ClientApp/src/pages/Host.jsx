@@ -48,7 +48,19 @@ export function Host() {
   const faq = [
     [t('Staylio thu phí bao nhiêu?'), `${t('Phí dịch vụ')} ${pct}% ${t('trên mỗi lượt đặt thành công. Không có phí đăng tin, không phí duy trì.')}`],
     [t('Tôi có toàn quyền với lịch không?'), t('Có. Bạn khoá ngày bất cứ lúc nào; hệ thống tự chặn đặt chỗ trùng.')],
-    [t('Nhà bị hư hỏng thì sao?'), t('Mỗi lượt đặt được bảo vệ tới 1 tỷ đồng cho thiệt hại tài sản.')],
+    /*
+     * This line used to promise "bảo vệ tới 1 tỷ đồng cho thiệt hại tài sản",
+     * which was wrong twice over. The ceiling is 75 triệu một hồ sơ
+     * (`ShieldSettings.HostClaimCeiling`), and since the customer's decision of
+     * 17/08/2026 the fund does not pay for damage at all: the guest settles it
+     * in cash at check-out and Staylio only rules on it (docs/06 §3.3, C1/C2 are
+     * `Shield.SettledAtCheckout`). It also read like insurance, which docs/06
+     * §11 forbids in as many words.
+     */
+    [t('Nhà bị hư hỏng thì sao?'),
+      t('Bạn báo khách ngay lúc trả phòng và nhận tiền mặt tại chỗ; Staylio phân xử và ghi nhận nhưng không thu hộ. Cửa sổ mở hồ sơ là 24 giờ sau khi khách đi.')],
+    [t('Staylio Shield hỗ trợ những gì?'),
+      t('Chính sách hỗ trợ đứng sau phần mất thu nhập khi phải khoá lịch và thiệt hại gây ra cho bên thứ ba, tối đa 75 triệu đồng mỗi hồ sơ và 350 triệu đồng một năm, sau mức tự chịu 500.000₫.')],
     [t('Khi nào tôi được thanh toán?'), t('Chuyển khoản 24 giờ sau khi khách nhận phòng, thẳng vào tài khoản ngân hàng của bạn.')]
   ];
 

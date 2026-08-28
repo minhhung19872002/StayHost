@@ -5,7 +5,7 @@ import { useMedia } from '../lib/useMedia.js';
 import {
   set, state as store, isDiscovery, activeFilterCount, guestLabel, totalGuests,
   loadSuggestions, loadNotifications, becomeHost, logout, toast, openOverlay, openMenu, toggleAmenity, settleDates,
-  clearDates, resetCalendarView
+  clearDates, resetCalendarView, featureOn
 } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { applySearch } from '../lib/nav.js';
@@ -425,7 +425,11 @@ function AccountMenu() {
         <hr />
         <button role="menuitem" aria-current={here('/wishlists')} onClick={() => goTo('/wishlists')}>{t('Danh sách yêu thích')} ({state.favCount})</button>
         <button role="menuitem" aria-current={here('/trips')} onClick={() => goTo('/trips')}>{t('Chuyến đi của tôi')}</button>
-        <button role="menuitem" aria-current={here('/trip-plans')} onClick={() => goTo('/trip-plans')}>{t('Lịch trình chuyến đi')}</button>
+        {/* docs/01 QT-08 — a real rollout switch on a real P2 feature, so the
+            console's percentages move something. Unknown to the server means on. */}
+        {featureOn('trip-plans') && (
+          <button role="menuitem" aria-current={here('/trip-plans')} onClick={() => goTo('/trip-plans')}>{t('Lịch trình chuyến đi')}</button>
+        )}
         <button role="menuitem" aria-current={here('/friends')} onClick={() => goTo('/friends')}>{t('Bạn bè')}</button>
         <button role="menuitem" aria-current={here('/host')} onClick={() => goTo('/host')}>{t('Cho thuê nhà trên Staylio')}</button>
         <hr />

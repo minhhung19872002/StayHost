@@ -480,12 +480,21 @@ public static class ExperienceRules
     /// "Tuesday, Thursday and Saturday at 9:00, for the next six weeks". Days are
     /// a bitmask with Monday at bit 0, matching the services side. Sessions
     /// already in the past are skipped rather than created and then ignored.
+    ///
+    /// <paramref name="zoneId"/> is the clock the host is reading. Nine in the
+    /// morning means nine where they live, and the same seven hours that broke
+    /// the services picker (docs/09 §3.4, <see cref="ServiceRules.LocalTime"/>)
+    /// would otherwise put every Vietnamese session at four in the afternoon.
+    /// Left null the pattern is read as UTC, which is what a caller that already
+    /// converted wants. An unknown zone falls back to UTC rather than throwing:
+    /// a mistyped setting must not stop a host putting sessions on sale.
     /// </summary>
     public static IReadOnlyList<DateTime> ExpandRecurrence(
-        int weekdayMask, TimeOnly at, DateOnly from, int weeks, DateTime now)
+        int weekdayMask, TimeOnly at, DateOnly from, int weeks, DateTime now, string? zoneId = null)
     {
         if (weekdayMask is <= 0 or >= 128 || weeks < 1) return [];
 
+        var zone = Zone(zoneId);
         var starts = new List<DateTime>();
         var days = Math.Min(weeks, 26) * 7;
 
@@ -495,11 +504,22 @@ public static class ExperienceRules
             var bit = day.DayOfWeek == DayOfWeek.Sunday ? 6 : (int)day.DayOfWeek - 1;
             if ((weekdayMask & (1 << bit)) == 0) continue;
 
-            var start = DateTime.SpecifyKind(day.ToDateTime(at), DateTimeKind.Utc);
+            var start = zone is null
+                ? DateTime.SpecifyKind(day.ToDateTime(at), DateTimeKind.Utc)
+                : TimeZoneInfo.ConvertTimeToUtc(
+                    DateTime.SpecifyKind(day.ToDateTime(at), DateTimeKind.Unspecified), zone);
+
             if (start > now) starts.Add(start);
         }
 
         return starts;
+    }
+
+    private static TimeZoneInfo? Zone(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return null;
+        try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
+        catch (Exception e) when (e is TimeZoneNotFoundException or InvalidTimeZoneException) { return null; }
     }
 
     /// <summary>

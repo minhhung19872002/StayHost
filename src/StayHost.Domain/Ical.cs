@@ -3,8 +3,19 @@ using System.Text;
 
 namespace StayHost.Domain;
 
-/// <summary>One booked stretch on a calendar. Half-open, like everywhere else.</summary>
-public readonly record struct IcalEvent(string Uid, DateOnly From, DateOnly To, string Summary);
+/// <summary>
+/// One booked stretch on a calendar. Half-open, like everywhere else.
+///
+/// <c>Location</c> and <c>Description</c> are for the guest's own calendar
+/// (docs/01 ĐP-15) and stay null for the availability feeds of docs/01 QL-10:
+/// those carry nothing but dates on purpose, because they are read by other
+/// booking sites.
+/// </summary>
+public readonly record struct IcalEvent(string Uid, DateOnly From, DateOnly To, string Summary)
+{
+    public string? Location { get; init; }
+    public string? Description { get; init; }
+}
 
 /// <summary>
 /// docs/01 QL-10 — the format every other booking site speaks. Only the parts
@@ -36,6 +47,8 @@ public static class Ical
             // DTEND is exclusive in iCalendar, which is exactly a check-out date.
             sb.Append("DTEND;VALUE=DATE:").Append(Date(e.To)).Append("\r\n");
             Line(sb, "SUMMARY", e.Summary);
+            if (!string.IsNullOrWhiteSpace(e.Location)) Line(sb, "LOCATION", e.Location!);
+            if (!string.IsNullOrWhiteSpace(e.Description)) Line(sb, "DESCRIPTION", e.Description!);
             sb.Append("TRANSP:OPAQUE\r\n");
             sb.Append("END:VEVENT\r\n");
         }

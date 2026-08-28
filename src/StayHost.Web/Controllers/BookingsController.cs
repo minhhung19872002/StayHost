@@ -764,6 +764,62 @@ public class BookingsController(
     }
 
     /// <summary>
+    /// docs/01 ĐP-15, docs/02 D3 — "thêm chuyến đi vào lịch cá nhân". One event,
+    /// in the format every calendar reads, served from the same Ical writer the
+    /// host feeds of docs/01 QL-10 use.
+    ///
+    /// The whole of the stay is one all-day event because that is what a night
+    /// is here: DTEND is exclusive in iCalendar, which is exactly a check-out
+    /// date, so no arithmetic is needed to make the two agree.
+    ///
+    /// The address is only in the file once the booking is confirmed — the same
+    /// line docs/03 §10 draws everywhere else. A calendar entry leaves the
+    /// platform the moment it is downloaded, so it must not be the one place
+    /// that hands out an address for a stay nobody has agreed to yet.
+    /// </summary>
+    [HttpGet("{id:int}/calendar.ics")]
+    public async Task<IActionResult> Calendar(int id, CancellationToken ct)
+    {
+        var booking = await FindOwnedAsync(id, ct, includeListing: true);
+        if (booking is null) return NotFound();
+
+        var listing = booking.Listing;
+        var where = CheckInGuide.CanSeeGuide(booking.Status) && listing is not null
+            ? listing.AddressLine ?? listing.City
+            : listing?.City;
+
+        var summary = $"{listing?.Title ?? "Staylio"} · {booking.Reference}";
+        var text = Ical.Write(
+            "Staylio",
+            [new IcalEvent(
+                $"booking-{booking.Id}@staylio.vn",
+                booking.CheckIn, booking.CheckOut, summary)
+            { Location = where, Description = CalendarNote(booking) }],
+            DateTime.UtcNow);
+
+        Response.Headers.ContentDisposition =
+            $"attachment; filename=\"staylio-{booking.Reference}.ics\"";
+        return Content(text, Ical.ContentType);
+    }
+
+    /// <summary>What the guest wants to read in their own calendar, not a receipt.</summary>
+    private static string CalendarNote(Booking b)
+    {
+        var parts = new List<string>
+        {
+            $"Mã đặt chỗ: {b.Reference}",
+            $"{b.Nights} đêm · {b.Guests} khách",
+            BookingLifecycle.Label(b.Status)
+        };
+
+        if (b.Listing?.Host?.Name is { Length: > 0 } host) parts.Add($"Chủ nhà: {host}");
+        if (b.Listing?.HostPhone is { Length: > 0 } phone
+            && CheckInGuide.CanSeeGuide(b.Status)) parts.Add($"Điện thoại: {phone}");
+
+        return string.Join("\n", parts);
+    }
+
+    /// <summary>
     /// docs/01 CĐ-06, docs/04 QT-4 — the guest asks to move a confirmed booking to
     /// new dates or a new guest count. The old dates stay held; nothing changes
     /// until the host accepts. The difference is quoted now so the guest sees it.
@@ -1202,7 +1258,11 @@ public class BookingsController(
             CheckIn = Clamp(req.CheckIn),
             Communication = Clamp(req.Communication),
             Location = Clamp(req.Location),
-            Value = Clamp(req.Value)
+            Value = Clamp(req.Value),
+            // docs/01 TĐ-11 — the writer's own interface language, so the reader's
+            // filter has something exact to work from rather than a guess at the
+            // characters. Unstated stays null and is guessed on the way out.
+            Language = Profiles.LanguageCode(req.Language)
         };
         db.Reviews.Add(review);
         booking.HasReview = true;
@@ -1221,6 +1281,33 @@ public class BookingsController(
                 ? "Đánh giá của bạn và của chủ nhà đã được công khai."
                 : "Đã gửi. Đánh giá sẽ hiện khi chủ nhà cũng gửi, hoặc sau 14 ngày."
         });
+    }
+
+    /// <summary>
+    /// docs/01 ĐG-08 — the review this guest wrote, read back so they can
+    /// correct it. Editing was written and tested but never reachable: no screen
+    /// could show a guest what they had said, so nothing could offer to change
+    /// it. The two conditions the PUT below enforces are answered here as one
+    /// flag, so the button is not offered where the server would refuse it.
+    /// </summary>
+    [HttpGet("{id:int}/review")]
+    public async Task<ActionResult<GuestReviewDto>> MyReview(int id, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var review = await db.Reviews
+            .FirstOrDefaultAsync(r => r.BookingId == id && r.AuthorUserId == user.Id, ct);
+        if (review is null) return NotFound();
+
+        var canEdit = review.PublishedAt is null
+                      && (review.EditableUntil is not { } until || DateTime.UtcNow <= until);
+
+        return Ok(new GuestReviewDto(
+            review.Id, review.Text, review.Rating,
+            review.Cleanliness, review.Accuracy, review.CheckIn,
+            review.Communication, review.Location, review.Value,
+            review.PrivateNote, review.EditableUntil, review.PublishedAt is not null, canEdit));
     }
 
     /// <summary>
@@ -1260,6 +1347,9 @@ public class BookingsController(
         review.Location = Clamp(req.Location);
         review.Value = Clamp(req.Value);
         review.PrivateNote = string.IsNullOrWhiteSpace(req.PrivateNote) ? null : req.PrivateNote.Trim();
+        // A correction may be typed with the interface in a different language
+        // than the first draft was, and the text is what the filter is for.
+        review.Language = Profiles.LanguageCode(req.Language) ?? review.Language;
 
         await db.SaveChangesAsync(ct);
         return NoContent();
@@ -1499,7 +1589,11 @@ public class BookingsController(
             b.BalanceDueOn,
             b.BalanceStatus.ToString(),
             PartialPayment.Label(b.BalanceStatus),
-            BuildGuide(b));
+            BuildGuide(b),
+            GatewayRedirectUrl: null,
+            GatewayOrderRef: null,
+            CanPriceMatch: b.Listing?.IsHotel == true
+                           && HotelRules.WithinWindow(b.CreatedAt, DateTime.UtcNow));
     }
 
     /// <summary>

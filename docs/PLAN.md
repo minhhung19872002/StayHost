@@ -865,12 +865,71 @@ tiên. Giờ có trên `LockPreviewDto`.
 6 là lỗi thật, 1 đáng bổ sung, 29 là trùng lặp vô hại. Nhưng trùng lặp vẫn là
 rủi ro trôi lệch — hai bản của cùng một luật có thể lệch nhau về sau.
 
+### 9.8. Soát theo **vai** thay vì theo mã (28/08/2026)
+
+Sáu lượt soát trước đều đi theo danh sách mã của `docs/01`. Lượt này đi theo hai
+vai người dùng — khách và chủ nhà — và hỏi một câu khác: *từ màn hình, người ta
+bấm được vào đâu?* Cách soát: liệt kê **endpoint của controller** rồi đối chiếu
+với **đường dẫn mà `lib/api.js` thật sự gọi**, và liệt kê **hàm của `api.js`** rồi
+đối chiếu với **component thật sự dùng**. Hai phép trừ ấy ra 12 chỗ hở, tất cả
+đều là mã hoàn chỉnh có test mà **không màn hình nào gọi tới**.
+
+`PLAN.md` vẫn ghi 203/203 suốt thời gian đó, và không sai theo cách nó đếm: mỗi
+mã **có** mã nguồn. Đây là lần thứ năm con số ấy đếm lệch, và lần này lệch theo
+một kiểu mới — không phải thiếu mã, mà thiếu **đường vào**.
+
+| Mã | Chỗ hở | Đã làm |
+|---|---|---|
+| `TK-06` | Khách nộp giấy tờ, **không ai duyệt được**. `GET /api/admin/identity` và `.../decide` đủ luật, đủ nhật ký, không một chỗ gọi → `IsIdentityVerified` không bao giờ bật, kéo theo `ĐP-03` và `ĐP-10` đọc một cờ không đường nào đặt | Hàng chờ + duyệt/từ chối trong `Admin.jsx` |
+| `ĐG-07` | Chủ nhà **không có ô viết trả lời đánh giá**. `HostReply` hiển thị được từ đầu nên chưa bao giờ hiển thị gì | `GET /api/host/reviews` mới + tab **Đánh giá** ở trang chủ nhà |
+| `MR-02` | Chủ nhà **không tạo/xoá được suất trải nghiệm** → trải nghiệm tự đăng không bán được vé nào. Chính màn hình điểm danh đã viết "Thêm suất trước đã", trỏ vào một màn hình không tồn tại | `SessionPlanner`: một suất, hoặc lặp theo thứ trong tuần |
+| `MR-10` | Cam kết giá tốt: **cả bốn endpoint đều chết**, và duyệt một hồ sơ **ghi sổ nhưng không cộng số dư** — thông báo hứa tiền mà ví khách không bao giờ thấy | Ô nộp ở trang chuyến đi + hàng chờ quản trị; `wallet.Add` bổ sung vào `PriceMatchController` |
+| `CĐ-01` | `/trips` là **một danh sách phẳng**; `docs/02 D4` đòi bốn nhóm | Bốn tab + nút nhanh nhắn tin / chỉ đường |
+| `ĐG-08` | Sửa đánh giá trong 48 giờ: `PUT` chạy được, **không màn hình nào cho khách xem lại thứ họ đã viết** nên không có gì để mời sửa | `GET /api/bookings/{id}/review` mới + nút **Sửa đánh giá** |
+| `ĐP-07` | Mở chia hoá đơn được rồi **không xem lại được**: mọi liên kết chỉ nằm trong email, trên một bản triển khai chưa có SMTP | Bảng tiến độ + chép liên kết + huỷ, ở trang chuyến đi |
+| `ĐP-15` | **Không có một dòng mã nào** — `grep ĐP-15` ra 0 | `GET /api/bookings/{id}/calendar.ics` |
+| `TĐ-11` | Lọc đánh giá **theo ngôn ngữ** chưa có | Cột `reviews.Language` + `ReviewInsights.LanguageOf` đoán cho dòng cũ |
+| `TĐ-21` | Tóm tắt đánh giá theo chủ đề | `ReviewInsights.Themes`, tám chủ đề, tối thiểu 3 lượt nhắc |
+| `TC-09` | Quản trị **không tạo được mã giảm giá** → ô "Mã giảm giá" ở bước thanh toán vĩnh viễn không có mã nào để nhập | `CouponsPanel` |
+| `QT-08` | Cờ tính năng tính đúng ở máy chủ, **không client nào hỏi**, và **không mã nào rẽ nhánh theo nó**. Hai cờ được seed còn đặt tên cho hai tính năng chưa từng được xây | `/api/features` được `App.jsx` đọc; hai cờ mới gác `price-match` và `trip-plans`; hai cờ chết bị xoá |
+
+**Hai lỗi tiền thật lộ ra trong lượt này:**
+
+1. `PriceMatchController.Decide` cộng `booking.GoodwillCredit` và ghi bút toán,
+   nhưng **không tạo `CreditEntry`** — mà số dư tiêu được là tổng các `CreditEntry`
+   (`WalletService.BalanceAsync`). Sổ nói khách có tiền, ví nói không, và không có
+   gì kêu vì sổ vẫn cân. Cùng họ với bài học "đừng tự dựng `CreditEntry` bằng tay".
+2. `ExperienceRules.ExpandRecurrence` đóng dấu giờ **UTC**, nên chủ nhà chọn 09:00
+   thì suất rơi vào 16:00 giờ Việt Nam. Đúng bảy tiếng đã làm hỏng picker dịch vụ
+   (`docs/09 §3.4`). Giờ nhận `zoneId` và đọc theo `Experience.TimeZoneId`.
+
+**Hai lời hứa sai trên màn hình:**
+
+- Trang mời làm chủ nhà: *"Mỗi lượt đặt được bảo vệ tới **1 tỷ đồng** cho thiệt hại
+  tài sản."* Trần thật là **75 triệu/hồ sơ**, và từ 17/08/2026 quỹ **không chi cho
+  hư hỏng** — khách trả tiền mặt tại chỗ. Câu ấy còn đọc như bảo hiểm, thứ `docs/06
+  §11` cấm thẳng.
+- `HelpModal` hứa *"huỷ trước 48 giờ hoàn 100%"* và một hotline bịa. Không bậc huỷ
+  nào là 48 giờ, và **không màn hình nào mở modal ấy** — đã xoá thay vì dịch một
+  lời hứa sai sang bảy thứ tiếng.
+
+**Cách soát này để dùng lại:**
+
+```bash
+# 1. Endpoint controller nào không có đường dẫn tương ứng trong ClientApp
+# 2. Hàm api.js nào không component nào gọi
+# Cả hai đều là "tín hiệu, không phải kết luận" (§9.6) — đi xem từng cái.
+```
+
+Nghiệm thu: `python scripts/rolegaps_acceptance.py` — 11 kịch bản, mỗi cái lái
+server thật rồi **đọc lại cơ sở dữ liệu**.
+
 ---
 
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (1064 test)
+# Test nghiệp vụ (1173 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199.
@@ -878,8 +937,11 @@ dotnet test tests/StayHost.Domain.Tests
 python scripts/acceptance.py
 STAYHOST_URL=http://localhost:5200 python scripts/acceptance.py
 
-# 7 kịch bản của §9.6 — các quy tắc từng có mã mà không ai gọi
+# 10 kịch bản của §9.6 — các quy tắc từng có mã mà không ai gọi
 python scripts/unwired_acceptance.py
+
+# 11 kịch bản của §9.8 — các quy tắc có mã, có test, mà không màn hình nào gọi
+python scripts/rolegaps_acceptance.py
 
 # 30 kịch bản của §9.4 — cổng thanh toán thật. Gọi ra sandbox VNPay/MoMo/ZaloPay
 # ngoài đời, nên cần mạng và cần server chạy ở Development.

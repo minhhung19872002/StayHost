@@ -424,6 +424,29 @@ public record ReviewGuestRequest(double Rating, string Text, bool WouldHostAgain
 
 public record CreateBlockRequest(int ListingId, DateOnly From, DateOnly To, string? Note);
 
+/// <summary>
+/// docs/01 ĐG-08 — a guest's own review, read back so they can correct it
+/// inside the 48 hours. <c>IsPublic</c> and <c>EditableUntil</c> are both said
+/// out loud rather than left to the caller to work out: once the other side has
+/// written theirs the review stands, whatever the clock says.
+/// </summary>
+public record GuestReviewDto(
+    int Id, string Text, double Rating,
+    double Cleanliness, double Accuracy, double CheckIn,
+    double Communication, double Location, double Value,
+    string? PrivateNote, DateTime? EditableUntil, bool IsPublic, bool CanEdit);
+
+/// <summary>
+/// docs/01 ĐG-07 — one review as the host sees it, with the two facts that
+/// decide whether the reply box is offered: has it been answered already, and
+/// is it still inside the thirty days of docs/03 §7.
+/// </summary>
+public record HostReviewDto(
+    int Id, int ListingId, string ListingTitle, string AuthorName,
+    double Rating, string Text, DateTime CreatedAt,
+    string? HostReply, DateTime? HostRepliedAt,
+    bool CanReply, DateTime ReplyDeadline);
+
 public record HostBookingDto(
     int Id,
     string Reference,
@@ -799,7 +822,13 @@ public record SubmitReviewRequest(
     double Location,
     double Value,
     /// <summary>docs/01 ĐG-05 — feedback for the host alone, never published.</summary>
-    string? PrivateNote = null);
+    string? PrivateNote = null,
+    /// <summary>
+    /// docs/01 TĐ-11 — the interface language the writer was using. Sent by the
+    /// client because nothing on the server knows it: the choice lives in the
+    /// browser, not on the account.
+    /// </summary>
+    string? Language = null);
 
 public record CategoryDto(string Key, string Label, string Icon, int Count);
 
@@ -1004,7 +1033,12 @@ public record ReviewDto(
     string? HostReply,
     DateTime? HostRepliedAt,
     /// <summary>docs/01 TK-05 — set when the author has an account to open. Null for seeded reviews.</summary>
-    int? AuthorUserId = null);
+    int? AuthorUserId = null,
+    /// <summary>docs/01 TĐ-11 — what the reader filters on. Never null: guessed when unstored.</summary>
+    string Language = "en");
+
+/// <summary>docs/01 TĐ-21 — one subject the reviews keep raising, and its own score.</summary>
+public record ReviewThemeDto(string Key, string Label, int Mentions, double Rating);
 
 public record RatingBreakdownDto(
     double Cleanliness,
@@ -1064,7 +1098,12 @@ public record ListingDetailDto(
     /// docs/01 TĐ-23 — set only when <see cref="StayHost.Domain.Scarcity"/> says the
     /// near calendar is full enough to say so. Null is the ordinary case.
     /// </summary>
-    RareFindDto? RareFind = null);
+    RareFindDto? RareFind = null,
+    /// <summary>
+    /// docs/01 TĐ-21 — what the reviews keep saying, strongest first. Empty
+    /// until there are enough of them to be talking about anything.
+    /// </summary>
+    IReadOnlyList<ReviewThemeDto>? ReviewThemes = null);
 
 /// <summary>docs/01 TĐ-22 — one heading of a guidebook and what is under it.</summary>
 public record GuidebookGroupDto(string Category, string Label, IReadOnlyList<GuidebookPlaceDto> Places);
@@ -1422,7 +1461,14 @@ public record BookingDto(
     /// </summary>
     string? GatewayRedirectUrl = null,
     /// <summary>What the gateway will know that payment by.</summary>
-    string? GatewayOrderRef = null);
+    string? GatewayOrderRef = null,
+    /// <summary>
+    /// docs/01 MR-10 — a hotel room, still inside the 24 hours in which a
+    /// cheaper price elsewhere can be claimed. Said here so the form is offered
+    /// only where the server would accept it, rather than everywhere and
+    /// refused.
+    /// </summary>
+    bool CanPriceMatch = false);
 
 public record BookingEventDto(
     string? FromStatus, string FromLabel, string ToStatus, string ToLabel,

@@ -858,7 +858,7 @@ public class ExperienceService(
             ? ExperienceRules.ExpandRecurrence(
                 req.RepeatWeekdayMask, repeatAt,
                 req.RepeatFrom ?? DateOnly.FromDateTime(DateTime.UtcNow),
-                req.RepeatWeeks, DateTime.UtcNow)
+                req.RepeatWeeks, DateTime.UtcNow, experience.TimeZoneId)
             : [];
 
         var starts = (req.StartsAt ?? []).Concat(pattern)

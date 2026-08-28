@@ -475,28 +475,6 @@ export function LanguageModal() {
   );
 }
 
-const HELP = [
-  ['Tôi cần thay đổi ngày đặt chỗ', 'Vào Chuyến đi của tôi → chọn đặt chỗ → Chỉnh sửa ngày.'],
-  ['Chủ nhà chưa phản hồi', 'Sau 24 giờ, Staylio sẽ tự huỷ và hoàn tiền toàn bộ.'],
-  ['Tôi muốn được hoàn tiền', 'Huỷ trước 48 giờ nhận phòng để được hoàn 100% tiền phòng.'],
-  ['Liên hệ hỗ trợ 24/7', 'Hotline 1900 1234 hoặc chat trực tiếp trong ứng dụng.']
-];
-
-export function HelpModal() {
-  return (
-    <Modal title={t('Trung tâm trợ giúp')} size="narrow">
-      <div style={{ display: 'grid', gap: 14 }}>
-        {HELP.map(([q, a]) => (
-          <div key={q} style={{ border: '1px solid var(--divider)', borderRadius: 12, padding: 16 }}>
-            <b style={{ fontSize: 14.5 }}>{t(q)}</b>
-            <p style={{ margin: '6px 0 0', fontSize: 13.5, color: 'var(--ink-muted)', lineHeight: 1.55 }}>{t(a)}</p>
-          </div>
-        ))}
-      </div>
-    </Modal>
-  );
-}
-
 /**
  * docs/01 AT-02 — reports a listing, a person, a message or a review. Which one
  * comes from store.report, set by openReport() at the button that opened this.

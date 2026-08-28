@@ -960,7 +960,9 @@ public class CatalogService(StayHostDbContext db)
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => new ReviewDto(
                 r.Id, r.AuthorName, r.AuthorInitials, r.AuthorLocation, r.When, r.Text,
-                Math.Round(r.Rating, 1), r.HostReply, r.HostRepliedAt, r.AuthorUserId))
+                Math.Round(r.Rating, 1), r.HostReply, r.HostRepliedAt, r.AuthorUserId,
+                // docs/01 TĐ-11 — what the language filter reads.
+                ReviewInsights.LanguageOf(r.Language, r.Text)))
             .ToList();
 
         // docs/01 TĐ-10 — the distribution, five stars first.
@@ -980,6 +982,13 @@ public class CatalogService(StayHostDbContext db)
                 Math.Round(visible.Average(r => r.Location), 1),
                 Math.Round(visible.Average(r => r.Value), 1),
                 stars);
+
+        // docs/01 TĐ-21 — what the reviews keep coming back to, worked out from
+        // the reviews themselves rather than from anything the host wrote.
+        var themes = ReviewInsights
+            .Themes(visible.Select(r => (r.Text, r.Rating)))
+            .Select(t => new ReviewThemeDto(t.Key, t.Label, t.Mentions, t.Rating))
+            .ToList();
 
         // docs/01 TĐ-04 — show every filterable amenity, striking through the
         // ones this place does not have, so absence is visible rather than implied.
@@ -1095,7 +1104,8 @@ public class CatalogService(StayHostDbContext db)
             // docs/01 TĐ-22 — the host's own recommendations, grouped for reading.
             GuidebookGroups(listing),
             // docs/01 TĐ-23 — "Hiếm có", from the same calendar the picker greys out.
-            RareFind(unavailable, today));
+            RareFind(unavailable, today),
+            themes);
     }
 
     /// <summary>

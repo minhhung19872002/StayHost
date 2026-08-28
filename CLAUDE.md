@@ -55,7 +55,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (26/08/2026).** 1158 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (28/08/2026).** 1173 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **34/34** kịch bản chuyển tiền cho chủ nhà và đối chiếu sao kê (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
@@ -66,7 +66,9 @@ toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay 
 (`scripts/admin_acceptance.py`) · **19/19** kịch bản của `docs/09`
 (`scripts/doc09_acceptance.py`, gồm cả 12 tình huống bắt buộc của `docs/09 §9`) ·
 **10/10** kịch bản của `scripts/unwired_acceptance.py` (`docs/PLAN.md §9.6` — các
-quy tắc từng có mã mà không đường nào gọi tới).
+quy tắc từng có mã mà không đường nào gọi tới) ·
+**11/11** kịch bản của `scripts/rolegaps_acceptance.py` (`docs/PLAN.md §9.8` — soát
+theo **vai** khách/chủ nhà, 12 chỗ hở là mã hoàn chỉnh mà không màn hình nào gọi).
 Sổ sách lệch 0. Cả 203 mã của `docs/01` đã làm xong (`docs/PLAN.md §9`).
 
 > **`acceptance.py` cần DB sạch.** Nó ra 8/10 trên DB đã chạy nhiều lần — **không phải
@@ -525,6 +527,27 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   dẫn**, mà mọi file trong `src/StayHost.Domain/` đều có chuỗi đó trong tên — nên nó
   giấu sạch thư mục lớn nhất. Soát tên trong repo thì lọc **nội dung**, đừng lọc dòng
   có lẫn đường dẫn.
+- **"Có mã, có test" vẫn có thể là "không màn hình nào bấm được".** Soát ngày 28/08
+  đi theo **vai** (khách, chủ nhà) thay vì theo mã của `docs/01`, và ra **12 chỗ hở**
+  mà `PLAN.md` vẫn đếm là xong — vì mỗi cái *đều có* mã nguồn đầy đủ. Khách nộp giấy
+  tờ mà **không ai duyệt được** (`TK-06`), chủ nhà **không có ô trả lời đánh giá**
+  (`ĐG-07`), trải nghiệm tự đăng **không thêm được suất nào** nên không bán được vé
+  (`MR-02`), quản trị **không tạo được mã giảm giá** nên ô "Mã giảm giá" của khách
+  vĩnh viễn vô dụng (`TC-09`). Phép soát ra chúng là **hai phép trừ**: endpoint của
+  controller trừ đi đường dẫn `lib/api.js` thật sự gọi, và hàm `api.js` trừ đi
+  component thật sự dùng. Nhanh, và bắt được thứ mà đọc theo danh sách mã không bắt
+  được. Xem `docs/PLAN.md §9.8`.
+- **Ghi bút toán không phải là cộng số dư.** `PriceMatchController` duyệt bù chênh
+  lệch thì cộng `booking.GoodwillCredit` và ghi `Ledger.GrantCredit` — nhưng số dư
+  tiêu được là tổng các `CreditEntry` (`WalletService.BalanceAsync`), và không dòng
+  nào được tạo. Sổ nói khách có tiền, ví nói không, thông báo thì đã hứa "đã được
+  cộng vào số dư của bạn". **Sổ vẫn cân nên không có gì kêu.** Cấp số dư thì phải đi
+  qua `wallet.Add` — cũng chính là chỗ đóng dấu hạn dùng của `docs/07 §16`.
+- **Giờ trong lịch lặp cũng là giờ của người làm.** `ExperienceRules.ExpandRecurrence`
+  đóng dấu `DateTimeKind.Utc` lên giờ chủ nhà gõ, nên chọn 09:00 thì suất rơi vào
+  16:00 giờ Việt Nam — đúng bảy tiếng đã làm hỏng picker dịch vụ. `Experience.TimeZoneId`
+  nằm sẵn trên entity từ đầu mà chưa ai dùng, y hệt lần trước. Khi một quy tắc đọc
+  **mặt đồng hồ** chứ không phải một mốc thời gian, hỏi ngay "đồng hồ của ai?".
 - **Đổi tên miền thì DB đang chạy không đổi theo.** Email tài khoản seed nằm trong
   `DbSeeder`, mà seeder chỉ chạy trên DB trắng — bản prod vẫn giữ `admin@stayhost.vn`
   cũ sau khi deploy. Đường đổi tài khoản quản trị là `ADMIN_EMAIL`; các tài khoản
@@ -653,6 +676,8 @@ dotnet test tests/StayHost.Domain.Tests            # 1158 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
+python scripts/unwired_acceptance.py               # 10 quy tắc từng không ai gọi (PLAN §9.6)
+python scripts/rolegaps_acceptance.py              # 11 chỗ hở của lượt soát theo vai (PLAN §9.8)
 python scripts/gateway_acceptance.py               # 30 kịch bản cổng thanh toán, gọi sandbox thật
 python scripts/payout_acceptance.py                # 34 kịch bản chuyển tiền + đối chiếu sao kê (docs/07 §15.4)
 python scripts/vnpay_browser_acceptance.py         # 14 kịch bản: trả tiền THẬT trên trang VNPay (cần playwright)
@@ -748,6 +773,22 @@ vào một tài khoản không tồn tại. 77 thư chưa gửi cũng đã thay 
 **Mật khẩu quản trị prod đã đổi (26/08)**, không còn là `stayhost123`. Xem bài học ở
 `§4`. Vẫn nên đặt `ADMIN_EMAIL` về hòm thư thật rồi bật lại `ADMIN_REQUIRE_2FA=true` —
 nhưng **chỉ sau khi `EMAIL_HOST` chạy**, bật trước thì chính mình cũng không vào được.
+
+### 8.0b. Soát theo vai khách & chủ nhà (28/08/2026)
+
+Mười hai chỗ hở, tất cả là **mã hoàn chỉnh có test mà không màn hình nào gọi tới**;
+đã vá hết trong ngày. Bảng đầy đủ ở `docs/PLAN.md §9.8`. Đáng nhớ nhất:
+
+- **`TK-06`** chặn nhiều thứ hơn vẻ ngoài của nó: không ai duyệt được giấy tờ thì
+  `IsIdentityVerified` không bao giờ bật, nên điều kiện "chỉ khách đã xác minh" của
+  `ĐP-03`/`ĐP-10` đọc một cờ không đường nào đặt.
+- **`MR-10`** hỏng cả ở tầng tiền, không chỉ ở giao diện — xem bài học ở `§4`.
+- **Trang mời làm chủ nhà** hứa "bảo vệ tới 1 tỷ đồng cho thiệt hại tài sản" trong
+  khi trần là 75 triệu/hồ sơ và quỹ **không chi cho hư hỏng** từ 17/08. Đã viết lại
+  theo đúng `Shield.SettledAtCheckout` và `ShieldSettings`.
+- **`QT-08`** giờ gác hai thứ có thật (`price-match`, `trip-plans`). Hai cờ được seed
+  trước đó đặt tên cho hai tính năng chưa từng được xây, và **không mã nào đọc cờ**;
+  chúng đã bị xoá khỏi bảng khi ứng dụng khởi động.
 
 ### 8.1. Đang chờ khách
 

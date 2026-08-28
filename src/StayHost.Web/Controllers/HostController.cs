@@ -769,6 +769,46 @@ public class HostController(
     public record RespondBody(string? Reason);
 
     /// <summary>
+    /// docs/01 ĐG-07 — the reviews written about this host's places, newest
+    /// first, with whether each one can still be answered. The reply endpoint
+    /// below has worked since it was written, but nothing listed the reviews,
+    /// so a host had no screen from which to reach it and the public answer
+    /// docs/01 TĐ-12 renders could never be written.
+    /// </summary>
+    [HttpGet("reviews")]
+    public async Task<ActionResult<IReadOnlyList<HostReviewDto>>> Reviews(CancellationToken ct)
+    {
+        var (user, profile) = await ResolveAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+        if (profile is null) return Ok(Array.Empty<HostReviewDto>());
+
+        var now = DateTime.UtcNow;
+
+        var rows = await db.Reviews
+            // docs/03 §7 — a review still inside the blind window is not public
+            // yet, so there is nothing for the host to answer in front of.
+            .Where(r => r.Listing!.HostId == profile.Id && r.PublishedAt != null)
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(120)
+            .Select(r => new
+            {
+                r.Id, r.ListingId,
+                ListingTitle = r.Listing!.Title,
+                r.AuthorName, r.Rating, r.Text, r.CreatedAt,
+                r.HostReply, r.HostRepliedAt
+            })
+            .ToListAsync(ct);
+
+        return Ok(rows.Select(r => new HostReviewDto(
+            r.Id, r.ListingId, r.ListingTitle, r.AuthorName, r.Rating, r.Text, r.CreatedAt,
+            r.HostReply, r.HostRepliedAt,
+            // The same two conditions the reply endpoint enforces, said out loud
+            // so the button is not offered where the server would refuse it.
+            r.HostReply is null && r.CreatedAt.AddDays(30) >= now,
+            r.CreatedAt.AddDays(30))).ToList());
+    }
+
+    /// <summary>
     /// docs/01 TĐ-12 and docs/03 §7: the host answers a review publicly, once,
     /// within 30 days of it appearing.
     /// </summary>
