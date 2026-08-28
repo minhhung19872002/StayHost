@@ -2022,9 +2022,25 @@ a.opt { color: inherit; text-decoration: none; display: block; }
    clickable, so a host can jump back without losing anything. */
 .wizard-steps {
   display: flex; gap: 6px; overflow-x: auto; padding-bottom: 14px; margin-bottom: 18px;
-  border-bottom: 1px solid var(--divider); scrollbar-width: none;
+  border-bottom: 1px solid var(--divider); scrollbar-width: none; scroll-behavior: smooth;
 }
 .wizard-steps::-webkit-scrollbar { display: none; }
+
+/*
+ * The scrollbar is hidden, so a pill cut off at the edge reads as a broken
+ * layout rather than as "there is more this way". These fade it out instead,
+ * and only on the side that actually has more — a permanent gradient would fade
+ * the last step even once you had scrolled to it.
+ */
+.wizard-steps.more-right {
+  mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent);
+}
+.wizard-steps.more-left {
+  mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent);
+}
+.wizard-steps.more-left.more-right {
+  mask-image: linear-gradient(to right, transparent, #000 44px, #000 calc(100% - 44px), transparent);
+}
 .wizard-step {
   display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto;
   padding: 7px 13px; border: 1px solid var(--line); border-radius: 999px;

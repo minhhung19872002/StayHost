@@ -242,9 +242,56 @@ function blockedReason(form, step) {
   return null;
 }
 
+/**
+ * The twelve steps, as a rail you can also jump around in.
+ *
+ * It scrolls sideways because twelve pills do not fit a modal, and its scrollbar
+ * is hidden like every other rail here. That left two problems worth fixing
+ * together: the pill at the edge was sliced in half with nothing to say more
+ * existed, and — the real one — pressing "Tiếp tục" past the eighth step made a
+ * step active that was entirely off screen, so the host lost their place in the
+ * middle of the form.
+ */
 function Stepper({ step, onPick }) {
+  const rail = useRef(null);
+  const [edges, setEdges] = useState({ left: false, right: false });
+
+  // Which way there is more to see. Read after every scroll and on resize, so a
+  // rail that stops overflowing stops claiming to.
+  const readEdges = () => {
+    const el = rail.current;
+    if (!el) return;
+    const slack = el.scrollWidth - el.clientWidth;
+    setEdges({
+      left: el.scrollLeft > 1,
+      right: slack > 1 && el.scrollLeft < slack - 1
+    });
+  };
+
+  // Bring the active step into view. Done by hand rather than with
+  // scrollIntoView, which walks up and scrolls the modal body vertically too.
+  useEffect(() => {
+    const el = rail.current;
+    const active = el?.children[step];
+    if (!el || !active) return;
+
+    const target = active.offsetLeft - (el.clientWidth - active.offsetWidth) / 2;
+    el.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
+
+    // After the smooth scroll lands, not before it starts.
+    const timer = setTimeout(readEdges, 320);
+    return () => clearTimeout(timer);
+  }, [step]);
+
+  useEffect(() => {
+    readEdges();
+    window.addEventListener('resize', readEdges);
+    return () => window.removeEventListener('resize', readEdges);
+  }, []);
+
   return (
-    <div className="wizard-steps">
+    <div ref={rail} onScroll={readEdges}
+         className={`wizard-steps ${edges.left ? 'more-left' : ''} ${edges.right ? 'more-right' : ''}`}>
       {STEPS.map(([key, label], i) => (
         <button key={key} className={`wizard-step ${i === step ? 'is-active' : ''} ${i < step ? 'is-done' : ''}`}
                 onClick={() => onPick(i)}>
