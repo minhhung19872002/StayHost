@@ -69,19 +69,41 @@ public class BookingsController(
                 : BadRequest(new { message = check.Message, reason = check.Reason.ToString() });
         }
 
-        // Bookings carry money and liability, so they need a real account behind them.
+        /*
+         * docs/07 §2.5 — a booking does not need an account behind it.
+         *
+         * It used to: this returned 401 and said so. The rest of the platform was
+         * already built for the other case — every booking carries a SessionId,
+         * the trips list reads by session, and signing in adopts what the session
+         * was holding — so the only thing standing between a stranger and a
+         * booking was this line.
+         *
+         * What an account brings is still required where it is genuinely needed;
+         * GuestCheckout names each refusal rather than quietly dropping it.
+         */
         var user = await auth.CurrentUserAsync(ct);
+
         if (user is null)
-            return Unauthorized(new { message = "Bạn cần đăng nhập để đặt chỗ." });
+        {
+            var anonymous = GuestCheckout.CanBookAnonymously(
+                new GuestCheckout.Contact(req.GuestName, req.GuestEmail, req.GuestPhone),
+                listing.RequireGuestPhoto, listing.RequireVerifiedToBook,
+                req.UseCredit, !string.IsNullOrWhiteSpace(req.CouponCode), req.OfferId is not null);
 
-        // docs/08 §5.2 — the restriction blocks the behaviour, not the account.
-        if (Restrictions.Has(user.RestrictionMask, RestrictionKind.NoNewBookings))
-            return StatusCode(403, new { message = Restrictions.Message(RestrictionKind.NoNewBookings) });
+            if (!anonymous.Ok)
+                return BadRequest(new { message = anonymous.Message, reason = anonymous.Reason.ToString() });
+        }
+        else
+        {
+            // docs/08 §5.2 — the restriction blocks the behaviour, not the account.
+            if (Restrictions.Has(user.RestrictionMask, RestrictionKind.NoNewBookings))
+                return StatusCode(403, new { message = Restrictions.Message(RestrictionKind.NoNewBookings) });
 
-        // docs/08 §6 — a suspended account kept open for a dispute is open for
-        // the dispute, not for booking holidays.
-        if (user.IsSuspended)
-            return StatusCode(403, new { message = "Tài khoản đang bị tạm khoá nên không đặt chỗ mới được." });
+            // docs/08 §6 — a suspended account kept open for a dispute is open for
+            // the dispute, not for booking holidays.
+            if (user.IsSuspended)
+                return StatusCode(403, new { message = "Tài khoản đang bị tạm khoá nên không đặt chỗ mới được." });
+        }
 
         // docs/01 ĐP-10 — the host's hard preconditions. Unlike the instant-book
         // conditions these do not fall back to a request: the host asked that
@@ -94,14 +116,17 @@ public class BookingsController(
             // docs/07 §11 step 6 — "gắn cờ, yêu cầu xác minh cho các đơn sau".
             // The flag is raised when arbitration lands; this is the "các đơn
             // sau" half, which had nowhere to live until now.
-            var flaggedForChargebacks = await db.RiskFlags.AnyAsync(
+            // A flag is raised against an account; somebody with none carries no
+            // history, which is exactly why GuestCheckout refuses them on a
+            // listing whose host asked for a verified guest.
+            var flaggedForChargebacks = user is not null && await db.RiskFlags.AnyAsync(
                 f => f.UserId == user.Id
                      && f.Kind == RiskKind.RepeatChargebacks
                      && f.Status == RiskFlagStatus.Open, ct);
 
             var precheck = BookingPreconditions.Check(
                 listing.RequireGuestPhoto, listing.RequireVerifiedToBook,
-                !string.IsNullOrWhiteSpace(user.AvatarUrl), user.IsIdentityVerified,
+                !string.IsNullOrWhiteSpace(user?.AvatarUrl), user?.IsIdentityVerified ?? false,
                 hasRules, req.AgreedToRules,
                 platformRequiresVerified: flaggedForChargebacks);
             if (!precheck.Ok) return BadRequest(new { message = precheck.Error });
@@ -115,7 +140,7 @@ public class BookingsController(
         {
             offer = await db.SpecialOffers.FirstOrDefaultAsync(o => o.Id == offerId, ct);
             var now = DateTime.UtcNow;
-            if (offer is null || offer.GuestUserId != user.Id || !SpecialOffers.IsLive(offer, now))
+            if (offer is null || user is null || offer.GuestUserId != user.Id || !SpecialOffers.IsLive(offer, now))
                 return BadRequest(new { message = "Ưu đãi này không còn áp dụng được." });
             if (offer.ListingId != listing.Id || offer.CheckIn != req.CheckIn || offer.CheckOut != req.CheckOut)
                 return BadRequest(new { message = "Ưu đãi không khớp với chỗ nghỉ hoặc ngày đã chọn." });
@@ -136,7 +161,7 @@ public class BookingsController(
         {
             var dry = Pricing.Quote(quoteRequest!);
             var gross = dry.Subtotal + dry.GuestServiceFee + dry.Tax;
-            couponCheck = await coupons.EvaluateAsync(req.CouponCode, user.Id, gross, DateTime.UtcNow, ct: ct);
+            couponCheck = await coupons.EvaluateAsync(req.CouponCode, user!.Id, gross, DateTime.UtcNow, ct: ct);
             if (!couponCheck.Ok)
                 return BadRequest(new { message = couponCheck.Error });
 
@@ -150,7 +175,7 @@ public class BookingsController(
         // Balance comes off the room charge, never off the fees or the tax: it
         // is money towards a stay, not a discount on what is owed elsewhere.
         var creditUsed = 0m;
-        if (req.UseCredit)
+        if (req.UseCredit && user is not null)
         {
             var dry = Pricing.Quote(quoteRequest!);
             creditUsed = CreditRules.Spendable(
@@ -178,11 +203,17 @@ public class BookingsController(
         if (listing.InstantBook && offer is null
             && (listing.InstantBookRequiresVerified || listing.InstantBookRequiresGoodReviews))
         {
-            var reviewed = await db.GuestReviews.Where(r => r.GuestUserId == user.Id)
-                .Select(r => (double?)r.Rating).ToListAsync(ct);
+            // Somebody with no account is the plainest case of an unverified,
+            // unreviewed guest, so they meet these conditions the same way any
+            // other unverified guest does: the stay becomes a request the host
+            // answers, which is what the host turned these on to get.
+            var reviewed = user is null
+                ? []
+                : await db.GuestReviews.Where(r => r.GuestUserId == user.Id)
+                    .Select(r => (double?)r.Rating).ToListAsync(ct);
             var eligibility = InstantBook.Check(
                 listing.InstantBookRequiresVerified, listing.InstantBookRequiresGoodReviews,
-                user.IsIdentityVerified,
+                user?.IsIdentityVerified ?? false,
                 reviewed.Count > 0 ? reviewed.Average(x => x!.Value) : null,
                 reviewed.Count);
 
@@ -203,7 +234,7 @@ public class BookingsController(
         {
             Reference = "SH" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant(),
             SessionId = HttpContext.SessionId(),
-            GuestUserId = user.Id,
+            GuestUserId = user?.Id,
             ListingId = listing.Id,
             Listing = listing,
             CheckIn = req.CheckIn,
@@ -238,8 +269,9 @@ public class BookingsController(
             DisplayCurrency = string.IsNullOrWhiteSpace(req.DisplayCurrency) ? null : req.DisplayCurrency.Trim(),
             DisplayRate = req.DisplayRate is > 0 ? req.DisplayRate : null,
             CancellationTier = listing.CancellationTier,
-            GuestName = req.GuestName ?? user.FullName,
-            GuestEmail = req.GuestEmail ?? user.Email,
+            GuestName = req.GuestName ?? user?.FullName,
+            GuestEmail = req.GuestEmail ?? user?.Email,
+            GuestPhone = Identity.NormalisePhone(req.GuestPhone) ?? user?.Phone,
             GuestNote = req.GuestNote,
             // docs/03 §2–§3: instant book takes the dates off the market for 15
             // minutes while the guest pays; a request waits 24 hours on the host
@@ -284,7 +316,7 @@ public class BookingsController(
         // or is cancelled the redemption is released so the limit is not spent on
         // a stay that never happened.
         if (couponId is { } cid && price.Coupon > 0)
-            coupons.Redeem(cid, user.Id, booking.Id, price.Coupon);
+            coupons.Redeem(cid, user!.Id, booking.Id, price.Coupon);
 
         // docs/01 ĐP-17 — the offer is spent, so it cannot be booked a second
         // time. A hold that lapses is not released back here: an offer is a
@@ -296,7 +328,7 @@ public class BookingsController(
             offer.BookingId = booking.Id;
         }
 
-        db.BookingEvents.Add(BookingLifecycle.Created(booking, $"guest:{user.Id}",
+        db.BookingEvents.Add(BookingLifecycle.Created(booking, $"guest:{user?.Id.ToString() ?? booking.SessionId}",
             instantAvailable
                 // docs/07 §2.3 — the two hold lengths are different, and the
                 // history is the record of which one this booking actually got.
@@ -320,11 +352,22 @@ public class BookingsController(
                 $"({booking.Nights} đêm, {booking.Guests} khách). Bạn có 24 giờ để trả lời.",
                 "/hosting", ct);
 
-            await notifications.QueueWithEmailAsync(user, NotificationKind.BookingCreated,
-                "Đã gửi yêu cầu đặt chỗ",
-                $"Mã đặt chỗ {booking.Reference} · {listing.Title} · {booking.Nights} đêm. " +
-                "Yêu cầu đặt không giữ ngày: ai trả tiền xong trước thì được.",
-                $"/trips/{booking.Id}", ct);
+            var line = $"Mã đặt chỗ {booking.Reference} · {listing.Title} · {booking.Nights} đêm. " +
+                       "Yêu cầu đặt không giữ ngày: ai trả tiền xong trước thì được.";
+
+            if (user is not null)
+            {
+                await notifications.QueueWithEmailAsync(user, NotificationKind.BookingCreated,
+                    "Đã gửi yêu cầu đặt chỗ", line, $"/trips/{booking.Id}", ct);
+            }
+            else
+            {
+                // docs/07 §2.5 — no account means no in-app row and no preference
+                // mask; the address they typed is the only way to reach them, and
+                // the reference in this mail is how they find the booking again.
+                notifications.QueueEmailOnly(booking.GuestEmail, booking.GuestName,
+                    "Đã gửi yêu cầu đặt chỗ", line, "/dat-cho");
+            }
 
             await db.SaveChangesAsync(ct);
         }
@@ -401,13 +444,18 @@ public class BookingsController(
     [HttpPost("{id:int}/pay")]
     public async Task<ActionResult<BookingDto>> Pay(int id, [FromBody] PayBookingRequest? req, CancellationToken ct)
     {
+        // docs/07 §2.5 — the booking may belong to a session rather than an
+        // account. Ownership is the same question either way, and FindOwnedAsync
+        // has always answered both; this used to demand a signed-in user and so
+        // could never finish a booking a stranger had started.
         var user = await auth.CurrentUserAsync(ct);
-        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+        var sid = HttpContext.SessionId();
 
         var booking = await db.Bookings
             .Include(b => b.Payment).Include(b => b.Events)
             .Include(b => b.Listing!).ThenInclude(l => l.Images)
-            .FirstOrDefaultAsync(b => b.Id == id && b.GuestUserId == user.Id, ct);
+            .FirstOrDefaultAsync(b => b.Id == id
+                && (user != null ? b.GuestUserId == user.Id : b.SessionId == sid && b.GuestUserId == null), ct);
 
         if (booking is null) return NotFound();
 
@@ -508,6 +556,51 @@ public class BookingsController(
 
         var method = req?.PaymentMethod ?? "card";
 
+        /*
+         * docs/07 §2.5 — the guest pays the host at the door, so there is nothing
+         * to take here and nothing to hold. The booking is confirmed on the spot,
+         * which is the whole point of it for a guest with no card.
+         *
+         * No ledger entry is written. Money that never reached Staylio has not
+         * moved through Staylio, and a booking-captured transaction would state
+         * that it had. The platform's fee is billed to the host when they confirm
+         * the cash is in hand (PayAtProperty, and HostOperationsController).
+         */
+        if (PaymentMethods.SettlesAtProperty(method))
+        {
+            var allowed = PayAtProperty.CanUse(
+                booking.Listing!.AcceptsPayAtProperty, partial,
+                await db.BillSplits.AnyAsync(sp => sp.BookingId == booking.Id, ct),
+                booking.CreditUsed > 0 || booking.CouponId is not null);
+
+            if (!allowed.Ok)
+                return BadRequest(new { message = allowed.Message, reason = allowed.Reason.ToString() });
+
+            if (booking.Payment is not null)
+            {
+                booking.Payment.Method = method;
+                booking.Payment.CardLast4 = null;
+                // Pending, not Captured: nobody has paid anybody yet. The payout
+                // sweep reads Captured, so this booking is correctly invisible to
+                // it — there is no platform money to forward.
+                booking.Payment.Status = PaymentStatus.Pending;
+            }
+
+            // The one place this is set. Every cancellation rule reads it off the
+            // booking rather than off the payment row, which half the call sites
+            // never load.
+            booking.PaidAtProperty = true;
+            booking.HoldExpiresAt = null;
+            db.BookingEvents.Add(BookingLifecycle.Transition(
+                booking, BookingStatus.Confirmed,
+                user is null ? $"guest:{sid}" : $"guest:{user.Id}",
+                "Trả tiền tại nơi ở khi nhận phòng."));
+
+            await db.SaveChangesAsync(ct);
+            await NotifyConfirmedAsync(booking, ct);
+            return Ok(ToDto(booking));
+        }
+
         // docs/07 §2.3 — a bank transfer is not taken here. The guest leaves for
         // their banking app, so the booking keeps its dates on a longer timer and
         // waits to be found on a statement. Everything below this point — the
@@ -580,7 +673,9 @@ public class BookingsController(
             // never leaves the server.
             string? cardToken = null;
 
-            if (req?.SavedCardId is { } savedId)
+            // docs/07 §4 — a saved card belongs to an account, so a booking made
+            // without one has none to reach for.
+            if (req?.SavedCardId is { } savedId && user is not null)
             {
                 var saved = await db.SavedCards
                     .FirstOrDefaultAsync(c => c.Id == savedId && c.UserId == user.Id, ct);
@@ -675,7 +770,7 @@ public class BookingsController(
         // The same steps the self-check of docs/07 §5 runs when it discovers a
         // booking was paid after the guest's connection dropped.
         await completion.ConfirmAsync(
-            booking, price, charged, partial, today, user.Id, req?.PaymentMethod, req?.CardLast4, ct);
+            booking, price, charged, partial, today, user?.Id, req?.PaymentMethod, req?.CardLast4, ct);
 
         return Ok(ToDto(booking));
     }
@@ -974,6 +1069,25 @@ public class BookingsController(
     /// </summary>
     private static RefundPreviewDto ToPreview(Booking b, Cancellation.Outcome o)
     {
+        /*
+         * docs/07 §2.5 — nothing was ever taken for a pay-at-property booking, so
+         * there is nothing to give back. The policy still computed a figure off
+         * the total, and docs/01 CĐ-07 shows that figure to the guest before they
+         * confirm: it would have promised a refund of money nobody had paid.
+         *
+         * The penalty is zeroed with it. A penalty is the part of what you paid
+         * that you do not get back; with nothing paid there is no such part.
+         */
+        if (b.PaidAtProperty && b.CashCollectedAt is null)
+        {
+            // Cancellation.Refund has already zeroed the money side; this only
+            // has to stop Refunds.Allocate splitting nothing across a card that
+            // was never charged, and to leave the penalty at zero.
+            return new RefundPreviewDto(
+                0m, 0m, b.Total, o.Explanation,
+                0m, 0m, 0m, 0m, o.GoodwillCredit, 0m, 0m, "");
+        }
+
         var split = Refunds.Allocate(SourcesOf(b), o.Amount, b.RefundedAmount);
 
         return new RefundPreviewDto(
@@ -1355,6 +1469,51 @@ public class BookingsController(
         return NoContent();
     }
 
+    /// <summary>
+    /// docs/07 §2.5, docs/01 ĐP-13 — finding a booking again with no account.
+    ///
+    /// The session cookie carries ownership for as long as it lasts, which is not
+    /// long enough: a guest books on a phone and looks it up on a laptop, or
+    /// clears their browser, and everything they have is the reference from the
+    /// email and the address it went to. Both are required — a reference travels
+    /// alone in a forwarded subject line.
+    ///
+    /// A match adopts the booking into this session, so every screen that reads
+    /// by session works afterwards without a second lookup. Only a booking that
+    /// belongs to no account can be adopted: an account's booking is reached by
+    /// signing in, and the two must never be confusable.
+    /// </summary>
+    [HttpPost("lookup")]
+    public async Task<ActionResult<BookingDto>> Lookup(
+        [FromBody] LookupBookingRequest req, CancellationToken ct)
+    {
+        var reference = (req.Reference ?? "").Trim().ToUpperInvariant().Replace(" ", "");
+
+        var booking = await db.Bookings
+            .Include(b => b.Payment).Include(b => b.Events)
+            .Include(b => b.Listing!).ThenInclude(l => l.Images)
+            .Include(b => b.Listing!).ThenInclude(l => l.Host)
+            .FirstOrDefaultAsync(b => b.Reference == reference && b.GuestUserId == null, ct);
+
+        // One message for "no such booking" and "wrong email": telling them apart
+        // turns this into a way of asking whether a reference exists.
+        var notFound = new { message = "Không tìm thấy đơn nào khớp mã đặt chỗ và email này." };
+
+        if (booking is null) return NotFound(notFound);
+
+        if (!GuestCheckout.Matches(booking.GuestEmail, reference, req.Email, booking.Reference))
+            return NotFound(notFound);
+
+        var sid = HttpContext.SessionId();
+        if (!string.IsNullOrEmpty(sid) && booking.SessionId != sid)
+        {
+            booking.SessionId = sid;
+            await db.SaveChangesAsync(ct);
+        }
+
+        return Ok(ToDto(booking));
+    }
+
     /// <summary>Single booking, used by the trip detail page and the printable receipt.</summary>
     [HttpGet("{id:int}")]
     public async Task<ActionResult<BookingDto>> Detail(int id, CancellationToken ct)
@@ -1502,6 +1661,43 @@ public class BookingsController(
         return null;
     }
 
+    /// <summary>
+    /// docs/07 §2.5 — telling both sides a pay-at-property booking is on.
+    ///
+    /// Split out because the guest may have no account: <see
+    /// cref="NotificationService.QueueWithEmailAsync"/> takes a User and returns
+    /// silently when there is none, so an anonymous guest would have been
+    /// confirmed and told nothing at all.
+    /// </summary>
+    private async Task NotifyConfirmedAsync(Booking booking, CancellationToken ct)
+    {
+        var listing = booking.Listing!;
+
+        var hostUser = await db.Users.FirstOrDefaultAsync(u => u.HostProfile!.Id == listing.HostId, ct);
+        await notifications.QueueWithEmailAsync(hostUser, NotificationKind.BookingConfirmed,
+            "Bạn có lượt đặt trả tiền tại nơi ở",
+            $"{booking.GuestName} đặt \"{listing.Title}\" từ {booking.CheckIn:dd/MM} đến {booking.CheckOut:dd/MM} " +
+            $"({booking.Nights} đêm, {booking.Guests} khách). {PayAtProperty.HostWarning}",
+            "/hosting", ct);
+
+        var line = $"Mã đặt chỗ {booking.Reference} · {listing.Title} · {booking.Nights} đêm. " +
+                   PayAtProperty.Notice(booking.Total);
+
+        if (booking.GuestUserId is { } guestId)
+        {
+            var guest = await db.Users.FirstOrDefaultAsync(u => u.Id == guestId, ct);
+            await notifications.QueueWithEmailAsync(guest, NotificationKind.BookingConfirmed,
+                "Đặt chỗ đã được xác nhận", line, $"/trips/{booking.Id}", ct);
+        }
+        else
+        {
+            notifications.QueueEmailOnly(booking.GuestEmail, booking.GuestName,
+                "Đặt chỗ đã được xác nhận", line, "/dat-cho");
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
     private async Task<Booking?> FindOwnedAsync(int id, CancellationToken ct, bool includeListing = false)
     {
         var user = await auth.CurrentUserAsync(ct);
@@ -1593,7 +1789,9 @@ public class BookingsController(
             GatewayRedirectUrl: null,
             GatewayOrderRef: null,
             CanPriceMatch: b.Listing?.IsHotel == true
-                           && HotelRules.WithinWindow(b.CreatedAt, DateTime.UtcNow));
+                           && HotelRules.WithinWindow(b.CreatedAt, DateTime.UtcNow),
+            PaidAtProperty: b.PaidAtProperty,
+            CashCollectedAt: b.CashCollectedAt);
     }
 
     /// <summary>

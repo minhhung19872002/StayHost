@@ -27,6 +27,11 @@ appsettings.*.local.json
 src/StayHost.Web/wwwroot/uploads/*
 !src/StayHost.Web/wwwroot/uploads/.gitkeep
 
+# docs/08 §4 — identity documents are kept outside the web root and served only
+# by IdentityFilesController. They are copies of government papers: they must
+# never reach a repository, and on a public one that is not a tidiness question.
+src/StayHost.Web/protected/
+
 # Ảnh dán vào docs/ có tên GUID — không phải tài liệu, đừng theo dõi.
 docs/????????-????-????-????-????????????.png
 

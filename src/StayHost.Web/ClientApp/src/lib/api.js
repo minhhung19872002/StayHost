@@ -309,7 +309,16 @@ export const api = {
     request(`/api/admin/finance/chargebacks/${id}/decide`, { method: 'POST', body: JSON.stringify(body) }),
 
   /* docs/07 §2 and §4 — the catalogue, and the cards a guest has kept. */
-  paymentCatalogue: () => request('/api/payment-methods/catalogue'),
+  /* docs/07 §2.5 — pay-at-property belongs to a listing, not to the platform,
+     so the catalogue is asked about a place when there is one in hand. */
+  paymentCatalogue: listingId =>
+    request(`/api/payment-methods/catalogue${listingId ? `?listingId=${listingId}` : ''}`),
+  /* docs/07 §2.5 — find a booking again with no account. */
+  lookupBooking: (reference, email) =>
+    request('/api/bookings/lookup', { method: 'POST', body: JSON.stringify({ reference, email }) }),
+  /* docs/07 §2.5 — the host confirms the cash is in hand. */
+  cashCollected: bookingId =>
+    request(`/api/host/bookings/${bookingId}/cash-collected`, { method: 'POST' }),
   savedCards: () => request('/api/payment-methods'),
   addCard: body => request('/api/payment-methods', { method: 'POST', body: JSON.stringify(body) }),
   makeCardDefault: id => request(`/api/payment-methods/${id}/default`, { method: 'PUT' }),

@@ -48,12 +48,20 @@ public class PaymentCompletion(
         return Pricing.Quote(fresh);
     }
 
+    /// <param name="guestUserId">
+    /// docs/07 §2.5 — null when nobody signed in for this booking. Two call
+    /// sites already passed <c>GuestUserId ?? 0</c>, which reached a user lookup
+    /// that found nothing and quietly sent no confirmation at all — and the
+    /// reference in that email is the only way a guest with no account gets back
+    /// to their booking.
+    /// </param>
     public async Task ConfirmAsync(
         Booking booking, Pricing.Breakdown price, decimal charged, bool partial,
-        DateOnly today, int guestUserId, string? method, string? cardLast4, CancellationToken ct)
+        DateOnly today, int? guestUserId, string? method, string? cardLast4, CancellationToken ct)
     {
         db.BookingEvents.Add(BookingLifecycle.Transition(
-            booking, BookingStatus.Confirmed, $"guest:{guestUserId}",
+            booking, BookingStatus.Confirmed,
+            guestUserId is { } who ? $"guest:{who}" : $"guest:{booking.SessionId}",
             partial
                 ? $"Đã đặt cọc {charged:#,##0}₫ trên tổng {price.Total:#,##0}₫."
                 : "Thanh toán thành công."));
@@ -71,9 +79,12 @@ public class PaymentCompletion(
             if (!string.IsNullOrWhiteSpace(cardLast4)) booking.Payment.CardLast4 = cardLast4;
         }
 
-        if (booking.CreditUsed > 0)
+        // Balance is an account's, and GuestCheckout refuses a booking that tries
+        // to spend it without one — so this pairing cannot arise, and asserting
+        // it here beats spending user zero's balance if it ever did.
+        if (booking.CreditUsed > 0 && guestUserId is { } spender)
         {
-            wallet.Add(guestUserId, -booking.CreditUsed, CreditReason.Spent,
+            wallet.Add(spender, -booking.CreditUsed, CreditReason.Spent,
                 $"Dùng cho đơn {booking.Reference}", booking.Id);
         }
 
@@ -113,16 +124,27 @@ public class PaymentCompletion(
             $"({booking.Nights} đêm, {booking.Guests} khách).",
             "/hosting", ct);
 
-        var guest = await db.Users.FirstOrDefaultAsync(u => u.Id == guestUserId, ct);
+        var line = $"Mã đặt chỗ {booking.Reference} · {listing.Title} · {booking.Nights} đêm.";
 
-        await notifications.QueueWithEmailAsync(guest, NotificationKind.BookingConfirmed,
-            "Đặt chỗ đã được xác nhận",
-            $"Mã đặt chỗ {booking.Reference} · {listing.Title} · {booking.Nights} đêm.",
-            $"/trips/{booking.Id}", ct);
+        if (guestUserId is { } id)
+        {
+            var guest = await db.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
+            await notifications.QueueWithEmailAsync(guest, NotificationKind.BookingConfirmed,
+                "Đặt chỗ đã được xác nhận", line, $"/trips/{booking.Id}", ct);
+        }
+        else
+        {
+            // docs/07 §2.5 — no account, so no in-app row and no preference mask.
+            // The address they typed is the only way to reach them, and this mail
+            // carries the reference the whole guest-checkout promise rests on.
+            notifications.QueueEmailOnly(booking.GuestEmail, booking.GuestName,
+                "Đặt chỗ đã được xác nhận", line, "/dat-cho");
+        }
 
         // docs/01 AT-11 — a paid booking is the moment worth looking at the
         // account's pattern; the flag never stands in the guest's way.
-        await risk.EvaluateAsync(guestUserId, booking, ct);
+        // A pattern belongs to an account; there is none to look at here.
+        if (guestUserId is { } riskUser) await risk.EvaluateAsync(riskUser, booking, ct);
 
         await db.SaveChangesAsync(ct);
     }

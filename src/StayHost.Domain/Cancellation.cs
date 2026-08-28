@@ -74,6 +74,39 @@ public static class Cancellation
         // Cleaning is never charged for a stay that does not happen.
         var cleaning = b.CleaningFee;
 
+        /*
+         * docs/07 §2.5 — nothing was taken, so nothing goes back.
+         *
+         * This sits ahead of every pre-rule, including the host-cancelled and
+         * force-majeure ones that otherwise refund 100%: a hundred per cent of
+         * nothing is still nothing, and quoting the total would promise the guest
+         * money that never left their pocket. The goodwill balance of pre-rule 3
+         * is deliberately kept — it is the platform's own apology for a host
+         * walking away, not a return of the guest's money.
+         *
+         * Once the host has the cash the ordinary rules apply again: there is
+         * real money in the world to argue about, and it is settled between the
+         * two of them the same way damages are (docs/06 §3.3).
+         */
+        if (b.PaidAtProperty && b.CashCollectedAt is null)
+        {
+            var goodwill = ctx.By == CancelledBy.Host ? Round(b.Total * HostCancelCreditRate) : 0m;
+
+            return new Outcome
+            {
+                RoomRefund = 0m,
+                CleaningRefund = 0m,
+                ServiceFeeRefund = 0m,
+                TaxRefund = 0m,
+                GoodwillCredit = goodwill,
+                RuleKey = "pay-at-property",
+                Explanation = ctx.By == CancelledBy.Host
+                    ? "Chủ nhà huỷ đơn. Bạn chưa trả đồng nào nên không có khoản nào để hoàn, "
+                      + $"và bạn nhận {goodwill:#,##0}₫ số dư khuyến mãi."
+                    : PayAtProperty.NothingToRefund
+            };
+        }
+
         // --- pre-rule 3: the host walked away.
         if (ctx.By == CancelledBy.Host)
         {

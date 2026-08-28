@@ -66,7 +66,7 @@ const BLANK = {
   bedrooms: 1, beds: 1, bathrooms: 1, maxGuests: 2,
   pricePerNight: 800000, cleaningFee: 200000, minNights: 1,
   instantBook: true, instantBookRequiresVerified: false, instantBookRequiresGoodReviews: false,
-  requireGuestPhoto: false, requireVerifiedToBook: false,
+  requireGuestPhoto: false, requireVerifiedToBook: false, acceptsPayAtProperty: false,
   isPublished: false, cancellationTier: 'Moderate',
   description: '', highlight: '', images: [], imageCaptions: [], amenityKeys: [],
   latitude: null, longitude: null,
@@ -874,6 +874,22 @@ function StepRules({ form, field, num }) {
                  onChange={e => field('requireVerifiedToBook', e.target.checked)} />
           <span>{t('Khách phải xác minh danh tính')}</span>
         </label>
+      </div>
+
+      {/* docs/07 §2.5 — off unless the host turns it on, and never turned on by
+          the platform: the protection being given up is theirs. */}
+      <div style={{ marginTop: 18, display: 'grid', gap: 8 }}>
+        <span className="cap">{t('Trả tiền tại nơi ở')}</span>
+        <label className="check-row">
+          <input type="checkbox" checked={!!form.acceptsPayAtProperty}
+                 onChange={e => field('acceptsPayAtProperty', e.target.checked)} />
+          <span>{t('Cho phép khách trả tiền cho tôi khi nhận phòng')}</span>
+        </label>
+        {form.acceptsPayAtProperty && (
+          <p className="notice notice-warn" style={{ margin: 0 }}>
+            {t('Khách trả tiền mặt cho bạn khi nhận phòng. Staylio không giữ tiền, nên nếu khách không tới thì không có khoản nào để bù. Phí dịch vụ của đơn được trừ vào lần chuyển tiền kế tiếp của bạn.')}
+          </p>
+        )}
       </div>
     </section>
 

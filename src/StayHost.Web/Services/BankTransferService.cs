@@ -250,7 +250,7 @@ public class BankTransferService(
 
             await completion.ConfirmAsync(
                 booking, price, booking.Total, partial: false,
-                DateOnly.FromDateTime(DateTime.UtcNow), booking.GuestUserId ?? 0, "vietqr", null, ct);
+                DateOnly.FromDateTime(DateTime.UtcNow), booking.GuestUserId, "vietqr", null, ct);
 
             log.LogInformation("Đơn {Reference} đã xác nhận sau khi tiền chuyển khoản về.", reference);
             return;

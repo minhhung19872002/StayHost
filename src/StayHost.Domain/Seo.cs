@@ -36,6 +36,8 @@ public static class Seo
         // /users/ in particular is a real person's profile.
         "/trips",
         "/danh-gia",
+        // docs/07 §2.5 — a form whose answer is somebody's booking.
+        "/dat-cho",
         "/hosting",
         "/messages",
         "/wishlists",
@@ -241,7 +243,7 @@ public static class SpaRoutes
     public static readonly string[] Fixed =
     [
         "/",
-        "/wishlists", "/trips", "/danh-gia", "/host", "/hosting", "/messages", "/resolutions",
+        "/wishlists", "/trips", "/danh-gia", "/dat-cho", "/host", "/hosting", "/messages", "/resolutions",
         "/help", "/experiences", "/experiences/bookings", "/services",
         "/services/bookings", "/wallet", "/shield", "/shield/terms",
         "/thanh-toan/ket-qua", "/account/sanctions", "/appeal", "/neighbors",

@@ -305,6 +305,8 @@ public record HostListingDto(
     /// <summary>docs/01 ĐP-10 — hard preconditions, so the editor round-trips them.</summary>
     bool RequireGuestPhoto = false,
     bool RequireVerifiedToBook = false,
+    /// <summary>docs/07 §2.5 — this host takes the money at the door for this place.</summary>
+    bool AcceptsPayAtProperty = false,
     /// <summary>docs/01 AT-01 — review stance, so the host sees "Đang chờ duyệt" / "Bị từ chối".</summary>
     string ReviewStatus = "Approved",
     string? ReviewNote = null);
@@ -352,6 +354,8 @@ public record SaveListingRequest(
     /// <summary>docs/01 ĐP-10 — hard preconditions to book at all.</summary>
     bool RequireGuestPhoto = false,
     bool RequireVerifiedToBook = false,
+    /// <summary>docs/07 §2.5 — this host takes the money at the door for this place.</summary>
+    bool AcceptsPayAtProperty = false,
     /// <summary>Omitted by older clients; the listing keeps its current rules then.</summary>
     PricingRulesDto? Pricing = null,
     /// <summary>docs/01 CN-05 — beds per room, as the host laid them out.</summary>
@@ -520,7 +524,13 @@ public record HostBookingDto(
     DateTime? RequestExpiresAt,
     DateTime CreatedAt,
     /// <summary>docs/01 CĐ-06 — a change the guest asked for, awaiting the host.</summary>
-    PendingChangeDto? PendingChange = null);
+    PendingChangeDto? PendingChange = null,
+    /// <summary>docs/07 §2.5 — the guest is paying this one at the door.</summary>
+    bool PaidAtProperty = false,
+    /// <summary>docs/07 §2.5 — set once the host confirmed the cash is in hand.</summary>
+    DateTime? CashCollectedAt = null,
+    /// <summary>docs/07 §2.5 — a phone for a guest who booked without an account.</summary>
+    string? GuestPhone = null);
 
 public record PendingChangeDto(
     int Id, DateOnly NewCheckIn, DateOnly NewCheckOut, int NewGuests,
@@ -1447,7 +1457,19 @@ public record CreateBookingRequest(
     /// <summary>docs/01 ĐP-17 — a host's private offer being booked at its price.</summary>
     int? OfferId = null,
     /// <summary>docs/01 ĐP-10 — the guest ticked "I agree to the house rules".</summary>
-    bool AgreedToRules = false);
+    bool AgreedToRules = false,
+    /// <summary>
+    /// docs/07 §2.5 — how to reach somebody who booked without an account. An
+    /// account already carries a phone; a stranger has to leave one.
+    /// </summary>
+    string? GuestPhone = null);
+
+/// <summary>docs/07 §2.5 — what the host just recorded, and what it costs them in fees.</summary>
+public record CashCollectedDto(
+    string Reference, decimal Collected, decimal FeesBilled, DateTime At, bool AlreadyRecorded);
+
+/// <summary>docs/07 §2.5 — the two things a guest with no account has to find a booking with.</summary>
+public record LookupBookingRequest(string? Reference, string? Email);
 
 public record BookingDto(
     int Id,
@@ -1519,7 +1541,11 @@ public record BookingDto(
     /// only where the server would accept it, rather than everywhere and
     /// refused.
     /// </summary>
-    bool CanPriceMatch = false);
+    bool CanPriceMatch = false,
+    /// <summary>docs/07 §2.5 — the guest settles with the host on arrival.</summary>
+    bool PaidAtProperty = false,
+    /// <summary>docs/07 §2.5 — set once the host confirmed the cash is in hand.</summary>
+    DateTime? CashCollectedAt = null);
 
 public record BookingEventDto(
     string? FromStatus, string FromLabel, string ToStatus, string ToLabel,

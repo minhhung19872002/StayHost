@@ -318,6 +318,13 @@ public class Listing
 
     public bool InstantBook { get; set; } = true;
 
+    /// <summary>
+    /// docs/07 §2.5 — this host takes the money at the door for this place.
+    /// Off by default and never turned on by the platform: the protection being
+    /// given up is the host's own (<see cref="PayAtProperty.HostWarning"/>).
+    /// </summary>
+    public bool AcceptsPayAtProperty { get; set; }
+
     /// <summary>docs/01 ĐP-03 — instant book only for identity-verified guests.</summary>
     public bool InstantBookRequiresVerified { get; set; }
     /// <summary>docs/01 ĐP-03 — instant book only for guests with good reviews.</summary>
@@ -599,7 +606,34 @@ public class Booking
 
     public string? GuestName { get; set; }
     public string? GuestEmail { get; set; }
+
+    /// <summary>
+    /// docs/07 §2.5 — how the host reaches somebody who booked without an
+    /// account. An account carries its own phone; a stranger has to leave one,
+    /// and a host expecting cash at the door needs it more than usually.
+    /// </summary>
+    public string? GuestPhone { get; set; }
+
     public string? GuestNote { get; set; }
+
+    /// <summary>
+    /// docs/07 §2.5 — the guest settles with the host on arrival, so Staylio
+    /// never holds this money.
+    ///
+    /// Kept on the booking rather than read from <c>Payment.Method</c>, which is
+    /// a separate row that half the call sites do not Include: a cancellation
+    /// rule that silently fails to fire because a navigation was not loaded is
+    /// the exact shape of bug this codebase keeps paying for. Set in one place,
+    /// when the method is chosen.
+    /// </summary>
+    public bool PaidAtProperty { get; set; }
+
+    /// <summary>
+    /// docs/07 §2.5 — when the host confirmed they had the cash in hand. Until
+    /// then a pay-at-property booking is a promise, not a payment: nothing is in
+    /// the ledger and the platform's fee is not yet billed.
+    /// </summary>
+    public DateTime? CashCollectedAt { get; set; }
     public BookingStatus Status { get; set; } = BookingStatus.PendingHostApproval;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? RespondedAt { get; set; }

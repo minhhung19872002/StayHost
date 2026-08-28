@@ -6,8 +6,9 @@ import { t } from '../lib/i18n.js';
 const COLUMNS = [
   {
     title: 'Hỗ trợ',
-    links: ['Trung tâm trợ giúp', 'Staylio Shield cho khách', 'Chống phân biệt đối xử',
-            'Hỗ trợ người khuyết tật', 'Tuỳ chọn huỷ', 'Báo cáo lo ngại khu dân cư']
+    links: ['Trung tâm trợ giúp', 'Tra cứu đặt chỗ', 'Staylio Shield cho khách',
+            'Chống phân biệt đối xử', 'Hỗ trợ người khuyết tật', 'Tuỳ chọn huỷ',
+            'Báo cáo lo ngại khu dân cư']
   },
   {
     title: 'Đón tiếp khách',
@@ -58,7 +59,10 @@ const ROUTES = {
   'Staylio Shield cho khách': '/shield/terms',
   'Staylio Shield cho Chủ nhà': '/shield/terms',
   // docs/01 AT-03 — the neighbour channel.
-  'Báo cáo lo ngại khu dân cư': '/neighbors'
+  'Báo cáo lo ngại khu dân cư': '/neighbors',
+  // docs/07 §2.5 — the way back to a booking made without an account. It has to
+  // be somewhere a guest can find with no session and no menu to open.
+  'Tra cứu đặt chỗ': '/dat-cho'
 };
 
 export function Footer() {

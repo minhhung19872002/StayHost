@@ -30,7 +30,7 @@ const ICONS = { card: 'card', napas: 'bank', momo: 'wallet', zalopay: 'wallet' }
  */
 const GATEWAY_NAME = { vnpay: 'VNPay', onepay: 'OnePay', momo: 'MoMo', zalopay: 'ZaloPay' };
 
-export function PaymentMethods({ idPrefix = 'card' }) {
+export function PaymentMethods({ idPrefix = 'card', listingId = null }) {
   const state = useStore();
   const [offered, setOffered] = useState(FALLBACK_METHODS);
   const [cards, setCards] = useState([]);
@@ -39,7 +39,9 @@ export function PaymentMethods({ idPrefix = 'card' }) {
     // The list is the server's, so a checkout and the saved-methods screen
     // cannot disagree about what Staylio takes. The balance has a control of
     // its own on a stay, so it is not a method to pick here.
-    api.paymentCatalogue()
+    // docs/07 §2.5 — with a listing in hand the catalogue can also answer
+    // whether this host takes the money at the door.
+    api.paymentCatalogue(listingId)
       .then(d => {
         const methods = d.methods.filter(m => m.key !== 'balance');
         setOffered(methods);
@@ -50,8 +52,14 @@ export function PaymentMethods({ idPrefix = 'card' }) {
         set({ paymentMethods: methods });
       })
       .catch(() => { /* the §2.1 group is the fallback either way */ });
-    api.savedCards().then(setCards).catch(() => setCards([]));
-  }, []);
+    // docs/07 §2.5 — a guest with no account has no saved cards, so asking is a
+    // round trip that can only answer 401. It was caught and ignored, which is
+    // why nothing broke; it still put an error in the console of the most
+    // important page in the funnel, for somebody to chase later.
+    if (state.user) api.savedCards().then(setCards).catch(() => setCards([]));
+    else setCards([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listingId, state.user]);
 
   // The method the guest picked, if a licensed gateway is wired behind it.
   const live = offered.find(m => m.key === state.payMethod && m.live) ?? null;

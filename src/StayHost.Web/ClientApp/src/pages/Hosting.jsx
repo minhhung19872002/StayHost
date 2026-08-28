@@ -979,6 +979,18 @@ function RespondDeadline({ at }) {
   );
 }
 
+/** docs/07 §2.5 — the host confirms the guest handed over the money. */
+async function markCashCollected(b) {
+  if (!confirm(`${t('Xác nhận đã nhận đủ tiền mặt cho đơn')} ${b.reference}?`)) return;
+  try {
+    const res = await api.cashCollected(b.id);
+    await loadHosting();
+    toast(res.alreadyRecorded
+      ? t('Đơn này đã được ghi nhận trước đó.')
+      : t('Đã ghi nhận. Phí dịch vụ sẽ trừ vào lần chuyển tiền kế tiếp.'));
+  } catch (err) { toast(err.message); }
+}
+
 function BookingRow({ booking: b, navigate }) {
   const awaitingHost = b.status === 'PendingHostApproval';
 
@@ -986,7 +998,17 @@ function BookingRow({ booking: b, navigate }) {
     <article className="host-booking">
       <div style={{ minWidth: 0 }}>
         <h3>{b.listingTitle}</h3>
-        <div className="meta">{b.guestName}{b.guestEmail ? ` · ${b.guestEmail}` : ''} · {t('mã')} {b.reference}</div>
+        <div className="meta">
+          {b.guestName}{b.guestEmail ? ` · ${b.guestEmail}` : ''}
+          {b.guestPhone ? ` · ${b.guestPhone}` : ''} · {t('mã')} {b.reference}
+        </div>
+        {b.paidAtProperty && (
+          <div className="meta">
+            <span className={`badge ${b.cashCollectedAt ? 'confirmed' : 'pending'}`}>
+              {b.cashCollectedAt ? t('Đã nhận tiền tại nơi ở') : t('Khách trả khi nhận phòng')}
+            </span>
+          </div>
+        )}
         <div className="meta">
           {longDate(b.checkIn)} → {longDate(b.checkOut)} · {b.nights} {t('đêm')} · {b.guests} {t('khách')}
         </div>
@@ -1023,6 +1045,15 @@ function BookingRow({ booking: b, navigate }) {
         {/* docs/01 QL-13 — never a bare "huỷ": the warning comes first. */}
         {b.status === 'Confirmed' && (
           <button className="btn btn-outline btn-sm" onClick={() => previewHostCancel(b.id)}>{t('Huỷ đơn')}</button>
+        )}
+        {/* docs/07 §2.5 — the only moment a pay-at-property booking touches the
+            books: the host says the cash is in hand, and the service fee is
+            billed against their next transfer. */}
+        {b.paidAtProperty && !b.cashCollectedAt
+          && ['Confirmed', 'InProgress', 'Completed'].includes(b.status) && (
+          <button className="btn btn-primary btn-sm" onClick={() => markCashCollected(b)}>
+            {t('Đã nhận tiền')}
+          </button>
         )}
         <button className="btn btn-outline btn-sm" onClick={() => navigate('/messages')}>{t('Nhắn khách')}</button>
       </div>

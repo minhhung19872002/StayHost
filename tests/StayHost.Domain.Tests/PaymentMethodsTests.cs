@@ -36,10 +36,25 @@ public class PaymentMethodsTests
         Assert.True(PaymentMethods.IsRefused("cash"));
         Assert.True(PaymentMethods.IsRefused("transfer"));
         Assert.True(PaymentMethods.IsRefused("crypto"));
-        Assert.True(PaymentMethods.IsRefused("on-arrival"));
+        Assert.True(PaymentMethods.IsRefused("cheque"));
 
         Assert.False(PaymentMethods.IsAccepted("cash"));
         Assert.Contains("giữ tiền cho tới khi bạn nhận phòng", PaymentMethods.RefusalReason());
+    }
+
+    [Fact]
+    public void Paying_on_arrival_is_no_longer_one_of_them()
+    {
+        // §2.4 refused it in the same line as cash until the customer reversed
+        // that on 28/08/2026 (§2.5). It is a method of its own now, and it is
+        // still not cash: Staylio records the booking and bills its fee, it
+        // simply never touches the money.
+        Assert.False(PaymentMethods.IsRefused("on-arrival"));
+        Assert.True(PaymentMethods.IsAccepted(PayAtProperty.Key));
+
+        // The refusal reason is still true of everything left in the list, so it
+        // is unchanged — and it explains exactly what a guest gives up here.
+        Assert.Contains("giữ tiền", PaymentMethods.RefusalReason());
     }
 
     [Fact]

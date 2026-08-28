@@ -961,12 +961,45 @@ khoảng cách), `TM-05`, `TM-22`, `C6`, `G5` (chế độ một tin theo tháng
 Nghiệm thu: `python scripts/rolegaps_acceptance.py` — 14 kịch bản, mỗi cái lái
 server thật rồi **đọc lại cơ sở dữ liệu**.
 
+### 9.10. Việc ngoài 203 mã: đặt không cần tài khoản & trả tại nơi ở (28/08/2026)
+
+Khách yêu cầu hai việc, và việc thứ hai **đảo lại `docs/07 §2.4`** — chỗ trước đó
+từ chối "trả khi nhận phòng" trong cùng một dòng với tiền mặt. Quyết định đã ghi
+vào tài liệu ở **`docs/07 §2.5`** kèm ngày và kèm toàn bộ hệ quả, chứ không để mã
+nguồn nói khác tài liệu.
+
+**Đặt không cần tài khoản.** Phần lớn đã có sẵn mà chưa ai nối: `Booking.SessionId`
+nằm trên mọi dòng, danh sách chuyến đọc theo phiên, và `AuthService` nhận nuôi đơn
+của phiên khi ai đó đăng nhập. Chặn duy nhất là **một dòng 401 trong `Create`**.
+Mở ra rồi thì bảy chỗ trong hàm ấy đang đọc `user.` phải xử lý null, và ba thứ gắn
+với tài khoản bị từ chối **có nêu tên** thay vì im lặng bỏ qua.
+
+**Trả tại nơi ở** không phải "thêm một cách trả tiền" mà là **sàn ra khỏi luồng
+tiền**. Bảng hệ quả nằm ở `docs/07 §2.5`; hai quyết định kỹ thuật đáng ghi lại:
+
+- Luật "không có gì để hoàn" đặt **trong chính `Cancellation.Refund`**, không vá
+  bảy chỗ gọi — vá từng chỗ là cách bỏ sót đúng một chỗ.
+- Nó đọc `Booking.PaidAtProperty`, **không** đọc `Payment.Method`: một nửa số chỗ
+  gọi không `Include` bảng payment, và một luật im lặng không chạy vì thiếu
+  navigation là loại lỗi repo này đã trả giá nhiều lần.
+
+**Lỗi bộ nghiệm thu bắt được:** `PaymentCompletion.ConfirmAsync` nhận `int
+guestUserId` và **bốn** chỗ gọi truyền `GuestUserId ?? 0`. Không ném gì cả — nó
+tra `Users` tìm id 0, không thấy ai, rồi không gửi thư nào. Khách ẩn danh trả tiền
+xong **không nhận được mã đơn**, mà mã đơn là đường duy nhất quay lại. Bản đầu của
+kịch bản 1 chỉ *in* số thư ra và vẫn PASS khi số đó là 0; giờ nó **khẳng định** có
+thư và thư có chứa mã đơn.
+
+Nghiệm thu: `python scripts/guestcheckout_acceptance.py` — 12 kịch bản, gồm ba lần
+đọc lại `ledger_entries` để chắc rằng một đơn tiền không qua sàn **không sinh bút
+toán nào**.
+
 ---
 
 ## Kiểm chứng
 
 ```bash
-# Test nghiệp vụ (1182 test)
+# Test nghiệp vụ (1201 test)
 dotnet test tests/StayHost.Domain.Tests
 
 # 10 tình huống nghiệm thu, cần server chạy ở cổng 5199.
@@ -979,6 +1012,9 @@ python scripts/unwired_acceptance.py
 
 # 14 kịch bản của §9.8 và §9.9 — quy tắc có mã, có test, mà không màn hình nào gọi
 python scripts/rolegaps_acceptance.py
+
+# 12 kịch bản của §9.10 — docs/07 §2.5, đặt không cần tài khoản & trả tại nơi ở
+python scripts/guestcheckout_acceptance.py
 
 # 30 kịch bản của §9.4 — cổng thanh toán thật. Gọi ra sandbox VNPay/MoMo/ZaloPay
 # ngoài đời, nên cần mạng và cần server chạy ở Development.

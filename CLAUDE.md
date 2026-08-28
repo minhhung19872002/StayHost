@@ -45,7 +45,15 @@ thì **code sai**, không phải tài liệu sai.
    **không chi** cho C1/C2, nên hạn mức `C-A`/`C-B` và mức tự chịu `C-C` cũng không áp
    cho hai nhóm đó (`Shield.FundCovers`). Quỹ vẫn đứng sau C3 và C4.
    Xem `docs/06 §3.3`, `§3.4`.
-4. **14 tham số Staylio Shield** của `docs/06 §10` đã chốt: bù đổi chỗ 40%, tặng số dư
+4. **Đặt không cần tài khoản, và trả tiền tại nơi ở** (khách chốt 28/08/2026).
+   Đảo lại `docs/07 §2.4`, chỗ từng từ chối "trả khi nhận phòng" trong cùng một
+   dòng với tiền mặt. Quyết định và toàn bộ hệ quả nằm ở **`docs/07 §2.5`**.
+   Điểm phải nhớ: **tiền không đi qua sàn nên không có bút toán nào** — cùng
+   hình dạng với quyết định bồi thường hư hỏng ở mục 3. Phí dịch vụ ghi vào
+   `HostProfile.OwedToPlatform`, trừ vào lần chuyển tiền kế tiếp, dùng chung cơ
+   chế với chargeback thua. Chủ nhà tự bật theo từng tin đăng; sàn không bao giờ
+   tự bật.
+5. **14 tham số Staylio Shield** của `docs/06 §10` đã chốt: bù đổi chỗ 40%, tặng số dư
    10%, trần chi phí phát sinh 3 triệu; chủ nhà 75 triệu/đơn, 350 triệu/năm, tự chịu
    500k, 5 đêm mất thu nhập, 15 triệu mỗi món giá trị cao; quỹ trích 5% phí dịch vụ,
    cảnh báo ở 80%, gắn cờ từ hồ sơ thứ 4. **Có trực 24/7**, **có làm nhánh C4**.
@@ -55,7 +63,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (28/08/2026).** 1182 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (28/08/2026).** 1201 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **34/34** kịch bản chuyển tiền cho chủ nhà và đối chiếu sao kê (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
@@ -70,6 +78,8 @@ quy tắc từng có mã mà không đường nào gọi tới) ·
 **14/14** kịch bản của `scripts/rolegaps_acceptance.py` (`docs/PLAN.md §9.8` và `§9.9`
 — soát theo **vai** khách/chủ nhà rồi soát ngược theo `docs/02`; 16 chỗ hở là mã
 hoàn chỉnh mà không màn hình nào gọi).
+**12/12** kịch bản của `scripts/guestcheckout_acceptance.py` (`docs/07 §2.5` — đặt
+không cần tài khoản và trả tiền tại nơi ở).
 Sổ sách lệch 0. Cả 203 mã của `docs/01` đã làm xong (`docs/PLAN.md §9`).
 
 > **`acceptance.py` cần DB sạch.** Nó ra 8/10 trên DB đã chạy nhiều lần — **không phải
@@ -538,6 +548,14 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   controller trừ đi đường dẫn `lib/api.js` thật sự gọi, và hàm `api.js` trừ đi
   component thật sự dùng. Nhanh, và bắt được thứ mà đọc theo danh sách mã không bắt
   được. Xem `docs/PLAN.md §9.8`.
+- **`?? 0` cho một khoá ngoại nullable là một lỗi đang chờ tới lượt.** Khi mở
+  đường đặt chỗ cho khách không có tài khoản, `PaymentCompletion.ConfirmAsync`
+  nhận `int guestUserId` và **bốn** chỗ gọi truyền `booking.GuestUserId ?? 0`.
+  Không có ngoại lệ nào: nó đi tra `Users` tìm id 0, không thấy ai, rồi **im lặng
+  không gửi gì** — nên khách ẩn danh trả tiền xong không nhận được thư nào, mà mã
+  đơn trong thư là đường duy nhất quay lại đơn. Đổi tham số thành `int?` là
+  compiler chỉ ngay ra cả bốn. `grep "?? 0"` cạnh một khoá ngoại nullable đáng
+  chạy trước khi tin là xong.
 - **Fixture tự bịa dữ liệu đầu vào chỉ kiểm được luật với chính nó.** Kịch bản
   `TK-06` gửi thẳng ba đường dẫn `/uploads/…` cho `/api/account/identity` vì đó là
   thứ `Profiles.IsOwnUpload` muốn — và nó xanh. Nhưng ảnh giấy tờ đã chuyển ra
@@ -687,6 +705,7 @@ python scripts/admin_acceptance.py                 # 10 tình huống của docs
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
 python scripts/unwired_acceptance.py               # 10 quy tắc từng không ai gọi (PLAN §9.6)
 python scripts/rolegaps_acceptance.py              # 14 chỗ hở của hai lượt soát vai (PLAN §9.8, §9.9)
+python scripts/guestcheckout_acceptance.py         # 12 kịch bản của docs/07 §2.5
 python scripts/gateway_acceptance.py               # 30 kịch bản cổng thanh toán, gọi sandbox thật
 python scripts/payout_acceptance.py                # 34 kịch bản chuyển tiền + đối chiếu sao kê (docs/07 §15.4)
 python scripts/vnpay_browser_acceptance.py         # 14 kịch bản: trả tiền THẬT trên trang VNPay (cần playwright)
@@ -809,6 +828,28 @@ gom nhóm mà `docs/02 G6`/`H1` mô tả.
 **Cố ý chưa làm:** chia % thu nhập cho co-host (`docs/02 G8`) là **luồng tiền
 mới** mà `docs/01 QL-19` không nhắc — phải hỏi khách trước, như đã làm với tham
 số `docs/06 §10`. Bốn việc nhỏ khác của `docs/02` liệt kê trong `PLAN §9.9`.
+
+### 8.0d. Đặt không cần tài khoản & trả tiền tại nơi ở (28/08/2026)
+
+Khách yêu cầu, và nó **đảo lại `docs/07 §2.4`** — đã ghi thẳng vào tài liệu ở
+`§2.5` kèm ngày, chứ không để mã nguồn nói khác tài liệu.
+
+`Booking.SessionId` và đường nhận nuôi đơn khi đăng nhập **đã có sẵn từ đầu**;
+chỉ mỗi `Create` chặn bằng một dòng 401. Ba thứ gắn với tài khoản (số dư, mã
+giảm giá, ưu đãi riêng) bị **từ chối có nêu tên**; tin đăng bật yêu cầu của
+`ĐP-10` thì không đặt ẩn danh được; điều kiện *Đặt ngay* của `ĐP-03` thì chuyển
+đơn thành yêu cầu đặt như mọi khách chưa xác minh khác.
+
+Trả tại nơi ở là **sàn đứng ngoài luồng tiền**: không bút toán, không có gì để
+hoàn khi huỷ, phí ghi vào `OwedToPlatform`, thuế do chủ nhà tự nộp. Luật hoàn
+tiền đặt trong **chính `Cancellation.Refund`** chứ không vá bảy chỗ gọi, và đọc
+`Booking.PaidAtProperty` chứ không đọc `Payment.Method` — một nửa số chỗ gọi
+không `Include` bảng payment, và luật im lặng không chạy vì thiếu navigation
+đúng là loại lỗi repo này trả giá nhiều lần.
+
+**Rủi ro đã ghi rõ trong `docs/07 §2.5`:** `OwedToPlatform` chỉ thu được nếu chủ
+nhà còn đơn khác để trừ. Đây là rủi ro sẵn có của đường chargeback, dùng chung
+một cơ chế thay vì đẻ ra cơ chế thứ hai.
 
 ### 8.1. Đang chờ khách
 

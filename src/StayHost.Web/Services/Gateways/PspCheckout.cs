@@ -230,7 +230,11 @@ public class PspCheckout(
 
         await completion.ConfirmAsync(
             booking, price, session.Amount, session.Partial, DateOnly.FromDateTime(now),
-            booking.GuestUserId ?? 0, session.Method, verdict.CardLast4, ct);
+            // docs/07 §2.5 — null, not zero. A booking made without an account has
+            // no user to look up, and `?? 0` sent the confirmation to a search for
+            // user id 0: it found nobody and returned quietly, so a guest who paid
+            // through the gateway was never sent the reference they need.
+            booking.GuestUserId, session.Method, verdict.CardLast4, ct);
 
         log.LogInformation("Đơn {Ref} đã xác nhận sau khi {Provider} thu {Amount} ({By}).",
             booking.Reference, session.Provider, session.Amount, settledBy);

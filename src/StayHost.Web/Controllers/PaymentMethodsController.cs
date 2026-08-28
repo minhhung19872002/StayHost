@@ -23,8 +23,14 @@ public class PaymentMethodsController(
     DataSecrets secrets, ILogger<PaymentMethodsController> log) : ControllerBase
 {
     /// <summary>docs/07 §2 — the catalogue, so the payment page and this screen agree.</summary>
+    /// <param name="listingId">
+    /// docs/07 §2.5 — pay-at-property belongs to a listing, not to the platform:
+    /// it is offered only where that host turned it on. Left out, the catalogue
+    /// answers for the platform in general and simply does not include it.
+    /// </param>
     [HttpGet("catalogue")]
-    public ActionResult<PaymentCatalogueDto> Catalogue()
+    public async Task<ActionResult<PaymentCatalogueDto>> Catalogue(
+        [FromQuery] int? listingId, CancellationToken ct)
     {
         var offered = PaymentMethods.Available()
             .Select(m => new PaymentMethodDto(m.Key, m.Group, m.Label, m.Hint, m.Savable,
@@ -37,6 +43,18 @@ public class PaymentMethodsController(
         // crediting nobody is worse than one that is missing.
         if (bank.Enabled && PaymentMethods.Find("vietqr") is { } qr)
             offered.Add(new PaymentMethodDto(qr.Key, qr.Group, qr.Label, qr.Hint, qr.Savable));
+
+        // docs/07 §2.5 — the same shape as VietQR above: in the catalogue, but
+        // only offered where it can actually be used. Asked of the listing rather
+        // than assumed, so a host who never turned it on never sees it appear on
+        // their own place.
+        if (listingId is { } id
+            && await db.Listings.AnyAsync(l => l.Id == id && l.AcceptsPayAtProperty, ct)
+            && PaymentMethods.Find(PayAtProperty.Key) is { } atProperty)
+        {
+            offered.Add(new PaymentMethodDto(
+                atProperty.Key, atProperty.Group, atProperty.Label, atProperty.Hint, atProperty.Savable));
+        }
 
         return Ok(new PaymentCatalogueDto(offered, PaymentMethods.RefusedLabels, PaymentMethods.RefusalReason()));
     }

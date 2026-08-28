@@ -112,6 +112,25 @@ export function Trip() {
             </div>
           </section>
 
+          {/* docs/07 §2.5 — the guest has not paid anything yet, and the page
+              has to say so plainly: everything else here is written for a stay
+              Staylio is holding the money for. */}
+          {b.paidAtProperty && (
+            <section className="detail-section">
+              <h2>{t('Trả tiền tại nơi ở')}</h2>
+              {b.cashCollectedAt ? (
+                <p className="notice">
+                  {t('Chủ nhà đã xác nhận nhận đủ tiền lúc')} {dateTime(b.cashCollectedAt)}.
+                </p>
+              ) : (
+                <p className="notice notice-warn">
+                  {t('Bạn trả {} trực tiếp cho chủ nhà khi nhận phòng. Staylio không thu trước và không giữ tiền của đơn này.')
+                    .replace('{}', money(b.total))}
+                </p>
+              )}
+            </section>
+          )}
+
           <ChangeTrip booking={b} />
 
           <ShieldPanel booking={b} />

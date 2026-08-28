@@ -124,7 +124,7 @@ public class CardAuthSweeper(
 
         await completion.ConfirmAsync(
             booking, price, auth.Amount, partial, today,
-            booking.GuestUserId ?? 0, auth.Method, auth.CardLast4, ct);
+            booking.GuestUserId, auth.Method, auth.CardLast4, ct);
 
         log.LogInformation(
             "Đơn {Reference} đã được xác nhận sau đối chiếu: tiền đã trừ nhưng khách không quay lại.",

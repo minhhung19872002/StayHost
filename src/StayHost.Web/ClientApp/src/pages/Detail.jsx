@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
 import {
   loadDetail, toggleFavorite, totalGuests, guestLabel, bumpTotalGuests,
-  clearDates, openOverlay, openReport, requireAuth, set, setRoom, shareListing
+  clearDates, openOverlay, openReport, set, setRoom, shareListing
 } from '../lib/store.js';
 import { money, longDate, nightsBetween, monthLabel, dateTime } from '../lib/format.js';
 import { Avatar } from '../components/Avatar.jsx';
@@ -749,8 +749,9 @@ function BookPanel({ detail, card }) {
   const result = state.bookingResult;
   const rooms = detail?.roomTypes ?? null;
 
+  // docs/07 §2.5 — no sign-in gate. The checkout asks a signed-out guest for a
+  // name, an email and a phone instead, and books on those.
   const checkout = () => {
-    if (!requireAuth()) return;
     set({ checkoutStep: 0, bookingError: null, rulesMissing: false, overlay: 'checkout' });
   };
 
@@ -880,8 +881,9 @@ function MobileBar({ nights, card }) {
   const state = useStore();
   const q = state.quote;
 
+  // docs/07 §2.5 — no sign-in gate. The checkout asks a signed-out guest for a
+  // name, an email and a phone instead, and books on those.
   const checkout = () => {
-    if (!requireAuth()) return;
     set({ checkoutStep: 0, bookingError: null, rulesMissing: false, overlay: 'checkout' });
   };
 

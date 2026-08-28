@@ -1529,6 +1529,14 @@ export function CancelTripModal() {
   const preview = state.cancelPreview;
   if (!preview) return null;
 
+  // docs/07 §2.5 — the booking this preview is for, when it is one on screen.
+  // The dialog is opened from both the trips list and the trip page, so it looks
+  // in both rather than assuming either is loaded.
+  const booking = state.trip?.id === preview.bookingId
+    ? state.trip
+    : state.bookings.find(b => b.id === preview.bookingId);
+  const paidAtProperty = !!booking?.paidAtProperty && !booking?.cashCollectedAt;
+
   const confirm = async () => {
     try {
       const result = await api.cancelBooking(preview.bookingId);
@@ -1548,7 +1556,12 @@ export function CancelTripModal() {
         {preview.explanation}
       </p>
       <div className="book-lines">
-        <div className="book-line"><span>{t('Đã thanh toán')}</span><span>{money(preview.total)}</span></div>
+        {/* docs/07 §2.5 — "Đã thanh toán" is a lie on a booking the guest has not
+            paid for. The figure is the same, the claim about it is not. */}
+        <div className="book-line">
+          <span>{paidAtProperty ? t('Tổng tiền của đơn') : t('Đã thanh toán')}</span>
+          <span>{money(preview.total)}</span>
+        </div>
         <div className="book-line" style={{ color: 'var(--brand-dark)' }}>
           <span>{t('Sẽ hoàn lại')}</span><span>{money(preview.refund)}</span>
         </div>

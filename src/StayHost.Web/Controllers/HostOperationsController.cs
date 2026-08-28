@@ -297,6 +297,75 @@ public class HostOperationsController(
 
     /* ------------------------------------------------------------- QL-01 */
 
+
+    /* ------------------------------------- docs/07 §2.5: cash at the door */
+
+    /// <summary>
+    /// docs/07 §2.5 — the host confirms the guest handed over the money.
+    ///
+    /// This is the only moment a pay-at-property booking touches the platform's
+    /// books, and even then no ledger entry is written: nothing moved through
+    /// Staylio. What is recorded is the platform's own claim — both service fees,
+    /// which the guest paid as part of the total and the host is now holding —
+    /// against <see cref="HostProfile.OwedToPlatform"/>, netted off the host's
+    /// next transfer the same way a lost chargeback already is.
+    ///
+    /// Only the host may mark it, and only once. A second press is answered with
+    /// the booking unchanged rather than billed twice.
+    /// </summary>
+    [HttpPost("bookings/{id:int}/cash-collected")]
+    public async Task<ActionResult<CashCollectedDto>> CashCollected(int id, CancellationToken ct)
+    {
+        var (user, profile) = await ResolveAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var listingIds = await access.ListingIdsAsync(user, CoHostScope.Bookings, ct);
+
+        var booking = await db.Bookings
+            .Include(b => b.Payment)
+            .Include(b => b.Listing!).ThenInclude(l => l.Host)
+            .FirstOrDefaultAsync(b => b.Id == id && listingIds.Contains(b.ListingId), ct);
+
+        if (booking is null) return NotFound();
+
+        if (!PaymentMethods.SettlesAtProperty(booking.Payment?.Method))
+            return BadRequest(new { message = "Đơn này không phải đơn trả tiền tại nơi ở." });
+
+        if (booking.CashCollectedAt is not null)
+            return Ok(new CashCollectedDto(booking.Reference, booking.Total, 0m, booking.CashCollectedAt.Value, true));
+
+        if (booking.Status is not (BookingStatus.Confirmed or BookingStatus.InProgress or BookingStatus.Completed))
+            return BadRequest(new
+            {
+                message = $"Đơn đang ở trạng thái \"{BookingLifecycle.Label(booking.Status)}\" nên chưa ghi nhận tiền được."
+            });
+
+        var now = DateTime.UtcNow;
+        var fees = PayAtProperty.FeesOwed(booking.ServiceFee, booking.HostServiceFee);
+
+        // Only the booking records this. The payment row deliberately stays
+        // Pending with no CapturedAt: nothing was captured, and the payout sweep
+        // reads Captured to decide what Staylio owes a host. Marking it would put
+        // this booking in a transfer of money the platform never received.
+        booking.CashCollectedAt = now;
+
+        // The host of the listing, not whoever pressed the button: a co-host with
+        // the bookings scope may confirm the cash, and the fee is still the
+        // listing owner's to settle.
+        if (booking.Listing?.Host is { } host) host.OwedToPlatform += fees;
+
+        db.BookingEvents.Add(BookingLifecycle.Note(booking, $"host:{user.Id}",
+            $"Chủ nhà xác nhận đã nhận {booking.Total:#,##0}₫ tiền mặt tại nơi ở."));
+
+        await notifications.QueueWithEmailAsync(user, NotificationKind.System,
+            "Đã ghi nhận tiền tại nơi ở",
+            $"Đơn {booking.Reference}: {booking.Total:#,##0}₫. Phí dịch vụ {fees:#,##0}₫ sẽ trừ vào lần chuyển tiền kế tiếp.",
+            "/hosting", ct);
+
+        await db.SaveChangesAsync(ct);
+        return Ok(new CashCollectedDto(booking.Reference, booking.Total, fees, now, false));
+    }
+
     /// <summary>
     /// docs/01 QL-01 — what needs doing today: guests arriving, guests in the
     /// house, guests leaving, and requests still waiting on an answer.

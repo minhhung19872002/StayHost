@@ -173,6 +173,8 @@ export const state = {
   splitEmails: '',
   checkoutName: '',
   checkoutEmail: '',
+  /** docs/07 §2.5 — how a host reaches somebody who booked with no account. */
+  checkoutPhone: '',
   checkoutNote: '',
   cancelPreview: null,
 
@@ -730,6 +732,8 @@ export async function holdDates(extra = {}) {
       offerId: state.offerId || undefined,
       // docs/01 ĐP-10 — the house-rules agreement.
       agreedToRules: state.agreedToRules,
+      // docs/07 §2.5 — required when there is no account behind the booking.
+      guestPhone: state.checkoutPhone || undefined,
       ...extra
     });
     set({ held });

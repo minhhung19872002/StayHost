@@ -48,6 +48,11 @@ public static class PaymentMethods
 
         new("paypal", "Quốc tế", "PayPal", "Dành cho khách thanh toán bằng ngoại tệ", MethodTier.Later),
         new("vietqr", "Chuyển nhanh", "VietQR", "Quét mã bằng ứng dụng ngân hàng", MethodTier.Later),
+        // docs/07 §2.5 — offered only on listings whose host turned it on, so it
+        // is in the catalogue but not automatically on any checkout. See
+        // PayAtProperty for why this is not simply "one more way to pay".
+        new(PayAtProperty.Key, "Tại nơi ở", "Trả khi nhận phòng",
+            "Trả trực tiếp cho chủ nhà, Staylio không thu trước", MethodTier.Later),
         new("installment", "Trả góp", "Trả góp qua thẻ", "0% qua ngân hàng phát hành thẻ", MethodTier.Later)
     ];
 
@@ -78,7 +83,14 @@ public static class PaymentMethods
     /// not the declining test card, so accepting it would confirm a stay nobody
     /// had paid for, the moment an account number is configured.
     /// </summary>
-    public static bool ChargesOnBooking(string? key) => key != "vietqr";
+    public static bool ChargesOnBooking(string? key) => key is not ("vietqr" or PayAtProperty.Key);
+
+    /// <summary>
+    /// docs/07 §2.5 — the money never reaches Staylio at all, so there is no
+    /// charge to take, no ledger entry to write and nothing to refund. Told apart
+    /// from VietQR, which is also not charged on booking but does arrive.
+    /// </summary>
+    public static bool SettlesAtProperty(string? key) => key == PayAtProperty.Key;
 
     /// <summary>Said to a guest who reaches a booking with a method that cannot pay for it yet.</summary>
     public const string NotChargeableYet =
@@ -124,8 +136,11 @@ public static class PaymentMethods
         ["cash"] = "Tiền mặt",
         ["transfer"] = "Chuyển khoản thủ công",
         ["crypto"] = "Tiền mã hoá",
-        ["cheque"] = "Séc",
-        ["on-arrival"] = "Trả khi nhận phòng"
+        ["cheque"] = "Séc"
+        // "on-arrival" used to sit here. The customer reversed that on 28/08/2026
+        // and it is now a method of its own — see PayAtProperty and docs/07 §2.5.
+        // It is still not "cash": the platform records the booking and bills its
+        // fee, it simply never touches the money.
     };
 
     public static bool IsRefused(string? key) => key is not null && Refused.ContainsKey(key);

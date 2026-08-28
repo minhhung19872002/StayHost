@@ -320,6 +320,7 @@ export function CheckoutModal() {
       const held = await holdDates({
         guestName: state.checkoutName || state.user?.fullName || null,
         guestEmail: state.checkoutEmail || state.user?.email || null,
+        guestPhone: state.checkoutPhone || null,
         guestNote: state.checkoutNote || null
       });
       setBusy(false);
@@ -365,6 +366,7 @@ export function CheckoutModal() {
       ? await holdDates({
           guestName: state.checkoutName || state.user?.fullName || null,
           guestEmail: state.checkoutEmail || state.user?.email || null,
+          guestPhone: state.checkoutPhone || null,
           guestNote: state.checkoutNote || null,
           ...payment
         })
@@ -528,6 +530,21 @@ function StepTrip({ q }) {
 
     <section className="modal-section">
       <h3>{t('Thông tin liên hệ')}</h3>
+
+      {/* docs/07 §2.5 — somebody who is not signed in is not asked to sign in.
+          The promise that makes people willing is the second half: the booking
+          stays findable afterwards. */}
+      {!state.user && (
+        <p className="notice" style={{ marginTop: 12 }}>
+          {t('Bạn có thể đặt mà không cần tài khoản. Chúng tôi gửi mã đơn qua email; dùng mã đơn và email đó để xem hoặc huỷ đặt chỗ bất cứ lúc nào.')}
+          {' '}
+          <button className="link-btn"
+                  onClick={() => set({ authMode: 'login', authError: null, overlay: 'login' })}>
+            {t('Hoặc đăng nhập')}
+          </button>
+        </p>
+      )}
+
       <div style={{ marginTop: 14 }}>
         <label className="form-field"><span className="cap">{t('Họ tên')}</span>
           <input type="text" placeholder={t('Nguyễn Văn A')}
@@ -537,6 +554,14 @@ function StepTrip({ q }) {
           <input type="email" placeholder={t('ban@email.com')}
                  value={state.checkoutEmail || state.user?.email || ''}
                  onChange={e => set({ checkoutEmail: e.target.value })} /></label>
+        {/* An account already carries a phone; a stranger has to leave one, and
+            a host expecting them at the door needs it more than usually. */}
+        {!state.user && (
+          <label className="form-field"><span className="cap">{t('Số điện thoại')}</span>
+            <input type="tel" placeholder="0901234567"
+                   value={state.checkoutPhone}
+                   onChange={e => set({ checkoutPhone: e.target.value })} /></label>
+        )}
         <label className="form-field">
           <span className="cap">{t('Lời nhắn cho chủ nhà')} <span style={{ fontWeight: 400 }}>{t('(không bắt buộc)')}</span></span>
           <textarea rows={3} placeholder={t('Chúng mình đến khoảng 20:00…')}
@@ -701,27 +726,39 @@ function SplitChoice({ q }) {
 }
 
 function StepPayment({ q }) {
-  const method = useStore().payMethod;
+  const state = useStore();
+  const method = state.payMethod;
+  const listingId = state.detail?.card?.id ?? null;
   const [refused, setRefused] = useState(null);
 
   // Only for the §2.4 footnote below; the list itself belongs to <PaymentMethods>.
   useEffect(() => {
-    api.paymentCatalogue().then(setRefused).catch(() => { /* no footnote, then */ });
-  }, []);
+    api.paymentCatalogue(listingId).then(setRefused).catch(() => { /* no footnote, then */ });
+  }, [listingId]);
 
   return (
     <section className="modal-section">
       <h3>{t('Chọn cách thanh toán')}</h3>
       <div style={{ marginTop: 14 }}>
         {/* The same picker the service and experience checkouts use, ids and
-            all: `card-number` is what confirm() reads back. */}
-        <PaymentMethods idPrefix="card" />
+            all: `card-number` is what confirm() reads back. The listing goes in
+            because docs/07 §2.5 belongs to a place, not to the platform. */}
+        <PaymentMethods idPrefix="card" listingId={listingId} />
       </div>
 
       <CouponField q={q} />
       <CreditChoice q={q} />
       <DepositChoice q={q} />
       <SplitChoice q={q} />
+
+      {/* docs/07 §2.5 — the one method where Staylio takes nothing, so the
+          guest is told exactly that before they confirm. */}
+      {method === 'property' && (
+        <p className="notice" style={{ marginTop: 18 }}>
+          {t('Bạn trả {} trực tiếp cho chủ nhà khi nhận phòng. Staylio không thu trước và không giữ tiền của đơn này.')
+            .replace('{}', money(q.total))}
+        </p>
+      )}
 
       {method === 'momo' && (
         <p style={{ marginTop: 18, fontSize: 14, color: 'var(--ink-body)', lineHeight: 1.6 }}>

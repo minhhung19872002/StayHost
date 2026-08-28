@@ -43,9 +43,49 @@ PayPal (khách quốc tế), trả góp qua ngân hàng phát hành thẻ, VietQ
 
 ### 2.4. Không nhận
 
-Tiền mặt · chuyển khoản thủ công · tiền mã hoá · séc · trả khi nhận phòng.
+Tiền mặt · chuyển khoản thủ công · tiền mã hoá · séc.
 
 Khi khách hỏi những cách này, hệ thống phải giải thích lý do ngắn gọn: tiền được giữ để bảo vệ cả hai bên cho tới khi khách nhận phòng.
+
+> **"Trả khi nhận phòng" từng nằm trong danh sách này. Khách đã đảo lại ngày
+> 28/08/2026** — xem §2.5. Lý do ở trên vẫn đúng với bốn cách còn lại, và vẫn đúng
+> về cái mà khách đánh đổi khi chọn §2.5.
+
+### 2.5. Trả tại nơi ở, và đặt không cần tài khoản (khách chốt 28/08/2026)
+
+Hai việc đi cùng nhau vì cùng trả lời một người: khách không muốn đưa thẻ cho một
+trang web. Đây là cách Booking.com đang làm ở thị trường Việt Nam.
+
+**Đặt không cần tài khoản.** Khách nhập họ tên, email và số điện thoại là đặt được.
+Email là bắt buộc vì mã đơn gửi qua đó, và mã đơn là đường duy nhất quay lại đơn
+sau này. Tra cứu bằng **mã đơn + chính email đó** ở `/dat-cho`; đăng nhập sau bằng
+email ấy thì đơn tự về tài khoản.
+
+Ba thứ gắn với tài khoản nên **từ chối có nêu tên**, không im lặng bỏ qua: số dư,
+mã giảm giá (có giới hạn theo người), và ưu đãi riêng. Tin đăng bật yêu cầu bắt
+buộc của `docs/01 ĐP-10` (phải có ảnh hồ sơ / phải xác minh danh tính) thì **không
+đặt ẩn danh được** — chủ nhà bật hai công tắc đó chính là để khỏi phải quyết định.
+Điều kiện *Đặt ngay* của `ĐP-03` thì khác: khách ẩn danh là khách chưa xác minh rõ
+ràng nhất, nên đơn **chuyển thành yêu cầu đặt** để chủ nhà duyệt, đúng như mọi
+khách chưa xác minh khác.
+
+**Trả tại nơi ở.** Không phải "thêm một cách trả tiền" mà là **sàn đứng ra ngoài
+luồng tiền**, và mọi hệ quả đều từ đó:
+
+| | |
+|---|---|
+| Bút toán | **Không ghi gì cả** khi đặt và khi xác nhận. Tiền không đi qua Staylio thì sổ Staylio không được nói là có |
+| Huỷ đơn | **Không có gì để hoàn.** Bản xem trước của `docs/01 CĐ-07` phải nói thẳng, thay vì báo một con số không ai trả. Chủ nhà huỷ thì khách vẫn nhận số dư bù đắp `docs/06` — đó là lời xin lỗi của sàn, không phải trả lại tiền của khách |
+| Phí dịch vụ | Sàn **vẫn thu đủ hai phần phí**. Khách trả nguyên tổng tiền đã báo giá — đổi cách trả không đổi giá — nên chủ nhà đang giữ hộ cả 14% của sàn. Ghi vào `OwedToPlatform`, trừ vào lần chuyển tiền kế tiếp, **đúng cơ chế một vụ chargeback thua đang dùng** |
+| Thuế | Chủ nhà thu cùng tiền mặt và **tự nộp**. Sàn chưa từng giữ khoản đó thì không thể là bên nộp hộ |
+| Bật ở đâu | **Từng tin đăng, do chủ nhà tự bật.** Sàn không bao giờ tự bật: thứ bị đánh đổi là sự bảo vệ của chính chủ nhà, và khách không tới thì không có khoản nào để bù |
+| Không đi cùng | Đặt cọc (`ĐP-06`), chia hoá đơn (`ĐP-07`), số dư và mã giảm giá — tất cả đều cần sàn ở giữa |
+| Ghi nhận | Chủ nhà bấm **"Đã nhận tiền"**. Đó là lúc duy nhất đơn này chạm vào sổ sách, và cũng chỉ để tính phí |
+
+**Rủi ro đã biết, ghi ra để không bị nhầm là bỏ sót:** `OwedToPlatform` chỉ thu
+được khi chủ nhà còn đơn khác để trừ. Chủ nhà chỉ bán theo cách này thì sàn không
+có đường thu phí. Đây là **cùng một rủi ro** mà đường chargeback đã mang sẵn, nên
+nó dùng chung một cơ chế thay vì đẻ ra cơ chế thứ hai.
 
 ---
 

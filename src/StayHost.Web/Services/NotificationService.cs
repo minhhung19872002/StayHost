@@ -60,6 +60,30 @@ public class NotificationService(
         await Task.CompletedTask;
     }
 
+    /// <summary>
+    /// docs/07 §2.5 — an email to somebody with no account.
+    ///
+    /// There is no in-app row to write and no preference mask to consult: both
+    /// belong to an account, and this person has none. The address is the only
+    /// thing the platform has of them, which is exactly why guest checkout asks
+    /// for one and refuses to proceed without it — a booking reference nobody
+    /// ever receives is a booking they cannot find again.
+    /// </summary>
+    public void QueueEmailOnly(string? toEmail, string? toName, string title, string body, string? link)
+    {
+        if (string.IsNullOrWhiteSpace(toEmail)) return;
+
+        db.EmailMessages.Add(new EmailMessage
+        {
+            ToEmail = toEmail.Trim(),
+            ToName = toName ?? "",
+            Subject = title,
+            Body = BuildEmailBody(toName ?? "", title, body, link)
+        });
+
+        log.LogInformation("Queued a guest-checkout email to a person with no account.");
+    }
+
     public Task<int> UnreadCountAsync(int userId, CancellationToken ct) =>
         db.Notifications.CountAsync(n => n.UserId == userId && n.ReadAt == null, ct);
 

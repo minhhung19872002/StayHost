@@ -608,6 +608,7 @@ public class HostController(
             InstantBookRequiresGoodReviews = src.InstantBookRequiresGoodReviews,
             RequireGuestPhoto = src.RequireGuestPhoto,
             RequireVerifiedToBook = src.RequireVerifiedToBook,
+            AcceptsPayAtProperty = src.AcceptsPayAtProperty,
             CancellationTier = src.CancellationTier,
             Description = src.Description,
             SpaceHighlight = src.SpaceHighlight,
@@ -894,6 +895,9 @@ public class HostController(
         listing.InstantBookRequiresGoodReviews = r.InstantBookRequiresGoodReviews;
         listing.RequireGuestPhoto = r.RequireGuestPhoto;
         listing.RequireVerifiedToBook = r.RequireVerifiedToBook;
+        // docs/07 §2.5 — never turned on by the platform; the protection given up
+        // is the host's own (PayAtProperty.HostWarning).
+        listing.AcceptsPayAtProperty = r.AcceptsPayAtProperty;
 
         // docs/08 §5.2 and §5.5 — a listing the sanction hid stays hidden until
         // an admin restores it; the host flipping the switch is not a restore.
@@ -1084,7 +1088,7 @@ public class HostController(
             l.AddressLine, l.Directions, l.WifiName, l.WifiPassword,
             l.ApplianceNotes, l.DoorCode, l.HostPhone),
         l.InstantBookRequiresVerified, l.InstantBookRequiresGoodReviews,
-        l.RequireGuestPhoto, l.RequireVerifiedToBook,
+        l.RequireGuestPhoto, l.RequireVerifiedToBook, l.AcceptsPayAtProperty,
         l.ReviewStatus.ToString(), l.ReviewNote);
 
     private static readonly System.Text.Json.JsonSerializerOptions LayoutJson =
@@ -1146,5 +1150,6 @@ public class HostController(
         b.CreatedAt,
         change is null ? null : new PendingChangeDto(
             change.Id, change.NewCheckIn, change.NewCheckOut, change.NewGuests,
-            change.Difference, ChangeRequests.DiffLabel(change.Difference)));
+            change.Difference, ChangeRequests.DiffLabel(change.Difference)),
+        b.PaidAtProperty, b.CashCollectedAt, b.GuestPhone);
 }
