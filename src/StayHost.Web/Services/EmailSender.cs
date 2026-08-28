@@ -27,6 +27,18 @@ public class EmailSettings
     public bool UseImplicitTls { get; set; }
 
     /// <summary>
+    /// Lets this talk to a server that offers no TLS at all — a local mail
+    /// catcher such as mailpit, which is how outgoing mail gets looked at
+    /// without sending anything to a real address.
+    ///
+    /// Off, and a server that does not advertise STARTTLS is a hard failure
+    /// rather than a silent downgrade: a provider that quietly stopped offering
+    /// encryption would otherwise start carrying sign-in codes in the clear and
+    /// nothing anywhere would say so.
+    /// </summary>
+    public bool AllowPlaintext { get; set; }
+
+    /// <summary>
     /// Nothing is sent until a host is configured. Without this the platform
     /// would queue mail forever and look like it was working.
     /// </summary>
@@ -66,7 +78,9 @@ public class SmtpEmailSender(EmailSettings settings, ILogger<SmtpEmailSender> lo
         {
             var security = settings.UseImplicitTls
                 ? SecureSocketOptions.SslOnConnect
-                : SecureSocketOptions.StartTls;
+                : settings.AllowPlaintext
+                    ? SecureSocketOptions.StartTlsWhenAvailable
+                    : SecureSocketOptions.StartTls;
 
             await client.ConnectAsync(settings.Host, settings.Port, security, ct);
 
