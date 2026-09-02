@@ -498,12 +498,18 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   — tile miễn phí của họ giờ đóng dấu chìm "API KEY REQUIRED" giữa ảnh, đọc như trang
   hỏng chứ không phải thiếu bản đồ, mà request vẫn trả **200**. Chọn nhà cung cấp tile
   thì phải **nhìn tận mắt một tile**, đừng tin mã 200.
-- **Đổi tên repo thì runner tự-host không đổi theo.** Sau khi `StayHost` thành
-  `Staylio` (27/08/2026), `~/actions-runner/.runner` trên VPS vẫn ghi URL cũ và vẫn
-  `online` — nhưng chỉ vì **GitHub tự chuyển hướng tên cũ sang tên mới**. Chuyển hướng
-  ấy biến mất ngay khi có ai tạo repo mới trùng tên `StayHost` dưới cùng tài khoản, và
-  khi đó deploy ngừng chạy mà không báo gì. Package GHCR thì tự bám theo repo mới
-  (`ghcr.io/minhhung19872002/stayhost` vẫn đúng), nên chỉ còn runner là chỗ hở.
+- **Đổi tên repo thì runner tự-host không đổi theo** (đã đăng ký lại 02/09/2026).
+  Sau khi `StayHost` thành `Staylio` (27/08/2026), `~/actions-runner/.runner` trên VPS
+  vẫn ghi URL cũ và vẫn `online` — nhưng chỉ vì **GitHub tự chuyển hướng tên cũ sang
+  tên mới**. Chuyển hướng ấy biến mất ngay khi có ai tạo repo mới trùng tên `StayHost`
+  dưới cùng tài khoản, và khi đó deploy ngừng chạy mà không báo gì. Package GHCR thì tự
+  bám theo repo mới (`ghcr.io/minhhung19872002/stayhost` vẫn đúng). Lúc đăng ký lại
+  dính hai bẫy: `./config.sh remove` trả **404** vì nó gửi URL cũ trong `.runner` lên
+  API — API **không** đi theo redirect, đúng cái redirect đang nuôi listener; và xoá
+  `.runner`/`.credentials` rồi mà `config.sh` vẫn bảo "already configured" vì còn
+  **`.runner_migrated`** (runner 2.337). Vì `set -e` dừng script ngay ở bước remove,
+  cron đã gỡ tạm mà runner chưa đăng ký — đừng để remove là bước chặn. Công thức đúng
+  ở `DEPLOY.md §3.2`.
 - **GitHub có thể tạo workflow run trễ cả tiếng, và "chưa có run" không phải "hỏng".**
   Ngày 26/08, `gh api ".../actions/runs?head_sha=b30ebd5"` trả `total_count: 0` ngay
   sau khi push, rồi trả `0` lần nữa ở lần push kế tiếp. Workflow vẫn `active`, Actions

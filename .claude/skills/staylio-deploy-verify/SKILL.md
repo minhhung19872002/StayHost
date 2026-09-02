@@ -129,12 +129,14 @@ done
   prod **không đổi theo** — phải `UPDATE` tay.
 - **Bí mật không nằm trong repo.** Muốn thêm biến thì sửa `~/deploy/stayhost.env` rồi
   `docker compose up -d`; kiểm bằng `docker exec stayhost-web printenv <TÊN>`.
-- **Repo đã đổi tên `StayHost` → `Staylio` (27/08/2026), nhưng runner thì chưa.**
-  `~/actions-runner/.runner` trên VPS vẫn ghi URL cũ, và nó chạy được **chỉ nhờ
-  GitHub tự chuyển hướng tên cũ sang tên mới**. Chuyển hướng đó mất hiệu lực ngay khi
-  có ai tạo một repo mới trùng tên `StayHost` dưới cùng tài khoản — lúc đó runner trỏ
-  vào một repo lạ và deploy im lặng ngừng chạy. Đăng ký lại runner khi có dịp
-  (`deploy/install-runner.sh`, cần token từ Settings → Actions → Runners → New).
+- **Runner đã đăng ký lại dưới `…/Staylio` (02/09/2026)**, giữ nguyên id 22 và nhãn
+  `stayhost-vps`. Trước đó `.runner` còn ghi `…/StayHost` và chỉ sống nhờ GitHub
+  redirect. Nếu lại phải đổi URL: **đừng** `config.sh remove` (nó gửi URL cũ lên API
+  và nhận 404 — API không theo redirect), và ngoài `.runner`/`.credentials`/
+  `.credentials_rsaparams` phải dời cả **`.runner_migrated`**, không thì `config.sh`
+  bảo "already configured". Token lấy bằng
+  `gh api -X POST repos/minhhung19872002/Staylio/actions/runners/registration-token`.
+  Công thức đầy đủ ở `DEPLOY.md §3.2`.
   Tên **container** (`stayhost-web`, `stayhost-db`), tên **package GHCR**
   (`ghcr.io/minhhung19872002/stayhost`) và **namespace C#** thì giữ nguyên có chủ ý —
   đổi chúng là đổi thứ mà database, image cũ và lệnh rollback đang trỏ tới.

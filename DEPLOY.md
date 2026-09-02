@@ -445,6 +445,40 @@ Ngày nào có mật khẩu root thì chuyển sang systemd bằng
 **gỡ dòng cron trước rồi mới cài** — để cả hai là hai runner tranh cùng một đăng ký, và
 triệu chứng lại đúng chữ "offline" khó truy.
 
+## 3.2. Đăng ký lại runner khi URL repo đổi
+
+Đã làm một lần ngày 02/09/2026, sau khi repo đổi tên `StayHost` → `Staylio`. Runner
+vẫn `online` suốt sáu ngày với URL cũ vì GitHub redirect tên cũ, nhưng redirect ấy
+mất ngay khi có repo mới trùng tên cũ — và lúc đó deploy ngừng chạy không báo gì.
+
+```bash
+REG=$(gh api -X POST repos/minhhung19872002/Staylio/actions/runners/registration-token --jq .token)
+ssh hung@14.225.83.93 bash -s <<EOF
+cd ~/actions-runner
+crontab -l > /tmp/cron.bak && crontab -r            # de cron khong dung ban do dang
+pkill -f "bash [.]/run.sh"; pkill -f "[r]un-helper.sh"; pkill -f "[R]unner.Listener"; sleep 3
+for f in .runner .credentials .credentials_rsaparams .runner_migrated; do mv \$f \$f.bak-\$(date +%Y%m%d); done
+./config.sh --url https://github.com/minhhung19872002/Staylio --token $REG   --name bluestar01 --labels stayhost-vps --unattended --replace
+crontab /tmp/cron.bak
+setsid ./run.sh >> run-cron.log 2>&1 < /dev/null &
+sleep 12; pgrep -af "[R]unner.Listener"; grep gitHubUrl .runner
+EOF
+gh api repos/minhhung19872002/Staylio/actions/runners --jq '.runners[]|"\(.id) \(.name) \(.status)"'
+```
+
+Ba điều đã trả giá lúc làm:
+
+- **Không chạy `./config.sh remove`.** Nó POST URL cũ trong `.runner` lên
+  `api.github.com/actions/runner-registration` và nhận **404** — API không theo
+  redirect. `--replace` với cùng `--name` là đủ: GitHub thay đúng runner cũ, giữ id.
+- **`.runner_migrated` cũng là dấu "đã cấu hình"** (runner 2.337). Xoá ba file kia rồi
+  mà `config.sh` vẫn từ chối thì là nó.
+- **Đừng `set -e` quanh bước remove.** Lần đầu script chết ở đó với cron đã gỡ và
+  listener đã tắt — trạng thái tệ hơn lúc bắt đầu, và không có gì tự sửa.
+
+Kiểm chứng thật: `gh workflow run ci-cd.yml --ref main` rồi `gh run watch` — job
+`deploy` phải chạy trên `bluestar01`. Cùng sha thì vô hại, chỉ tốn bốn phút.
+
 ## 4. Dựng lại từ đầu
 
 > **Phần này viết cho một máy chủ chỉ chạy Staylio, và cho một tài khoản có `sudo`.**
