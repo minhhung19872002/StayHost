@@ -662,3 +662,116 @@ trả về giao dịch thanh toán gốc), nên trạng thái cuối của một
 11. Chủ nhà đổi tài khoản nhận tiền → khoản chuyển bị hoãn 3 ngày, email cũ nhận cảnh báo
 12. Đơn có hồ sơ Staylio Shield đang mở → khoản chuyển bị giữ, chủ nhà thấy lý do
 13. Đối soát cuối ngày phát hiện một giao dịch lệch → hệ thống báo động, không tự làm ngơ
+
+---
+
+## 19. Chia thu nhập cho người đồng quản lý (chốt 03/09/2026)
+
+Khách yêu cầu **"làm giống Airbnb"** sau khi đối chiếu với chính sách công khai
+của họ. Trước đó `docs/02 G8` chỉ có bốn chữ *"tuỳ chọn chia % thu nhập"*, còn
+`docs/01 QL-19` không nhắc tới tiền — nên phần này ghi lại toàn bộ quyết định,
+chứ không để mã nguồn nói khác tài liệu.
+
+`docs/01 QL-19` (mời, chọn tin đăng, chọn phạm vi quyền, thu hồi) **giữ nguyên**.
+Đây là phần thêm.
+
+### 19.1. Chia trên cái gì
+
+**Phần chia tính trên thu nhập thực nhận của chủ nhà** — tức tạm tính trừ phí
+dịch vụ chủ nhà 3%, và **không gồm thuế** vì thuế chưa bao giờ là tiền của chủ
+nhà. Đúng bằng con số chủ nhà thấy trên sao kê của chính mình, nên không có
+định nghĩa thứ hai để tranh cãi về sau.
+
+Bốn cách chia, chủ nhà chọn một:
+
+| Cách | Lấy gì |
+|---|---|
+| Phí dọn dẹp | Phần phí dọn dẹp trong thu nhập, và không gì khác |
+| Phí dọn dẹp + phần trăm | Phí dọn dẹp, cộng % của phần còn lại |
+| Phần trăm | % của thu nhập **không gồm** phí dọn dẹp |
+| Phần trăm (gồm phí dọn dẹp) | % của **toàn bộ** thu nhập |
+| Số tiền cố định | Một số tiền mỗi đơn, không phụ thuộc đơn to hay nhỏ |
+
+Phần phí dọn dẹp được tính **sau khi trừ phí dịch vụ đánh trên chính nó**: phí
+dọn dẹp không tới tay chủ nhà nguyên vẹn, nên người ăn "toàn bộ phí dọn dẹp"
+không thể nhận nhiều hơn số chủ nhà thật sự nhận được.
+
+**Phí dịch vụ 3% của sàn không đổi và không chia.** Chủ nhà chịu trước, co-host
+ăn phần trăm trên số còn lại. `Pricing.cs` không bị đụng tới — `docs/00 §6.8`
+vẫn đúng: mọi quy tắc tiền định nghĩa một lần, một nơi.
+
+**Nhiều người cùng một đơn** thì thứ tự thanh toán là: phí dọn dẹp → phí dọn dẹp
++ % → % không gồm dọn dẹp → % gồm dọn dẹp → số tiền cố định; trong mỗi nhóm thì
+mức lớn trả trước, bằng nhau thì theo id để cùng một đơn luôn chia ra cùng một
+kết quả. **Phần thừa mới về chủ nhà.**
+
+**Không bao giờ chia quá số đơn đó kiếm được.** Đơn không đủ thì người đứng sau
+nhận thiếu, và chủ nhà có thể không nhận được gì. Đây là cách Airbnb làm, và là
+lựa chọn duy nhất thay cho việc lấy tiền của người khác ra trả. Chủ nhà hứa quá
+100% thì **được cảnh báo, không bị chặn** — một tỷ lệ chỉ vượt khi đơn ở một đêm
+là thoả thuận bình thường.
+
+### 19.2. Ai lập, ai đồng ý
+
+**Chỉ chủ tin đăng** lập được. Co-host không tự đặt cho mình và không đặt cho
+co-host khác.
+
+Đây là **đề nghị, không phải một ô cài đặt**: chỉ có hiệu lực khi người nhận
+tiền đồng ý, vì phần chia thu nhập là thu nhập — họ là người phải kê khai và
+là người phải khai tài khoản nhận. Chủ nhà đổi điều khoản thì quay lại trạng
+thái chờ; không ai bị chuyển sang mức thấp hơn mức mình đã đồng ý mà không được
+hỏi lại.
+
+**Đề nghị đứng 14 ngày rồi hết hiệu lực.** Không có mốc này thì một đề nghị gửi
+tháng Ba vẫn nằm đó tới tháng Chín, và chủ nhà — đã quên từ lâu — phát hiện tiền
+đang chảy đi theo điều khoản mình đặt nửa năm trước.
+
+**Thu hồi quyền đồng quản lý thì dừng luôn phần chia.** Vòng quét đọc điều khoản
+chứ không đọc quyền, nên để sót là tiếp tục chia tiền cho người không còn nhìn
+thấy tin đăng nữa. Các phần chia của những đơn đã qua thì giữ nguyên — việc đã
+làm và tiền đã nợ.
+
+### 19.3. Tiền đi đường nào
+
+Co-host **tự khai tài khoản nhận tiền của mình**, tự xác minh, và có sổ nợ sàn
+của riêng mình — y hệt chủ nhà, vì với sàn thì người được trả tiền là người được
+trả tiền. Lúc đồng ý, hệ thống tạo cho họ một hồ sơ nhận tiền (`HostProfile`);
+ai đã là chủ nhà thì dùng lại hồ sơ sẵn có, không đẻ ra hai sổ nợ.
+
+Phần chia đi **trong lệnh chuyển riêng, tới ngân hàng của chính họ**, qua đúng
+bảng `payout_batches`, đúng file `.csv` sáu cột, đúng nút *Đã chuyển* mà mọi
+khoản khác đi qua. Cùng lịch với chủ nhà: sau khi khách nhận phòng.
+
+Các điều kiện tạm giữ của `§12.2` áp cho họ **y như chủ nhà**: chưa xác minh tài
+khoản, vừa đổi tài khoản trong 3 ngày, hoặc đang nợ sàn. Các điều kiện theo đơn
+(`§12.4`) thì đã được trả lời rồi — phần chia chỉ tồn tại khi khoản của chủ nhà
+đã vượt qua chúng.
+
+**Ghi sổ:** phần chia trừ thẳng vào `HostPayable` của chính đơn đó, nên tổng
+tiền ghi nợ vẫn đúng bằng thu nhập chủ nhà như trước khi có ai được mời. Bút
+toán ghi **lúc ngân hàng thực hiện**, không phải lúc quyết định — giống hệt mọi
+khoản chuyển khác.
+
+### 19.4. Khi đơn bị hoàn tiền
+
+**Khách huỷ trước khi chuyển tiền:** phần chia tính trên số còn lại. Đơn 150
+giảm còn 50 thì người ăn 10% nhận 5, không phải 15.
+
+**Đã chuyển rồi mới hoàn:** tiền đã đi, không đảo. Khoản chênh ghi vào
+`OwedToPlatform` của co-host và **trừ dần vào các lần chuyển sau** — dùng chung
+cơ chế với chargeback thua và với phí của đơn trả tại nơi ở (`§2.5`), không đẻ
+ra cơ chế thứ hai. Co-host được báo, có nêu **mã đơn**: một khoản trừ không ai
+giải thích là cách người ta kết luận mình bị lấy mất tiền.
+
+Việc soát này là **một vòng quét, không phải một cái móc vào đường huỷ đơn**.
+`PostCancellation` là hàm tĩnh gọi từ bảy chỗ, mà tiền còn có thể được hoàn do
+admin phân xử, do hồ sơ Shield, do chargeback — vá từng chỗ là bỏ sót đúng một
+chỗ. Điều kiện kích hoạt là phép trừ chứ không phải một sự kiện: mỗi dòng nhớ
+số thu nhập nó được chia ra từ đó, nên một đơn nay đáng ít hơn số ấy là một đơn
+cần chia lại.
+
+### 19.5. Chưa làm
+
+**Sàn không thu phí trên phần chia của co-host.** Airbnb có thu với co-host tìm
+qua sàn của họ; ở đây chưa có mạng lưới co-host nào để thu, và khách chưa yêu
+cầu. Thêm sau là thêm một dòng vào `CoHostPayouts.Allocate`.

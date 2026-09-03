@@ -526,6 +526,39 @@ public static class Ledger
             new Leg(LedgerAccount.GuestFunds, LedgerDirection.Credit, amount, $"Chuyển cho chủ nhà đơn {booking.Reference}"));
 
     /// <summary>
+    /// docs/02 G8, docs/07 §19 — the part of a booking's host earnings that goes
+    /// to a co-host instead of the owner.
+    ///
+    /// Deliberately the same two accounts as <see cref="PayoutHost"/>: this is not
+    /// a new kind of money, it is the same host payable reaching a different
+    /// person. The owner's own posting for the booking is reduced by exactly this
+    /// much, so the two together still debit HostPayable by the whole payout and
+    /// the reconciliation of docs/07 §7 has nothing new to explain.
+    /// </summary>
+    public static List<LedgerEntry> PayoutCoHost(Booking booking, decimal amount, DateTime at) =>
+        amount <= 0
+            ? []
+            : Post("cohost-payout", booking.Id, at,
+                new Leg(LedgerAccount.HostPayable, LedgerDirection.Debit, amount, "Chi trả người đồng quản lý"),
+                new Leg(LedgerAccount.GuestFunds, LedgerDirection.Credit, amount,
+                    $"Chuyển cho người đồng quản lý, đơn {booking.Reference}"));
+
+    /// <summary>
+    /// docs/07 §19.4 — a co-host was paid, then the stay was refunded. The money
+    /// has left, so nothing is reversed; what is recorded is that they now owe it
+    /// back, exactly as <see cref="RecoverFromHost"/> records the same fact about
+    /// an owner. It comes off their next transfers.
+    /// </summary>
+    public static List<LedgerEntry> RecoverFromCoHost(Booking booking, decimal amount, DateTime at) =>
+        amount <= 0
+            ? []
+            : Post("cohost-debt-recovered", booking.Id, at,
+                new Leg(LedgerAccount.HostPayable, LedgerDirection.Debit, amount,
+                    "Khấu trừ khoản người đồng quản lý nợ sàn"),
+                new Leg(LedgerAccount.PlatformExpense, LedgerDirection.Credit, amount,
+                    $"Thu hồi từ người đồng quản lý, đơn {booking.Reference}"));
+
+    /// <summary>
     /// docs/09 §4 (MR-C-03) — paying an experience's host or a service's provider,
     /// a day after the session ends. Their money already sits in HostPayable from
     /// the capture; this is the cash leaving to reach them.

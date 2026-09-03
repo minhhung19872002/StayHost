@@ -440,6 +440,23 @@ public class BookingLifecycleWorker(IServiceProvider services, ILogger<BookingLi
                 var sessionPayouts = await payouts.SweepSessionsAsync(stoppingToken);
                 if (sessionPayouts.Any) log.LogInformation("Trả buổi: {Result}.", sessionPayouts);
 
+                // docs/02 G8, docs/07 §19 — the shares carved off just above, in
+                // transfers of their own. It runs after the payout sweep in the
+                // same tick because that is what created the rows it groups.
+                var coHostPayouts = scope.ServiceProvider.GetRequiredService<CoHostPayoutService>();
+                var sharedOut = await coHostPayouts.SweepAsync(stoppingToken);
+                if (sharedOut.Any) log.LogInformation("Chia đồng quản lý: {Result}.", sharedOut);
+
+                // docs/07 §19.2 — a proposal nobody answered inside 14 ngày lapses.
+                var lapsedTerms = await coHostPayouts.ExpireProposalsAsync(stoppingToken);
+                if (lapsedTerms > 0) log.LogInformation("Đề nghị chia thu nhập hết hạn: {Count}.", lapsedTerms);
+
+                // docs/07 §19.4 — stays whose earnings shrank after their shares
+                // were decided. A sweep, not a hook: a refund reaches a booking
+                // from seven directions and patching each is how one is missed.
+                var redivided = await coHostPayouts.ReconcileSweepAsync(stoppingToken);
+                if (redivided > 0) log.LogInformation("Chia lại sau hoàn tiền: {Count} đơn.", redivided);
+
                 // docs/09 §3.2 — a lapsed practising certificate hides its listing.
                 var certs = scope.ServiceProvider.GetRequiredService<ServiceMarketService>();
                 var certResult = await certs.CertificateSweepAsync(stoppingToken);

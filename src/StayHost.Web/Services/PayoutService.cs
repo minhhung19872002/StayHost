@@ -15,7 +15,7 @@ namespace StayHost.Web.Services;
 /// </summary>
 public class PayoutService(
     StayHostDbContext db, PayoutAccounts accounts, NotificationService notifications,
-    ILogger<PayoutService> log)
+    CoHostPayoutService coHosts, ILogger<PayoutService> log)
 {
     public sealed record Result(int Paid, int Held, int Failed)
     {
@@ -75,6 +75,13 @@ public class PayoutService(
                 continue;
             }
 
+            // docs/02 G8, docs/07 §19 — anyone the owner agreed to share with is
+            // paid out of this same booking, so their shares are carved off before
+            // the owner's transfer is sized. Done here rather than at booking time
+            // because HostPayout is what survived a cancellation, and a percentage
+            // of the reduced figure is what a co-host is entitled to.
+            await coHosts.AllocateAsync(payment, booking, ct);
+
             if (!payable.TryGetValue(host.Id, out var batch))
             {
                 batch = (host, []);
@@ -102,7 +109,11 @@ public class PayoutService(
                 .CountAsync(b => b.HostId == hostId && b.DueOn == today, ct);
 
             var reference = Payouts.BatchReference(hostId, today, soFar + 1);
-            var gross = payments.Sum(p => p.HostPayout);
+
+            // What is left after the co-hosts (docs/07 §19). Their shares travel
+            // in transfers of their own, to their own banks, so the owner's file
+            // row must not carry them.
+            var gross = payments.Sum(p => p.HostPayout - p.CoHostShare);
             var deduction = Payouts.Deduct(gross, host.OwedToPlatform);
 
             // docs/07 §14.3 — the number the transfer actually needs. Kept sealed
@@ -171,8 +182,9 @@ public class PayoutService(
                 payment.PayoutHoldReason = PayoutHoldReason.None;
                 payment.PayoutReference = reference;
 
-                var share = payment == payments[^1] ? left : Math.Min(left,
-                    Math.Round(deduction.Applied * payment.HostPayout / gross, 0, MidpointRounding.AwayFromZero));
+                var share = payment == payments[^1] || gross <= 0 ? left : Math.Min(left,
+                    Math.Round(deduction.Applied * (payment.HostPayout - payment.CoHostShare) / gross,
+                        0, MidpointRounding.AwayFromZero));
                 left -= share;
                 payment.PayoutDeducted = share;
                 paid++;
@@ -190,6 +202,20 @@ public class PayoutService(
             var note = deduction.Applied > 0
                 ? " " + Payouts.DeductionNote(deduction.Applied, deduction.StillOwed)
                 : "";
+
+            // docs/07 §19 — an owner seeing a smaller number than they expected
+            // is owed the reason in the same message, not on another screen.
+            var shared = payments.Sum(p => p.CoHostShare);
+            if (shared > 0)
+            {
+                var people = await db.CoHostPayouts
+                    .Where(p => payments.Select(x => x.BookingId).Contains(p.BookingId))
+                    .Select(p => p.CoHostId)
+                    .Distinct()
+                    .CountAsync(ct);
+
+                note += " " + CoHostPayouts.DeductionNote(shared, Math.Max(1, people));
+            }
 
             await notifications.QueueWithEmailAsync(host.User, NotificationKind.PayoutSent,
                 "Đã lên lệnh chuyển tiền cho bạn",
@@ -348,8 +374,29 @@ public class PayoutService(
             payment.PaidOutAt = now;
 
             db.LedgerEntries.AddRange(Ledger.RecoverFromHost(payment.Booking!, payment.PayoutDeducted, now));
+
+            // docs/07 §19 — the owner is posted for their own share only. The
+            // co-hosts' part is posted against the transfer that carries it, and
+            // the two together still debit HostPayable by the whole payout, so
+            // nothing new has to be explained to the daily reconciliation.
+            db.LedgerEntries.AddRange(Ledger.PayoutHost(payment.Booking!,
+                payment.HostPayout - payment.PayoutDeducted - payment.CoHostShare, now));
+        }
+
+        // docs/02 G8 — the shares of anyone helping run the listing. They travel
+        // in their own transfer to their own bank, so they settle on their own
+        // reference, on whatever day that transfer was executed.
+        foreach (var share in await db.CoHostPayouts
+                     .Where(p => p.PayoutReference == batch.Reference && p.Status != PayoutStatus.Paid)
+                     .Include(p => p.Booking)
+                     .ToListAsync(ct))
+        {
+            share.Status = PayoutStatus.Paid;
+            share.PaidOutAt = now;
+
+            db.LedgerEntries.AddRange(Ledger.RecoverFromCoHost(share.Booking!, share.Deducted, now));
             db.LedgerEntries.AddRange(
-                Ledger.PayoutHost(payment.Booking!, payment.HostPayout - payment.PayoutDeducted, now));
+                Ledger.PayoutCoHost(share.Booking!, share.Amount - share.Deducted, now));
         }
 
         // docs/09 §4 — experiences and services are paid out of the same file and
@@ -434,6 +481,16 @@ public class PayoutService(
         {
             job.PayoutStatus = PayoutStatus.Scheduled;
             job.PayoutReference = null;
+        }
+
+        // docs/02 G8 — a refused transfer of co-host shares goes back in the
+        // queue whole. Nothing was posted, so there is nothing to reverse.
+        foreach (var share in await db.CoHostPayouts
+                     .Where(p => p.PayoutReference == batch.Reference).ToListAsync(ct))
+        {
+            share.Status = PayoutStatus.Scheduled;
+            share.PayoutReference = null;
+            share.Deducted = 0m;
         }
 
         if (batch.Deducted > 0 && batch.Host is not null)

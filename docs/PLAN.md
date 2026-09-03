@@ -952,7 +952,7 @@ khoảng cách), `TM-05`, `TM-22`, `C6`, `G5` (chế độ một tin theo tháng
 
 | Việc | Vì sao chưa |
 |---|---|
-| `docs/02 G8` — co-host **chia % thu nhập** | Là một luồng tiền mới. `docs/01 QL-19` chỉ nói "mời co-host, chọn tin đăng và phạm vi quyền, thu hồi"; chia doanh thu là `docs/02` đi xa hơn `docs/01`, nên phải hỏi khách trước như đã làm với tham số `docs/06 §10` |
+| ~~`docs/02 G8` — co-host **chia % thu nhập**~~ | **Xong 03/09/2026.** Khách chốt "làm giống Airbnb" sau khi đối chiếu chính sách công khai của họ. Quy tắc ở `docs/07 §19`, nghiệm thu ở §9.11 dưới |
 | `docs/02 B2` — màn hình thiết lập ban đầu | Chỉ có trong `docs/02`, và chính nó ghi "bỏ qua được". Thêm một bước chắn giữa đăng ký và tìm kiếm |
 | `docs/02 G7` — điểm theo hạng mục **qua thời gian** | `docs/01 QL-16` liệt kê năm chỉ số và cả năm đã có; biểu đồ theo thời gian là phần `docs/02` thêm |
 | `docs/02 C1` — ghim của chỗ **đã xem** | Cần lưu lịch sử xem của từng người, tức một bảng mới cho một chi tiết trang trí |
@@ -960,6 +960,43 @@ khoảng cách), `TM-05`, `TM-22`, `C6`, `G5` (chế độ một tin theo tháng
 
 Nghiệm thu: `python scripts/rolegaps_acceptance.py` — 14 kịch bản, mỗi cái lái
 server thật rồi **đọc lại cơ sở dữ liệu**.
+
+### 9.11. Chia thu nhập cho người đồng quản lý (03/09/2026)
+
+`docs/02 G8` có bốn chữ *"tuỳ chọn chia % thu nhập"* mà `docs/01 QL-19` không
+nhắc tới, nên §9.9 để nó ở diện **phải hỏi khách**. Khách đã chốt: **làm giống
+Airbnb**. Toàn bộ quy tắc ghi ở **`docs/07 §19`**.
+
+Bốn quyết định đáng nhớ:
+
+1. **Phần chia tính trên thu nhập thực nhận của chủ nhà** (sau phí 3%, không gồm
+   thuế). Nghĩa là `Pricing.cs` **không bị đụng tới** — phí sàn không đổi, không
+   chia, chủ nhà chịu trước rồi mới chia phần còn lại. `docs/00 §6.8` vẫn đúng.
+2. **Không bao giờ chia quá số đơn đó kiếm được.** Đơn không đủ thì người đứng
+   sau nhận thiếu và chủ nhà có thể không nhận gì. Đây là lựa chọn duy nhất thay
+   cho việc tiêu tiền của người khác — cùng cái bẫy `GuestFunds` đã mắc một lần.
+3. **Co-host được trả như một chủ nhà**: hồ sơ nhận tiền riêng, tài khoản ngân
+   hàng riêng, sổ nợ sàn riêng, lệnh chuyển riêng, đi qua đúng bảng
+   `payout_batches` và đúng file `.csv` sáu cột. Không đẻ ra đường tiền thứ hai.
+4. **Hoàn tiền sau khi đã chia thì thu lại qua `OwedToPlatform`** — chung cơ chế
+   với chargeback thua và với phí của đơn trả tại nơi ở. Việc soát là **một vòng
+   quét**, không phải một cái móc: `PostCancellation` là hàm tĩnh gọi từ bảy chỗ
+   và tiền còn hoàn được do admin phân xử, do Shield, do chargeback.
+
+**Hai lỗi bắt được trong lúc làm, cả hai đều ở phía mình chứ không phải sản phẩm:**
+
+- **Migration ra 55 dòng và mất lệnh `CreateTable`.** Xoá file migration bằng tay
+  rồi `migrations add` lại thì `StayHostDbContextModelSnapshot.cs` **vẫn giữ trạng
+  thái của bản đã xoá**, nên bản mới chỉ còn phần chênh. Chạy lên là app xanh, bảng
+  không bao giờ tồn tại. Phải `git checkout` snapshot về rồi mới sinh lại.
+- **Bộ nghiệm thu gửi GET vào endpoint POST.** Hàm `call()` mặc định GET khi không
+  có body, nên `co-hosts/{id}/accept` rơi xuống fallback và trả 404 rỗng — đọc y
+  như "route hỏng". Mất một vòng truy mới thấy, đúng cái bẫy `CLAUDE.md §4` đã ghi
+  lại từ `acceptance.py`. Giờ mọi lời gọi POST không body đều ghi rõ `m="POST"`.
+
+Nghiệm thu: `python scripts/cohost_share_acceptance.py` — **31 kịch bản**, lái
+server thật rồi đọc lại cơ sở dữ liệu, gồm ba lần kiểm sổ sách lệch 0 và một
+phép cộng khẳng định *phần chủ nhà + phần co-host = đúng thu nhập của đơn*.
 
 ### 9.10. Việc ngoài 203 mã: đặt không cần tài khoản & trả tại nơi ở (28/08/2026)
 
@@ -1015,6 +1052,9 @@ python scripts/rolegaps_acceptance.py
 
 # 12 kịch bản của §9.10 — docs/07 §2.5, đặt không cần tài khoản & trả tại nơi ở
 python scripts/guestcheckout_acceptance.py
+
+# 31 kịch bản của §9.11 — docs/07 §19, chia thu nhập cho người đồng quản lý
+python scripts/cohost_share_acceptance.py
 
 # 30 kịch bản của §9.4 — cổng thanh toán thật. Gọi ra sandbox VNPay/MoMo/ZaloPay
 # ngoài đời, nên cần mạng và cần server chạy ở Development.

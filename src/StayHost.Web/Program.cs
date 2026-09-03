@@ -106,6 +106,7 @@ builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<ReviewService>();
 builder.Services.AddScoped<BadgeService>();
 builder.Services.AddScoped<PayoutService>();
+builder.Services.AddScoped<CoHostPayoutService>();
 builder.Services.AddScoped<PayoutStatementService>();
 // docs/07 §14.3 — the key that seals hosts' bank account numbers. With none set
 // the number is not stored and no transfer file can be produced; see DEPLOY.md.

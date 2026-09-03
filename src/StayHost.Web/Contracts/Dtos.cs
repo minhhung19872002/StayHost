@@ -1566,7 +1566,16 @@ public record CoHostDto(
     string ScopeLabel,
     string Status,
     string StatusLabel,
-    DateTime InvitedAt);
+    DateTime InvitedAt,
+    /* docs/02 G8 — the optional cut of the owner's earnings. */
+    string PayoutKind = "none",
+    decimal PayoutPercent = 0m,
+    decimal PayoutFixed = 0m,
+    string PayoutStatus = "none",
+    string PayoutStatusLabel = "Không chia thu nhập",
+    DateTime? PayoutConfirmBy = null,
+    /// <summary>What this person has actually been paid so far, across every stay.</summary>
+    decimal PaidToDate = 0m);
 
 /// <summary>The same grant seen from the other side, by the person invited.</summary>
 public record CoHostInviteDto(
@@ -1577,14 +1586,61 @@ public record CoHostInviteDto(
     string? ListingTitle,
     string ScopeLabel,
     string Status,
-    string StatusLabel);
+    string StatusLabel,
+    string PayoutKind = "none",
+    decimal PayoutPercent = 0m,
+    decimal PayoutFixed = 0m,
+    string PayoutStatus = "none",
+    string PayoutStatusLabel = "Không chia thu nhập",
+    DateTime? PayoutConfirmBy = null,
+    decimal PaidToDate = 0m,
+    /// <summary>
+    /// docs/07 §19.3 — a share cannot be paid to somebody with nowhere to send
+    /// it, so the confirm screen has to say whether that is set up.
+    /// </summary>
+    bool HasPayoutAccount = false);
+
+/// <summary>One stay a co-host was paid a share of (docs/07 §19).</summary>
+public record CoHostEarningDto(
+    long Id,
+    string BookingReference,
+    string? ListingTitle,
+    DateOnly CheckIn,
+    decimal Amount,
+    /// <summary>
+    /// The terms as they stood for this stay, in parts. The screen builds its
+    /// own sentence: the Vietnamese one carries a percentage inside it, and a
+    /// dictionary cannot key on "20% mỗi đơn".
+    /// </summary>
+    string Kind,
+    decimal Percent,
+    decimal Fixed,
+    string Status,
+    string StatusLabel,
+    DateTime? PaidOutAt,
+    decimal ClawedBack);
 
 public record CoHostBoardDto(
     IReadOnlyList<CoHostDto> Invited,
     IReadOnlyList<CoHostInviteDto> Helping,
-    IReadOnlyList<ScopeOptionDto> Scopes);
+    IReadOnlyList<ScopeOptionDto> Scopes,
+    IReadOnlyList<PayoutKindOptionDto> PayoutKinds,
+    IReadOnlyList<CoHostEarningDto> Earnings,
+    decimal EarnedToDate,
+    /// <summary>
+    /// The percentages the owner has actually promised away, when they add up to
+    /// more than 100 (docs/07 §19.1); zero when they do not. A number rather than
+    /// a sentence: the warning reads differently in each language and the number
+    /// belongs in the middle of it.
+    /// </summary>
+    decimal OvercommittedPercent = 0m);
+
+public record PayoutKindOptionDto(string Key, string Label, bool NeedsPercent, bool NeedsAmount);
 
 public record InviteCoHostRequest(string? Email, int? ListingId, IReadOnlyList<string>? Scopes);
+
+/// <summary>docs/02 G8 — the owner proposing a share of what they earn.</summary>
+public record CoHostPayoutRequest(string? Kind, decimal Percent, decimal Amount);
 
 /* ---- docs/01 QL-10: calendar sync ---------------------------------------- */
 

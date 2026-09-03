@@ -31,27 +31,104 @@ public class HostTeamController(
         var user = await auth.CurrentUserAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
 
-        var invited = await db.CoHosts
+        // Projected to an anonymous type first: EF cannot build a positional
+        // record out of a query, and the payout labels are string work anyway.
+        var invitedRows = await db.CoHosts
             .Where(c => c.OwnerUserId == user.Id && c.Status != CoHostStatus.Revoked)
             .OrderByDescending(c => c.InvitedAt)
-            .Select(c => new CoHostDto(
-                c.Id, c.Email, c.CoHostUser!.FullName, c.ListingId, c.Listing!.Title,
-                CoHostScopes.Keys(c.Scope), CoHostScopes.Describe(c.Scope),
-                c.Status.ToString().ToLower(), StatusLabel(c.Status), c.InvitedAt))
+            .Select(c => new
+            {
+                c.Id, c.Email, Name = c.CoHostUser!.FullName, c.ListingId,
+                ListingTitle = c.Listing!.Title, c.Scope, c.Status, c.InvitedAt,
+                c.PayoutKind, c.PayoutPercent, c.PayoutFixed, c.PayoutStatus, c.PayoutProposedAt,
+                Paid = db.CoHostPayouts
+                    .Where(p => p.CoHostId == c.Id && p.Status == PayoutStatus.Paid)
+                    .Sum(p => (decimal?)(p.Amount - p.ClawedBack)) ?? 0m
+            })
             .ToListAsync(ct);
 
-        var helping = await db.CoHosts
+        var invited = invitedRows.Select(c => new CoHostDto(
+            c.Id, c.Email, c.Name, c.ListingId, c.ListingTitle,
+            CoHostScopes.Keys(c.Scope), CoHostScopes.Describe(c.Scope),
+            c.Status.ToString().ToLower(), StatusLabel(c.Status), c.InvitedAt,
+            CoHostPayouts.Key(c.PayoutKind), c.PayoutPercent, c.PayoutFixed,
+            CoHostPayouts.StatusKey(c.PayoutStatus), CoHostPayouts.StatusLabel(c.PayoutStatus),
+            c.PayoutProposedAt is { } at ? CoHostPayouts.ConfirmBy(at) : null,
+            c.Paid)).ToList();
+
+        var helpingRows = await db.CoHosts
             .Where(c => (c.CoHostUserId == user.Id || c.Email == user.Email) && c.Status != CoHostStatus.Revoked)
             .OrderByDescending(c => c.InvitedAt)
-            .Select(c => new CoHostInviteDto(
-                c.Id, c.InviteToken, c.OwnerUser!.FullName, c.ListingId, c.Listing!.Title,
-                CoHostScopes.Describe(c.Scope), c.Status.ToString().ToLower(), StatusLabel(c.Status)))
+            .Select(c => new
+            {
+                c.Id, c.InviteToken, OwnerName = c.OwnerUser!.FullName, c.ListingId,
+                ListingTitle = c.Listing!.Title, c.Scope, c.Status,
+                c.PayoutKind, c.PayoutPercent, c.PayoutFixed, c.PayoutStatus, c.PayoutProposedAt,
+                Paid = db.CoHostPayouts
+                    .Where(p => p.CoHostId == c.Id && p.Status == PayoutStatus.Paid)
+                    .Sum(p => (decimal?)(p.Amount - p.ClawedBack)) ?? 0m
+            })
             .ToListAsync(ct);
+
+        // docs/07 §19.3 — whether this person has anywhere to be paid. Asked
+        // once for the user, not per row: it is a property of them, not of the
+        // arrangement, and a share with nowhere to go sits held for ever without
+        // anybody being told why.
+        var hasAccount = await db.Hosts
+            .AnyAsync(h => h.UserId == user.Id && h.PayoutAccountLast4 != null, ct);
+
+        var helping = helpingRows.Select(c => new CoHostInviteDto(
+            c.Id, c.InviteToken, c.OwnerName, c.ListingId, c.ListingTitle,
+            CoHostScopes.Describe(c.Scope), c.Status.ToString().ToLower(), StatusLabel(c.Status),
+            CoHostPayouts.Key(c.PayoutKind), c.PayoutPercent, c.PayoutFixed,
+            CoHostPayouts.StatusKey(c.PayoutStatus), CoHostPayouts.StatusLabel(c.PayoutStatus),
+            c.PayoutProposedAt is { } at ? CoHostPayouts.ConfirmBy(at) : null,
+            c.Paid, hasAccount)).ToList();
+
+        // What this user has been paid as somebody else's co-host, stay by stay.
+        // docs/09 §3.5 taught this repo the other half of the lesson: money that
+        // is collected and then never shown to the person it concerns may as
+        // well not have been recorded.
+        var earnings = await db.CoHostPayouts
+            .Where(p => p.CoHost!.CoHostUserId == user.Id)
+            .OrderByDescending(p => p.CreatedAt)
+            .Take(50)
+            .Select(p => new
+            {
+                p.Id, Reference = p.Booking!.Reference, ListingTitle = p.Booking!.Listing!.Title,
+                p.Booking!.CheckIn, p.Amount, p.Kind, p.Percent, p.Fixed,
+                p.Status, p.PaidOutAt, p.ClawedBack
+            })
+            .ToListAsync(ct);
+
+        var earned = earnings.Where(e => e.Status == PayoutStatus.Paid).Sum(e => e.Amount - e.ClawedBack);
+
+        var overcommitted = CoHostPayouts.Overcommitted(invitedRows
+            .Where(c => c.PayoutStatus == CoHostPayoutStatus.Active)
+            .Select(c => new CoHostPayouts.Terms(c.Id, c.PayoutKind, c.PayoutPercent, c.PayoutFixed)));
 
         return Ok(new CoHostBoardDto(
             invited, helping,
-            CoHostScopes.All.Select(s => new ScopeOptionDto(s.Key, s.Label)).ToList()));
+            CoHostScopes.All.Select(s => new ScopeOptionDto(s.Key, s.Label)).ToList(),
+            CoHostPayouts.All
+                .Select(k => new PayoutKindOptionDto(
+                    k.Key, CoHostPayouts.KindLabel(k.Kind), k.NeedsPercent, k.NeedsAmount))
+                .ToList(),
+            earnings.Select(e => new CoHostEarningDto(
+                e.Id, e.Reference, e.ListingTitle, e.CheckIn, e.Amount,
+                CoHostPayouts.Key(e.Kind), e.Percent, e.Fixed,
+                e.Status.ToString().ToLower(), PayoutLabel(e.Status), e.PaidOutAt, e.ClawedBack)).ToList(),
+            earned,
+            overcommitted));
     }
+
+    private static string PayoutLabel(PayoutStatus status) => status switch
+    {
+        PayoutStatus.Paid => "Đã chuyển",
+        PayoutStatus.Sent => "Đã lên lệnh, chờ ngân hàng",
+        PayoutStatus.OnHold => "Đang tạm giữ",
+        _ => "Chờ tới hạn"
+    };
 
     /// <summary>
     /// The invite is keyed by email, not by account, so a host can bring in
@@ -150,6 +227,139 @@ public class HostTeamController(
         return NoContent();
     }
 
+    /* ---------------------------------------------- docs/02 G8: the money */
+
+    /// <summary>
+    /// The owner offering a co-host a share of what they earn.
+    ///
+    /// It is an offer, not a setting. The terms take effect only once the person
+    /// being paid says yes, because a share of somebody's income is income —
+    /// they are the one who has to declare it, and they are the one who has to
+    /// have told us where to send it. Changing an offer that was already accepted
+    /// puts it back to waiting: nobody ends up on a smaller cut than they agreed
+    /// to without being asked again.
+    /// </summary>
+    [HttpPut("co-hosts/{id:int}/payout")]
+    public async Task<ActionResult<CoHostDto>> SetPayout(
+        int id, [FromBody] CoHostPayoutRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var invite = await db.CoHosts
+            .Include(c => c.CoHostUser)
+            .FirstOrDefaultAsync(c => c.Id == id && c.OwnerUserId == user.Id, ct);
+
+        if (invite is null) return NotFound();
+        if (invite.Status == CoHostStatus.Revoked)
+            return BadRequest(new { message = "Quyền đồng quản lý này đã bị thu hồi." });
+
+        var kind = CoHostPayouts.Parse(req.Kind);
+
+        if (kind == CoHostPayoutKind.None)
+        {
+            // Turning it off is the owner's alone to do, and it needs no
+            // confirmation from anybody: nothing is being taken from the person
+            // who was receiving it beyond stays that have not happened yet.
+            invite.PayoutKind = CoHostPayoutKind.None;
+            invite.PayoutPercent = 0m;
+            invite.PayoutFixed = 0m;
+            invite.PayoutStatus = CoHostPayoutStatus.None;
+            invite.PayoutProposedAt = null;
+            invite.PayoutRespondedAt = DateTime.UtcNow;
+
+            await db.SaveChangesAsync(ct);
+            return Ok(await ToDtoAsync(invite, ct));
+        }
+
+        if (CoHostPayouts.Invalid(kind, req.Percent, req.Amount) is { } bad)
+            return BadRequest(new { message = bad });
+
+        // The invite has to have been accepted first. Offering a cut of the
+        // takings to somebody who has not agreed to help run the place is an
+        // offer with nobody on the other end of it.
+        if (invite.Status != CoHostStatus.Active || invite.CoHostUserId is null)
+            return BadRequest(new { message = "Người này chưa nhận lời mời đồng quản lý." });
+
+        invite.PayoutKind = kind;
+        invite.PayoutPercent = req.Percent;
+        invite.PayoutFixed = req.Amount;
+        invite.PayoutStatus = CoHostPayoutStatus.Proposed;
+        invite.PayoutProposedAt = DateTime.UtcNow;
+        invite.PayoutRespondedAt = null;
+
+        await db.SaveChangesAsync(ct);
+
+        await notifications.QueueWithEmailAsync(invite.CoHostUser, NotificationKind.System,
+            "Đề nghị chia thu nhập từ chỗ nghỉ",
+            CoHostPayouts.ProposalNotice(
+                user.FullName,
+                CoHostPayouts.Describe(kind, req.Percent, req.Amount),
+                invite.PayoutProposedAt.Value),
+            "/hosting?tab=team", ct);
+        await db.SaveChangesAsync(ct);
+
+        return Ok(await ToDtoAsync(invite, ct));
+    }
+
+    /// <summary>
+    /// The co-host answering. Accepting is what creates their payee record — the
+    /// bank account, the verification and the debt ledger a host has, because
+    /// from the platform's side somebody being paid is somebody being paid.
+    /// </summary>
+    [HttpPost("co-hosts/{id:int}/payout/{decision}")]
+    public async Task<IActionResult> RespondPayout(int id, string decision, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var invite = await db.CoHosts
+            .Include(c => c.OwnerUser)
+            .FirstOrDefaultAsync(c => c.Id == id, ct);
+
+        if (invite is null) return NotFound();
+        if (invite.CoHostUserId != user.Id) return this.Denied();
+
+        if (invite.PayoutStatus != CoHostPayoutStatus.Proposed)
+            return BadRequest(new { message = "Không có đề nghị nào đang chờ bạn trả lời." });
+
+        // docs/07 §19.2 — the offer has a shelf life, and the sweep may not have
+        // reached it yet. Checked here as well so an offer that lapsed a minute
+        // ago cannot be accepted in the gap.
+        if (invite.PayoutProposedAt is { } at && CoHostPayouts.ProposalExpired(at, DateTime.UtcNow))
+        {
+            invite.PayoutStatus = CoHostPayoutStatus.Expired;
+            await db.SaveChangesAsync(ct);
+            return BadRequest(new { message = "Đề nghị này đã quá hạn. Hãy nhờ chủ nhà đề nghị lại." });
+        }
+
+        var accepted = decision == "accept";
+
+        if (accepted)
+        {
+            // Their own payee record. A co-host who is already a host keeps the
+            // one they have — the same bank account, the same verification, and
+            // one debt to the platform rather than two.
+            var payee = await auth.EnsureHostProfileAsync(user, ct);
+            invite.PayeeHostId = payee.Id;
+        }
+
+        invite.PayoutStatus = accepted ? CoHostPayoutStatus.Active : CoHostPayoutStatus.Declined;
+        invite.PayoutRespondedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        await notifications.QueueWithEmailAsync(invite.OwnerUser, NotificationKind.System,
+            accepted ? "Đã nhận đề nghị chia thu nhập" : "Đã từ chối đề nghị chia thu nhập",
+            accepted
+                ? CoHostPayouts.ConfirmedNotice(user.FullName,
+                    CoHostPayouts.Describe(invite.PayoutKind, invite.PayoutPercent, invite.PayoutFixed))
+                : CoHostPayouts.DeclinedNotice(user.FullName),
+            "/hosting?tab=team", ct);
+        await db.SaveChangesAsync(ct);
+
+        return NoContent();
+    }
+
     /// <summary>Taking the access back, which the spec asks for by name.</summary>
     [HttpDelete("co-hosts/{id:int}")]
     public async Task<IActionResult> Revoke(int id, CancellationToken ct)
@@ -162,6 +372,21 @@ public class HostTeamController(
 
         invite.Status = CoHostStatus.Revoked;
         invite.RevokedAt = DateTime.UtcNow;
+
+        // docs/02 G8 — taking the access back takes the share with it. Leaving
+        // the terms Active would keep diverting money to somebody who can no
+        // longer see the listing, and nothing would ever surface it: the sweep
+        // reads the terms, not the access.
+        //
+        // Shares already decided for past stays are left alone. That work was
+        // done and that money is owed.
+        if (invite.PayoutStatus == CoHostPayoutStatus.Active
+            || invite.PayoutStatus == CoHostPayoutStatus.Proposed)
+        {
+            invite.PayoutStatus = CoHostPayoutStatus.None;
+            invite.PayoutRespondedAt = DateTime.UtcNow;
+        }
+
         await db.SaveChangesAsync(ct);
 
         if (invite.CoHostUserId is { } coHostId)
@@ -296,10 +521,18 @@ public class HostTeamController(
             ? null
             : await db.Listings.Where(l => l.Id == invite.ListingId).Select(l => l.Title).FirstOrDefaultAsync(ct);
 
+        var paid = await db.CoHostPayouts
+            .Where(p => p.CoHostId == invite.Id && p.Status == PayoutStatus.Paid)
+            .SumAsync(p => (decimal?)(p.Amount - p.ClawedBack), ct) ?? 0m;
+
         return new CoHostDto(
             invite.Id, invite.Email, name, invite.ListingId, title,
             CoHostScopes.Keys(invite.Scope), CoHostScopes.Describe(invite.Scope),
-            invite.Status.ToString().ToLower(), StatusLabel(invite.Status), invite.InvitedAt);
+            invite.Status.ToString().ToLower(), StatusLabel(invite.Status), invite.InvitedAt,
+            CoHostPayouts.Key(invite.PayoutKind), invite.PayoutPercent, invite.PayoutFixed,
+            CoHostPayouts.StatusKey(invite.PayoutStatus), CoHostPayouts.StatusLabel(invite.PayoutStatus),
+            invite.PayoutProposedAt is { } at ? CoHostPayouts.ConfirmBy(at) : null,
+            paid);
     }
 
     private static string StatusLabel(CoHostStatus status) => status switch

@@ -53,7 +53,15 @@ thì **code sai**, không phải tài liệu sai.
    `HostProfile.OwedToPlatform`, trừ vào lần chuyển tiền kế tiếp, dùng chung cơ
    chế với chargeback thua. Chủ nhà tự bật theo từng tin đăng; sàn không bao giờ
    tự bật.
-5. **14 tham số Staylio Shield** của `docs/06 §10` đã chốt: bù đổi chỗ 40%, tặng số dư
+5. **Co-host chia % thu nhập, làm giống Airbnb** (khách chốt 03/09/2026).
+   `docs/02 G8` có bốn chữ "tuỳ chọn chia % thu nhập" mà `docs/01 QL-19` không
+   nhắc; khách chốt theo đúng chính sách công khai của Airbnb. Quy tắc đầy đủ ở
+   **`docs/07 §19`**. Điểm phải nhớ: **chia trên thu nhập thực nhận sau phí 3%**
+   nên `Pricing.cs` không đổi; **không bao giờ chia quá số đơn đó kiếm được**;
+   co-host được trả **như một chủ nhà** (hồ sơ nhận tiền, tài khoản, sổ nợ, lệnh
+   chuyển riêng); hoàn tiền sau khi đã chia thì thu lại qua `OwedToPlatform`,
+   cùng cơ chế với chargeback và với `§2.5`.
+6. **14 tham số Staylio Shield** của `docs/06 §10` đã chốt: bù đổi chỗ 40%, tặng số dư
    10%, trần chi phí phát sinh 3 triệu; chủ nhà 75 triệu/đơn, 350 triệu/năm, tự chịu
    500k, 5 đêm mất thu nhập, 15 triệu mỗi món giá trị cao; quỹ trích 5% phí dịch vụ,
    cảnh báo ở 80%, gắn cờ từ hồ sơ thứ 4. **Có trực 24/7**, **có làm nhánh C4**.
@@ -63,7 +71,7 @@ thì **code sai**, không phải tài liệu sai.
 
 ## 3. Hiện trạng
 
-**Toàn bộ xanh (28/08/2026).** 1201 test nghiệp vụ · **30/30** kịch bản cổng thanh
+**Toàn bộ xanh (03/09/2026).** 1223 test nghiệp vụ · **30/30** kịch bản cổng thanh
 toán thật (`scripts/gateway_acceptance.py`, gọi sandbox VNPay/MoMo/ZaloPay ngoài
 đời) · **34/34** kịch bản chuyển tiền cho chủ nhà và đối chiếu sao kê (`scripts/payout_acceptance.py`) ·
 **14/14** một giao dịch VNPay trả xong trên chính trang của họ, qua trình duyệt thật
@@ -79,7 +87,9 @@ quy tắc từng có mã mà không đường nào gọi tới) ·
 — soát theo **vai** khách/chủ nhà rồi soát ngược theo `docs/02`; 16 chỗ hở là mã
 hoàn chỉnh mà không màn hình nào gọi).
 **12/12** kịch bản của `scripts/guestcheckout_acceptance.py` (`docs/07 §2.5` — đặt
-không cần tài khoản và trả tiền tại nơi ở).
+không cần tài khoản và trả tiền tại nơi ở) ·
+**31/31** kịch bản của `scripts/cohost_share_acceptance.py` (`docs/07 §19` — chia
+thu nhập cho người đồng quản lý).
 Sổ sách lệch 0. Cả 203 mã của `docs/01` đã làm xong (`docs/PLAN.md §9`).
 
 > **`acceptance.py` cần DB sạch.** Nó ra 8/10 trên DB đã chạy nhiều lần — **không phải
@@ -125,6 +135,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Xếp hạng | Điểm tổng hợp 7 yếu tố của `docs/03 §6` trong `Ranking.cs`, có trừ điểm và đa dạng hoá 12 kết quả đầu ≤ 2 chỗ mỗi chủ nhà |
 | Bồi thường hư hỏng | **Khách đền trực tiếp chủ nhà bằng tiền mặt lúc trả phòng — sàn không thu, và không gánh** (khách chốt 17/08/2026, `docs/06 §3.3`). Cửa sổ mở hồ sơ **C1/C2 chỉ 24 giờ** sau trả phòng (`Shield.DamageReportWindow`) — quá đó khách đã đi, không ai đối chất được; C3/C4 vẫn 14 ngày. Ô "thu từ khách" ở màn hình quản trị giờ là **biên bản khách đã đưa bao nhiêu tiền mặt**, quỹ chỉ bù phần còn thiếu, và **không ghi bút toán nào** cho khoản đó. Trung tâm giải quyết cũng vậy: `claim-to-host` không còn ghi sổ — nó từng trừ `GuestFunds` là **tiền của khách khác** |
 | Staylio Shield | Hai nhánh K1–K4 / C1–C4 (kể cả bên thứ ba), cửa sổ khiếu nại, thứ tự thu tiền, quỹ trích từ phí dịch vụ, khiếu nại một lần do người khác xét |
+| Chia thu nhập co-host | `docs/07 §19`. Chủ nhà đề nghị (phí dọn dẹp · phí dọn dẹp + % · % · % gồm dọn dẹp · số tiền cố định), **người nhận tiền phải đồng ý** trong **14 ngày** rồi mới có hiệu lực. Chia trên **thu nhập sau phí 3%**, phần phí dọn dẹp tính **net** của phí đánh trên chính nó. Nhiều người thì theo thứ tự cố định, **không bao giờ vượt thu nhập của đơn** — hết thì chủ nhà nhận 0. Tiền đi **lệnh chuyển riêng tới ngân hàng của họ**, bút toán ghi lúc ngân hàng thực hiện, và tổng ghi nợ `HostPayable` vẫn đúng bằng thu nhập như trước. Hoàn tiền sau khi đã chia → `OwedToPlatform` của chính co-host, phát hiện bằng **vòng quét** chứ không phải móc vào đường huỷ đơn |
 | Mở rộng | Khách sạn (nhiều loại phòng có tồn kho), thẻ quà tặng, số dư, giới thiệu bạn bè |
 | Trải nghiệm (`docs/09`) | Thẩm định có người duyệt + phân loại rủi ro theo danh mục, hàng chờ kiểm duyệt, suất lặp lại và chặn chồng giờ, **giữ chỗ 10 phút**, nhiều đơn chung một suất, thuê trọn nhóm, tự huỷ khi thiếu người + gợi ý suất khác, điểm danh, huỷ theo bậc 7 ngày/50%, đánh giá 4 tiêu chí riêng |
 | Dữ liệu mẫu | `ReviewSeeder` dựng lịch sử có thật cho hai dòng này: 6 buổi/đơn đã hoàn tất mỗi tin, khách được điểm danh, người cung cấp đã nhận tiền, **bút toán đi qua `Ledger` nên sổ vẫn cân bằng**, rồi 6 đánh giá và điểm sao tính lại từ chính chúng |
@@ -586,6 +597,27 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   cũ sau khi deploy. Đường đổi tài khoản quản trị là `ADMIN_EMAIL`; các tài khoản
   demo còn lại thì đổi bằng `UPDATE` hoặc chấp nhận giữ nguyên.
 
+- **Xoá file migration bằng tay thì snapshot không quay lại theo.**
+  `StayHostDbContextModelSnapshot.cs` vẫn giữ trạng thái của bản vừa xoá, nên
+  `migrations add` lần sau chỉ sinh **phần chênh** — bản `CoHostRevenueShare` đầu
+  ra **55 dòng và không có lệnh `CreateTable` nào**. Chạy lên thì app xanh, migration
+  "đã áp dụng", và cái bảng ấy không bao giờ tồn tại. Cách đúng là
+  `dotnet ef migrations remove`, hoặc `git checkout` snapshot rồi mới sinh lại; và
+  **đếm số dòng của migration mới** — một bảng mới không thể gói trong 55 dòng.
+- **Bộ nghiệm thu gửi GET vào endpoint POST đọc y như route hỏng.** Hàm `call()`
+  của mọi script ở đây mặc định `GET` khi không có body, nên
+  `POST /api/host/co-hosts/{id}/accept` gọi thiếu `m="POST"` rơi xuống fallback và
+  trả **404 rỗng**. Mất một vòng dài đi truy "vì sao route không khớp" — trong khi
+  route vẫn đúng. Đây là **cùng cái bẫy** `acceptance.py` từng mắc (§4 ở trên), chỉ
+  khác là hồi đó shell trả 200 nên nó *đạt*, còn giờ `/api/` trả 404 nên nó *hỏng*.
+  Bật log `Logging__LogLevel__Microsoft.AspNetCore=Debug` rồi đọc dòng
+  `Request starting HTTP/1.1 **GET** …` là thấy ngay; đoán thì không bao giờ thấy.
+- **Đừng ghi bút toán lúc ghi nhận một khoản nợ.** Nợ không phải một lần tiền đi.
+  Bút toán thuộc về **lần chuyển tiền thu hồi được nó** — đó là chỗ
+  `Ledger.RecoverFromHost`/`RecoverFromCoHost` được gọi. Ghi thêm một cái lúc phát
+  sinh nợ là đếm hai lần, và sổ hết khớp với thứ ngân hàng đã làm. Chargeback thua
+  và phí của đơn trả tại nơi ở đều đã có sẵn hình dạng này.
+
 ---
 
 ## 5. Chạy dự án
@@ -705,13 +737,14 @@ RS256 theo bộ khoá công khai của chính họ (`ExternalTokenVerifier`), to
 ## 6. Kiểm chứng trước khi commit
 
 ```bash
-dotnet test tests/StayHost.Domain.Tests            # 1158 test nghiệp vụ
+dotnet test tests/StayHost.Domain.Tests            # 1223 test nghiệp vụ
 python scripts/acceptance.py                       # 10 tình huống của docs/04
 python scripts/admin_acceptance.py                 # 10 tình huống của docs/08 §13
 python scripts/doc09_acceptance.py                 # 19 kịch bản của docs/09
 python scripts/unwired_acceptance.py               # 10 quy tắc từng không ai gọi (PLAN §9.6)
 python scripts/rolegaps_acceptance.py              # 14 chỗ hở của hai lượt soát vai (PLAN §9.8, §9.9)
 python scripts/guestcheckout_acceptance.py         # 12 kịch bản của docs/07 §2.5
+python scripts/cohost_share_acceptance.py          # 31 kịch bản chia thu nhập co-host (docs/07 §19)
 python scripts/gateway_acceptance.py               # 30 kịch bản cổng thanh toán, gọi sandbox thật
 python scripts/payout_acceptance.py                # 34 kịch bản chuyển tiền + đối chiếu sao kê (docs/07 §15.4)
 python scripts/vnpay_browser_acceptance.py         # 14 kịch bản: trả tiền THẬT trên trang VNPay (cần playwright)
@@ -831,9 +864,9 @@ thu của lượt trước đã che mất — xem bài học ở `§4`); `TK-12`
 thiếu hẳn nửa "tạm vô hiệu hoá"; đơn của chủ nhà và trang đánh giá đều thiếu cách
 gom nhóm mà `docs/02 G6`/`H1` mô tả.
 
-**Cố ý chưa làm:** chia % thu nhập cho co-host (`docs/02 G8`) là **luồng tiền
-mới** mà `docs/01 QL-19` không nhắc — phải hỏi khách trước, như đã làm với tham
-số `docs/06 §10`. Bốn việc nhỏ khác của `docs/02` liệt kê trong `PLAN §9.9`.
+~~**Cố ý chưa làm:** chia % thu nhập cho co-host (`docs/02 G8`)~~ — **đã hỏi và
+đã làm, 03/09/2026.** Xem `§8.0e`. Bốn việc nhỏ khác của `docs/02` vẫn liệt kê
+trong `PLAN §9.9`.
 
 ### 8.0d. Đặt không cần tài khoản & trả tiền tại nơi ở (28/08/2026)
 
@@ -856,6 +889,38 @@ không `Include` bảng payment, và luật im lặng không chạy vì thiếu 
 **Rủi ro đã ghi rõ trong `docs/07 §2.5`:** `OwedToPlatform` chỉ thu được nếu chủ
 nhà còn đơn khác để trừ. Đây là rủi ro sẵn có của đường chargeback, dùng chung
 một cơ chế thay vì đẻ ra cơ chế thứ hai.
+
+### 8.0e. Chia thu nhập cho người đồng quản lý (03/09/2026)
+
+Việc duy nhất mà lượt soát `docs/02` để lại ở diện "phải hỏi khách". Khách đối
+chiếu với Airbnb rồi chốt **"làm giống nó luôn"**, nên quy tắc là của Airbnb,
+ghi lại đầy đủ ở **`docs/07 §19`** kèm ngày — không để mã nguồn nói khác tài liệu.
+
+Bốn điều đáng nhớ nhất:
+
+- **Chia trên thu nhập thực nhận của chủ nhà**, tức sau phí dịch vụ 3% và không
+  gồm thuế. Nghĩa là **`Pricing.cs` không bị đụng tới**: phí sàn không đổi, không
+  chia; chủ nhà chịu trước rồi mới chia phần còn lại. Đây là lý do việc này nhẹ
+  hơn nhiều so với ước lượng ban đầu.
+- **Không bao giờ chia quá số một đơn kiếm được.** Hết thì người đứng sau nhận
+  thiếu và chủ nhà có thể nhận 0. Nghe hà khắc, nhưng lựa chọn còn lại là tiêu
+  tiền của người khác — đúng cái sai `GuestFunds` đã mắc một lần.
+- **Co-host được trả như một chủ nhà**: hồ sơ nhận tiền riêng (dùng lại
+  `EnsureHostProfileAsync` nếu họ vốn đã là chủ nhà), tài khoản ngân hàng riêng
+  đã mã hoá, sổ nợ riêng, lệnh chuyển riêng — qua đúng `payout_batches`, đúng
+  file `.csv` sáu cột, đúng nút *Đã chuyển*. Không có đường tiền thứ hai nào.
+- **Hoàn tiền sau khi đã chia** thì thu lại qua `OwedToPlatform` của chính họ,
+  và việc phát hiện là **một vòng quét** chứ không phải một cái móc vào
+  `PostCancellation` — hàm đó tĩnh, gọi từ bảy chỗ, mà tiền còn hoàn được do
+  admin phân xử, do Shield, do chargeback.
+
+Nghiệm thu `scripts/cohost_share_acceptance.py` — **31/31**, gồm phép cộng
+khẳng định *phần chủ nhà + phần co-host = đúng thu nhập của đơn* và ba lần kiểm
+sổ lệch 0.
+
+**Chưa làm, cố ý:** sàn không thu phí trên phần chia của co-host. Airbnb có thu
+với co-host tìm qua mạng lưới của họ; ở đây chưa có mạng lưới nào, và khách chưa
+yêu cầu.
 
 ### 8.1. Đang chờ khách
 

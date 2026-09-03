@@ -47,6 +47,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<AdminAuditEntry> AdminAudit => Set<AdminAuditEntry>();
     public DbSet<QuickReply> QuickReplies => Set<QuickReply>();
     public DbSet<CoHost> CoHosts => Set<CoHost>();
+    public DbSet<CoHostPayout> CoHostPayouts => Set<CoHostPayout>();
     public DbSet<CalendarFeed> CalendarFeeds => Set<CalendarFeed>();
     public DbSet<HelpArticle> HelpArticles => Set<HelpArticle>();
     public DbSet<RiskFlag> RiskFlags => Set<RiskFlag>();
@@ -419,6 +420,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.PlatformFee).HasPrecision(12, 2);
             e.Property(x => x.HostPayout).HasPrecision(12, 2);
             e.Property(x => x.PayoutDeducted).HasPrecision(12, 2);
+            e.Property(x => x.CoHostShare).HasPrecision(12, 2);
             e.Property(x => x.PayoutReference).HasMaxLength(40);
             e.HasOne(x => x.Booking).WithOne(bk => bk.Payment)
                 .HasForeignKey<Payment>(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
@@ -527,6 +529,38 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
                 .HasForeignKey(x => x.CoHostUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.Listing).WithMany()
                 .HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Cascade);
+
+            // docs/02 G8 — the optional cut of the owner's earnings.
+            e.Property(x => x.PayoutPercent).HasPrecision(5, 2);
+            e.Property(x => x.PayoutFixed).HasPrecision(12, 2);
+            e.HasOne(x => x.PayeeHost).WithMany()
+                .HasForeignKey(x => x.PayeeHostId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<CoHostPayout>(e =>
+        {
+            e.ToTable("co_host_payouts");
+            e.HasIndex(x => new { x.PayeeHostId, x.Status });
+            e.HasIndex(x => x.PayoutReference);
+            // One share per co-host per booking: the sweep runs every minute and
+            // a booking that came back round must not pay the same person twice.
+            e.HasIndex(x => new { x.CoHostId, x.BookingId }).IsUnique();
+            e.Property(x => x.Amount).HasPrecision(12, 2);
+            e.Property(x => x.Earnings).HasPrecision(12, 2);
+            e.Property(x => x.ClawedBack).HasPrecision(12, 2);
+            e.Property(x => x.Deducted).HasPrecision(12, 2);
+            e.Property(x => x.Percent).HasPrecision(5, 2);
+            e.Property(x => x.Fixed).HasPrecision(12, 2);
+            e.Property(x => x.Percent).HasPrecision(5, 2);
+            e.Property(x => x.Fixed).HasPrecision(12, 2);
+            e.Property(x => x.Basis).HasMaxLength(120).IsRequired();
+            e.Property(x => x.PayoutReference).HasMaxLength(64);
+            e.HasOne(x => x.CoHost).WithMany()
+                .HasForeignKey(x => x.CoHostId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.PayeeHost).WithMany()
+                .HasForeignKey(x => x.PayeeHostId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Booking).WithMany()
+                .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<CalendarFeed>(e =>

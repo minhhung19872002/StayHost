@@ -197,6 +197,10 @@ Thao tác: chấp nhận, từ chối (bắt buộc chọn lý do), nhắn tin, 
 ### G8. Co-host 🏠
 Mời qua email, chọn tin đăng và phạm vi quyền, tuỳ chọn chia % thu nhập, xem ai đang có quyền gì, thu hồi.
 
+> Phần **chia % thu nhập** đã chốt ngày 03/09/2026 (khách: "làm giống Airbnb").
+> Toàn bộ quy tắc — chia trên cái gì, ai đồng ý, tiền đi đường nào, hoàn tiền
+> thì sao — nằm ở **`docs/07 §19`**.
+
 ---
 
 ## H. Đánh giá

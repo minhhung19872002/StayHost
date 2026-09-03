@@ -313,6 +313,17 @@ public class Payment
     /// minus this, and a host reconciling a statement needs the difference named.
     /// </summary>
     public decimal PayoutDeducted { get; set; }
+
+    /// <summary>
+    /// docs/02 G8, docs/07 §19 — the part of <see cref="HostPayout"/> that went to
+    /// co-hosts rather than to the owner, decided when the transfer was decided.
+    ///
+    /// The owner's transfer and their ledger posting are both this much smaller.
+    /// It is recorded on the payment rather than recomputed at settle time
+    /// because the two transfers can settle days apart, and terms that changed in
+    /// between must not retroactively move money that has already left.
+    /// </summary>
+    public decimal CoHostShare { get; set; }
 }
 
 /// <summary>One conversation, always anchored to a listing and optionally a booking.</summary>

@@ -596,6 +596,12 @@ export const api = {
   respondCoHost: (id, decision) => request(`/api/host/co-hosts/${id}/${decision}`, { method: 'POST' }),
   revokeCoHost: id => request(`/api/host/co-hosts/${id}`, { method: 'DELETE' }),
 
+  /* docs/02 G8 — the optional cut of the owner's earnings. */
+  setCoHostPayout: (id, body) =>
+    request(`/api/host/co-hosts/${id}/payout`, { method: 'PUT', body: JSON.stringify(body) }),
+  respondCoHostPayout: (id, decision) =>
+    request(`/api/host/co-hosts/${id}/payout/${decision}`, { method: 'POST' }),
+
   /* docs/01 QL-10 — calendars kept on other platforms. */
   calendarFeeds: id => request(`/api/host/listings/${id}/feeds`),
   addCalendarFeed: (id, body) =>
