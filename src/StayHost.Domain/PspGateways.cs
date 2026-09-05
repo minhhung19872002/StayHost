@@ -676,8 +676,22 @@ public class PaymentSession
     /// <summary>The <see cref="PaymentAttempt.Key"/> this visit belongs to.</summary>
     public string AttemptKey { get; set; } = "";
 
-    public int BookingId { get; set; }
+    /// <summary>
+    /// The stay being paid for, when that is what this is.
+    ///
+    /// Nullable since a gift card became payable: a card is bought by somebody
+    /// who is not travelling, so there is no booking to hang the visit on. Same
+    /// shape <c>ledger_entries</c> already uses for the experience and service
+    /// lines — a column per subject rather than one column asked to mean several
+    /// things, which is the arrangement that made passing the wrong id throw.
+    /// Exactly one of the two is set.
+    /// </summary>
+    public int? BookingId { get; set; }
     public Booking? Booking { get; set; }
+
+    /// <summary>docs/01 TC-08 — the gift card being bought, when that is the subject.</summary>
+    public int? GiftCardId { get; set; }
+    public GiftCard? GiftCard { get; set; }
 
     /// <summary>vnpay / momo / zalopay.</summary>
     public string Provider { get; set; } = "";

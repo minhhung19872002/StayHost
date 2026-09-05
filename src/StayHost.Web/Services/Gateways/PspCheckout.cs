@@ -16,7 +16,8 @@ namespace StayHost.Web.Services.Gateways;
 /// </summary>
 public class PspCheckout(
     StayHostDbContext db, PspRouter router, PaymentGateway gateway,
-    PaymentCompletion completion, DataSecrets secrets, ILogger<PspCheckout> log)
+    PaymentCompletion completion, DataSecrets secrets, GiftCardService giftCards,
+    ILogger<PspCheckout> log)
 {
     public sealed record Started(bool Ok, string? PayUrl = null, string? OrderRef = null, string? Error = null);
 
@@ -99,6 +100,72 @@ public class PspCheckout(
         db.BookingEvents.Add(BookingLifecycle.Note(
             booking, "system", $"Chuyển sang cổng {provider.Key.ToUpperInvariant()} · mã {orderRef}."));
 
+        await db.SaveChangesAsync(ct);
+
+        return new Started(true, start.PayUrl, orderRef);
+    }
+
+    /// <summary>
+    /// docs/01 TC-08 — the same trip out to a gateway, for a gift card.
+    ///
+    /// Deliberately a second method rather than a nullable booking threaded
+    /// through the first: half of <see cref="StartAsync"/> is about a stay — the
+    /// dates it holds off the market, the event written to its history, the
+    /// payment row it updates — and none of that has any meaning for a card.
+    /// What the two share is the part that matters, which is that the money is
+    /// taken on somebody else's page and nothing is written to the ledger here.
+    /// </summary>
+    public async Task<Started> StartForGiftCardAsync(
+        GiftCard card, string method, string attemptKey, string clientIp, CancellationToken ct)
+    {
+        var provider = router.For(method);
+        if (provider is null) return new Started(false, Error: "Cách thanh toán này chưa nối cổng nào.");
+
+        var now = DateTime.UtcNow;
+
+        // Same double-click guard as a stay: a buyer whose browser retried goes
+        // back to the order already open at the gateway rather than opening a
+        // second one and paying twice.
+        var open = await db.PaymentSessions
+            .Where(s => s.AttemptKey == attemptKey && s.Status == PaymentSessionStatus.Pending)
+            .OrderByDescending(s => s.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (open is { PayUrl.Length: > 0 } && open.CreatedAt.Add(PaymentSession.Window) > now)
+            return new Started(true, open.PayUrl, open.OrderRef);
+
+        var sequence = await db.PaymentSessions.CountAsync(s => s.GiftCardId == card.Id, ct);
+        var orderRef = Psp.OrderRef(card.Id, now, sequence);
+
+        var session = new PaymentSession
+        {
+            OrderRef = orderRef,
+            AttemptKey = attemptKey,
+            GiftCardId = card.Id,
+            Provider = provider.Key,
+            Method = method,
+            Amount = card.Amount
+        };
+
+        db.PaymentSessions.Add(session);
+        await db.SaveChangesAsync(ct);
+
+        var start = await provider.StartAsync(
+            new PspOrder(orderRef, card.Amount, $"Staylio {card.Code}", method, clientIp,
+                UserRef: card.PurchasedByUserId is { } id ? Psp.AppUserRef(id) : null), ct);
+
+        if (!start.Ok || start.PayUrl is null)
+        {
+            session.Status = PaymentSessionStatus.Failed;
+            session.ResponseCode = "start";
+            session.CompletedAt = now;
+            session.SettledBy = "start";
+            await db.SaveChangesAsync(ct);
+            await giftCards.CancelUnpaidAsync(card.Id, ct);
+            return new Started(false, Error: start.Error ?? Payments.Message(DeclineReason.GatewayError));
+        }
+
+        session.PayUrl = start.PayUrl;
         await db.SaveChangesAsync(ct);
 
         return new Started(true, start.PayUrl, orderRef);
@@ -187,12 +254,27 @@ public class PspCheckout(
         // touches that table directly.
         gateway.RecordExternalCharge(session.AttemptKey, session.Amount, session.Method);
 
+        // docs/01 TC-08 — a gift card was what this visit paid for. The card is
+        // worth nothing until here: it was created AwaitingPayment, with no
+        // ledger entry and no code sent, so this is the first moment the sale is
+        // real. No attempt row, because that exists to stop one stay being
+        // charged twice, and the guard at the top of this method already refuses
+        // to settle a session that is not Pending.
+        if (session.GiftCardId is { } giftCardId)
+        {
+            await db.SaveChangesAsync(ct);
+            await giftCards.ActivateAsync(giftCardId, session.Amount, ct);
+            log.LogInformation("Thẻ quà tặng {Id} đã thu đủ tiền qua {Provider}.",
+                giftCardId, session.Provider);
+            return PaymentSessionStatus.Paid;
+        }
+
         var claim = await db.PaymentAttempts.FirstOrDefaultAsync(a => a.Key == session.AttemptKey, ct);
         if (claim is null)
         {
             claim = new PaymentAttempt
             {
-                Key = session.AttemptKey, BookingId = session.BookingId,
+                Key = session.AttemptKey, BookingId = session.BookingId ?? 0,
                 Amount = session.Amount, Method = session.Method
             };
             db.PaymentAttempts.Add(claim);
@@ -319,13 +401,18 @@ public class PspCheckout(
     {
         if (session.Status == PaymentSessionStatus.Cancelled) return;
 
+        // An attempt row counts refusals against one booking, so a gift card has
+        // nothing to write here. Its protection is different and simpler: the
+        // card stays AwaitingPayment, which CreditRules.CanRedeem refuses.
+        if (session.BookingId is not { } bookingId) return;
+
         var claim = await db.PaymentAttempts.FirstOrDefaultAsync(a => a.Key == session.AttemptKey, ct);
 
         if (claim is null)
         {
             claim = new PaymentAttempt
             {
-                Key = session.AttemptKey, BookingId = session.BookingId,
+                Key = session.AttemptKey, BookingId = bookingId,
                 Amount = session.Amount, Method = session.Method
             };
             db.PaymentAttempts.Add(claim);

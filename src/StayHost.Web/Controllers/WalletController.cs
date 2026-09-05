@@ -14,7 +14,8 @@ namespace StayHost.Web.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/wallet")]
-public class WalletController(StayHostDbContext db, AuthService auth, WalletService wallet) : ControllerBase
+public class WalletController(
+    StayHostDbContext db, AuthService auth, WalletService wallet, GiftCardSales sales) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<WalletDto>> Mine(CancellationToken ct)
@@ -39,11 +40,17 @@ public class WalletController(StayHostDbContext db, AuthService auth, WalletServ
         var nextExpiry = CreditLedger.NextExpiry(all, DateTime.UtcNow);
         var expiring = nextExpiry is { } when ? CreditLedger.ExpiringOn(all, when) : 0m;
 
+        // The code is withheld until the card is paid for, the same as it is in
+        // the buy response. Redeeming an unpaid card is already refused by
+        // CreditRules.CanRedeem, so this is not the lock — it is not leaving the
+        // key on the table beside it.
         var bought = await db.GiftCards
             .Where(g => g.PurchasedByUserId == user.Id)
             .OrderByDescending(g => g.CreatedAt)
             .Select(g => new GiftCardDto(
-                g.Id, g.Code, g.Amount, g.Remaining, g.RecipientEmail, g.RecipientName, g.Message,
+                g.Id,
+                g.Status == GiftCardStatus.AwaitingPayment ? "" : g.Code,
+                g.Amount, g.Remaining, g.RecipientEmail, g.RecipientName, g.Message,
                 g.Status.ToString(), CreditRules.StatusLabel(g.Status), g.CreatedAt, g.RedeemedAt))
             .ToListAsync(ct);
 
@@ -64,7 +71,7 @@ public class WalletController(StayHostDbContext db, AuthService auth, WalletServ
     }
 
     [HttpPost("gift-cards")]
-    public async Task<ActionResult<GiftCardDto>> Buy([FromBody] BuyGiftCardRequest req, CancellationToken ct)
+    public async Task<ActionResult<GiftCardPurchaseDto>> Buy([FromBody] BuyGiftCardRequest req, CancellationToken ct)
     {
         var user = await auth.CurrentUserAsync(ct);
         if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
@@ -74,14 +81,23 @@ public class WalletController(StayHostDbContext db, AuthService auth, WalletServ
         if (user.IsSuspended)
             return StatusCode(403, new { message = "Tài khoản đang bị tạm khoá nên ví bị đóng băng — số dư vẫn được giữ nguyên." });
 
-        var (card, error) = await wallet.BuyAsync(
-            user, req.Amount, req.RecipientEmail ?? "", req.RecipientName, req.Message, ct);
+        var (card, payUrl, error) = await sales.BuyAsync(
+            user, req.Amount, req.RecipientEmail ?? "", req.RecipientName, req.Message,
+            req.Method, req.CardLast4, Psp.ClientIp(HttpContext.Connection.RemoteIpAddress?.ToString()), ct);
         if (card is null) return BadRequest(new { message = error });
 
-        return Ok(new GiftCardDto(
-            card.Id, card.Code, card.Amount, card.Remaining, card.RecipientEmail, card.RecipientName,
-            card.Message, card.Status.ToString(), CreditRules.StatusLabel(card.Status),
-            card.CreatedAt, card.RedeemedAt));
+        // The code is deliberately absent while the card is still awaiting
+        // payment: it is the bearer instrument, and handing it back before the
+        // money arrives would put the hole straight back.
+        var paid = card.Status != GiftCardStatus.AwaitingPayment;
+
+        return Ok(new GiftCardPurchaseDto(
+            new GiftCardDto(
+                card.Id, paid ? card.Code : "", card.Amount, card.Remaining,
+                card.RecipientEmail, card.RecipientName, card.Message,
+                card.Status.ToString(), CreditRules.StatusLabel(card.Status),
+                card.CreatedAt, card.RedeemedAt),
+            payUrl));
     }
 
     [HttpPost("redeem")]

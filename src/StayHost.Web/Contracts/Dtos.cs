@@ -2318,7 +2318,26 @@ public record WalletDto(
     DateTime? NextExpiryAt,
     decimal ExpiringAmount);
 
-public record BuyGiftCardRequest(decimal Amount, string? RecipientEmail, string? RecipientName, string? Message);
+public record BuyGiftCardRequest(
+    decimal Amount, string? RecipientEmail, string? RecipientName, string? Message,
+    /// <summary>
+    /// docs/01 TC-08 — how the buyer is paying. A card is a purchase, so this is
+    /// no more optional than it is at a checkout; the sale used to take no
+    /// payment at all. Defaults to "card" so an older client is asked for money
+    /// rather than handed a free card.
+    /// </summary>
+    string? Method = null,
+    /// <summary>Only reaches the stand-in gateway, which reads it to refuse the test card.</summary>
+    string? CardLast4 = null);
+
+/// <summary>
+/// What came of ordering a card: either the card itself, paid for, or the
+/// address of the gateway the buyer has to visit before it is worth anything.
+/// </summary>
+public record GiftCardPurchaseDto(
+    GiftCardDto? Card,
+    /// <summary>Where to send the buyer, when a licensed gateway is taking the money.</summary>
+    string? GatewayRedirectUrl = null);
 public record RedeemGiftCardRequest(string? Code);
 public record InviteFriendRequest(string? Email);
 

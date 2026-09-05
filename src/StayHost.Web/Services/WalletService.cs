@@ -90,46 +90,6 @@ public class WalletService(StayHostDbContext db, NotificationService notificatio
 
     /* -------------------------------------------------------- gift cards */
 
-    public async Task<(GiftCard? Card, string? Error)> BuyAsync(
-        User buyer, decimal amount, string recipientEmail, string? recipientName, string? message,
-        CancellationToken ct)
-    {
-        if (amount < CreditRules.MinGiftCard || amount > CreditRules.MaxGiftCard)
-            return (null, $"Thẻ quà tặng từ {CreditRules.MinGiftCard:#,##0}₫ đến {CreditRules.MaxGiftCard:#,##0}₫.");
-
-        var email = (recipientEmail ?? "").Trim().ToLowerInvariant();
-        if (email.Length == 0 || !email.Contains('@'))
-            return (null, "Email người nhận không hợp lệ.");
-
-        var card = new GiftCard
-        {
-            Code = await UniqueCodeAsync("GC", ct),
-            Amount = amount,
-            Remaining = amount,
-            PurchasedByUserId = buyer.Id,
-            RecipientEmail = email,
-            RecipientName = recipientName?.Trim(),
-            Message = message?.Trim()
-        };
-
-        db.GiftCards.Add(card);
-        db.LedgerEntries.AddRange(Ledger.SellGiftCard(amount, card.Code, DateTime.UtcNow));
-
-        db.EmailMessages.Add(new EmailMessage
-        {
-            ToEmail = email,
-            ToName = card.RecipientName ?? email,
-            Subject = $"{buyer.FullName} tặng bạn {amount:#,##0}₫ trên Staylio",
-            Body = $"Mã thẻ của bạn: {card.Code}\n" +
-                   (string.IsNullOrWhiteSpace(card.Message) ? "" : $"\"{card.Message}\"\n") +
-                   "Nhập mã trong mục Số dư để cộng vào tài khoản."
-        });
-
-        await db.SaveChangesAsync(ct);
-        log.LogInformation("Gift card {Code} sold for {Amount}.", card.Code, amount);
-
-        return (card, null);
-    }
 
     public async Task<(decimal Added, string? Error)> RedeemAsync(User user, string? code, CancellationToken ct)
     {

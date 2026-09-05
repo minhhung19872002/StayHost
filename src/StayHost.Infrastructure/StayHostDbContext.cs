@@ -255,6 +255,12 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.RefundCode).HasMaxLength(40);
             e.HasOne(x => x.Booking).WithMany()
                 .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+            // docs/01 TC-08 — a gift card is bought by somebody who is not
+            // travelling, so its visit to the gateway hangs on the card instead.
+            // Restrict, not Cascade: a paid session is the evidence that money
+            // arrived, and deleting a card must never take that record with it.
+            e.HasOne(x => x.GiftCard).WithMany()
+                .HasForeignKey(x => x.GiftCardId).OnDelete(DeleteBehavior.Restrict);
         });
 
         // docs/07 §13 — one bank transfer out to a host. Reference is unique for

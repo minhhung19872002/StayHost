@@ -129,6 +129,12 @@ builder.Services.AddScoped<SplitBillService>();
 builder.Services.AddScoped<ExperienceService>();
 builder.Services.AddScoped<ServiceMarketService>();
 builder.Services.AddScoped<WalletService>();
+// docs/01 TC-08 — the one place a paid-for gift card is switched on, shared by
+// the gateway settlement and the stand-in charge so they cannot disagree.
+builder.Services.AddScoped<GiftCardService>();
+// The sale itself, which starts a payment. Separate from the wallet because the
+// wallet is what PaymentCompletion needs, and PspCheckout needs that.
+builder.Services.AddScoped<GiftCardSales>();
 builder.Services.AddScoped<CouponService>();
 builder.Services.AddScoped<ShieldService>();
 builder.Services.AddScoped<HostAccess>();

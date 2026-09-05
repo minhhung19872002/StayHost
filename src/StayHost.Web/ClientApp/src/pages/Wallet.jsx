@@ -116,21 +116,45 @@ function Redeem({ onDone }) {
   );
 }
 
+// docs/01 TC-08 — a gift card is bought outright, so the ways of paying that
+// only make sense around a stay are not offered. The server refuses them by name
+// as well; this list is so the buyer is never shown one to be told off for.
+const GIFT_METHODS = ['card', 'napas', 'momo', 'zalopay'];
+
 function Buy({ wallet, onDone }) {
-  const [form, setForm] = useState({ amount: 500000, email: '', name: '', message: '' });
+  const [form, setForm] = useState({ amount: 500000, email: '', name: '', message: '', method: 'card' });
+  const [methods, setMethods] = useState(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    // The server's list, so this screen and a checkout cannot disagree about
+    // what Staylio takes.
+    api.paymentCatalogue()
+      .then(d => setMethods((d.methods ?? []).filter(m => GIFT_METHODS.includes(m.key))))
+      .catch(() => setMethods(null));
+  }, []);
 
   const buy = async e => {
     e.preventDefault();
     setBusy(true);
     try {
-      const card = await api.buyGiftCard({
+      const res = await api.buyGiftCard({
         amount: Number(form.amount),
         recipientEmail: form.email.trim(),
         recipientName: form.name.trim() || null,
-        message: form.message.trim() || null
+        message: form.message.trim() || null,
+        method: form.method
       });
-      toast(`Đã tạo thẻ ${card.code}.`);
+
+      // A licensed gateway is taking the money, so the card is not paid for yet
+      // and has no code to show. The buyer finishes on the gateway's own page.
+      if (res.gatewayRedirectUrl) {
+        toast(t('Đang chuyển sang trang thanh toán…'));
+        window.location.assign(res.gatewayRedirectUrl);
+        return;
+      }
+
+      toast(`${t('Đã tạo thẻ')} ${res.card?.code ?? ''}.`);
       setForm(f => ({ ...f, email: '', message: '' }));
       onDone();
     } catch (err) { toast(err.message); } finally { setBusy(false); }
@@ -156,6 +180,11 @@ function Buy({ wallet, onDone }) {
           <label className="form-field"><span className="cap">{t('Lời nhắn')}</span>
             <input value={form.message} placeholder={t('Chúc mừng sinh nhật!')}
                    onChange={e => setForm(f => ({ ...f, message: e.target.value }))} /></label>
+          <label className="form-field"><span className="cap">{t('Thanh toán bằng')}</span>
+            <select value={form.method} onChange={e => setForm(f => ({ ...f, method: e.target.value }))}>
+              {(methods?.length ? methods : GIFT_METHODS.map(k => ({ key: k, label: k })))
+                .map(m => <option key={m.key} value={m.key}>{t(m.label)}</option>)}
+            </select></label>
         </div>
         <button className="btn btn-primary" style={{ marginTop: 14 }} disabled={busy}>
           {busy ? t('Đang xử lý…') : t('Mua thẻ quà tặng')}
@@ -167,7 +196,9 @@ function Buy({ wallet, onDone }) {
           {wallet.giftCards.map(g => (
             <div className="team-row" key={g.id}>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <b>{g.code}</b>
+                {/* No code until it is paid for — the server withholds it, and
+                    printing an empty bold line would read as a broken row. */}
+                <b>{g.code || t('Chưa thanh toán')}</b>
                 <div className="team-sub">
                   {money(g.amount)} · {t('gửi tới')} {g.recipientEmail} · {longDate(g.createdAt.slice(0, 10))}
                 </div>

@@ -12,6 +12,15 @@
 # non-Vietnamese language and look for text still carrying Vietnamese diacritics.
 import io, os, re, sys
 
+# A Windows console runs cp1258 — the Vietnamese code page, and it spells
+# Vietnamese with combining marks, so it cannot encode the precomposed letters
+# this script is about to print. Without it the audit dies on the first missing
+# key it finds — that is, exactly when it has something to say.
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
+
 SRC = os.path.join('src', 'StayHost.Web', 'ClientApp', 'src')
 I18N = os.path.join(SRC, 'lib', 'i18n')
 

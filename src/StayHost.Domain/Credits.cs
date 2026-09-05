@@ -57,7 +57,23 @@ public enum GiftCardStatus
     Active = 0,
     /// <summary>Every dong has been moved onto somebody's balance.</summary>
     Redeemed = 1,
-    Cancelled = 2
+    Cancelled = 2,
+
+    // Appended, never reordered: the number is what is in the database.
+
+    /// <summary>
+    /// Ordered and not paid for yet. The card exists so a gateway has something
+    /// to be paying for, and it is worth nothing until the money arrives.
+    ///
+    /// This state is the whole point of the sale: before it, buying a card
+    /// created it <see cref="Active"/> on the spot, posted a ledger entry that
+    /// said the money had reached escrow, and emailed the code — with no
+    /// payment anywhere in the path. Anyone signed in could mint the 20,000,000₫
+    /// maximum and spend it on a real stay, and nothing alarmed, because the two
+    /// legs balanced each other and gift cards produce no gateway charge for the
+    /// reconciliation of docs/07 §7 to miss.
+    /// </summary>
+    AwaitingPayment = 3
 }
 
 public class GiftCard
@@ -123,6 +139,31 @@ public class Referral
 /// The rules behind gift cards, balance and referrals. Amounts are the
 /// platform's own money, so they live here rather than being sprinkled around.
 /// </summary>
+/// <summary>
+/// docs/01 TC-08 — how a gift card may be paid for.
+///
+/// A card is bought outright, with nobody travelling and no host on the other
+/// side, so several of the ways to pay for a stay do not carry over. Saying so
+/// by name matters more than the list itself: the sale used to take no payment
+/// at all, and a refusal a buyer can read is the opposite of that.
+/// </summary>
+public static class GiftCardPurchase
+{
+    /// <summary>Balance cannot buy balance, and the rest need a stay to exist.</summary>
+    public static bool CanPayWith(string? method) =>
+        method is "card" or "napas" or "momo" or "zalopay";
+
+    public static string Refusal(string? method) => method switch
+    {
+        "balance" =>
+            "Không dùng số dư để mua thẻ quà tặng. Muốn tặng số dư thì mua thẻ bằng thẻ ngân hàng hoặc ví.",
+        PayAtProperty.Key =>
+            "Thẻ quà tặng không có chỗ ở nào để trả tiền tại nơi ở.",
+        _ =>
+            "Cách thanh toán này chưa mua được thẻ quà tặng. Dùng thẻ ngân hàng, MoMo hoặc ZaloPay."
+    };
+}
+
 public static class CreditRules
 {
     public const decimal MinGiftCard = 200_000m;
@@ -149,6 +190,13 @@ public static class CreditRules
         return $"{prefix}-{new string(chars)}";
     }
 
+    /// <summary>
+    /// Only an <see cref="GiftCardStatus.Active"/> card can be turned into
+    /// balance — which is what keeps <see cref="GiftCardStatus.AwaitingPayment"/>
+    /// worthless. The rule did not have to change to close that door; it was
+    /// already asking the right question, and there had simply never been an
+    /// unpaid state for it to say no to.
+    /// </summary>
     public static bool CanRedeem(GiftCard card) =>
         card.Status == GiftCardStatus.Active && card.Remaining > 0;
 
@@ -156,6 +204,7 @@ public static class CreditRules
     {
         GiftCardStatus.Redeemed => "Đã dùng hết",
         GiftCardStatus.Cancelled => "Đã huỷ",
+        GiftCardStatus.AwaitingPayment => "Chờ thanh toán",
         _ => "Còn hiệu lực"
     };
 

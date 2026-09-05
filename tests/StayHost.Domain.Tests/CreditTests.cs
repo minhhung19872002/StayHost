@@ -163,4 +163,56 @@ public class CreditTests
 
     private static decimal Net(IEnumerable<LedgerEntry> entries, LedgerAccount account) =>
         entries.Where(e => e.Account == account).Sum(e => e.Signed);
+
+    /* ------------------------------------------- TC-08, the unpaid card */
+
+    /// <summary>
+    /// The hole this closed: buying a card created it Active on the spot, with
+    /// no payment anywhere in the path, and redeeming turned it into balance
+    /// spendable on a real stay. The rule that stops it was already written —
+    /// CanRedeem has always insisted on Active — there had simply never been an
+    /// unpaid state for it to say no to.
+    /// </summary>
+    [Fact]
+    public void A_card_awaiting_payment_cannot_be_redeemed()
+    {
+        var ordered = new GiftCard
+        {
+            Code = "GC-TEST", Amount = 20_000_000m, Remaining = 20_000_000m,
+            Status = GiftCardStatus.AwaitingPayment
+        };
+        Assert.False(CreditRules.CanRedeem(ordered));
+
+        // Paying for it is the only thing that changes the answer.
+        ordered.Status = GiftCardStatus.Active;
+        Assert.True(CreditRules.CanRedeem(ordered));
+    }
+
+    [Fact]
+    public void An_unpaid_card_does_not_read_as_valid()
+    {
+        // The default arm of the label used to answer "Còn hiệu lực" for anything
+        // it did not recognise, which would have called an unpaid card good.
+        Assert.Equal("Chờ thanh toán", CreditRules.StatusLabel(GiftCardStatus.AwaitingPayment));
+        Assert.Equal("Còn hiệu lực", CreditRules.StatusLabel(GiftCardStatus.Active));
+    }
+
+    [Fact]
+    public void Balance_cannot_buy_balance()
+    {
+        Assert.False(GiftCardPurchase.CanPayWith("balance"));
+        Assert.Contains("số dư", GiftCardPurchase.Refusal("balance"));
+
+        // Nor can the ways of paying that only exist around a stay.
+        Assert.False(GiftCardPurchase.CanPayWith(PayAtProperty.Key));
+        Assert.False(GiftCardPurchase.CanPayWith(""));
+        Assert.False(GiftCardPurchase.CanPayWith(null));
+    }
+
+    [Fact]
+    public void A_card_is_bought_with_the_methods_that_take_money()
+    {
+        foreach (var method in new[] { "card", "napas", "momo", "zalopay" })
+            Assert.True(GiftCardPurchase.CanPayWith(method), method);
+    }
 }
