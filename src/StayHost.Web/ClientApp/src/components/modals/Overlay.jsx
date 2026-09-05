@@ -3,7 +3,7 @@ import {
   FiltersModal, SearchModal, DatesModal, GuestsModal, LanguageModal,
   ReportModal, ShareModal, ContactHostModal
 } from './SearchModals.jsx';
-import { AuthModal, ProfileModal, ReviewModal, CancelTripModal } from './AccountModals.jsx';
+import { AuthModal, ReviewModal, CancelTripModal } from './AccountModals.jsx';
 import { PhotosModal, AmenitiesModal, ReviewsModal, CheckoutModal } from './ListingModals.jsx';
 import { HostCalendarModal, GuestReviewModal, HostCancelModal } from './HostModals.jsx';
 import { ListingWizard } from './ListingWizard.jsx';
@@ -22,7 +22,6 @@ const REGISTRY = {
   share: ShareModal,
   'contact-host': ContactHostModal,
   login: AuthModal,
-  profile: ProfileModal,
   review: ReviewModal,
   'cancel-trip': CancelTripModal,
   photos: PhotosModal,

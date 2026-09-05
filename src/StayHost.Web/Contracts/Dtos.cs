@@ -65,6 +65,26 @@ public record BlockedUserDto(int UserId, string Name, string Initials, string? A
 public record BlockRequest(int UserId);
 
 /// <summary>docs/01 TM-23 — a saved search, as the account screen lists it.</summary>
+/* ----------------------------------------------- docs/02 F1 — lịch sử trả */
+
+/// <summary>
+/// One payment on the guest's own history, exactly as stored. Kind names the
+/// line of business ("stay" / "experience" / "service" / "gift-card"); only a
+/// stay carries a BookingId, because only stays have an invoice endpoint.
+/// StatusLabel is server-generated Vietnamese and is translated at the render
+/// site through t(), like every other server-composed string.
+/// </summary>
+public record PaymentHistoryRowDto(
+    string Kind,
+    string Reference,
+    string Title,
+    decimal Amount,
+    string Method,
+    string? CardLast4,
+    string StatusLabel,
+    DateTime At,
+    int? BookingId);
+
 public record SavedSearchDto(int Id, string Label, string Summary, DateTime CreatedAt);
 
 /// <summary>docs/01 TM-23 — save the current search to be alerted about.</summary>

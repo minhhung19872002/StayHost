@@ -80,6 +80,20 @@ public static class Payments
         $"Đã thử thanh toán không thành công {MaxFailuresPerHour} lần. " +
         "Vui lòng liên hệ hỗ trợ để tiếp tục.";
 
+    /// <summary>
+    /// docs/02 F1 — what a payment's state is called on the guest's own history.
+    /// Named here, once, because a screen and an email must not each invent a
+    /// wording for the same state.
+    /// </summary>
+    public static string StatusLabel(PaymentStatus status) => status switch
+    {
+        PaymentStatus.Captured => "Đã thanh toán",
+        PaymentStatus.Refunded => "Đã hoàn tiền",
+        PaymentStatus.Authorized => "Đã giữ tiền",
+        PaymentStatus.Failed => "Không thành công",
+        _ => "Đang chờ thanh toán"
+    };
+
     /* ------------------------------------------- docs/07 §8, the whole table */
 
     /// <summary>What the guest is told. Never a bank code, always a next step.</summary>

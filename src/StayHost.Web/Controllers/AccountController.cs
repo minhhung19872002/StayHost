@@ -598,6 +598,81 @@ public class AccountController(
             AccountPause.Notice);
     }
 
+    /* ------------------------------------- docs/02 F1: lịch sử trả tiền */
+
+    /// <summary>
+    /// docs/02 F1 — every payment this account has made, across the three lines
+    /// of business the platform keeps in three separate tables, plus gift cards.
+    ///
+    /// Read-only in the strictest sense: every amount is returned exactly as
+    /// stored, never recomputed on the way out. A history that re-derives a
+    /// total through today's Pricing is a history that changes when the rules
+    /// do, and docs/00 §6.2 says a receipt must still add up years later.
+    /// </summary>
+    [HttpGet("payments")]
+    public async Task<ActionResult<IReadOnlyList<PaymentHistoryRowDto>>> PaymentHistory(CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var rows = new List<PaymentHistoryRowDto>();
+
+        // Stays: the Payment row is the money record. Only states where money
+        // actually moved belong on a payment history — a pending hold is a
+        // booking screen's business, not a transaction that happened.
+        var stays = await db.Payments
+            .Where(p => p.Booking!.GuestUserId == user.Id
+                        && (p.Status == PaymentStatus.Captured || p.Status == PaymentStatus.Refunded))
+            .Select(p => new
+            {
+                p.BookingId, p.Amount, p.Method, p.CardLast4, p.Status,
+                p.CapturedAt, p.CreatedAt,
+                p.Booking!.Reference,
+                Title = p.Booking.Listing!.Title,
+            })
+            .ToListAsync(ct);
+
+        rows.AddRange(stays.Select(p => new PaymentHistoryRowDto(
+            "stay", p.Reference, p.Title, p.Amount, p.Method, p.CardLast4,
+            Payments.StatusLabel(p.Status), p.CapturedAt ?? p.CreatedAt, p.BookingId)));
+
+        // Experiences and services carry their money on the booking row itself —
+        // Payment.BookingId is a foreign key to stays alone, which is the same
+        // separation ledger_entries keeps with its three subject columns.
+        var experiences = await db.ExperienceBookings
+            .Where(b => b.GuestUserId == user.Id)
+            .Select(b => new { b.Reference, b.Total, b.Status, b.CreatedAt, Title = b.Slot!.Experience!.Title })
+            .ToListAsync(ct);
+
+        rows.AddRange(experiences.Select(b => new PaymentHistoryRowDto(
+            "experience", b.Reference, b.Title, b.Total, "", null,
+            ExperienceRules.StatusLabel(b.Status), b.CreatedAt, null)));
+
+        var services = await db.ServiceBookings
+            .Where(b => b.GuestUserId == user.Id)
+            .Select(b => new { b.Reference, b.Total, b.Status, b.CreatedAt, Title = b.Offering!.Title })
+            .ToListAsync(ct);
+
+        rows.AddRange(services.Select(b => new PaymentHistoryRowDto(
+            "service", b.Reference, b.Title, b.Total, "", null,
+            ServiceRules.StatusLabel(b.Status), b.CreatedAt, null)));
+
+        // Gift cards this account bought. One that was never paid for took no
+        // money and does not belong on a payment history.
+        var cards = await db.GiftCards
+            .Where(g => g.PurchasedByUserId == user.Id
+                        && g.Status != GiftCardStatus.AwaitingPayment
+                        && g.Status != GiftCardStatus.Cancelled)
+            .Select(g => new { g.Code, g.Amount, g.Status, g.CreatedAt })
+            .ToListAsync(ct);
+
+        rows.AddRange(cards.Select(g => new PaymentHistoryRowDto(
+            "gift-card", g.Code, "Thẻ quà tặng", g.Amount, "", null,
+            CreditRules.StatusLabel(g.Status), g.CreatedAt, null)));
+
+        return Ok(rows.OrderByDescending(r => r.At).ToList());
+    }
+
     /* --------------------------------------- docs/01 TM-23: saved searches */
 
     /// <summary>docs/01 TM-23 — the searches this account asked to be alerted about.</summary>

@@ -488,7 +488,7 @@ function AccountMenu() {
         ? <button className="bold" role="menuitem" aria-current={here('/hosting')} onClick={() => goTo('/hosting')}>{t('Trang chủ nhà')} ({u.listingCount})</button>
         : <button className="bold" role="menuitem" onClick={startHosting}>{t('Cho thuê nhà trên Staylio')}</button>}
       {u.role === 'Admin' && <button className="bold" role="menuitem" aria-current={here('/admin')} onClick={() => goTo('/admin')}>{t('Trang quản trị')}</button>}
-      <button role="menuitem" onClick={() => openOverlay('profile')}>{t('Tài khoản')}</button>
+      <button role="menuitem" aria-current={here('/cai-dat')} onClick={() => goTo('/cai-dat')}>{t('Cài đặt')}</button>
       <button role="menuitem" aria-current={here(`/users/${u.id}`)} onClick={() => goTo(`/users/${u.id}`)}>{t('Hồ sơ công khai')}</button>
       <hr />
       <button role="menuitem" onClick={() => openOverlay('language')}>{t('Ngôn ngữ & tiền tệ')}</button>

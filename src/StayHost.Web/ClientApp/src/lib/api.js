@@ -472,6 +472,8 @@ export const api = {
   translate: (text, targetLang) =>
     request('/api/translate', { method: 'POST', body: JSON.stringify({ text, targetLang }) }),
   // docs/01 TM-23 — saved searches.
+  // docs/02 F1 — every payment this account made, as stored, across all three lines.
+  paymentHistory: () => request('/api/account/payments'),
   savedSearches: () => request('/api/account/saved-searches'),
   saveSearch: body => request('/api/account/saved-searches', { method: 'POST', body: JSON.stringify(body) }),
   deleteSavedSearch: id => request(`/api/account/saved-searches/${id}`, { method: 'DELETE' }),

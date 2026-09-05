@@ -68,15 +68,45 @@ const BCP47 = {
   zh: 'zh-CN', fr: 'fr-FR', de: 'de-DE', es: 'es-ES'
 };
 
+/**
+ * docs/01 TK-09 — the display timezone, the third of "ngôn ngữ, tiền tệ, múi
+ * giờ". Null means the device's own clock, which is the only honest default.
+ *
+ * It reaches TIMESTAMPS ONLY — dateTime() and clockTime(). The date-only
+ * helpers are deliberately left on the device clock: longDate('2026-09-05')
+ * parses as UTC midnight, and a westward zone would move every check-in and
+ * check-out back a day. This codebase has already lost a day to seven hours of
+ * timezone drift twice (CLAUDE.md §4); a check-in date is a date, not an
+ * instant, and instants are the only thing a zone may touch.
+ */
+export const ZONE = { id: null };
+
 let SHORT, LONG, TIME;
 
-export function setLocale(code) {
-  LOCALE.tag = BCP47[code] ?? 'vi-VN';
+function rebuild() {
   SHORT = new Intl.DateTimeFormat(LOCALE.tag, { day: '2-digit', month: '2-digit' });
   LONG = new Intl.DateTimeFormat(LOCALE.tag, { day: 'numeric', month: 'long', year: 'numeric' });
   TIME = new Intl.DateTimeFormat(LOCALE.tag, {
-    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+    ...(ZONE.id ? { timeZone: ZONE.id } : {})
   });
+}
+
+export function setLocale(code) {
+  LOCALE.tag = BCP47[code] ?? 'vi-VN';
+  rebuild();
+}
+
+export function setTimeZone(id) {
+  // An unknown id must not take the whole app down over a clock preference:
+  // Intl throws on a bad zone, so it is tried once here and dropped if bad.
+  try {
+    if (id) new Intl.DateTimeFormat('vi-VN', { timeZone: id });
+    ZONE.id = id || null;
+  } catch {
+    ZONE.id = null;
+  }
+  rebuild();
 }
 
 setLocale('vi');
@@ -123,6 +153,14 @@ export const longDate = iso => LONG.format(parseIso(iso));
 export const dateTime = value => TIME.format(new Date(value));
 
 /**
+ * A formatter for an INSTANT — carries the display timezone, unlike
+ * dateFormat(). The zone rides inside the options, so the shared cache keys the
+ * two apart on its own.
+ */
+export const timeFormat = options =>
+  dateFormat(ZONE.id ? { ...options, timeZone: ZONE.id } : options);
+
+/**
  * Just the clock, in the reader's language.
  *
  * dateTime() carries the date too, and slicing the first five characters off it
@@ -131,7 +169,7 @@ export const dateTime = value => TIME.format(new Date(value));
  * same slice showed a date to half the readers.
  */
 export const clockTime = value =>
-  dateFormat({ hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  timeFormat({ hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 export const dateRangeLabel = (a, b) => `${shortDate(a)} – ${shortDate(b)}`;
 
 export function debounce(fn, wait = 260) {

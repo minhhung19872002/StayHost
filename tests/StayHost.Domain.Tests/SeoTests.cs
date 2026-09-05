@@ -242,4 +242,43 @@ public class SeoTests
         Assert.False(SpaRoutes.LooksLikeAsset("/thanh-pho/da-lat"));
         Assert.False(SpaRoutes.LooksLikeAsset("/"));
     }
+
+    /* ---------------------------------------------------- docs/02 F1 — cài đặt */
+
+    /// <summary>
+    /// The hub and all nine groups are fixed routes — literal entries, not a
+    /// fallback arm. The distinction is what an invented tenth group gets: a
+    /// fallback would answer it 200 with an empty shell, the exact soft 404
+    /// MapFallbackToFile used to leave.
+    /// </summary>
+    [Theory]
+    [InlineData("/cai-dat")]
+    [InlineData("/cai-dat/ho-so")]
+    [InlineData("/cai-dat/bao-mat")]
+    [InlineData("/cai-dat/thanh-toan")]
+    [InlineData("/cai-dat/nhan-tien")]
+    [InlineData("/cai-dat/thong-bao")]
+    [InlineData("/cai-dat/quyen-rieng-tu")]
+    [InlineData("/cai-dat/tuy-chinh")]
+    [InlineData("/cai-dat/cong-tac")]
+    [InlineData("/cai-dat/gioi-thieu")]
+    public void Every_settings_group_is_a_real_page(string path)
+    {
+        Assert.Equal(PageKind.App, SpaRoutes.Resolve(path).Kind);
+    }
+
+    [Fact]
+    public void An_invented_settings_group_is_an_honest_404()
+    {
+        Assert.Equal(PageKind.Unknown, SpaRoutes.Resolve("/cai-dat/khong-co-that").Kind);
+    }
+
+    /// <summary>Somebody's own preferences and devices. Never in the sitemap.</summary>
+    [Theory]
+    [InlineData("/cai-dat")]
+    [InlineData("/cai-dat/bao-mat")]
+    public void Settings_pages_are_private(string path)
+    {
+        Assert.True(Seo.IsPrivate(path));
+    }
 }

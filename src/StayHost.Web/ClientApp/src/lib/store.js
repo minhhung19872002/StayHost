@@ -3,7 +3,7 @@
 // business logic stays plain JS and testable, while React handles the DOM.
 
 import { api } from './api.js';
-import { todayIso, isoOf, parseIso, setCurrency, setLocale } from './format.js';
+import { todayIso, isoOf, parseIso, setCurrency, setLocale, setTimeZone } from './format.js';
 import { t } from './i18n.js';
 
 const listeners = new Set();
@@ -47,6 +47,8 @@ export const state = {
   features: {},
   currency: { code: 'VND', label: 'Việt Nam Đồng', symbol: '₫', rateFromVnd: 1 },
   language: { code: 'vi', label: 'Tiếng Việt', region: 'Việt Nam' },
+  // docs/01 TK-09 — display timezone; null is the device's own clock.
+  timeZone: null,
 
   // catalogue
   home: null,
@@ -137,7 +139,6 @@ export const state = {
 
   // auth / profile modals
   authMode: 'login',     // login | register | forgot | reset | twoFactor
-  profileTab: 'profile',
   // docs/01 TK-08 — the half-finished login: a challenge token, never a session.
   twoFactor: null,
   resetLink: null,
@@ -344,6 +345,11 @@ export async function loadMeta() {
 
     const savedLang = meta.languages.find(l => l.code === localStorage.getItem('sh_language'));
     if (savedLang) { state.language = savedLang; setLocale(savedLang.code); }
+
+    // docs/01 TK-09 — the third of "ngôn ngữ, tiền tệ, múi giờ". Null means the
+    // device's clock; setTimeZone validates and drops an id Intl rejects.
+    const savedZone = localStorage.getItem('sh_timezone');
+    if (savedZone) { state.timeZone = savedZone; setTimeZone(savedZone); }
   } catch (err) {
     state.metaError = err.message;
   }
@@ -1059,6 +1065,18 @@ export function applyCurrency(code) {
   state.currency = c;
   setCurrency(c);
   localStorage.setItem('sh_currency', code);
+  notify();
+}
+
+export function applyTimeZone(id) {
+  // docs/01 TK-09 — deadlines and timestamps in the clock the reader asked
+  // for. Dates (check-in, check-out) stay on the device clock on purpose: a
+  // date is not an instant, and shifting it westward moves the stay by a day.
+  const zone = id || null;
+  state.timeZone = zone;
+  setTimeZone(zone);
+  if (zone) localStorage.setItem('sh_timezone', zone);
+  else localStorage.removeItem('sh_timezone');
   notify();
 }
 

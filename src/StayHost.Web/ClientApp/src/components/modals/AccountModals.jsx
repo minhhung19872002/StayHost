@@ -10,7 +10,7 @@ import { api } from '../../lib/api.js';
 import { money, longDate } from '../../lib/format.js';
 import { Avatar } from '../Avatar.jsx';
 import { Modal } from './Modal.jsx';
-import { t, joined } from '../../lib/i18n.js';
+import { t } from '../../lib/i18n.js';
 
 import { externalConfig, mountGoogleButton, signInWithApple, signInWithFacebook } from '../../lib/externalLogin.js';
 
@@ -229,17 +229,6 @@ function ResetModal() {
   );
 }
 
-const PROFILE_TABS = [
-  ['profile', 'Hồ sơ'],
-  ['verify', 'Xác thực'],
-  ['identity', 'Danh tính'],
-  ['payments', 'Thanh toán'],
-  ['security', 'Bảo mật'],
-  ['devices', 'Thiết bị'],
-  ['alerts', 'Thông báo'],
-  ['data', 'Dữ liệu']
-];
-
 /**
  * docs/01 TK-08 — the second step of a login. The account is not signed in yet:
  * everything this screen knows is a challenge token and a masked address.
@@ -295,7 +284,7 @@ function TwoFactorModal() {
  * the server is allowed to believe. A provider with no credentials configured is
  * left off the modal entirely rather than shown as a button that cannot work.
  */
-function ProviderButtons() {
+export function ProviderButtons() {
   const [config, setConfig] = useState(null);
   const [busy, setBusy] = useState(null);
   const googleSlot = useRef(null);
@@ -372,27 +361,17 @@ function ProviderButtons() {
 }
 
 
-export function ProfileModal() {
+/*
+ * docs/02 F1 — the eight-tab ProfileModal used to live here. It is gone on
+ * purpose, not lost: /cai-dat renders the same exported panels, and two live
+ * doors onto one set of forms is how a fix lands on only one of them. The
+ * pieces it carried inline — the password form and the device list — were
+ * lifted out below so the page could use them without copying.
+ */
+
+/** docs/01 TK-08 — the password half of "Đăng nhập & bảo mật". */
+export function ChangePasswordForm() {
   const state = useStore();
-  const u = state.user;
-  if (!u) return null;
-  const tab = state.profileTab;
-
-  const pickTab = key => {
-    set({ profileTab: key, authError: null });
-    if (key === 'devices') loadSessions();
-  };
-
-  const verify = async () => {
-    try {
-      const res = await api.sendVerification();
-      if (!res.verifyLink) { toast(res.message); return; }
-      const token = new URLSearchParams(res.verifyLink.split('?')[1]).get('token');
-      await api.verifyEmail(token);
-      await loadMe();
-      toast('Email đã được xác minh.');
-    } catch (err) { toast(err.message); }
-  };
 
   const changePassword = async e => {
     e.preventDefault();
@@ -403,96 +382,56 @@ export function ProfileModal() {
     }
     try {
       await api.changePassword({ currentPassword: f.currentPassword.value, newPassword: f.newPassword.value });
-      closeOverlay();
+      // On a page there is no overlay to close, so the form itself has to say
+      // what happened: clear the fields and toast.
+      f.reset();
+      set({ authError: null });
       toast('Đã đổi mật khẩu.');
     } catch (err) { set({ authError: err.message }); }
   };
 
   return (
-    <Modal title={t('Tài khoản')}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-        <Avatar url={u.avatarUrl} initials={u.initials} size={56} />
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 17, fontWeight: 800 }}>{u.displayName || u.fullName}</div>
-          <div style={{ fontSize: 13, color: 'var(--ink-muted)' }}>{u.email} · {joined(u.joinedLabel)}</div>
-          <div style={{ marginTop: 6 }}>
-            {/* docs/01 TK-01 — a phone-only account has no address to nag about. */}
-            {!u.email
-              ? (u.phoneConfirmed
-                  ? <span className="badge confirmed">{t('Số điện thoại đã xác thực')}</span>
-                  : <>
-                      <span className="badge pending">{t('Chưa xác thực số điện thoại')}</span>
-                      <button className="link-btn" style={{ marginLeft: 8, fontSize: 12.5 }}
-                              onClick={() => pickTab('verify')}>{t('Xác thực ngay')}</button>
-                    </>)
-              : u.emailConfirmed
-                ? <span className="badge confirmed">{t('Email đã xác minh')}</span>
-                : <>
-                    <span className="badge pending">{t('Chưa xác minh email')}</span>
-                    <button className="link-btn" style={{ marginLeft: 8, fontSize: 12.5 }} onClick={verify}>{t('Gửi liên kết')}</button>
-                  </>}
-          </div>
-        </div>
-      </div>
+    <form onSubmit={changePassword}>
+      <label className="form-field"><span className="cap">{t('Mật khẩu hiện tại')}</span>
+        <input type="password" name="currentPassword" autoComplete="current-password" required /></label>
+      <label className="form-field"><span className="cap">{t('Mật khẩu mới')}</span>
+        <input type="password" name="newPassword" autoComplete="new-password" placeholder={t('Tối thiểu 8 ký tự')} required /></label>
+      <label className="form-field"><span className="cap">{t('Nhập lại mật khẩu mới')}</span>
+        <input type="password" name="confirmPassword" autoComplete="new-password" required /></label>
+      {state.authError && <div className="form-error">{state.authError}</div>}
+      <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.5, margin: '0 0 12px' }}>
+        {t('Đổi mật khẩu sẽ đăng xuất mọi thiết bị khác.')}
+      </p>
+      <button type="submit" className="btn btn-primary btn-block">{t('Đổi mật khẩu')}</button>
+    </form>
+  );
+}
 
-      <nav className="seg-tabs" style={{ marginBottom: 18 }}>
-        {PROFILE_TABS.map(([key, label]) => (
-          <button key={key} className={`seg-tab ${tab === key ? 'is-active' : ''}`} onClick={() => pickTab(key)}>{t(label)}</button>
-        ))}
-      </nav>
+/** docs/01 TK-08 — every signed-in device, with a per-session sign-out. */
+export function DeviceList() {
+  const state = useStore();
+  useEffect(() => { loadSessions(); }, []);
 
-      {tab === 'profile' && <ProfileForm />}
-
-      {tab === 'verify' && <Verification />}
-
-      {tab === 'identity' && <IdentityPanel />}
-
-      {tab === 'payments' && <SavedCardsPanel />}
-
-      {tab === 'alerts' && <><NotificationMatrix /><SavedSearchesPanel /></>}
-
-      {tab === 'data' && <DataPanel />}
-
-      {tab === 'security' && <TwoFactorPanel />}
-
-      {tab === 'security' && (
-        <form onSubmit={changePassword}>
-          <label className="form-field"><span className="cap">{t('Mật khẩu hiện tại')}</span>
-            <input type="password" name="currentPassword" autoComplete="current-password" required /></label>
-          <label className="form-field"><span className="cap">{t('Mật khẩu mới')}</span>
-            <input type="password" name="newPassword" autoComplete="new-password" placeholder={t('Tối thiểu 8 ký tự')} required /></label>
-          <label className="form-field"><span className="cap">{t('Nhập lại mật khẩu mới')}</span>
-            <input type="password" name="confirmPassword" autoComplete="new-password" required /></label>
-          {state.authError && <div className="form-error">{state.authError}</div>}
-          <p style={{ fontSize: 12.5, color: 'var(--ink-muted)', lineHeight: 1.5, margin: '0 0 12px' }}>
-            {t('Đổi mật khẩu sẽ đăng xuất mọi thiết bị khác.')}
-          </p>
-          <button type="submit" className="btn btn-primary btn-block">{t('Đổi mật khẩu')}</button>
-        </form>
-      )}
-
-      {tab === 'devices' && (
-        <div style={{ display: 'grid', gap: 10 }}>
-          {(state.sessions ?? []).length ? state.sessions.map(s => (
-            <div className="cal-row" key={s.id}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <b style={{ fontSize: 14 }}>{s.device.split(' · ').map(part => t(part)).join(' · ')}</b>
-                {s.isCurrent && <span className="badge confirmed" style={{ marginLeft: 8 }}>{t('Thiết bị này')}</span>}
-                <div style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>
-                  {t('Đăng nhập')} {longDate(s.createdAt.slice(0, 10))}
-                </div>
-              </div>
-              {!s.isCurrent && (
-                <button className="text-btn" onClick={async () => {
-                  try { await api.revokeSession(s.id); await loadSessions(); toast('Đã đăng xuất thiết bị đó.'); }
-                  catch (err) { toast(err.message); }
-                }}>{t('Đăng xuất')}</button>
-              )}
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      {(state.sessions ?? []).length ? state.sessions.map(s => (
+        <div className="cal-row" key={s.id}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <b style={{ fontSize: 14 }}>{s.device.split(' · ').map(part => t(part)).join(' · ')}</b>
+            {s.isCurrent && <span className="badge confirmed" style={{ marginLeft: 8 }}>{t('Thiết bị này')}</span>}
+            <div style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>
+              {t('Đăng nhập')} {longDate(s.createdAt.slice(0, 10))}
             </div>
-          )) : <p style={{ fontSize: 14, color: 'var(--ink-muted)' }}>{t('Đang tải phiên đăng nhập…')}</p>}
+          </div>
+          {!s.isCurrent && (
+            <button className="text-btn" onClick={async () => {
+              try { await api.revokeSession(s.id); await loadSessions(); toast('Đã đăng xuất thiết bị đó.'); }
+              catch (err) { toast(err.message); }
+            }}>{t('Đăng xuất')}</button>
+          )}
         </div>
-      )}
-    </Modal>
+      )) : <p style={{ fontSize: 14, color: 'var(--ink-muted)' }}>{t('Đang tải phiên đăng nhập…')}</p>}
+    </div>
   );
 }
 
@@ -504,7 +443,7 @@ export function ProfileModal() {
  * each is edited by clicking rather than typing; everything else stays an
  * uncontrolled field, the way the rest of the modals here work.
  */
-function ProfileForm() {
+export function ProfileForm() {
   const state = useStore();
   const u = state.user;
   const navigate = useNavigate();
@@ -683,7 +622,7 @@ function ProfileForm() {
  * points it at an address they cannot read; switching it off takes the
  * password, so an unlocked screen is not enough to strip it.
  */
-function TwoFactorPanel() {
+export function TwoFactorPanel() {
   const state = useStore();
   const [tf, setTf] = useState(null);
   const [stage, setStage] = useState('idle');   // idle | code | off
@@ -779,7 +718,7 @@ function TwoFactorPanel() {
  * their face, reviewed by a person; the badge on the public profile is what
  * comes out the other end.
  */
-function IdentityPanel() {
+export function IdentityPanel() {
   const [check, setCheck] = useState(undefined);
   const [document, setDocument] = useState('NationalId');
   const [shots, setShots] = useState({ front: null, back: null, selfie: null });
@@ -904,7 +843,7 @@ function Shot({ label, url, onPick }) {
  * comes back: everything on this screen is brand, last four and expiry, which is
  * all §4 allows to exist.
  */
-function SavedCardsPanel() {
+export function SavedCardsPanel() {
   const [cards, setCards] = useState(null);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -1005,7 +944,7 @@ function SavedCardsPanel() {
   );
 }
 
-function NotificationMatrix() {
+export function NotificationMatrix() {
   const [prefs, setPrefs] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -1072,7 +1011,7 @@ function NotificationMatrix() {
  * something the platform does to somebody, with a policy and an appeal. This is
  * somebody's own choice, and it ends the moment they sign back in.
  */
-function PauseAccount() {
+export function PauseAccount() {
   const [state, setState] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -1130,7 +1069,7 @@ function PauseAccount() {
   );
 }
 
-function DataPanel() {
+export function DataPanel() {
   const [requests, setRequests] = useState([]);
   const [busy, setBusy] = useState(false);
 
@@ -1214,7 +1153,7 @@ const BLANK_REVIEW = {
  * docs/01 TK-01 — proving the phone or the email with a six-digit code, and
  * docs/01 TK-02 — what is attached to this account.
  */
-function Verification() {
+export function Verification() {
   const [v, setV] = useState(null);
   const [sending, setSending] = useState(null);
   const [codes, setCodes] = useState({ email: '', phone: '' });
@@ -1303,7 +1242,7 @@ function Verification() {
 }
 
 /** docs/01 TM-23 — the searches this account is being alerted about. */
-function SavedSearchesPanel() {
+export function SavedSearchesPanel() {
   const [rows, setRows] = useState(null);
   const load = () => api.savedSearches().then(setRows).catch(() => setRows([]));
   useEffect(() => { load(); }, []);
@@ -1337,7 +1276,7 @@ function SavedSearchesPanel() {
 }
 
 /** docs/01 TK-07 — set and verify a company email, earning the work-verified badge. */
-function WorkEmailPanel({ codeLength }) {
+export function WorkEmailPanel({ codeLength }) {
   const state = useStore();
   const u = state.user;
   const [email, setEmail] = useState('');

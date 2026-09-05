@@ -41,6 +41,7 @@ import { MySanctions, AppealByToken } from './pages/Sanctions.jsx';
 import { Neighbors } from './pages/Neighbors.jsx';
 import { Friends } from './pages/Friends.jsx';
 import { TripPlans } from './pages/TripPlans.jsx';
+import { Settings } from './pages/Settings.jsx';
 import { NotFound } from './pages/NotFound.jsx';
 
 export function App() {
@@ -217,6 +218,9 @@ export function App() {
             <Route path="/neighbors" element={<Neighbors />} />
             <Route path="/friends" element={<Friends />} />
             <Route path="/trip-plans" element={<TripPlans />} />
+            {/* docs/02 F1 — the settings hub and its nine groups. */}
+            <Route path="/cai-dat" element={<Settings />} />
+            <Route path="/cai-dat/:group" element={<Settings />} />
             <Route path="/admin" element={<Admin />} />
             {/* An address no route answers is a 404, not the home page. Rendering
                 Browse here meant every typo and every stale link came back as a

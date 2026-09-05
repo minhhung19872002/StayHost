@@ -956,7 +956,7 @@ khoảng cách), `TM-05`, `TM-22`, `C6`, `G5` (chế độ một tin theo tháng
 | `docs/02 B2` — màn hình thiết lập ban đầu | Chỉ có trong `docs/02`, và chính nó ghi "bỏ qua được". Thêm một bước chắn giữa đăng ký và tìm kiếm |
 | ~~`docs/02 G7` — điểm theo hạng mục **qua thời gian**~~ | **Xong 05/09/2026**, cùng ba khối còn lại của G7 — xem §9.14 |
 | `docs/02 C1` — ghim của chỗ **đã xem** | Cần lưu lịch sử xem của từng người, tức một bảng mới cho một chi tiết trang trí |
-| `docs/02 F1` — gom "lịch sử trả" vào trang cài đặt | `docs/01 CĐ-09` (hoá đơn theo từng đơn) đã có; đây là cách sắp xếp lại màn hình |
+| ~~`docs/02 F1` — gom "lịch sử trả" vào trang cài đặt~~ | **Xong 05/09/2026** — cả trang cài đặt chín nhóm, xem §9.15 |
 
 Nghiệm thu: `python scripts/rolegaps_acceptance.py` — 14 kịch bản, mỗi cái lái
 server thật rồi **đọc lại cơ sở dữ liệu**.
@@ -1179,6 +1179,45 @@ bị đọc nhầm là 1 trong khi là 0.
 
 **203 vẫn là 203** — `G7` là màn hình của `docs/02`, không phải mã của `docs/01`.
 
+### 9.15. Trang cài đặt — docs/02 F1 (05/09/2026)
+
+`docs/02 F1` mô tả một **cửa ngõ chín nhóm**; trước lượt này mọi mảnh đã tồn tại
+nhưng nằm rải trong một modal tám tab, `/wallet` và `/hosting` — khách phải biết
+trước đường mới tìm ra. Giờ là trang `/cai-dat` thật, và **modal Tài khoản cũ đã
+gỡ hẳn**: các panel được `export` và dùng lại chứ không sao chép, vì hai cánh cửa
+sống cùng lúc vào một bộ form là cách một bản vá chỉ rơi vào một bên (§9.7).
+
+**Hai mảnh làm mới, phần còn lại là nối:**
+
+1. **`GET /api/account/payments` — "lịch sử trả".** Đọc bốn nguồn mà nền tảng cố
+   ý tách bảng (`payments`→`bookings`, `experience_bookings`, `service_bookings`,
+   `gift_cards`), trả **số đã lưu, không tính lại** — `docs/00 §6.2`: hoá đơn phải
+   còn đúng nhiều năm sau. Thẻ quà tặng `AwaitingPayment`/`Cancelled` không hiện:
+   chưa ai trả tiền thì chưa phải một khoản thanh toán.
+2. **Múi giờ hiển thị — vế thứ ba của `TK-09` (P0).** Hai vế ngôn ngữ/tiền tệ đã
+   chạy từ lâu và PLAN từng đếm mã này là xong — lại bài học *soát từng vế*. Múi
+   giờ chỉ áp cho **mốc thời gian** (`dateTime`/`clockTime`); ngày nhận/trả phòng
+   giữ nguyên đồng hồ máy, vì `longDate('2026-09-05')` parse là nửa đêm UTC và một
+   múi giờ lệch tây sẽ lùi mọi ngày nhận phòng một ngày — repo này đã mất một ngày
+   vì đúng bảy tiếng đó hai lần. Kiểm thật: 18:19 (VN) → 20:19 khi chọn Tokyo,
+   ngày không đổi.
+
+**Địa chỉ là mười mục chữ trong `SpaRoutes.Fixed`, không phải một nhánh fallback**
+— nhánh hai-đoạn sẽ trả 200 cho `/cai-dat/bất-kỳ-gì`, đúng cái soft-404 mà
+`MapFallbackToFile` từng để lại. Nhóm bịa ra trả 404 thật; cả cây bị chặn trong
+robots và vắng mặt trong sitemap.
+
+**Cố ý không làm hai dòng của F1:** "hoá đơn công ty" (cần chốt theo NĐ 123/2020 —
+ai là bên bán trên chứng từ) và "thông tin thuế" (chưa có hồ sơ MST) — một đề mục
+dẫn vào hư không cùng họ với lời hứa huỷ 48 giờ. "Nhận tiền" ẩn với khách thường
+vì endpoint sau nó trả 403 cho người không phải chủ nhà.
+
+**Nghiệm thu:** `python scripts/settings_acceptance.py` — 8 kịch bản đối chiếu DB.
+Đã chứng minh lưới bung: bỏ bộ lọc trạng thái thẻ quà tặng thì 6/8, kịch bản 8 gọi
+tên đủ 22 mã thẻ chưa-trả-tiền lọt vào lịch sử.
+
+**203 vẫn là 203** — F1 là màn hình của `docs/02`; vế múi giờ thuộc `TK-09` đã tick.
+
 ---
 
 ## Kiểm chứng
@@ -1226,6 +1265,9 @@ python scripts/giftcard_acceptance.py
 
 # 8 kịch bản của §9.14 — báo cáo chủ nhà, đối chiếu thẳng với DB
 python scripts/hostreport_acceptance.py
+
+# 8 kịch bản của §9.15 — trang cài đặt và lịch sử trả tiền
+python scripts/settings_acceptance.py
 ```
 
 ## Ghi chú về quy mô

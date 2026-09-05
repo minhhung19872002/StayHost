@@ -10,6 +10,7 @@ import {
 import { api } from '../../lib/api.js';
 import { applySearch, go } from '../../lib/nav.js';
 import { money, longDate, nightsBetween, dateRangeLabel } from '../../lib/format.js';
+import { TimeZonePicker } from '../TimeZonePicker.jsx';
 import { recentSearches, clearSearchHistory } from '../../lib/history.js';
 import { t } from '../../lib/i18n.js';
 import { Icon, AmenityIcon, CATEGORY_ICON } from '../Icon.jsx';
@@ -442,6 +443,40 @@ export function SearchModal() {
   );
 }
 
+/*
+ * The language and currency grids, shared by the header modal and by
+ * /cai-dat/tuy-chinh. One component per grid, because the settings page
+ * offering a second hand-rolled copy of this list is exactly how the "Dịch"
+ * button once grew its own stale label set (PLAN.md §9.0).
+ */
+export function LanguageChoices() {
+  const state = useStore();
+  return (
+    <div className="lang-grid" style={{ marginTop: 14 }}>
+      {(state.meta?.languages ?? []).map(l => (
+        <button key={l.code} className={`lang ${state.language.code === l.code ? 'is-on' : ''}`}
+                onClick={() => applyLanguage(l.code)}>
+          <b>{l.label}</b><span>{l.region}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function CurrencyChoices() {
+  const state = useStore();
+  return (
+    <div className="lang-grid" style={{ marginTop: 14 }}>
+      {(state.meta?.currencies ?? []).map(c => (
+        <button key={c.code} className={`lang ${state.currency.code === c.code ? 'is-on' : ''}`}
+                onClick={() => applyCurrency(c.code)}>
+          <b>{c.label}</b><span>{c.code} — {c.symbol}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function LanguageModal() {
   const state = useStore();
   const meta = state.meta;
@@ -451,25 +486,21 @@ export function LanguageModal() {
     <Modal title={t('Ngôn ngữ & tiền tệ')}>
       <section className="modal-section">
         <h3>{t('Ngôn ngữ đề xuất')}</h3>
-        <div className="lang-grid" style={{ marginTop: 14 }}>
-          {meta.languages.map(l => (
-            <button key={l.code} className={`lang ${state.language.code === l.code ? 'is-on' : ''}`}
-                    onClick={() => applyLanguage(l.code)}>
-              <b>{l.label}</b><span>{l.region}</span>
-            </button>
-          ))}
-        </div>
+        <LanguageChoices />
       </section>
       <section className="modal-section">
         <h3>{t('Chọn loại tiền tệ')}</h3>
-        <div className="lang-grid" style={{ marginTop: 14 }}>
-          {meta.currencies.map(c => (
-            <button key={c.code} className={`lang ${state.currency.code === c.code ? 'is-on' : ''}`}
-                    onClick={() => applyCurrency(c.code)}>
-              <b>{c.label}</b><span>{c.code} — {c.symbol}</span>
-            </button>
-          ))}
-        </div>
+        <CurrencyChoices />
+      </section>
+      <section className="modal-section">
+        {/* docs/01 TK-09 — the third setting of the row. Deadlines and message
+            timestamps follow it; check-in DATES stay on the device clock, since
+            a date shifted westward moves the stay by a day. */}
+        <h3>{t('Múi giờ hiển thị')}</h3>
+        <p className="section-sub" style={{ marginTop: 4 }}>
+          {t('Áp cho giờ và hạn chót. Ngày nhận và trả phòng luôn là ngày tại chỗ nghỉ.')}
+        </p>
+        <TimeZonePicker />
       </section>
     </Modal>
   );

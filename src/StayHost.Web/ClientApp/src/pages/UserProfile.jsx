@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../lib/useStore.js';
-import { loadPublicProfile, openOverlay, openReport, toast } from '../lib/store.js';
+import { loadPublicProfile, openReport, toast } from '../lib/store.js';
 import { api } from '../lib/api.js';
 import { monthLabel } from '../lib/format.js';
 import { Avatar } from '../components/Avatar.jsx';
@@ -128,7 +128,7 @@ export function UserProfile() {
 
           {isMe
             ? <button className="btn" style={{ marginTop: 18 }}
-                      onClick={() => openOverlay('profile')}>{t('Chỉnh sửa hồ sơ')}</button>
+                      onClick={() => navigate('/cai-dat/ho-so')}>{t('Chỉnh sửa hồ sơ')}</button>
             : <div style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
                 {p.isHost && p.listings.length > 0 && (
                   <button className="btn"

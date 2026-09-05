@@ -13,6 +13,32 @@ const VISIBILITY = [
 ];
 
 /**
+ * docs/01 XH-02 — who may see my journey map. One component for its two doors
+ * (this page and /cai-dat/quyen-rieng-tu), so the choices cannot drift apart.
+ */
+export function JourneyVisibilityControl() {
+  const state = useStore();
+  if (!state.user) return null;
+
+  const setVis = async v => {
+    try { await api.setJourneyVisibility(v); await loadMe(); toast('Đã cập nhật quyền riêng tư hành trình.'); }
+    catch (err) { toast(err.message); }
+  };
+
+  return (
+    <section className="modal-section" style={{ marginTop: 12 }}>
+      <h3>{t('Hành trình của tôi hiển thị với')}</h3>
+      <div className="pill-row" style={{ marginTop: 10 }}>
+        {VISIBILITY.map(([v, label]) => (
+          <button key={v} className={`pill ${state.user.journeyVisibility === v ? 'is-on' : ''}`}
+                  onClick={() => setVis(v)}>{t(label)}</button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
  * docs/01 XH-01, XH-02 — friends, incoming requests, and the privacy of your own
  * journey map. Open where signed-in members manage their connections.
  */
@@ -47,26 +73,13 @@ export function Friends() {
     try { await api.removeFriend(userId); await load(); toast('Đã huỷ kết bạn.'); }
     catch (err) { toast(err.message); }
   };
-  const setVis = async v => {
-    try { await api.setJourneyVisibility(v); await loadMe(); toast('Đã cập nhật quyền riêng tư hành trình.'); }
-    catch (err) { toast(err.message); }
-  };
 
   return (
     <div className="shell" style={{ paddingBlock: '28px 90px', maxWidth: 760 }}>
       <h1 className="section-title">{t('Bạn bè')}</h1>
       <p className="section-sub">{t('Kết nối để xem nơi bạn bè đã đi và sắp đi.')}</p>
 
-      {/* docs/01 XH-02 — who may see my journey map. */}
-      <section className="modal-section" style={{ marginTop: 12 }}>
-        <h3>{t('Hành trình của tôi hiển thị với')}</h3>
-        <div className="pill-row" style={{ marginTop: 10 }}>
-          {VISIBILITY.map(([v, label]) => (
-            <button key={v} className={`pill ${state.user.journeyVisibility === v ? 'is-on' : ''}`}
-                    onClick={() => setVis(v)}>{t(label)}</button>
-          ))}
-        </div>
-      </section>
+      <JourneyVisibilityControl />
 
       {requests.length > 0 && (
         <section style={{ marginTop: 28 }}>

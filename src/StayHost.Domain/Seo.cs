@@ -44,6 +44,8 @@ public static class Seo
         "/wallet",
         "/resolutions",
         "/account",
+        // docs/02 F1 — the settings hub. Somebody's own preferences and devices.
+        "/cai-dat",
         "/neighbors",
         "/friends",
         "/trip-plans",
@@ -248,6 +250,17 @@ public static class SpaRoutes
         "/services/bookings", "/wallet", "/shield", "/shield/terms",
         "/thanh-toan/ket-qua", "/account/sanctions", "/appeal", "/neighbors",
         "/friends", "/trip-plans", "/admin",
+
+        // docs/02 F1 — the settings hub and its nine groups, each a literal
+        // entry on purpose. The tempting shortcut — "cai-dat" in Resolve's
+        // two-segment fallback arm — would answer 200 for /cai-dat/anything,
+        // which is the exact soft-404 hole MapFallbackToFile used to leave. As
+        // literals, the nine real groups answer 200 and an invented tenth still
+        // falls through to Unknown and an honest 404.
+        "/cai-dat",
+        "/cai-dat/ho-so", "/cai-dat/bao-mat", "/cai-dat/thanh-toan",
+        "/cai-dat/nhan-tien", "/cai-dat/thong-bao", "/cai-dat/quyen-rieng-tu",
+        "/cai-dat/tuy-chinh", "/cai-dat/cong-tac", "/cai-dat/gioi-thieu",
     ];
 
     /// <summary>

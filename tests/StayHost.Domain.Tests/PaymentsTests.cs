@@ -126,4 +126,20 @@ public class PaymentsTests
         // Guessing "no" strands a guest whose payment would have worked.
         Assert.True(Payments.Retryable(DeclineReason.Unknown));
     }
+
+    /// <summary>
+    /// docs/02 F1 — the state names on the guest's own payment history. Sent
+    /// through t() on the client, so each of these strings needs a dictionary
+    /// pair; a new state added here without one renders as Vietnamese in seven
+    /// languages and no test goes red over it.
+    /// </summary>
+    [Fact]
+    public void Every_payment_state_has_a_name()
+    {
+        foreach (var status in Enum.GetValues<PaymentStatus>())
+            Assert.False(string.IsNullOrWhiteSpace(Payments.StatusLabel(status)), status.ToString());
+
+        Assert.Equal("Đã thanh toán", Payments.StatusLabel(PaymentStatus.Captured));
+        Assert.Equal("Đã hoàn tiền", Payments.StatusLabel(PaymentStatus.Refunded));
+    }
 }
