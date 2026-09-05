@@ -75,14 +75,26 @@ public class GiftCardService(StayHostDbContext db, ILogger<GiftCardService> log)
         db.LedgerEntries.AddRange(Ledger.SellGiftCard(card.Amount, card.Code, DateTime.UtcNow));
 
         var buyer = card.PurchasedByUser?.FullName ?? "Một người bạn";
+
+        // docs/01 TK-09 — the recipient may already have an account, and then
+        // their language is on file even though the buyer only typed an email.
+        // The card CODE is the secret this mail exists to carry, so RawTitle
+        // stays null: the machine-translation pass must never touch it.
+        var recipient = await db.Users
+            .FirstOrDefaultAsync(u => u.Email == card.RecipientEmail.ToLower(), ct);
+        var name = card.RecipientName ?? card.RecipientEmail;
+
         db.EmailMessages.Add(new EmailMessage
         {
             ToEmail = card.RecipientEmail,
-            ToName = card.RecipientName ?? card.RecipientEmail,
+            ToName = name,
             Subject = $"{buyer} tặng bạn {card.Amount:#,##0}₫ trên Staylio",
-            Body = $"Mã thẻ của bạn: {card.Code}\n" +
-                   (string.IsNullOrWhiteSpace(card.Message) ? "" : $"\"{card.Message}\"\n") +
-                   "Nhập mã trong mục Số dư để cộng vào tài khoản."
+            Body = Emails.Compose(recipient?.Language, name,
+                $"{buyer} tặng bạn một thẻ quà tặng {card.Amount:#,##0}₫.",
+                $"Mã thẻ của bạn: {card.Code}\n" +
+                (string.IsNullOrWhiteSpace(card.Message) ? "" : $"\"{card.Message}\"\n") +
+                "Nhập mã trong mục Số dư để cộng vào tài khoản.", null),
+            Language = recipient?.Language
         });
 
         await db.SaveChangesAsync(ct);

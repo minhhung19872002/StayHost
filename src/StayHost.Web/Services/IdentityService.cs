@@ -71,15 +71,20 @@ public class IdentityService(
 
         if (kind != IdentifierKind.Phone)
         {
+            // docs/01 TK-09 — the most-read mail the platform sends, in the
+            // reader's own language, from a HAND-translated template. Never the
+            // machine path: a translator that "improves" one digit of this code
+            // locks a person out with no error anywhere. RawTitle/RawBody stay
+            // null on purpose so the dispatcher's translation pass skips it.
             db.EmailMessages.Add(new EmailMessage
             {
                 ToEmail = sentTo!,
                 ToName = user.FullName,
                 // The code stays out of the subject: subjects show on lock
                 // screens and in mail logs (EmailDelivery.SubjectLeaksCode).
-                Subject = EmailDelivery.CodeSubject(),
-                Body = $"Mã xác thực của bạn là {code}. Mã có hiệu lực trong " +
-                       $"{Identity.CodeLifetime.TotalMinutes:0} phút."
+                Subject = Emails.OtpSubject(user.Language),
+                Body = Emails.OtpBody(user.Language, code, (int)Identity.CodeLifetime.TotalMinutes),
+                Language = user.Language
             });
         }
         else

@@ -91,6 +91,7 @@ không cần tài khoản và trả tiền tại nơi ở) ·
 **31/31** kịch bản của `scripts/cohost_share_acceptance.py` (`docs/07 §19` — chia
 thu nhập cho người đồng quản lý) ·
 **7/7** kịch bản `TK-09` của `scripts/preferences_acceptance.py` (tuỳ chọn trên tài khoản) ·
+**7/7** kịch bản `TK-09` của `scripts/email_language_acceptance.py` (email theo ngôn ngữ người đọc) ·
 **7/7** kịch bản `QT-06`/`TC-12` của `scripts/fx_acceptance.py` (tỉ giá là cấu hình) ·
 **8/8** kịch bản `docs/02 F1` của `scripts/settings_acceptance.py` (trang cài đặt + lịch sử trả) ·
 **8/8** kịch bản `docs/02 G7` của `scripts/hostreport_acceptance.py` (báo cáo chủ nhà) ·
@@ -155,6 +156,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Trang cài đặt (`docs/02 F1`) | `/cai-dat` chín nhóm — modal Tài khoản cũ gỡ hẳn, panel export dùng lại; **lịch sử trả tiền** đọc 4 bảng và trả số đã lưu không tính lại; **múi giờ hiển thị** (vế 3 của `TK-09`) chỉ áp cho mốc thời gian, ngày nhận/trả phòng giữ đồng hồ máy; "hoá đơn công ty" cố ý chưa có vì chờ khách chốt theo NĐ 123/2020 |
 | Báo cáo chủ nhà (`docs/02 G7`) | Thu nhập theo tháng **tách đã trả / sắp trả**, gộp theo tháng trả phòng và giữ cả tháng rỗng; giá bán thật của từng tin cạnh **mặt bằng khu vực** (dùng chung `Performance.Percentile` với `CN-10`/`QL-09`); **6 hạng mục đánh giá theo tháng**; cộng báo cáo thuế `TC-04` và danh sách cải thiện `QL-18` đã có |
 | Đa ngôn ngữ | 8 thứ tiếng (vi/en/ja/ko/zh/fr/de/es), **2149 khoá mỗi thứ, không thiếu khoá nào**. Dịch cả **chữ do server sinh** (trạng thái, dòng hoá đơn, tiện nghi, nhóm tiện nghi, loại chỗ ở, lời khuyên chủ nhà) nhờ từ điển khoá bằng chính chuỗi tiếng Việt. Ngày/giờ/số theo ngôn ngữ đang chọn. Nội dung **người dùng tự viết** (tên tin, mô tả, đánh giá, tiểu sử, nội quy chủ nhà tự gõ) được **máy dịch tự động** kèm dòng "Đã dịch tự động · Xem bản gốc" |
+| Email theo ngôn ngữ người đọc | Nửa máy-chủ-đọc của `TK-09` (`docs/PLAN.md §9.18`). **Lằn ranh cứng:** khung thư + mọi thư mang bí mật (OTP, link đặt lại) dịch **tay** trong `Emails.cs` — máy dịch "sửa giúp" một chữ số OTP là một người bị khoá ngoài tài khoản; nội dung thông báo dịch **máy lúc gửi** (`EmailDispatcher.TranslatePendingAsync`, đọc `RawTitle`/`RawBody`, đóng dấu `TranslatedAt` kể cả khi hỏng — bản Việt là dự phòng có chủ đích). Thư bí mật có `RawTitle = null` nên vòng dịch không thấy nó từ câu truy vấn. Tên nằm **trong** mẫu chào (`{0}님`). `EmailsTests` chặn trôi: thêm thứ tiếng vào `Translations.Targets` mà thiếu khung email là build đỏ |
 | Máy dịch | `libretranslate` tự host trong cả hai compose — **không cần khoá API, không tính tiền theo ký tự**. Đủ 8 thứ tiếng, trùng khít danh sách giao diện. Kết quả cache trong `translation_caches`, mỗi (chuỗi × ngôn ngữ) chỉ dịch một lần |
 | Hạn dùng số dư | `docs/07 §16` đã chốt (11/08/2026): bù đắp / giới thiệu bạn / hoàn khi huỷ **12 tháng**, thẻ quà tặng **không hết hạn**. Hạn đóng dấu **lúc cấp**, nên đổi tham số về sau không với ngược lại số dư khách đang giữ |
 | Cẩm nang chủ nhà (`TĐ-22`) | Chủ nhà tự viết danh sách chỗ nên đi cho từng tin: tám nhóm (quán ăn / cà phê / tham quan / thiên nhiên / mua sắm / về đêm / đi lại / lời khuyên), mỗi mục có lý do giới thiệu, địa chỉ và toạ độ tuỳ chọn. Toạ độ **phải đủ cả hai nửa** (`Guidebooks.HasPin`) — nửa vĩ độ đơn độc rơi xuống biển ngoài châu Phi. Chữ do người viết nên đi qua `TranslatedText`, không vào từ điển giao diện |
@@ -810,6 +812,8 @@ python scripts/onepay_acceptance.py                # 15 kịch bản: trả bằ
                                                    # (chạy app với Psp__Methods__card=onepay)
 python scripts/preferences_acceptance.py           # 7 kịch bản TK-09: tuỳ chọn trên tài khoản,
                                                    # thiết bị mới đọc lại được
+python scripts/email_language_acceptance.py        # 7 kịch bản TK-09: email theo ngôn ngữ người
+                                                   # đọc (cần libretranslate cho kịch bản dịch máy)
 python scripts/fx_acceptance.py                    # 7 kịch bản QT-06/TC-12: tỉ giá trong DB,
                                                    # đơn đặt đóng băng tỉ giá của sàn
 python scripts/settings_acceptance.py              # 8 kịch bản docs/02 F1: trang cài đặt,

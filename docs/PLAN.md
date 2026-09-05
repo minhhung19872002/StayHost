@@ -1296,12 +1296,62 @@ thật là một tầng dịch phía máy chủ (toàn bộ chuỗi thông báo 
 riêng đủ lớn. Đếm cột-đã-lưu là xong TK-09 sẽ đúng bài học `YT-08` — nửa yêu cầu
 bị đếm thành cả yêu cầu. Màn hình `B2` (hỏi sau đăng ký) cũng để lại: đổi thứ
 người dùng mới thấy đầu tiên là quyết định của khách.
+**→ Nửa máy-chủ-đọc đã làm xong ở §9.18 (05/09/2026).**
 
 **Nghiệm thu:** `python scripts/preferences_acceptance.py` — 7 kịch bản; kịch bản
 quyết định đăng nhập bằng **cookie jar thứ hai** (một "thiết bị" thật sự mới).
 Đã chứng minh lưới bung: tắt dòng ghi `Language` thì ra 4/7.
 
 **203 vẫn là 203** — `TK-09` vốn đã tick từ hai vế client; đây là vế tài khoản.
+
+### 9.18. Email theo ngôn ngữ người đọc — nửa máy-chủ-đọc của TK-09 (05/09/2026)
+
+§9.17 lưu lựa chọn; đây là chỗ đầu tiên **đọc** nó. Trước lượt này mọi email rời
+sàn đều là tiếng Việt bất kể tài khoản chọn gì — một khách Hàn nhận mã đăng nhập
+trong một bức thư họ không đọc nổi.
+
+**Lằn ranh cứng, không phải sở thích: dịch tay ↔ dịch máy.**
+
+- **Dịch tay** (`Emails.cs`, StayHost.Domain): *khung thư* (chào / "Xem chi
+  tiết" / ký tên) và **mọi thư mang bí mật** — mã 6 số, link đặt lại mật khẩu.
+  Máy dịch mà "sửa giúp" một chữ số của OTP là một người bị khoá ngoài tài khoản
+  mà không có lỗi ở đâu cả. Tên người nằm **trong** mẫu chào (`{0}님`, `{0} 様`)
+  chứ không dán sau — đúng bài "Message Binn" của CLAUDE.md §4.
+- **Dịch máy** (`EmailDispatcher.TranslatePendingAsync`): *nội dung* thông báo,
+  dịch **lúc gửi** chứ không lúc xếp hàng — các hàm `Queue*` cố ý không
+  SaveChanges, còn `TranslationService` tự lưu cache của nó. Thư lưu
+  `RawTitle`/`RawBody`/`CtaUrl` tiếng Việt; vòng quét dịch rồi bọc lại bằng
+  khung tay kèm dòng "tự động dịch". **Đóng dấu `TranslatedAt` kể cả khi dịch
+  hỏng** — bản tiếng Việt là phương án dự phòng có chủ đích, một bức thư không
+  bao giờ được nằm chờ máy dịch khoẻ lại. Thư bí mật có `RawTitle = null` nên
+  vòng dịch **không nhìn thấy nó** ngay từ câu truy vấn.
+
+**5 cột mới trên `email_messages`** (migration `EmailLanguage`, đều nullable):
+`Language`, `RawTitle`, `RawBody`, `CtaUrl`, `TranslatedAt`. Thư cũ trong hàng
+đợi có `Language = null` = tiếng Việt đã soạn xong — vòng dịch bỏ qua, không có
+bẫy `defaultValue` nào.
+
+**Bốn chỗ từng soạn thư vòng qua khung** (GiftCardService, SplitBillService ×2,
+WalletService giới thiệu bạn) giờ đi qua `Emails.Compose`, tra ngôn ngữ người
+nhận khi họ có tài khoản; cả bốn đều mang mã/token nên `RawTitle` để null.
+Client thêm chiều nhận nuôi ngược trong `store.js`: tài khoản **chưa từng chọn
+gì** đăng nhập trên máy đã chọn → đẩy lựa chọn của máy lên tài khoản, không để
+tài khoản trắng xoá lựa chọn của chính người đó.
+
+**Chống trôi:** `EmailsTests` (10 test) buộc mọi ngôn ngữ trong
+`Translations.Targets` phải có khung + đủ bộ mẫu bí mật riêng — thêm thứ tiếng
+thứ 9 vào picker mà quên email là build đỏ, không phải người dùng phát hiện.
+Khung "vi" khớp **từng byte** với `BuildEmailBody` cũ.
+
+**Nghiệm thu:** `python scripts/email_language_acceptance.py` — 7 kịch bản trên
+server thật + Postgres thật (reset qua mẫu tay tiếng Nhật; OTP không lộ số ở
+tiêu đề; thông báo mời đồng quản lý mang khung Nhật + RawTitle; vòng dịch đóng
+dấu và thay nội dung; người đọc tiếng Việt giữ nguyên từng byte; thư cũ và thư
+bí mật máy dịch không chạm vào). Đã chứng minh lưới bung bằng cách gài lại đúng
+hai lỗi: bỏ `recipient.Language` khỏi Compose → kịch bản 3 đỏ; bỏ lời gọi
+`TranslatePendingAsync` → kịch bản 4 đỏ.
+
+**203 vẫn là 203** — vẫn là `TK-09`, nửa còn nợ của §9.17.
 
 ---
 
@@ -1359,6 +1409,10 @@ python scripts/fx_acceptance.py
 
 # 7 kịch bản của §9.17 — tuỳ chọn nằm trên tài khoản, sang thiết bị mới vẫn còn
 python scripts/preferences_acceptance.py
+
+# 7 kịch bản của §9.18 — email theo ngôn ngữ người đọc; cần libretranslate cho
+# kịch bản dịch máy (thiếu nó script tự thu về bản rút gọn và nói rõ)
+python scripts/email_language_acceptance.py
 ```
 
 ## Ghi chú về quy mô

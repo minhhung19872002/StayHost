@@ -10,7 +10,9 @@ namespace StayHost.Web.Services;
 /// place those rows are handed to a mail server. Which failures are retried and
 /// when is decided in <see cref="EmailDelivery"/>, not here.
 /// </summary>
-public class EmailDispatcher(StayHostDbContext db, IEmailSender sender, ILogger<EmailDispatcher> log)
+public class EmailDispatcher(
+    StayHostDbContext db, IEmailSender sender, TranslationService translation,
+    ILogger<EmailDispatcher> log)
 {
     public sealed record Result(int Sent, int Retrying, int GivenUp)
     {
@@ -20,6 +22,13 @@ public class EmailDispatcher(StayHostDbContext db, IEmailSender sender, ILogger<
 
     public async Task<Result> SweepAsync(CancellationToken ct)
     {
+        // docs/01 TK-09 — content is translated here, at dispatch, never at
+        // queue time: the Queue* methods deliberately do not save, and
+        // TranslationService saves its own cache rows. Placed BEFORE the
+        // no-mail-server gate on purpose, so a deployment with no SMTP still
+        // translates its queue and a person can verify the whole path.
+        await TranslatePendingAsync(ct);
+
         // With no server configured an attempt would only burn through the retry
         // schedule and mark good mail as failed. The queue holds everything, and
         // it all goes out once Email:Host is set.
@@ -79,6 +88,66 @@ public class EmailDispatcher(StayHostDbContext db, IEmailSender sender, ILogger<
         if (due.Count > 0) await db.SaveChangesAsync(ct);
 
         return new(sent, retrying, givenUp);
+    }
+
+    /// <summary>
+    /// docs/01 TK-09 — turns a queued mail's CONTENT into the reader's language.
+    /// The frame around it was already composed by hand at queue time.
+    ///
+    /// One pass per mail, success or failure: TranslatedAt is stamped either
+    /// way, because the Vietnamese original is the designed fallback and a mail
+    /// must never sit in the queue waiting for a translator to feel better.
+    /// Secret-bearing mail never gets here — its RawTitle is null by design,
+    /// since a machine that "improves" one digit of a sign-in code locks a
+    /// person out with no error anywhere.
+    /// </summary>
+    private async Task TranslatePendingAsync(CancellationToken ct)
+    {
+        var pending = await db.EmailMessages
+            .Where(m => m.SentAt == null && !m.Undeliverable && m.TranslatedAt == null
+                        && m.Language != null && m.Language != "vi"
+                        && m.RawTitle != null && m.RawBody != null)
+            .OrderBy(m => m.Id)
+            .Take(20)
+            .ToListAsync(ct);
+
+        if (pending.Count == 0) return;
+
+        foreach (var mail in pending)
+        {
+            mail.TranslatedAt = DateTime.UtcNow;
+            if (!translation.Enabled) continue;
+
+            try
+            {
+                var title = await translation.TranslateAsync(mail.RawTitle, mail.Language, ct);
+                var body = await translation.TranslateAsync(mail.RawBody, mail.Language, ct);
+
+                if (title.Ok && body.Ok)
+                {
+                    // The columns are varchar(250)/varchar(4000); a translation
+                    // that overflows them must cost characters, not the sweep.
+                    var subject = title.Text!.Length > 250 ? title.Text[..250] : title.Text!;
+                    var composed = Emails.Compose(
+                        mail.Language, mail.ToName, title.Text!, body.Text!, mail.CtaUrl,
+                        machineTranslated: true);
+                    mail.Subject = subject;
+                    mail.Body = composed.Length > 4000 ? composed[..4000] : composed;
+                }
+                else
+                {
+                    log.LogWarning("Không dịch được thư {Id} sang {Lang}; gửi bản tiếng Việt.",
+                        mail.Id, mail.Language);
+                }
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                log.LogWarning(e, "Dịch thư {Id} sang {Lang} lỗi; gửi bản tiếng Việt.",
+                    mail.Id, mail.Language);
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
     }
 }
 

@@ -130,6 +130,32 @@ public class EmailMessage
 
     /// <summary>Set when the receiving server refused outright and always will.</summary>
     public bool Undeliverable { get; set; }
+
+    /// <summary>
+    /// docs/01 TK-09 — the reader's language. Null means unknown, which means
+    /// Vietnamese: exactly what every mail was before the column existed.
+    /// </summary>
+    public string? Language { get; set; }
+
+    /// <summary>
+    /// The untranslated title and body, kept apart from the assembled
+    /// <see cref="Body"/> so the dispatcher can machine-translate the CONTENT
+    /// while the frame stays hand-translated (Emails.Compose). Null on
+    /// secret-bearing mail — codes and tokens are never handed to a machine
+    /// that might "improve" a digit — and on everything queued before the
+    /// columns existed, which the dispatcher therefore leaves untouched.
+    /// </summary>
+    public string? RawTitle { get; set; }
+    public string? RawBody { get; set; }
+    /// <summary>The absolute link, already resolved at queue time.</summary>
+    public string? CtaUrl { get; set; }
+
+    /// <summary>
+    /// When the translation pass finished with this row — set even when the
+    /// translator failed, because the Vietnamese original is the designed
+    /// fallback and a mail must never sit in the queue waiting on a translator.
+    /// </summary>
+    public DateTime? TranslatedAt { get; set; }
 }
 
 /// <summary>

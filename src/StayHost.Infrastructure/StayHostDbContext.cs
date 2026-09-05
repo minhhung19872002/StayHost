@@ -1126,6 +1126,14 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Subject).HasMaxLength(250).IsRequired();
             e.Property(x => x.Body).HasMaxLength(4000).IsRequired();
             e.Property(x => x.Error).HasMaxLength(500);
+            // docs/01 TK-09 — the reader's language and the untranslated parts,
+            // so the dispatcher can translate content while the frame stays
+            // hand-made. All nullable: a row from before these columns is a
+            // Vietnamese mail and is sent exactly as it always was.
+            e.Property(x => x.Language).HasMaxLength(8);
+            e.Property(x => x.RawTitle).HasMaxLength(250);
+            e.Property(x => x.RawBody).HasMaxLength(4000);
+            e.Property(x => x.CtaUrl).HasMaxLength(500);
         });
 
         b.Entity<CalendarBlock>(e =>

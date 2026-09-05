@@ -500,6 +500,15 @@ function adoptAccountPreferences(me) {
     setTimeZone(me.timeZoneId);
     localStorage.setItem('sh_timezone', me.timeZoneId);
   }
+
+  // The other adoption: an account that has never chosen, signed into by a
+  // browser that has. Without this, the guest who browsed in 한국어 and then
+  // registered is silently reset to Vietnamese by their own new account the
+  // next time the account's null wins somewhere.
+  if (!me.language && !me.currency && !me.timeZoneId
+      && (state.language.code !== 'vi' || state.currency.code !== 'VND' || state.timeZone)) {
+    syncPreferences();
+  }
 }
 
 /*

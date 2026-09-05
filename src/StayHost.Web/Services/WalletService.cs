@@ -135,13 +135,19 @@ public class WalletService(StayHostDbContext db, NotificationService notificatio
 
         db.Referrals.Add(referral);
 
+        // docs/01 TK-09 — a referral goes to someone who by definition has no
+        // account here, so there is no language on file and null honestly means
+        // Vietnamese. The referral CODE is what the mail carries; RawTitle stays
+        // null so the machine-translation pass never touches it.
         db.EmailMessages.Add(new EmailMessage
         {
             ToEmail = trimmed,
             ToName = trimmed,
             Subject = $"{referrer.FullName} mời bạn dùng Staylio",
-            Body = $"Đăng ký bằng mã {referral.Code} và bạn được {CreditRules.InviteeReward:#,##0}₫ " +
-                   "vào số dư sau chuyến đi đầu tiên."
+            Body = Emails.Compose(null, trimmed,
+                $"{referrer.FullName} mời bạn dùng Staylio.",
+                $"Đăng ký bằng mã {referral.Code} và bạn được {CreditRules.InviteeReward:#,##0}₫ " +
+                "vào số dư sau chuyến đi đầu tiên.", null)
         });
 
         await db.SaveChangesAsync(ct);

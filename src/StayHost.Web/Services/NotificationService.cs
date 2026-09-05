@@ -48,12 +48,22 @@ public class NotificationService(
             return;
         }
 
+        // docs/01 TK-09 — the frame follows the reader's language right here,
+        // hand-translated and exact. The CONTENT is still the Vietnamese the
+        // call site composed; the dispatcher machine-translates it on the way
+        // out, and if that fails the reader gets a correct frame around the
+        // Vietnamese original — never a mail stuck waiting on a translator.
+        var url = site.Absolute(link);
         db.EmailMessages.Add(new EmailMessage
         {
             ToEmail = recipient.Email,
             ToName = recipient.FullName,
             Subject = title,
-            Body = BuildEmailBody(recipient.FullName, title, body, link)
+            Body = Emails.Compose(recipient.Language, recipient.FullName, title, body, url),
+            Language = recipient.Language,
+            RawTitle = title,
+            RawBody = body,
+            CtaUrl = url
         });
 
         log.LogInformation("Queued {Kind} notification for user {UserId}.", kind, recipient.Id);
@@ -73,12 +83,14 @@ public class NotificationService(
     {
         if (string.IsNullOrWhiteSpace(toEmail)) return;
 
+        // No account means no language on file, and null means Vietnamese —
+        // the only honest answer for a stranger.
         db.EmailMessages.Add(new EmailMessage
         {
             ToEmail = toEmail.Trim(),
             ToName = toName ?? "",
             Subject = title,
-            Body = BuildEmailBody(toName ?? "", title, body, link)
+            Body = Emails.Compose(null, toName ?? "", title, body, site.Absolute(link))
         });
 
         log.LogInformation("Queued a guest-checkout email to a person with no account.");
@@ -104,14 +116,11 @@ public class NotificationService(
         await db.SaveChangesAsync(ct);
     }
 
-    private string BuildEmailBody(string name, string title, string body, string? link)
-    {
-        // Absolute() answers null when this deployment has no public address, and
-        // then the line is left out entirely. A link the reader cannot click is
-        // worse than no link — and a host written into the source is exactly how
-        // this pointed at a domain the platform does not own for as long as it did.
-        var url = site.Absolute(link);
-        var cta = url is null ? "" : $"\n\nXem chi tiết: {url}";
-        return $"Chào {name},\n\n{title}\n\n{body}{cta}\n\n— Đội ngũ Staylio";
-    }
+    // The frame moved to Emails.Compose in the Domain, where the eight
+    // hand-translated versions live together and a ninth language cannot be
+    // added to the picker without the drift guard in EmailsTests noticing.
+    // site.Absolute still decides whether a link line exists at all: a link the
+    // reader cannot click is worse than no link, and a host written into the
+    // source is exactly how mails pointed at a domain the platform does not own
+    // for as long as they did.
 }

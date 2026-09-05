@@ -17,16 +17,21 @@ public class SplitBillService(StayHostDbContext db, ILogger<SplitBillService> lo
         {
             var user = await db.Users.FirstOrDefaultAsync(u => u.Email == share.Email, ct);
 
+            // docs/01 TK-09 — the frame follows the invitee's language when they
+            // have an account. The pay TOKEN in the body is a secret, so
+            // RawTitle stays null and the machine-translation pass skips this.
+            var name = share.Name ?? share.Email;
             db.EmailMessages.Add(new EmailMessage
             {
                 ToEmail = share.Email,
-                ToName = share.Name ?? share.Email,
+                ToName = name,
                 Subject = $"Trả phần của bạn cho chuyến đi {booking.Reference}",
-                Body =
-                    $"Bạn được mời cùng trả cho chuyến đi tại {booking.Listing?.Title}.\n" +
+                Body = Emails.Compose(user?.Language, name,
+                    $"Bạn được mời cùng trả cho chuyến đi tại {booking.Listing?.Title}.",
                     $"Phần của bạn: {share.Amount:#,##0}₫.\n" +
                     $"Mở liên kết này để trả: /split/{share.Token}\n" +
-                    "Liên kết có hiệu lực trong 24 giờ."
+                    "Liên kết có hiệu lực trong 24 giờ.", null),
+                Language = user?.Language
             });
 
             if (user is not null)
@@ -102,18 +107,34 @@ public class SplitBillService(StayHostDbContext db, ILogger<SplitBillService> lo
             .Include(b => b.Events)
             .FirstAsync(b => b.Id == split.BookingId, ct);
 
+        // One query for every payer's language, not one per share. Most shares
+        // belong to strangers with no account; null means Vietnamese.
+        var paidEmails = split.Shares
+            .Where(s => s.Status == BillShareStatus.Paid && s.Email != null)
+            .Select(s => s.Email!.ToLower()).ToList();
+        var languages = await db.Users
+            .Where(u => paidEmails.Contains(u.Email))
+            .ToDictionaryAsync(u => u.Email, u => u.Language, ct);
+
         foreach (var share in split.Shares.Where(s => s.Status == BillShareStatus.Paid))
         {
             db.LedgerEntries.AddRange(
                 Ledger.ReturnShare(booking.Id, booking.Reference, share.Amount, DateTime.UtcNow));
             share.Status = BillShareStatus.Returned;
 
+            var lang = share.Email != null && languages.TryGetValue(share.Email.ToLower(), out var l)
+                ? l : null;
+            var name = share.Name ?? share.Email;
             db.EmailMessages.Add(new EmailMessage
             {
                 ToEmail = share.Email,
-                ToName = share.Name ?? share.Email,
+                ToName = name,
                 Subject = $"Đã hoàn lại phần của bạn — đơn {booking.Reference}",
-                Body = $"{reason}\nSố tiền {share.Amount:#,##0}₫ đã được hoàn về phương thức bạn đã dùng."
+                Body = Emails.Compose(lang, name ?? "",
+                    $"Đã hoàn lại phần của bạn cho đơn {booking.Reference}.",
+                    $"{reason}\nSố tiền {share.Amount:#,##0}₫ đã được hoàn về phương thức bạn đã dùng.",
+                    null),
+                Language = lang
             });
         }
 
