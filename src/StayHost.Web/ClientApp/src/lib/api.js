@@ -358,6 +358,9 @@ export const api = {
   adminResolutions: () => request('/api/resolutions/admin'),
   decideResolution: (id, body) =>
     request(`/api/resolutions/${id}/decide`, { method: 'POST', body: JSON.stringify(body) }),
+  // docs/01 QT-06/TC-12 — an operator pins a display rate; the server flips it to Manual.
+  saveExchangeRate: (code, body) =>
+    request(`/api/admin/exchange-rates/${code}`, { method: 'PUT', body: JSON.stringify(body) }),
   saveTaxRule: (id, body) =>
     request(`/api/admin/tax-rules/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 

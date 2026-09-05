@@ -231,11 +231,62 @@ public class AdminController(
                 r.Value, r.SortOrder, r.IsActive))
             .ToListAsync(ct);
 
+        var now = DateTime.UtcNow;
+        var rates = await db.ExchangeRates
+            .OrderBy(r => r.SortOrder)
+            .ToListAsync(ct);
+        var rateDtos = rates.Select(r => new ExchangeRateDto(
+            r.Id, r.Code, r.Label, r.Symbol, r.RateFromVnd, r.SortOrder, r.IsActive,
+            r.Source.ToString(), r.UpdatedAt, Fx.Stale(r.UpdatedAt, now),
+            r.FeedRate, r.FeedFetchedAt)).ToList();
+
         var settings = PricingSettings.Current;
         return new PlatformSettingsDto(
             settings.GuestServiceFeeRate, settings.HostServiceFeeRate,
-            settings.MaxDiscountPercent, settings.DefaultCleaningFee, taxes);
+            settings.MaxDiscountPercent, settings.DefaultCleaningFee, taxes, rateDtos);
     }
+
+    /// <summary>
+    /// docs/01 QT-06/TC-12 — an operator sets a display rate by hand. Setting it
+    /// flips the row to Manual so a future feed never overwrites a person; the
+    /// rate itself only reaches what the guest SEES — money is charged in the
+    /// listing's own currency (docs/07 §6) and Pricing never reads this table.
+    /// </summary>
+    [HttpPut("admin/exchange-rates/{code}")]
+    public async Task<IActionResult> SaveExchangeRate(
+        string code, [FromBody] SaveExchangeRateRequest req, CancellationToken ct)
+    {
+        var admin = await audit.RequireAsync(AdminScope.Finance, ct);
+        if (admin is null) return StatusCode(403, new { message = "Bạn không có quyền cấu hình tỉ giá." });
+
+        var wanted = (code ?? "").Trim().ToUpperInvariant();
+        var rate = await db.ExchangeRates.FirstOrDefaultAsync(r => r.Code == wanted, ct);
+        if (rate is null) return NotFound();
+
+        if (!Fx.IsValidRate(rate.Code, req.RateFromVnd))
+            return BadRequest(new
+            {
+                message = rate.Code == Fx.Base
+                    ? "VND là tiền gốc — tỉ giá luôn là 1."
+                    : "Tỉ giá phải lớn hơn 0."
+            });
+
+        var before = Describe(rate);
+
+        rate.RateFromVnd = req.RateFromVnd;
+        rate.IsActive = req.IsActive;
+        rate.Source = ExchangeRateSource.Manual;
+        rate.UpdatedAt = DateTime.UtcNow;
+        rate.UpdatedByAdminId = admin.Id;
+
+        audit.Record(admin, "fx.update", $"fx:{rate.Code}", before, Describe(rate));
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    private static string Describe(ExchangeRate r) =>
+        $"{r.Code}: {r.RateFromVnd} ({(r.IsActive ? "bật" : "tắt")}, {r.Source})";
 
     [HttpPut("admin/tax-rules/{id:int}")]
     public async Task<IActionResult> SaveTaxRule(int id, [FromBody] TaxRuleDto req, CancellationToken ct)

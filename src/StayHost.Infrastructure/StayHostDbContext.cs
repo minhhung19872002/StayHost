@@ -40,6 +40,7 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
     public DbSet<GuidebookPlace> GuidebookPlaces => Set<GuidebookPlace>();
     public DbSet<GuestReview> GuestReviews => Set<GuestReview>();
     public DbSet<TaxRule> TaxRules => Set<TaxRule>();
+    public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
     public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
     public DbSet<BookingEvent> BookingEvents => Set<BookingEvent>();
     public DbSet<ResolutionCase> ResolutionCases => Set<ResolutionCase>();
@@ -1440,6 +1441,38 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.City).HasMaxLength(100);
             e.Property(x => x.Name).HasMaxLength(120).IsRequired();
             e.Property(x => x.Value).HasPrecision(12, 4);
+        });
+
+        // docs/02 §J, docs/01 QT-06/TC-12 — display exchange rates, next to the
+        // other operator-tunable money knob. Precision (20,12), not TaxRule's
+        // (12,4): one đồng in dollars is 0.0000392, which (12,4) rounds to zero.
+        b.Entity<ExchangeRate>(e =>
+        {
+            e.ToTable("exchange_rates");
+            e.HasIndex(x => x.Code).IsUnique();
+            e.Property(x => x.Code).HasMaxLength(3).IsRequired();
+            e.Property(x => x.Label).HasMaxLength(60).IsRequired();
+            e.Property(x => x.Symbol).HasMaxLength(8).IsRequired();
+            e.Property(x => x.RateFromVnd).HasPrecision(20, 12);
+            e.Property(x => x.FeedRate).HasPrecision(20, 12);
+
+            // Seeded IN THE MIGRATION, not in DbSeeder: the seeder only runs on
+            // a blank database, which is exactly how prod kept admin@stayhost.vn
+            // through the domain rename (CLAUDE.md §8.0). Seeding here means an
+            // existing production database gets its eight rows the moment it
+            // migrates, instead of a migrated-but-empty table and a currency
+            // picker with nothing in it. Values verbatim from the constants
+            // CatalogService compiled in until 05/09/2026.
+            var seededAt = new DateTime(2026, 9, 5, 0, 0, 0, DateTimeKind.Utc);
+            e.HasData(
+                new ExchangeRate { Id = 1, Code = "VND", Label = "Việt Nam Đồng", Symbol = "₫", RateFromVnd = 1m, SortOrder = 0, UpdatedAt = seededAt },
+                new ExchangeRate { Id = 2, Code = "USD", Label = "US Dollar", Symbol = "$", RateFromVnd = 0.0000392m, SortOrder = 1, UpdatedAt = seededAt },
+                new ExchangeRate { Id = 3, Code = "EUR", Label = "Euro", Symbol = "€", RateFromVnd = 0.0000362m, SortOrder = 2, UpdatedAt = seededAt },
+                new ExchangeRate { Id = 4, Code = "JPY", Label = "Japanese Yen", Symbol = "¥", RateFromVnd = 0.00596m, SortOrder = 3, UpdatedAt = seededAt },
+                new ExchangeRate { Id = 5, Code = "KRW", Label = "South Korean Won", Symbol = "₩", RateFromVnd = 0.0535m, SortOrder = 4, UpdatedAt = seededAt },
+                new ExchangeRate { Id = 6, Code = "SGD", Label = "Singapore Dollar", Symbol = "S$", RateFromVnd = 0.0000508m, SortOrder = 5, UpdatedAt = seededAt },
+                new ExchangeRate { Id = 7, Code = "AUD", Label = "Australian Dollar", Symbol = "A$", RateFromVnd = 0.0000602m, SortOrder = 6, UpdatedAt = seededAt },
+                new ExchangeRate { Id = 8, Code = "GBP", Label = "British Pound", Symbol = "£", RateFromVnd = 0.0000309m, SortOrder = 7, UpdatedAt = seededAt });
         });
 
         b.Entity<LedgerEntry>(e =>

@@ -28,7 +28,13 @@ public class CatalogService(StayHostDbContext db)
         new("shared", "Phòng chung", "Ngủ chung phòng với khách khác")
     ];
 
-    private static readonly CurrencyDto[] Currencies =
+    /// <summary>
+    /// docs/01 QT-06/TC-12 — the live list is exchange_rates in the database,
+    /// operator-editable; this array is only the fallback for a database that
+    /// has not migrated yet, because an empty currency picker is worse than a
+    /// stale one. Rates here stopped being maintained on 05/09/2026.
+    /// </summary>
+    private static readonly CurrencyDto[] DefaultCurrencies =
     [
         new("VND", "Việt Nam Đồng", "₫", 1m),
         new("USD", "US Dollar", "$", 0.0000392m),
@@ -67,6 +73,16 @@ public class CatalogService(StayHostDbContext db)
 
     public async Task<MetaDto> GetMetaAsync(CancellationToken ct)
     {
+        // docs/01 QT-06/TC-12 — rates come from the database so an operator can
+        // change one without a deploy. An eight-row indexed read; /api/meta must
+        // never gain an outbound HTTP call, since it is on every first paint.
+        var currencies = await db.ExchangeRates
+            .Where(r => r.IsActive)
+            .OrderBy(r => r.SortOrder)
+            .Select(r => new CurrencyDto(r.Code, r.Label, r.Symbol, r.RateFromVnd))
+            .ToListAsync(ct);
+        if (currencies.Count == 0) currencies = DefaultCurrencies.ToList();
+
         var counts = await db.Listings
             .GroupBy(l => l.Type)
             .Select(g => new { Type = g.Key, Count = g.Count() })
@@ -115,7 +131,7 @@ public class CatalogService(StayHostDbContext db)
             Math.Floor(min / 100_000m) * 100_000m,
             Math.Ceiling(max / 100_000m) * 100_000m,
             histogram,
-            Currencies,
+            currencies,
             Languages,
             new FeesDto(
                 PricingSettings.Current.GuestServiceFeeRate,

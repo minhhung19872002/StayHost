@@ -308,6 +308,13 @@ export function TransactionsPanel() {
                 <td>
                   {money(tx.amount)}
                   {tx.refunded > 0 && <span>{t('đã hoàn')} {money(tx.refunded)}</span>}
+                  {/* docs/07 §6 — what the guest was reading prices in, frozen
+                      at booking time. This is the line that settles "the price
+                      I was shown"; it stayed null for 155 bookings because no
+                      client ever sent the field. */}
+                  {tx.displayCurrency && (
+                    <span>{t('khách xem giá bằng')} {tx.displayCurrency} @ {tx.displayRate}</span>
+                  )}
                 </td>
                 <td>{tx.bookingStatusLabel}<span>{tx.paymentStatus}</span></td>
                 <td>

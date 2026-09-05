@@ -974,5 +974,7 @@ public class FinanceController(
             ? null
             : Payouts.HoldLabel(b.Payment.PayoutHoldReason),
         b.Payment.PayoutReference,
-        b.Payment.CreatedAt);
+        b.Payment.CreatedAt,
+        b.DisplayCurrency,
+        b.DisplayRate);
 }

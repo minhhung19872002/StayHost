@@ -93,6 +93,7 @@ export function Admin() {
       <DataRequestsPanel />
       <OversightPanel />
       <TaxRules settings={d.settings} />
+      <ExchangeRates settings={d.settings} />
       <AuditLog rows={d.auditLog} />
 
       <section style={{ marginTop: 40 }}>
@@ -996,6 +997,76 @@ function TaxRules({ settings }) {
                          onChange={e => patch(r.id, 'isActive', e.target.checked)} />
                 </td>
                 <td><button className="btn btn-outline btn-sm" onClick={() => save(r)}>{t('Lưu')}</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+/*
+ * docs/02 §J, docs/01 QT-06/TC-12 — the display exchange rates, next to the
+ * taxes. Until 05/09/2026 these were constants compiled into CatalogService,
+ * drifting from the day of each deploy; now they are rows an operator can
+ * edit, and the screen shows when each was last touched so drift is something
+ * a person can see rather than something a redeploy hides. Rates are
+ * display-only: money is charged in the listing's own currency (docs/07 §6).
+ */
+function ExchangeRates({ settings }) {
+  const [rows, setRows] = useState(settings?.exchangeRates ?? []);
+  if (!settings || !rows.length) return null;
+
+  const save = async row => {
+    try {
+      await api.saveExchangeRate(row.code, { rateFromVnd: Number(row.rateFromVnd), isActive: row.isActive });
+      toast('Đã lưu tỉ giá.');
+    } catch (err) { toast(err.message); }
+  };
+
+  const patch = (code, key, value) =>
+    setRows(rs => rs.map(r => (r.code === code ? { ...r, [key]: value } : r)));
+
+  return (
+    <section style={{ marginTop: 40 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Tỉ giá hiển thị')}</h2>
+      <p className="section-sub">
+        {t('Chỉ đổi cách hiện giá cho khách xem. Tiền luôn thu bằng đồng Việt Nam.')}
+      </p>
+
+      <div className="table-wrap" style={{ marginTop: 16 }}>
+        <table className="admin-table">
+          <thead>
+            <tr><th>{t('Tiền tệ')}</th><th>{t('1₫ đổi ra')}</th><th>{t('Cập nhật')}</th><th>{t('Bật')}</th><th /></tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.code}>
+                <td><b>{r.code}</b><span>{r.label} · {r.symbol}</span></td>
+                <td>
+                  <input type="number" step="0.0000001" min="0" value={r.rateFromVnd}
+                         disabled={r.code === 'VND'} style={{ width: 150 }}
+                         onChange={e => patch(r.code, 'rateFromVnd', e.target.value)} />
+                </td>
+                <td>
+                  {dateTime(r.updatedAt)}
+                  <span>
+                    {t(r.source === 'Manual' ? 'Người trực đặt tay' : 'Chờ nguồn cấp tự động')}
+                    {/* docs/07 §6 wants six-hourly; older than that is worth
+                        saying out loud rather than leaving as a timestamp
+                        somebody has to do arithmetic on. */}
+                    {r.stale && <> · <b style={{ color: 'var(--brand-dark)' }}>{t('đã cũ')}</b></>}
+                  </span>
+                </td>
+                <td>
+                  <input type="checkbox" checked={r.isActive} disabled={r.code === 'VND'}
+                         onChange={e => patch(r.code, 'isActive', e.target.checked)} />
+                </td>
+                <td>
+                  {r.code !== 'VND' &&
+                    <button className="btn btn-outline btn-sm" onClick={() => save(r)}>{t('Lưu')}</button>}
+                </td>
               </tr>
             ))}
           </tbody>

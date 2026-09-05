@@ -862,6 +862,16 @@ export function PriceLines({ q, className = '' }) {
       ))}
       <div className="book-rule" />
       <div className="book-total"><span>{t('Tổng')} ({state.currency.code})</span><span>{money(q.total)}</span></div>
+      {/* docs/07 §6 — a converted figure is a courtesy, and the section says so
+          out loud: show the original beside it, and say the bank's own rate
+          decides what actually leaves the card. Grep found neither the original
+          price nor any such note anywhere in the client before this. */}
+      {state.currency.code !== 'VND' && (
+        <p className="section-sub" style={{ margin: '8px 0 0', fontSize: 12.5, lineHeight: 1.5 }}>
+          {t('Giá gốc')}: {new Intl.NumberFormat('vi-VN').format(Math.round(q.total))}₫. {' '}
+          {t('Bạn được thu bằng tiền Việt; số tiền trên thẻ theo tỉ giá của ngân hàng bạn.')}
+        </p>
+      )}
     </div>
   );
 }

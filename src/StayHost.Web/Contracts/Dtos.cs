@@ -773,7 +773,22 @@ public record PlatformSettingsDto(
     decimal HostServiceFeeRate,
     int MaxDiscountPercent,
     decimal DefaultCleaningFee,
-    IReadOnlyList<TaxRuleDto> TaxRules);
+    IReadOnlyList<TaxRuleDto> TaxRules,
+    /// <summary>docs/01 QT-06/TC-12 — the display rates, editable next to the taxes.</summary>
+    IReadOnlyList<ExchangeRateDto> ExchangeRates);
+
+/// <summary>
+/// One display rate on the config screen. Stale is computed server-side from
+/// Fx.RefreshInterval (docs/07 §6's six hours) so the screen and the rule
+/// cannot disagree about what "old" means.
+/// </summary>
+public record ExchangeRateDto(
+    int Id, string Code, string Label, string Symbol,
+    decimal RateFromVnd, int SortOrder, bool IsActive,
+    string Source, DateTime UpdatedAt, bool Stale,
+    decimal? FeedRate, DateTime? FeedFetchedAt);
+
+public record SaveExchangeRateRequest(decimal RateFromVnd, bool IsActive);
 
 public record TaxRuleDto(
     int Id, string Country, string? City, string Name,
@@ -1512,9 +1527,14 @@ public record CreateBookingRequest(
     int Pets = 0,
     /// <summary>docs/01 MR-09 — which kind of room, when the listing is a hotel.</summary>
     int? RoomTypeId = null,
-    /// <summary>docs/07 §6 — what the guest was reading prices in, and at what rate.</summary>
+    /// <summary>
+    /// docs/07 §6 — what the guest was reading prices in. The RATE is looked up
+    /// server-side and stamped from exchange_rates: a rate the guest's own
+    /// browser supplied is worthless as the evidence this column exists to be,
+    /// and the field that once accepted one is gone so no caller can bring the
+    /// trust back.
+    /// </summary>
     string? DisplayCurrency = null,
-    decimal? DisplayRate = null,
     /// <summary>Spend the guest's balance on this booking, up to the room charge.</summary>
     bool UseCredit = false,
     /// <summary>docs/01 ĐP-09 — a promo code, applied before the balance.</summary>
@@ -2789,7 +2809,16 @@ public record TransactionDto(
     string PayoutStatus,
     string? PayoutHoldReason,
     string? PayoutReference,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    /// <summary>
+    /// docs/07 §6 — what the guest was reading prices in when they booked, at
+    /// the platform's own rate of that instant. Evidence for "the price I was
+    /// shown", never an input: refunds go back at the original amount in the
+    /// original currency, and recomputing one through this rate would be a
+    /// money bug that balances to zero.
+    /// </summary>
+    string? DisplayCurrency = null,
+    decimal? DisplayRate = null);
 
 public record ManualRefundRequest(decimal Amount, string? Reason);
 

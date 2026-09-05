@@ -1218,6 +1218,55 @@ tên đủ 22 mã thẻ chưa-trả-tiền lọt vào lịch sử.
 
 **203 vẫn là 203** — F1 là màn hình của `docs/02`; vế múi giờ thuộc `TK-09` đã tick.
 
+### 9.16. Tỉ giá là cấu hình, không phải hằng số (05/09/2026)
+
+`docs/02 §J` và `docs/05` đều kê **tỉ giá** vào "Cấu hình hệ thống" (`QT-06`,
+`TC-12`), nhưng tám tỉ giá nằm trong một mảng hằng số biên dịch vào
+`CatalogService` — trôi khỏi thị trường từ ngày deploy, và không nơi nào nói ra.
+Kèm theo một cột chết: `bookings.DisplayCurrency/DisplayRate` — bằng chứng
+"giá tôi đã xem" của `docs/07 §6` — **null trên cả 155 đơn**, vì phía ghi tin vào
+một trường request mà không client nào từng gửi.
+
+**Đã làm:**
+
+1. Bảng `exchange_rates` (precision `20,12` — `(12,4)` của `TaxRule` làm tròn USD
+   về 0), **seed bằng `InsertData` trong migration chứ không phải `DbSeeder`** —
+   seeder chỉ chạy trên DB trắng, đúng cái cách prod giữ `admin@stayhost.vn` qua
+   đợt đổi tên miền. Hai bẫy mặc định đều tránh chủ động: `IsActive` mặc định
+   **true** (dòng tồn tại vì đang được bán), `Source` mặc định **Feed** (enum
+   xếp `Feed = 0`) để job cập nhật sau này không thành no-op.
+2. `/api/meta` đọc từ DB — **đổi tỉ giá là khách thấy ngay, không redeploy**
+   (kiểm sống: UPDATE → curl → số mới). Không cache, không HTTP ra ngoài: đường
+   này nằm trên first paint của mọi khách.
+3. `PUT /api/admin/exchange-rates/{code}` — scope Tài chính, nhật ký QT-09, đặt
+   tay là dòng **chuyển sang `Manual`** để feed sau này không đè lên người trực.
+   VND ghim bằng 1 (`Fx.IsValidRate`): một dòng VND ≠ 1 co giãn **mọi** giá trên
+   sàn trong một lần gõ. Bảng soạn trong trang quản trị cạnh thuế, hiện "đã cũ"
+   theo mốc 6 giờ của `docs/07 §6` (`Fx.Stale`).
+4. **Sửa cột chết đúng cách:** client gửi `displayCurrency` (mã tiền, không phải
+   tỉ giá); server tra `exchange_rates` và tự đóng dấu. Trường `DisplayRate` **bỏ
+   hẳn khỏi request DTO** để không caller nào đem niềm tin đó quay lại. Cặp đóng
+   băng hiện ở tra cứu giao dịch của quản trị (QT-04) — một cột không ai đọc là
+   cách nó null suốt nhiều tháng.
+5. Chỗ hiện tổng đã quy đổi giờ kèm **giá gốc VND** và câu "số tiền trên thẻ theo
+   tỉ giá của ngân hàng bạn" — `docs/07 §6` đòi mà grep ra 0 chỗ có.
+
+**`Fx.cs` nằm ngoài `Pricing.cs` một cách cố ý** — tiền luôn thu bằng tiền của tin
+đăng; một tỉ giá lọt vào `Pricing.Quote` là một con số quy đổi lọt vào dòng giá,
+mà dòng giá đổ vào sổ. `Pricing` giữ nguyên VND-only.
+
+**Chờ khách, ghi rõ thay vì làm mù:** nguồn cấp tự động (docs/07 §6 muốn 6
+giờ/lần; feed miễn phí phần lớn công bố VND theo ngày — có khi là bài toán mua
+nguồn chứ không phải bài toán code), câu điều khoản pháp lý về chênh lệch, và
+có áp spread hay không. Worker **không dựng trước** khi chưa có nguồn thật để
+gọi — một `.cs` không ai chạy là đúng cái bẫy §9.6.
+
+**Nghiệm thu:** `python scripts/fx_acceptance.py` — 7 kịch bản. Đã chứng minh
+lưới bung: tắt việc đóng dấu phía server thì kịch bản 6 FAIL với `dong bang=''`.
+Trên DB trắng, migration tự cho ra 8 dòng — kiểm sau một lượt `DROP SCHEMA`.
+
+**203 vẫn là 203** — `QT-06`/`TC-12` vốn đã tick; đây là chỗ chưa nối dây.
+
 ---
 
 ## Kiểm chứng
@@ -1268,6 +1317,9 @@ python scripts/hostreport_acceptance.py
 
 # 8 kịch bản của §9.15 — trang cài đặt và lịch sử trả tiền
 python scripts/settings_acceptance.py
+
+# 7 kịch bản của §9.16 — tỉ giá là cấu hình; đơn đặt đóng băng tỉ giá của sàn
+python scripts/fx_acceptance.py
 ```
 
 ## Ghi chú về quy mô

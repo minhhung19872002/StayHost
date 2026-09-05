@@ -740,6 +740,10 @@ export async function holdDates(extra = {}) {
       agreedToRules: state.agreedToRules,
       // docs/07 §2.5 — required when there is no account behind the booking.
       guestPhone: state.checkoutPhone || undefined,
+      // docs/07 §6 — the currency this screen is rendering prices in. The rate
+      // is stamped server-side; until 05/09/2026 neither field was ever sent,
+      // which is why every booking's snapshot was null.
+      displayCurrency: state.currency.code,
       ...extra
     });
     set({ held });

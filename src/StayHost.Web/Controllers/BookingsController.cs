@@ -230,6 +230,19 @@ public class BookingsController(
         var byTransfer = !PaymentMethods.ChargesOnBooking(req.PaymentMethod);
         var holdFor = byTransfer ? BankTransfers.Window : BookingLifecycle.PaymentHold;
 
+        // docs/07 §6 — freeze what the guest was reading prices in, at the
+        // platform's own rate. All 155 bookings before 05/09/2026 have null
+        // here: the writer trusted a request field no client ever sent.
+        string? displayCurrency = null;
+        decimal? displayRate = null;
+        var wantedCurrency = (req.DisplayCurrency ?? "").Trim().ToUpperInvariant();
+        if (wantedCurrency.Length > 0 && wantedCurrency != Fx.Base)
+        {
+            var fx = await db.ExchangeRates
+                .FirstOrDefaultAsync(r => r.Code == wantedCurrency && r.IsActive, ct);
+            if (fx is not null) { displayCurrency = fx.Code; displayRate = fx.RateFromVnd; }
+        }
+
         var booking = new Booking
         {
             Reference = "SH" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant(),
@@ -265,9 +278,13 @@ public class BookingsController(
             CouponDiscount = price.Coupon,
             NightlyOverride = offer?.NightlyRate,
             // docs/07 §6 — kept so "the price I was shown" can be settled from
-            // the record. Only a rate that could have been real is stored.
-            DisplayCurrency = string.IsNullOrWhiteSpace(req.DisplayCurrency) ? null : req.DisplayCurrency.Trim(),
-            DisplayRate = req.DisplayRate is > 0 ? req.DisplayRate : null,
+            // the record. The rate is the platform's own at this instant, looked
+            // up below — never one the browser claimed. Evidence, not an input:
+            // refunds go back at the original amount in the original currency,
+            // and recomputing one through this rate would be a money bug that
+            // balances to zero.
+            DisplayCurrency = displayCurrency,
+            DisplayRate = displayRate,
             CancellationTier = listing.CancellationTier,
             GuestName = req.GuestName ?? user?.FullName,
             GuestEmail = req.GuestEmail ?? user?.Email,
