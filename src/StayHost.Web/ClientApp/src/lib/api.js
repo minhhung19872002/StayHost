@@ -365,7 +365,9 @@ export const api = {
   // docs/01 TC-04 — the host's tax year. No year asked for means the newest one.
   taxReport: year => request(`/api/host/tax-report${year ? `?year=${year}` : ''}`),
   // docs/01 QL-16 — per-listing views, saves, bookings, conversion, occupancy.
-  performance: days => request(`/api/host/performance?days=${days ?? 30}`),
+  // docs/02 G7 — money by month, each listing against its own market, and
+  // the six review categories over time.
+  hostReport: days => request(`/api/host/report?days=${days ?? 30}`),
   report: body => request('/api/reports', { method: 'POST', body: JSON.stringify(body) }),
   // docs/01 AT-02 — the reasons live on the server so a listing and a review are
   // never offered the same list by two copies drifting apart.

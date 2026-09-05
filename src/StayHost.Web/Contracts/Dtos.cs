@@ -1317,7 +1317,52 @@ public record CityPageDto(
 public record ListingPerformanceDto(
     int ListingId, string Title, bool IsPublished,
     int Views, int Saves, int Bookings,
-    double ConversionPercent, double OccupancyPercent);
+    double ConversionPercent, double OccupancyPercent,
+    /// <summary>
+    /// docs/02 G7 — what the room actually sold for per night over the window.
+    /// Zero when nothing sold, which is a fact rather than a gap.
+    /// </summary>
+    decimal AvgNightlyRate,
+    /// <summary>The going rate for comparable places in the same city (CN-10's sample).</summary>
+    decimal MarketMedian,
+    /// <summary>How many places that median rests on. A small sample says so.</summary>
+    int MarketSample);
+
+/* ----------------------------------------------------- docs/02 G7 — báo cáo */
+
+/// <summary>
+/// One month of a host's earnings, split by whether the money has actually
+/// arrived.
+///
+/// The split is the point of the block. <see cref="PayoutStatus.Paid"/> is the
+/// only state that means the bank moved it — <c>Sent</c> is a line on a file
+/// somebody still has to put through internet banking, and telling a host that
+/// is "đã trả" would be the screen making a promise the ledger has not posted.
+/// </summary>
+public record ReportMonthDto(
+    string Label, int Year, int Month,
+    decimal Paid, decimal Upcoming, int Nights);
+
+/// <summary>
+/// docs/02 G7 — the six category scores of a month's reviews, so a host can see
+/// which one is sliding rather than only that the average moved.
+/// </summary>
+public record ReportReviewMonthDto(
+    string Label, int Year, int Month, int Count,
+    double Overall, double Cleanliness, double Accuracy,
+    double CheckIn, double Communication, double Location, double Value);
+
+/// <summary>
+/// docs/02 G7 — the whole report: money over time, how each listing is doing
+/// against its own market, and where the reviews are heading.
+/// </summary>
+public record HostReportDto(
+    int WindowDays,
+    IReadOnlyList<ReportMonthDto> Months,
+    IReadOnlyList<ListingPerformanceDto> Listings,
+    IReadOnlyList<ReportReviewMonthDto> Reviews,
+    /// <summary>Reviews behind the trend. Under this there is no trend to read.</summary>
+    int ReviewCount);
 
 /* ------------------------------------------------------- TC-04 tax report */
 

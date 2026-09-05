@@ -646,8 +646,8 @@ public class HostOperationsController(
     /// The view counts have been collected all along (listing_views); this is the
     /// first thing that reads them back.
     /// </summary>
-    [HttpGet("performance")]
-    public async Task<ActionResult<IReadOnlyList<ListingPerformanceDto>>> Performance(
+    [HttpGet("report")]
+    public async Task<ActionResult<HostReportDto>> Report(
         [FromQuery] int days, CancellationToken ct)
     {
         var (user, profile) = await ResolveAsync(ct);
@@ -662,9 +662,10 @@ public class HostOperationsController(
 
         var listings = await db.Listings
             .Where(l => l.HostId == profile.Id)
-            .Select(l => new { l.Id, l.Title, l.IsPublished })
+            .Select(l => new { l.Id, l.Title, l.IsPublished, l.City, l.RoomType, l.Bedrooms })
             .ToListAsync(ct);
-        if (listings.Count == 0) return Ok(Array.Empty<ListingPerformanceDto>());
+        if (listings.Count == 0)
+            return Ok(new HostReportDto(window, [], [], [], 0));
 
         var ids = listings.Select(l => l.Id).ToList();
 
@@ -704,19 +705,169 @@ public class HostOperationsController(
             .ToDictionary(g => g.Key,
                 g => g.Sum(b => Domain.Performance.NightsInWindow(b.CheckIn, b.CheckOut, from, today)));
 
+        // docs/02 G7 "giá trung bình" — what the rooms actually sold for over the
+        // window, which is not the asking price: a host who discounts to fill the
+        // calendar is charging less than their listing says, and this is the
+        // number that says so.
+        var sold = await db.Bookings
+            .Where(b => ids.Contains(b.ListingId)
+                        && BookingLifecycle.BlocksDates.Contains(b.Status)
+                        && b.CheckOut > from && b.CheckIn < today)
+            .Select(b => new { b.ListingId, b.RoomBeforeDiscount, b.RoomDiscount, b.Nights })
+            .ToListAsync(ct);
+
+        var achieved = sold
+            .GroupBy(b => b.ListingId)
+            .ToDictionary(
+                g => g.Key,
+                g => Domain.Performance.AchievedNightlyRate(
+                    g.Sum(b => b.RoomBeforeDiscount - b.RoomDiscount), g.Sum(b => b.Nights)));
+
+        // docs/02 G7 "so sánh với chỗ tương tự trong khu vực". One query for every
+        // city this host is in, then compared listing by listing on exactly the
+        // terms CN-10 uses — same city, same room type, within a bedroom either
+        // way — because a studio and a five-bedroom villa are not each other's
+        // market. Pulled once rather than per listing: a host with twelve places
+        // in one city would otherwise ask the same question twelve times.
+        var cities = listings.Select(l => l.City).Distinct().ToList();
+        var market = await db.Listings
+            .Where(l => l.IsPublished && l.ReviewStatus == ListingReviewStatus.Approved
+                        && cities.Contains(l.City))
+            .Select(l => new { l.City, l.RoomType, l.Bedrooms, l.PricePerNight })
+            .ToListAsync(ct);
+
         var rows = listings.Select(l =>
         {
             var v = views.GetValueOrDefault(l.Id);
             var bk = bookingCounts.GetValueOrDefault(l.Id);
             var nights = nightsBooked.GetValueOrDefault(l.Id);
+
+            var peers = market
+                .Where(m => m.City == l.City && m.RoomType == l.RoomType
+                            && m.Bedrooms >= l.Bedrooms - 1 && m.Bedrooms <= l.Bedrooms + 1)
+                .Select(m => m.PricePerNight)
+                .OrderBy(p => p)
+                .ToList();
+
             return new ListingPerformanceDto(
                 l.Id, l.Title, l.IsPublished,
                 v, saves.GetValueOrDefault(l.Id), bk,
                 Math.Round(Domain.Performance.ConversionRate(bk, v) * 100, 1),
-                Math.Round(Domain.Performance.OccupancyRate(nights, window) * 100, 1));
+                Math.Round(Domain.Performance.OccupancyRate(nights, window) * 100, 1),
+                achieved.GetValueOrDefault(l.Id),
+                Domain.Performance.Percentile(peers, 0.5),
+                peers.Count);
         }).OrderByDescending(r => r.Views).ToList();
 
-        return Ok(rows);
+        var months = await EarningsByMonthAsync(ids, today, ct);
+        var (reviews, reviewCount) = await ReviewTrendAsync(ids, today, ct);
+
+        return Ok(new HostReportDto(window, months, rows, reviews, reviewCount));
+    }
+
+    /// <summary>How far back the two time series in docs/02 G7 look.</summary>
+    private const int ReportMonths = 12;
+
+    /// <summary>
+    /// docs/02 G7 "Thu nhập: biểu đồ theo tháng, đã trả và sắp trả".
+    ///
+    /// Bucketed by the month the stay ended, because that is the month the host
+    /// earned it — not the month the bank happened to move the money, which
+    /// would put one stay's income in whichever month the payout run fell in.
+    ///
+    /// The split is the point. <see cref="PayoutStatus.Paid"/> is the only state
+    /// that means the bank executed the transfer; <c>Sent</c> is a line on a file
+    /// somebody still has to put through internet banking, and calling that "đã
+    /// trả" would have the screen promising what the ledger has not posted.
+    /// </summary>
+    private async Task<IReadOnlyList<ReportMonthDto>> EarningsByMonthAsync(
+        List<int> listingIds, DateOnly today, CancellationToken ct)
+    {
+        var first = new DateOnly(today.Year, today.Month, 1).AddMonths(-(ReportMonths - 1));
+
+        var stays = await db.Bookings
+            .Where(b => listingIds.Contains(b.ListingId)
+                        && BookingLifecycle.BlocksDates.Contains(b.Status)
+                        && b.CheckOut >= first)
+            .Select(b => new
+            {
+                b.CheckOut,
+                b.Nights,
+                Payout = b.Payment != null ? b.Payment.HostPayout : b.HostPayout,
+                Status = b.Payment != null ? b.Payment.PayoutStatus : PayoutStatus.Scheduled
+            })
+            .ToListAsync(ct);
+
+        var byMonth = stays
+            .GroupBy(s => new DateOnly(s.CheckOut.Year, s.CheckOut.Month, 1))
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Every month in the run, including the ones that earned nothing: a chart
+        // drawn from a GROUP BY alone joins March straight to June and says
+        // business was steady when in fact it stopped.
+        return Domain.Performance.MonthsBetween(first, today)
+            .Select(m =>
+            {
+                var rows = byMonth.GetValueOrDefault(m) ?? [];
+                return new ReportMonthDto(
+                    $"{m.Month:00}/{m.Year}", m.Year, m.Month,
+                    rows.Where(r => r.Status == PayoutStatus.Paid).Sum(r => r.Payout),
+                    rows.Where(r => r.Status != PayoutStatus.Paid).Sum(r => r.Payout),
+                    rows.Sum(r => r.Nights));
+            })
+            .ToList();
+    }
+
+    /// <summary>
+    /// docs/02 G7 "Đánh giá: điểm theo hạng mục qua thời gian".
+    ///
+    /// The overall star average is already on every listing; what it cannot show
+    /// is which of the six is dragging it. A host whose score slipped from 4.9 to
+    /// 4.6 can act on "cleanliness fell in July" and can do nothing at all with
+    /// "the average fell".
+    /// </summary>
+    private async Task<(IReadOnlyList<ReportReviewMonthDto> Months, int Total)> ReviewTrendAsync(
+        List<int> listingIds, DateOnly today, CancellationToken ct)
+    {
+        var first = new DateOnly(today.Year, today.Month, 1).AddMonths(-(ReportMonths - 1));
+        var firstUtc = DateTime.SpecifyKind(first.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+
+        var written = await db.Reviews
+            .Where(r => listingIds.Contains(r.ListingId) && r.PublishedAt != null && r.CreatedAt >= firstUtc)
+            .Select(r => new
+            {
+                r.CreatedAt, r.Rating,
+                r.Cleanliness, r.Accuracy, r.CheckIn, r.Communication, r.Location, r.Value
+            })
+            .ToListAsync(ct);
+
+        var byMonth = written
+            .GroupBy(r => new DateOnly(r.CreatedAt.Year, r.CreatedAt.Month, 1))
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Only the months that have a review are returned. An empty month in a
+        // score series is not a zero — nobody rated this place a nought — and
+        // drawing it as one would invent a collapse that never happened. This is
+        // the opposite call from the earnings series above, where an empty month
+        // really does mean nothing was earned.
+        var months = Domain.Performance.MonthsBetween(first, today)
+            .Where(byMonth.ContainsKey)
+            .Select(m =>
+            {
+                var rows = byMonth[m];
+                return new ReportReviewMonthDto(
+                    $"{m.Month:00}/{m.Year}", m.Year, m.Month, rows.Count,
+                    Math.Round(rows.Average(r => r.Rating), 2),
+                    Math.Round(rows.Average(r => r.Cleanliness), 2),
+                    Math.Round(rows.Average(r => r.Accuracy), 2),
+                    Math.Round(rows.Average(r => r.CheckIn), 2),
+                    Math.Round(rows.Average(r => r.Communication), 2),
+                    Math.Round(rows.Average(r => r.Location), 2),
+                    Math.Round(rows.Average(r => r.Value), 2));
+            })
+            .ToList();
+
+        return (months, written.Count);
     }
 
     /* ------------------------------------------------------------- TC-04 */

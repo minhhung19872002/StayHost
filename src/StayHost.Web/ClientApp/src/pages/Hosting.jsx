@@ -1074,7 +1074,6 @@ function Earnings({ d }) {
     );
   }
 
-  const max = Math.max(...d.earningsByMonth.map(m => Number(m.amount)), 1);
   const pct = Math.round(hostRate * 100);
 
   return (
@@ -1097,23 +1096,7 @@ function Earnings({ d }) {
         </div>
       </div>
 
-      <section style={{ marginTop: 34 }}>
-        <div className="page-head" style={{ marginBottom: 0 }}>
-          <h2 className="section-title" style={{ fontSize: 20 }}>{t('Theo tháng nhận phòng')}</h2>
-          <a className="btn btn-outline btn-sm" href="/api/host/earnings.csv" download>{t('Tải file doanh thu')}</a>
-        </div>
-        <div className="bar-chart">
-          {d.earningsByMonth.map(m => (
-            <div className="bar-col" key={m.month} title={`${m.month}: ${money(m.amount)} · ${m.nights} ${t('đêm')}`}>
-              <div className="bar" style={{ height: `${Math.max(4, (Number(m.amount) / max) * 100)}%` }} />
-              <span className="bar-label">{m.month}</span>
-              <span className="bar-value">{money(m.amount)}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <PerformanceReport />
+      <HostReport />
       <TaxReport />
 
       <section style={{ marginTop: 34 }}>
@@ -1236,22 +1219,75 @@ function TaxReport() {
   );
 }
 
-/**
- * docs/01 QL-16, docs/02 G7 — how each listing is doing. The view counts have
- * been recorded all along; this is the screen that finally reads them back, next
- * to saves, bookings and the two rates derived from them.
+/*
+ * docs/02 G7 — the host's report, in the four blocks the screen asks for.
+ *
+ * Three of them were already here in pieces: the view counts (QL-16), the tax
+ * year (TC-04) and the improvement checklist (QL-18). What was missing is what
+ * turns numbers into a decision — money split by whether it has actually
+ * arrived, the rate a room really sold for next to what the neighbours charge,
+ * and which of the six review categories is moving.
  */
-function PerformanceReport() {
-  const [rows, setRows] = useState(null);
+const REVIEW_CATEGORIES = [
+  ['cleanliness', 'Mức độ sạch sẽ'], ['accuracy', 'Độ chính xác'], ['checkIn', 'Nhận phòng'],
+  ['communication', 'Giao tiếp'], ['location', 'Vị trí'], ['value', 'Giá trị']
+];
+
+function HostReport() {
+  const [report, setReport] = useState(null);
   const [days, setDays] = useState(30);
 
   useEffect(() => {
-    api.performance(days).then(setRows).catch(err => toast(err.message));
+    api.hostReport(days).then(setReport).catch(err => toast(err.message));
   }, [days]);
 
-  if (!rows) return null;
+  if (!report) return null;
 
-  return (
+  const months = report.months ?? [];
+  // One scale for both stacked parts, so "đã trả" and "sắp trả" are comparable
+  // between months rather than each column being scaled to itself.
+  const peak = Math.max(...months.map(m => Number(m.paid) + Number(m.upcoming)), 1);
+
+  return <>
+    <section style={{ marginTop: 34 }}>
+      <div className="page-head" style={{ marginBottom: 0 }}>
+        <div>
+          <h2 className="section-title" style={{ fontSize: 20 }}>{t('Thu nhập theo tháng')}</h2>
+          <p className="section-sub">{t('Tính theo tháng khách trả phòng, vì đó là tháng bạn kiếm được khoản đó.')}</p>
+        </div>
+        <a className="btn btn-outline btn-sm" href="/api/host/earnings.csv" download>{t('Tải file doanh thu')}</a>
+      </div>
+
+      <div style={{ display: 'flex', gap: 18, marginTop: 12, fontSize: 13, color: 'var(--ink-muted)' }}>
+        <span><i style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: 'var(--brand)' }} /> {t('Đã trả')}</span>
+        <span><i style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: 'var(--divider)' }} /> {t('Sắp trả')}</span>
+      </div>
+
+      <div className="bar-chart">
+        {months.map(m => {
+          const paid = Number(m.paid);
+          const soon = Number(m.upcoming);
+          return (
+            <div className="bar-col" key={`${m.year}-${m.month}`}
+                 title={`${m.label}: ${t('đã trả')} ${money(paid)} · ${t('sắp trả')} ${money(soon)} · ${m.nights} ${t('đêm')}`}>
+              {/* Stacked, not side by side: the two together are the month's
+                  income, and showing them apart invites reading the taller one
+                  as the total. */}
+              <div style={{ width: '100%', maxWidth: 54, display: 'flex', flexDirection: 'column',
+                            justifyContent: 'flex-end', height: '100%' }}>
+                <div className="bar" style={{ height: `${(soon / peak) * 100}%`, minHeight: soon > 0 ? 4 : 0,
+                                              background: 'var(--divider)', borderRadius: '6px 6px 0 0' }} />
+                <div className="bar" style={{ height: `${(paid / peak) * 100}%`, minHeight: paid > 0 ? 4 : 0,
+                                              borderRadius: soon > 0 ? 0 : '6px 6px 0 0' }} />
+              </div>
+              <span className="bar-label">{m.label}</span>
+              <span className="bar-value">{money(paid + soon)}</span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+
     <section style={{ marginTop: 34 }}>
       <div className="page-head" style={{ marginBottom: 0 }}>
         <h2 className="section-title" style={{ fontSize: 20 }}>{t('Hiệu suất tin đăng')}</h2>
@@ -1263,7 +1299,7 @@ function PerformanceReport() {
         </select>
       </div>
 
-      {rows.length === 0 ? (
+      {report.listings.length === 0 ? (
         <p className="section-sub" style={{ marginTop: 12 }}>{t('Bạn chưa có tin đăng nào.')}</p>
       ) : (
         <div className="table-wrap" style={{ marginTop: 16 }}>
@@ -1276,10 +1312,12 @@ function PerformanceReport() {
                 <th style={{ textAlign: 'right' }}>{t('Lượt đặt')}</th>
                 <th style={{ textAlign: 'right' }}>{t('Xem → đặt')}</th>
                 <th style={{ textAlign: 'right' }}>{t('Lấp đầy')}</th>
+                <th style={{ textAlign: 'right' }}>{t('Giá trung bình')}</th>
+                <th style={{ textAlign: 'right' }}>{t('Mặt bằng khu vực')}</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(r => (
+              {report.listings.map(r => (
                 <tr key={r.listingId}>
                   <td>{r.title}{!r.isPublished && <span className="meta"> · {t('ẩn')}</span>}</td>
                   <td style={{ textAlign: 'right' }}>{r.views}</td>
@@ -1287,6 +1325,16 @@ function PerformanceReport() {
                   <td style={{ textAlign: 'right' }}>{r.bookings}</td>
                   <td style={{ textAlign: 'right' }}>{r.conversionPercent}%</td>
                   <td style={{ textAlign: 'right' }}>{r.occupancyPercent}%</td>
+                  {/* Nothing sold in the window is a fact, not a gap — an em dash
+                      says so, where "0₫" would read as a room given away. */}
+                  <td style={{ textAlign: 'right' }}>
+                    {Number(r.avgNightlyRate) > 0 ? money(r.avgNightlyRate) : '—'}
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    {r.marketSample > 0
+                      ? <>{money(r.marketMedian)}<div className="meta">{r.marketSample} {t('chỗ tương đương')}</div></>
+                      : <span className="meta">{t('chưa đủ để so')}</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1294,5 +1342,47 @@ function PerformanceReport() {
         </div>
       )}
     </section>
-  );
+
+    <section style={{ marginTop: 34 }}>
+      <h2 className="section-title" style={{ fontSize: 20 }}>{t('Điểm đánh giá theo tháng')}</h2>
+      <p className="section-sub">
+        {t('Điểm tổng chỉ nói điểm đã đổi. Sáu hạng mục nói hạng mục nào đổi.')}
+      </p>
+
+      {report.reviews.length === 0 ? (
+        <p className="section-sub" style={{ marginTop: 12 }}>
+          {report.reviewCount === 0
+            ? t('Chưa có đánh giá nào trong 12 tháng qua.')
+            : t('Chưa đủ đánh giá để vẽ xu hướng.')}
+        </p>
+      ) : (
+        <div className="table-wrap" style={{ marginTop: 16 }}>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>{t('Tháng')}</th>
+                <th style={{ textAlign: 'right' }}>{t('Số đánh giá')}</th>
+                <th style={{ textAlign: 'right' }}>{t('Điểm tổng')}</th>
+                {REVIEW_CATEGORIES.map(([key, label]) => (
+                  <th key={key} style={{ textAlign: 'right' }}>{t(label)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {report.reviews.map(m => (
+                <tr key={`${m.year}-${m.month}`}>
+                  <td>{m.label}</td>
+                  <td style={{ textAlign: 'right' }}>{m.count}</td>
+                  <td style={{ textAlign: 'right' }}><b>★ {m.overall.toFixed(2)}</b></td>
+                  {REVIEW_CATEGORIES.map(([key]) => (
+                    <td key={key} style={{ textAlign: 'right' }}>{m[key].toFixed(2)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  </>;
 }

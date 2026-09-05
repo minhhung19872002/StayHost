@@ -476,14 +476,12 @@ public class HostController(
         return Ok(new MarketPriceDto(wanted, count, low, median, high, verdict));
     }
 
-    private static decimal Percentile(List<decimal> sorted, double fraction)
-    {
-        if (sorted.Count == 0) return 0;
-        var index = Math.Clamp((int)Math.Round(fraction * (sorted.Count - 1)), 0, sorted.Count - 1);
-        return sorted[index];
-    }
-
-    /// <summary>The 25/50/75 percentiles of comparable places, shared by CN-10 and QL-09.</summary>
+    /// <summary>
+    /// The 25/50/75 percentiles of comparable places, shared by CN-10 and QL-09
+    /// — and now by the host report of docs/02 G7, which quotes the same market
+    /// back at the host. The percentile itself moved to
+    /// <see cref="Performance.Percentile"/> so those three cannot drift apart.
+    /// </summary>
     private async Task<(int Count, decimal Low, decimal Median, decimal High)> ComparablesAsync(
         string city, RoomType room, int bedrooms, CancellationToken ct)
     {
@@ -496,7 +494,8 @@ public class HostController(
 
         if (prices.Count == 0) return (0, 0, 0, 0);
         var sorted = prices.OrderBy(p => p).ToList();
-        return (prices.Count, Percentile(sorted, 0.25), Percentile(sorted, 0.5), Percentile(sorted, 0.75));
+        return (prices.Count, Performance.Percentile(sorted, 0.25),
+                Performance.Percentile(sorted, 0.5), Performance.Percentile(sorted, 0.75));
     }
 
     /// <summary>

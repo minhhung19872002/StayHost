@@ -51,4 +51,72 @@ public class PerformanceTests
         Assert.Equal(0, Performance.NightsInWindow(
             new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 5), from, to));
     }
+
+    /* ------------------------------------------------ docs/02 G7 additions */
+
+    [Fact]
+    public void The_nightly_rate_achieved_is_the_room_only()
+    {
+        // Three nights, 3,000,000 of room after discount.
+        Assert.Equal(1_000_000m, Performance.AchievedNightlyRate(3_000_000m, 3));
+
+        // Nothing sold is not a division by zero.
+        Assert.Equal(0m, Performance.AchievedNightlyRate(0m, 0));
+        Assert.Equal(0m, Performance.AchievedNightlyRate(500_000m, 0));
+    }
+
+    [Fact]
+    public void The_median_of_a_market_is_the_middle_of_it()
+    {
+        var sorted = new[] { 400_000m, 800_000m, 1_200_000m, 1_600_000m, 2_000_000m };
+
+        Assert.Equal(1_200_000m, Performance.Percentile(sorted, 0.5));
+        Assert.Equal(800_000m, Performance.Percentile(sorted, 0.25));
+        Assert.Equal(1_600_000m, Performance.Percentile(sorted, 0.75));
+
+        // An empty market has no going rate, and must not throw at a host who is
+        // simply the first person listing in their town.
+        Assert.Equal(0m, Performance.Percentile([], 0.5));
+        Assert.Equal(900_000m, Performance.Percentile([900_000m], 0.5));
+    }
+
+    /// <summary>
+    /// The rule that keeps a chart honest: a month that earned nothing has to be
+    /// in the series. Drawn from a GROUP BY alone the line joins March straight
+    /// to June and reads as steady business when in fact it stopped.
+    /// </summary>
+    [Fact]
+    public void Every_month_in_the_run_is_listed_including_the_empty_ones()
+    {
+        var months = Performance.MonthsBetween(new DateOnly(2026, 3, 14), new DateOnly(2026, 6, 2));
+
+        Assert.Equal(4, months.Count);
+        Assert.Equal(new DateOnly(2026, 3, 1), months[0]);
+        Assert.Equal(new DateOnly(2026, 6, 1), months[3]);
+        Assert.All(months, m => Assert.Equal(1, m.Day));
+    }
+
+    [Fact]
+    public void A_run_inside_one_month_is_that_month()
+    {
+        var months = Performance.MonthsBetween(new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30));
+        Assert.Single(months);
+        Assert.Equal(new DateOnly(2026, 9, 1), months[0]);
+    }
+
+    [Fact]
+    public void A_backwards_run_is_empty_rather_than_endless()
+    {
+        Assert.Empty(Performance.MonthsBetween(new DateOnly(2026, 9, 1), new DateOnly(2026, 3, 1)));
+    }
+
+    [Fact]
+    public void A_year_of_months_crosses_the_new_year()
+    {
+        var months = Performance.MonthsBetween(new DateOnly(2025, 12, 1), new DateOnly(2026, 2, 1));
+        Assert.Equal(3, months.Count);
+        Assert.Equal(new DateOnly(2025, 12, 1), months[0]);
+        Assert.Equal(new DateOnly(2026, 1, 1), months[1]);
+        Assert.Equal(new DateOnly(2026, 2, 1), months[2]);
+    }
 }
