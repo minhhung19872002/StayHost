@@ -954,7 +954,7 @@ khoảng cách), `TM-05`, `TM-22`, `C6`, `G5` (chế độ một tin theo tháng
 |---|---|
 | ~~`docs/02 G8` — co-host **chia % thu nhập**~~ | **Xong 03/09/2026.** Khách chốt "làm giống Airbnb" sau khi đối chiếu chính sách công khai của họ. Quy tắc ở `docs/07 §19`, nghiệm thu ở §9.11 dưới |
 | `docs/02 B2` — màn hình thiết lập ban đầu | Chỉ có trong `docs/02`, và chính nó ghi "bỏ qua được". Thêm một bước chắn giữa đăng ký và tìm kiếm |
-| `docs/02 G7` — điểm theo hạng mục **qua thời gian** | `docs/01 QL-16` liệt kê năm chỉ số và cả năm đã có; biểu đồ theo thời gian là phần `docs/02` thêm |
+| ~~`docs/02 G7` — điểm theo hạng mục **qua thời gian**~~ | **Xong 05/09/2026**, cùng ba khối còn lại của G7 — xem §9.14 |
 | `docs/02 C1` — ghim của chỗ **đã xem** | Cần lưu lịch sử xem của từng người, tức một bảng mới cho một chi tiết trang trí |
 | `docs/02 F1` — gom "lịch sử trả" vào trang cài đặt | `docs/01 CĐ-09` (hoá đơn theo từng đơn) đã có; đây là cách sắp xếp lại màn hình |
 
@@ -1135,6 +1135,50 @@ dòng cũ thì ra **3/8**, kịch bản 3 tái hiện 300.000₫ số dư miễn
 **203 vẫn là 203** — `TC-08` vốn đã được tick, và đúng theo cách nó đếm: hai phần
 ba của "mua · tặng · đổi" vẫn chạy. Phần **mua** thì miễn phí.
 
+### 9.14. Làm nốt trang Báo cáo của chủ nhà (05/09/2026)
+
+`docs/02 G7` đòi bốn khối. Ba khối đã có sẵn dưới dạng từng mảnh — lượt xem
+(`QL-16`), báo cáo thuế năm (`TC-04`), danh sách cải thiện (`QL-18`) — và §9.9 xếp
+khối thứ tư vào diện "cố ý chưa làm". Soát lại thì thứ thiếu ở **cả bốn** khối là
+phần biến con số thành một quyết định.
+
+| Khối G7 | Trước | Sau |
+|---|---|---|
+| Thu nhập theo tháng | Gộp theo ngày **nhận** phòng, **bỏ qua tháng rỗng**, không tách đã trả / sắp trả | Gộp theo tháng **trả** phòng (tháng chủ nhà kiếm được), đủ 12 tháng kể cả tháng rỗng, tách **đã trả** / **sắp trả** |
+| Hiệu suất | xem · lưu · đặt · xem→đặt · lấp đầy | thêm **giá trung bình thật** và **mặt bằng khu vực** kèm cỡ mẫu |
+| Đánh giá | chỉ tiến độ Siêu chủ nhà | thêm **6 hạng mục theo tháng** |
+| Cơ hội | đã có (`HostAdvice`) | giữ nguyên |
+
+**Ba quyết định đáng nhớ:**
+
+1. **`PayoutStatus.Paid` là trạng thái duy nhất nghĩa là ngân hàng đã chuyển.**
+   `Sent` mới chỉ là một dòng trong file chờ người trực đưa lên internet banking —
+   gọi nó là "đã trả" là màn hình hứa thứ mà sổ chưa ghi.
+2. **Giá trung bình cố ý *không* dùng `Subtotal`**, vì cột đó gánh cả phí dọn dẹp,
+   phụ thu khách thêm và phí thú cưng. `G7` đặt số này cạnh mặt bằng khu vực, mà
+   `CN-10` lấy mẫu từ `PricePerNight` — so một tổng có phí dọn dẹp với một danh
+   sách giá phòng thì tin nào cũng hoá ra đắt hơn thị trường vì một lý do không
+   liên quan gì tới cái phòng. Trên dữ liệu mẫu: An Bàng bán **688.000₫** trong khi
+   chỗ tương đương hỏi **860.000₫**; tính cả phí thì thành 788.000₫.
+3. **Hai chuỗi thời gian, hai cách xử lý tháng rỗng ngược nhau** — và khác biệt nằm
+   ở *nghĩa*, không phải ở hình: tháng không có doanh thu **là số 0** và phải được
+   vẽ, còn tháng không có đánh giá **không phải điểm 0** nên bị bỏ ra. Vẽ nó thành
+   0 là bịa ra một cú sụp chưa từng xảy ra.
+
+`Percentile` chuyển từ `HostController` (private) sang `Performance`. Giờ **ba**
+màn hình cùng trích dẫn một mặt bằng cho chủ nhà — gợi giá `CN-10`, trợ giúp đặt
+giá `QL-09`, và báo cáo này — mà hai bản của một luật là cách chúng nói hai con số
+khác nhau về cùng một thành phố (§9.7).
+
+**Nghiệm thu:** `python scripts/hostreport_acceptance.py` — 8 kịch bản, mỗi cái
+đối chiếu thẳng với **hàng trong DB** chứ không đối chiếu với màn hình. Đã chứng
+minh lưới bung được: đổi tổng tiền-phòng sang `Subtotal` thì ra **7/8**, và dòng
+FAIL gọi đúng tên nguyên nhân. Nó cũng bắt được **hai lỗi của chính em** trong lúc
+viết: một bút toán kép bị đếm thành hai lượt bán, và `ListingReviewStatus.Approved`
+bị đọc nhầm là 1 trong khi là 0.
+
+**203 vẫn là 203** — `G7` là màn hình của `docs/02`, không phải mã của `docs/01`.
+
 ---
 
 ## Kiểm chứng
@@ -1179,6 +1223,9 @@ python scripts/seo_acceptance.py
 
 # 8 kịch bản của §9.13 — thẻ quà tặng chỉ có giá trị khi đã có người trả tiền
 python scripts/giftcard_acceptance.py
+
+# 8 kịch bản của §9.14 — báo cáo chủ nhà, đối chiếu thẳng với DB
+python scripts/hostreport_acceptance.py
 ```
 
 ## Ghi chú về quy mô

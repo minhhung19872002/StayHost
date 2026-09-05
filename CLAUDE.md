@@ -90,6 +90,8 @@ hoàn chỉnh mà không màn hình nào gọi).
 không cần tài khoản và trả tiền tại nơi ở) ·
 **31/31** kịch bản của `scripts/cohost_share_acceptance.py` (`docs/07 §19` — chia
 thu nhập cho người đồng quản lý) ·
+**8/8** kịch bản `docs/02 G7` của `scripts/hostreport_acceptance.py` (báo cáo chủ nhà) ·
+**8/8** kịch bản `TC-08` của `scripts/giftcard_acceptance.py` (thẻ quà tặng phải có người trả tiền) ·
 **10/10** kịch bản SEO của `scripts/seo_acceptance.py` (`docs/PLAN.md §9.12` — mã
 trạng thái, thẻ chia sẻ, sitemap, và liên kết thật vào cả ba dòng sản phẩm; đây là
 bộ duy nhất chạm tới `ShellSeo.cs`/`PageExistence.cs`, hai file quyết định mã trạng
@@ -145,6 +147,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Dữ liệu mẫu | `ReviewSeeder` dựng lịch sử có thật cho hai dòng này: 6 buổi/đơn đã hoàn tất mỗi tin, khách được điểm danh, người cung cấp đã nhận tiền, **bút toán đi qua `Ledger` nên sổ vẫn cân bằng**, rồi 6 đánh giá và điểm sao tính lại từ chính chúng |
 | Dịch vụ (`docs/09`) | Chủ nhà tự đăng, chứng chỉ hành nghề có hạn **tự ẩn tin khi hết hạn**, tuỳ chọn thêm có giá riêng, phí di chuyển ngoài bán kính, lịch theo thứ + đệm + chặn hai đơn quá xa, ghi chú bắt buộc theo danh mục, xác nhận điều kiện tại chỗ, huỷ theo bậc 72 giờ, **đánh giá 4 tiêu chí riêng** (tay nghề / đúng như mô tả / đúng giờ / đáng giá tiền — `docs/09 §5`, bảng `service_reviews`) |
 | Tiền hai dòng mới | **Dịch vụ có mức phí riêng 0% khách / 15% NCC**; Trải nghiệm giữ 14%/3% như chỗ ở (khách chốt). Trả tiền người cung cấp **sau khi buổi kết thúc 24 giờ**, không phải từ lúc bắt đầu |
+| Báo cáo chủ nhà (`docs/02 G7`) | Thu nhập theo tháng **tách đã trả / sắp trả**, gộp theo tháng trả phòng và giữ cả tháng rỗng; giá bán thật của từng tin cạnh **mặt bằng khu vực** (dùng chung `Performance.Percentile` với `CN-10`/`QL-09`); **6 hạng mục đánh giá theo tháng**; cộng báo cáo thuế `TC-04` và danh sách cải thiện `QL-18` đã có |
 | Đa ngôn ngữ | 8 thứ tiếng (vi/en/ja/ko/zh/fr/de/es), **2149 khoá mỗi thứ, không thiếu khoá nào**. Dịch cả **chữ do server sinh** (trạng thái, dòng hoá đơn, tiện nghi, nhóm tiện nghi, loại chỗ ở, lời khuyên chủ nhà) nhờ từ điển khoá bằng chính chuỗi tiếng Việt. Ngày/giờ/số theo ngôn ngữ đang chọn. Nội dung **người dùng tự viết** (tên tin, mô tả, đánh giá, tiểu sử, nội quy chủ nhà tự gõ) được **máy dịch tự động** kèm dòng "Đã dịch tự động · Xem bản gốc" |
 | Máy dịch | `libretranslate` tự host trong cả hai compose — **không cần khoá API, không tính tiền theo ký tự**. Đủ 8 thứ tiếng, trùng khít danh sách giao diện. Kết quả cache trong `translation_caches`, mỗi (chuỗi × ngôn ngữ) chỉ dịch một lần |
 | Hạn dùng số dư | `docs/07 §16` đã chốt (11/08/2026): bù đắp / giới thiệu bạn / hoàn khi huỷ **12 tháng**, thẻ quà tặng **không hết hạn**. Hạn đóng dấu **lúc cấp**, nên đổi tham số về sau không với ngược lại số dư khách đang giữ |
@@ -799,6 +802,8 @@ python scripts/vnpay_browser_acceptance.py         # 14 kịch bản: trả ti�
 python scripts/refund_acceptance.py                # 11 kịch bản hoàn tiền thật qua VNPay (docs/07 §15.6)
 python scripts/onepay_acceptance.py                # 15 kịch bản: trả bằng thẻ VISA THẬT qua OnePay
                                                    # (chạy app với Psp__Methods__card=onepay)
+python scripts/hostreport_acceptance.py            # 8 kịch bản docs/02 G7: báo cáo chủ nhà,
+                                                   # đối chiếu thẳng với DB
 python scripts/giftcard_acceptance.py              # 8 kịch bản TC-08: thẻ quà tặng chỉ có giá trị
                                                    # khi đã có người trả tiền
 python scripts/seo_acceptance.py                   # 10 kịch bản SEO: mã trạng thái, thẻ chia sẻ,
