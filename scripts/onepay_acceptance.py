@@ -28,6 +28,17 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+# A Windows console runs cp1258 — the Vietnamese code page, and it spells
+# Vietnamese with combining marks, so it cannot encode the precomposed letters
+# the server actually sends. Any scenario that echoes a server message then dies
+# inside print(), the runner writes it down as FAIL, and a correct product
+# reports 10/13. Proven: the same run is 10/10 under PYTHONIOENCODING=utf-8.
+# A verdict must never be lost to a character the terminal cannot draw.
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
+
 try:
     from playwright.sync_api import sync_playwright
 except ImportError:
