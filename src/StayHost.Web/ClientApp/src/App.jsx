@@ -103,6 +103,10 @@ export function App() {
     }
   }, [location.pathname]);
 
+  // The document the browser was handed already carries this address's tags;
+  // only a route change inside the app needs them put back to the defaults.
+  const firstRoute = useRef(true);
+
   // A route change here never reloads the document, so the canonical and og:url
   // tags would otherwise keep pointing at whatever page was opened first — every
   // room sharing the home page's preview card, and every filtered city address
@@ -115,7 +119,16 @@ export function App() {
     // onto the next page — and a structured-data block describing the previous
     // room is read by Google as a claim about the page it is on, which is how a
     // whole site loses rich results rather than one page.
-    resetPageMeta();
+    //
+    // Except on the first run. ShellSeo.cs has already written this address's
+    // title, description and share picture into the document that just arrived,
+    // and they are correct for every page type — including /experiences/:slug,
+    // /services/:slug and /help/:slug, which have no setPageMeta of their own.
+    // Resetting here would throw that away: on the pages that do set their own
+    // it flickers to the home title until the fetch lands, and on the pages that
+    // do not it replaces a correct title with the home page's, permanently.
+    if (firstRoute.current) firstRoute.current = false;
+    else resetPageMeta();
     setStructuredData(location.pathname === '/' ? siteJsonLd() : null);
     // location.search matters here: ?trang=2 is a different page in a series and
     // has to canonicalise to itself, not to page 1.

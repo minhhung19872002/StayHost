@@ -102,13 +102,37 @@ export function applyCanonical(pathname, search) {
 
 // ---------------------------------------------------------------- page meta
 
-// Captured before anything overwrites them, so leaving a page can put the
-// defaults back exactly rather than re-deriving strings that live in index.html.
-const DEFAULTS = {
-  title: document.title,
-  description: document.head.querySelector('meta[name="description"]')?.content || '',
-  image: document.head.querySelector('meta[property="og:image"]')?.content || '',
-};
+// The site defaults — the home page's words, not this page's.
+//
+// Reading them off the shipped head was right while every address received a
+// byte-identical index.html. ShellSeo.cs ended that: the head now arrives already
+// written for the address being served, so landing on /rooms/x and reading the
+// head captured *that room* as "the default", and every later resetPageMeta()
+// stamped the room's title, description and photo onto whatever page came next.
+//
+// So the server states them instead, from the one place that owns them
+// (ShellSeo.Default). Falling back to the head is still correct where no server
+// wrote the block — `npm run dev`, where the head really is the default.
+const DEFAULTS = (() => {
+  const head = {
+    title: document.title,
+    description: document.head.querySelector('meta[name="description"]')?.content || '',
+    image: document.head.querySelector('meta[property="og:image"]')?.content || '',
+  };
+  try {
+    const el = document.getElementById('seo-defaults');
+    if (!el) return head;
+    const served = JSON.parse(el.textContent);
+    return {
+      title: served.title || head.title,
+      description: served.description || head.description,
+      image: served.image || head.image,
+    };
+  } catch {
+    // A malformed block must not take the app down over a <title>.
+    return head;
+  }
+})();
 
 function meta(attr, name) {
   let el = document.head.querySelector(`meta[${attr}="${name}"]`);

@@ -327,9 +327,29 @@ public static class ShellSeo
         b.Append($"<meta property=\"og:description\" content=\"{E(page.Description)}\">\n");
         b.Append($"<meta property=\"og:image\" content=\"{E(image)}\">\n");
         b.Append($"<meta property=\"og:image:alt\" content=\"{E(ogTitle)}\">\n");
-        b.Append($"<meta name=\"twitter:image\" content=\"{E(image)}\">");
+        b.Append($"<meta name=\"twitter:image\" content=\"{E(image)}\">\n");
+
+        // The site defaults, said out loud, because the tags above are no longer
+        // constant. lib/seo.js used to read the shipped head once and call that
+        // "the defaults" — true while index.html was served byte-identical to
+        // every address, false the moment this class started substituting the
+        // block. Landing on a room and then navigating anywhere without meta of
+        // its own put that room's title, description and photo on the new page:
+        // the reset written to stop a title following the visitor was what made
+        // it follow them. Serving them keeps one authority — Default, here.
+        b.Append("<script type=\"application/json\" id=\"seo-defaults\">");
+        b.Append($"{{\"title\":{J(Default.Title)},\"description\":{J(Default.Description)},"
+               + $"\"image\":{J(origin + DefaultImage)}}}");
+        b.Append("</script>");
         return b.ToString();
     }
+
+    /// <summary>
+    /// A JSON string for a block inside &lt;script&gt;. Only "&lt;" needs the extra
+    /// care: a literal "&lt;/script" in the data would end the element early.
+    /// </summary>
+    private static string J(string s) =>
+        System.Text.Json.JsonSerializer.Serialize(s).Replace("<", "\\u003c");
 
     /// <summary>
     /// The four characters that would break out of an attribute, and nothing
