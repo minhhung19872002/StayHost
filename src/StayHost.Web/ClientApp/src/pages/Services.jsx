@@ -89,10 +89,18 @@ function Browse() {
       ) : items.length ? (
         <div className="card-grid" style={{ marginTop: 24 }}>
           {items.map(s => (
-            <button className="card" key={s.id} onClick={() => navigate(`/services/${s.slug}`)}
-                    style={{ textAlign: 'left', border: 0, background: 'none', padding: 0, cursor: 'pointer' }}>
-              <CardCarousel images={s.images} alt={s.title} />
-              <div className="card-body">
+            <article className="card" key={s.id}>
+              {/* Photos keep the click handler — the carousel controls inside them
+                  cannot live within an <a>. The body is the crawlable link. */}
+              <div onClick={() => navigate(`/services/${s.slug}`)} style={{ cursor: 'pointer' }}>
+                <CardCarousel images={s.images} alt={s.title} />
+              </div>
+              <a className="card-body" href={`/services/${s.slug}`}
+                 onClick={e => {
+                   if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+                   e.preventDefault();
+                   navigate(`/services/${s.slug}`);
+                 }}>
                 <div className="card-row">
                   <h3 className="card-title"><TranslatedText as="span" text={s.title} notice={false} /></h3>
                   <div className="card-rating">
@@ -111,8 +119,8 @@ function Browse() {
                 <div className="card-perks card-line">
                   {s.travelsToGuest ? `${t('Tới tận nơi trong')} ${s.serviceRadiusKm} km` : t('Khách tới chỗ cung cấp')}
                 </div>
-              </div>
-            </button>
+              </a>
+            </article>
           ))}
         </div>
       ) : (

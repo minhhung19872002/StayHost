@@ -68,21 +68,36 @@ export function Header() {
         <span className="brand-text">Staylio</span>
       </button>
 
+      {/* Real addresses, not click handlers. This nav is on every page, so it is
+          the only site-wide route into the experience and service catalogues —
+          while these were buttons, neither line had an inbound link anywhere.
+          aria-current replaces aria-pressed: these are links now, not toggles. */}
       <nav className="nav-tabs" aria-label="Loại dịch vụ">
         {TABS.map(tab => (
-          <button key={tab.key} className={`nav-tab ${state.tab === tab.key ? 'is-active' : ''}`}
-                  aria-pressed={state.tab === tab.key}
-                  onClick={() => { set({ tab: tab.key }); navigate(tab.path); }}>
+          <a key={tab.key} className={`nav-tab ${state.tab === tab.key ? 'is-active' : ''}`}
+             href={tab.path}
+             aria-current={state.tab === tab.key ? 'page' : undefined}
+             onClick={e => {
+               if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+               e.preventDefault();
+               set({ tab: tab.key });
+               navigate(tab.path);
+             }}>
             <span className="ic"><Icon name={tab.icon} size={22} /></span>
             <span>{t(tab.label)}</span>
-          </button>
+          </a>
         ))}
       </nav>
 
       <div className="header-actions">
-        <button className="ghost-btn host-link" onClick={() => navigate(state.user?.isHost ? '/hosting' : '/host')}>
+        <a className="ghost-btn host-link" href={state.user?.isHost ? '/hosting' : '/host'}
+           onClick={e => {
+             if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+             e.preventDefault();
+             navigate(state.user?.isHost ? '/hosting' : '/host');
+           }}>
           {state.user?.isHost ? t('Trang chủ nhà') : t('Cho thuê nhà')}
-        </button>
+        </a>
 
         {state.user && (
           <div className="menu-anchor">

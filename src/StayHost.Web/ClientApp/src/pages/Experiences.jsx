@@ -109,10 +109,20 @@ function Browse() {
       ) : items.length ? (
         <div className="card-grid" style={{ marginTop: 24 }}>
           {items.map(x => (
-            <button className="card" key={x.id} onClick={() => navigate(`/experiences/${x.slug}`)}
-                    style={{ textAlign: 'left', border: 0, background: 'none', padding: 0, cursor: 'pointer' }}>
-              <CardCarousel images={x.images} alt={x.title} />
-              <div className="card-body">
+            <article className="card" key={x.id}>
+              {/* The photos stay a click handler because the carousel arrows and
+                  dots live inside them, and interactive controls inside an <a> is
+                  invalid HTML and a keyboard trap. The body below is the real
+                  link — same split Card.jsx makes for stays. */}
+              <div onClick={() => navigate(`/experiences/${x.slug}`)} style={{ cursor: 'pointer' }}>
+                <CardCarousel images={x.images} alt={x.title} />
+              </div>
+              <a className="card-body" href={`/experiences/${x.slug}`}
+                 onClick={e => {
+                   if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+                   e.preventDefault();
+                   navigate(`/experiences/${x.slug}`);
+                 }}>
                 <div className="card-row">
                   <h3 className="card-title"><TranslatedText as="span" text={x.title} notice={false} /></h3>
                   <div className="card-rating">
@@ -126,8 +136,8 @@ function Browse() {
                 <div className="card-perks card-line">
                   {x.openSlots ? `${t('Còn')} ${x.openSlots} ${t('suất')}` : t('Tạm hết suất')} · {x.hostName}
                 </div>
-              </div>
-            </button>
+              </a>
+            </article>
           ))}
         </div>
       ) : (

@@ -95,7 +95,7 @@ public static class ShellSeo
         // failure: the page still works, it just carries the default card.
         if (start < 0 || end < start) return shell;
 
-        var page = await DescribeAsync(db, route, requestedPage, ct);
+        var page = await DescribeAsync(db, route, path, requestedPage, ct);
         var head = Head(page, origin, path) + SiteJsonLd(origin, path);
 
         return shell[..start] + head + shell[(end + Close.Length)..];
@@ -118,8 +118,53 @@ public static class ShellSeo
             + "Xem giá trọn gói trước khi trả tiền, chính sách huỷ ghi rõ trên từng tin.",
         DefaultImage);
 
+    /// <summary>
+    /// The fixed pages that are public, listed in sitemap.xml and meant to rank.
+    ///
+    /// They all resolve to <see cref="PageKind.App"/> with no slug, so without this
+    /// they fell to <see cref="Default"/> and were submitted to Google carrying the
+    /// home page's title and description word for word — five addresses claiming to
+    /// be the same page. /shield/terms was the sharpest case: robots.txt goes out of
+    /// its way to Allow it because docs/06 §11 makes public promises there, and it
+    /// was indexed under a title about booking hotels.
+    ///
+    /// Everything else under PageKind.App is noindex, so it keeps the default.
+    /// </summary>
+    private static readonly Dictionary<string, PageMeta> FixedPages = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["/experiences"] = new(
+            "Trải nghiệm do người địa phương dẫn khắp Việt Nam | Staylio",
+            "Lớp nấu ăn, chèo SUP, đi bộ nhiếp ảnh, tour cà phê — trải nghiệm do người địa "
+                + "phương dẫn, đặt theo suất và xem giá trọn gói trước khi trả tiền.",
+            DefaultImage),
+
+        ["/services"] = new(
+            "Đầu bếp, dọn dẹp, đưa đón — dịch vụ tới tận nơi | Staylio",
+            "Đặt đầu bếp nấu tại nhà, massage tại phòng, đưa đón sân bay, giữ hành lý và đi "
+                + "chợ hộ. Giá trọn gói, người cung cấp có hồ sơ và đánh giá thật.",
+            DefaultImage),
+
+        ["/host"] = new(
+            "Cho thuê nhà trên Staylio — bắt đầu đón khách | Staylio",
+            "Đăng tin miễn phí, tự đặt giá và lịch, phí chủ nhà 3%. Staylio Shield đứng sau "
+                + "mỗi lượt đón khách, và tiền về tài khoản sau khi khách nhận phòng.",
+            DefaultImage),
+
+        ["/help"] = new(
+            "Trung tâm trợ giúp | Staylio",
+            "Câu trả lời cho đặt phòng, huỷ và hoàn tiền, thanh toán, đón tiếp khách và "
+                + "Staylio Shield — cho cả khách lẫn chủ nhà.",
+            DefaultImage),
+
+        ["/shield/terms"] = new(
+            "Staylio Shield — chính sách hỗ trợ khách và chủ nhà | Staylio",
+            "Phạm vi, hạn mức và loại trừ của Staylio Shield: chỗ ở khác xa mô tả thì được "
+                + "đổi chỗ hoặc hoàn tiền, và chủ nhà được hỗ trợ khi có sự cố.",
+            DefaultImage),
+    };
+
     private static async Task<PageMeta> DescribeAsync(
-        StayHostDbContext db, PageRoute route, int requestedPage, CancellationToken ct)
+        StayHostDbContext db, PageRoute route, string path, int requestedPage, CancellationToken ct)
     {
         switch (route.Kind)
         {
@@ -238,7 +283,13 @@ public static class ShellSeo
             }
 
             default:
-                return Default;
+            {
+                // Trailing slash and case both reach here; the addresses in the
+                // sitemap have neither, so normalise before looking one up.
+                var key = (path ?? "").Split('?')[0].Split('#')[0].TrimEnd('/');
+                if (key.Length == 0) key = "/";
+                return FixedPages.TryGetValue(key, out var fixedPage) ? fixedPage : Default;
+            }
         }
     }
 

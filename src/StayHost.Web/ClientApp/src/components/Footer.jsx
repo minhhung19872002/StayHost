@@ -22,8 +22,12 @@ const COLUMNS = [
   },
   {
     title: 'Khám phá',
-    links: ['Chỗ nghỉ ven biển', 'Villa có hồ bơi', 'Homestay vùng cao',
-            'Cabin gỗ Đà Lạt', 'Căn hộ dài hạn', 'Chỗ nghỉ cho thú cưng']
+    // The first two are the only entries in this column that lead anywhere. ROUTES
+    // has carried '/experiences' and '/services' since those pages shipped, but
+    // neither label appeared in any column, so the mapping never rendered and both
+    // catalogues had no footer link — the site-wide link a crawler looks for.
+    links: ['Trải nghiệm', 'Dịch vụ', 'Chỗ nghỉ ven biển', 'Villa có hồ bơi',
+            'Homestay vùng cao', 'Cabin gỗ Đà Lạt', 'Căn hộ dài hạn', 'Chỗ nghỉ cho thú cưng']
   }
 ];
 
@@ -107,7 +111,12 @@ export function Footer() {
     <div className="footer-bottom">
       <div className="footer-bottom-inner">
         <div className="footer-legal">
-          {LEGAL.map(l => <span key={l}>{t(l)}</span>)}
+          {LEGAL.map(l => l === 'Sơ đồ trang web'
+            // The label promised a sitemap and one has existed since SeoController
+            // shipped; it was rendered as a <span>, so the promise was never kept.
+            // A plain href — the file is served by the server, not by the router.
+            ? <a key={l} href="/sitemap.xml">{t(l)}</a>
+            : <span key={l}>{t(l)}</span>)}
         </div>
         <div className="footer-prefs">
           <button onClick={() => openOverlay('language')}>⊕ {state.language.label}</button>

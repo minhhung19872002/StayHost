@@ -93,7 +93,12 @@ function OtherLines() {
           <h2 className="section-title" style={{ fontSize: 22 }}>{t(title)}</h2>
           <p className="section-sub">{t(subtitle)}</p>
         </div>
-        <button className="btn btn-outline btn-sm" onClick={() => navigate(to)}>{t('Xem tất cả')}</button>
+        <a className="btn btn-outline btn-sm" href={to}
+           onClick={e => {
+             if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+             e.preventDefault();
+             navigate(to);
+           }}>{t('Xem tất cả')}</a>
       </div>
       <div className="card-grid" style={{ marginTop: 16 }}>{items.map(render)}</div>
     </section>
@@ -128,10 +133,19 @@ function MediaCard({ item, to, line, price, per }) {
   const navigate = useNavigate();
 
   return (
-    <button className="card" onClick={() => navigate(to)}
-            style={{ textAlign: 'left', border: 0, background: 'none', padding: 0, cursor: 'pointer' }}>
-      <CardCarousel images={item.images} alt={item.title} />
-      <div className="card-body">
+    <article className="card">
+      {/* Photos hold the carousel controls, so they cannot sit inside the <a>.
+          The body carries the address — these cards are the home page's only
+          route into the experience and service catalogues. */}
+      <div onClick={() => navigate(to)} style={{ cursor: 'pointer' }}>
+        <CardCarousel images={item.images} alt={item.title} />
+      </div>
+      <a className="card-body" href={to}
+         onClick={e => {
+           if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+           e.preventDefault();
+           navigate(to);
+         }}>
         <div className="card-row">
           <h3 className="card-title"><TranslatedText as="span" text={item.title} notice={false} /></h3>
           <div className="card-rating">
@@ -140,8 +154,8 @@ function MediaCard({ item, to, line, price, per }) {
         </div>
         <div className="card-sub card-line">{line}</div>
         <div className="card-price"><b>{price}</b> <span>/ {per}</span></div>
-      </div>
-    </button>
+      </a>
+    </article>
   );
 }
 
