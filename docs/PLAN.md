@@ -1030,6 +1030,49 @@ thư và thư có chứa mã đơn.
 Nghiệm thu: `python scripts/guestcheckout_acceptance.py` — 12 kịch bản, gồm ba lần
 đọc lại `ledger_entries` để chắc rằng một đơn tiền không qua sàn **không sinh bút
 toán nào**.
+### 9.12. SEO: đợt 26/08 sửa xong dòng chỗ ở rồi dừng (05/09/2026)
+
+Năm commit ngày 26/08 (`9b6aa7f` → `f36fea2`) làm SEO: sitemap sinh từ DB, canonical
+theo địa chỉ, phân trang trang thành phố, mã trạng thái đúng, thẻ chia sẻ do máy chủ
+sinh. **`PLAN.md` không ghi một dòng nào về đợt đó** — §9 chạy tiếp tới 03/09 với bốn
+mục nữa mà không mục nào nhắc tới SEO, đúng cái lỗi "cập nhật ngay lúc đó" mà §9.4
+đã dặn. Đây là lần đếm lệch thứ năm.
+
+Soát lại ngày 05/09 tìm ra **năm lỗi thật**, và tất cả cùng một hình dạng: đợt trước
+sửa cho **chỗ ở** rồi dừng, không hỏi hai dòng sản phẩm kia.
+
+| Việc | Hậu quả trước khi sửa |
+|---|---|
+| **Không một `<a href>` nào trỏ tới trải nghiệm hay dịch vụ** | `0e8a10e` sửa `Card.jsx` vì "Google chỉ đi theo liên kết", nhưng `Experiences.jsx:112`, `Services.jsx:92` và `Browse.jsx:131` vẫn là `<button onClick>`. Hai dòng sản phẩm nằm trong sitemap với thẻ chia sẻ đúng và **không đường vào**. Thanh tab đầu trang cũng là `<button>`, tức không có cả liên kết toàn site |
+| **Năm trang công khai mang y hệt tiêu đề trang chủ** | `/experiences`, `/services`, `/host`, `/help`, `/shield/terms` đều ra `PageKind.App` không slug nên rơi về `ShellSeo.Default`. `/shield/terms` là ca nặng nhất: `robots.txt` cố ý `Allow` nó vì `docs/06 §11` hứa trước công chúng ở đó, mà nó được lập chỉ mục dưới một tiêu đề nói về đặt phòng khách sạn |
+| **`resetPageMeta()` dán tiêu đề trang trước sang trang sau** | `lib/seo.js` đọc head lúc nạp module và gọi đó là `DEFAULTS` — đúng khi mọi địa chỉ nhận cùng một `index.html`, sai từ lúc `ShellSeo` thay head theo địa chỉ. Mở một tin rồi bấm sang `/experiences` thì tiêu đề, mô tả và **ảnh chia sẻ** vẫn là của cái villa |
+| **Đổi tên sang Staylio chưa xong ở bảy thứ tiếng** | 146 chỗ còn chữ "StayHost", trong đó **135 nằm trong 8 từ điển dịch** và đã đổi *khoá* mà quên *giá trị*. Cộng `Cities.cs:98` — chữ hiển thị trên trang thành phố, nhánh mặc định cho mọi thành phố ngoài bảy cái đóng cứng |
+| **Bộ nghiệm thu báo FAIL cho sản phẩm đúng** | `unwired_acceptance.py` ra 10/13 vì console `cp1258` không mã hoá được chữ Việt dựng sẵn mà server trả về. Verdict thật đã ghi trước khi `print` ném, nên bảng kết quả có 13 dòng cho 10 kịch bản |
+
+**Hai chỗ dừng lại, không tự quyết:**
+
+- **`OtherLines` chưa bao giờ hiện lúc mới vào.** Khối giới thiệu chéo trải
+  nghiệm/dịch vụ ở trang chủ chỉ render khi `store.tab === 'all'`, mà mặc định là
+  `'homes'` (`store.js:99`). `docs/01 TM-02` xếp "Tất cả" đứng đầu và chính comment
+  ở `Browse.jsx:64` viết "'Tất cả' phải cho thấy nhiều hơn chỗ ở, không thì nó là
+  trang 'Chỗ ở' đội tên khác" — nhưng **đổi tab mặc định là đổi cái khách thấy đầu
+  tiên**, nên để khách quyết. Liên kết vào hai danh mục giờ đã có ở thanh tab và
+  footer, nên đây không còn là vấn đề tìm thấy nữa.
+- **Không có `hreflang`, và `<html lang="vi">` là hằng số.** Sàn có 8 thứ tiếng
+  nhưng **cùng một địa chỉ** — ngôn ngữ nằm ở `localStorage`. `hreflang` đòi mỗi
+  ngôn ngữ một địa chỉ riêng, tức đổi cấu trúc URL; còn `document.documentElement.lang`
+  thì không đâu đặt cả, nên khách đọc tiếng Hàn vẫn nằm trong `lang="vi"` (sai cho
+  trình đọc màn hình và cho nút "dịch trang này" của trình duyệt). Chưa sửa.
+
+**Đã khoá lại bằng `scripts/seo_acceptance.py`** — 10 kịch bản, mỗi cái là một lỗi
+đã thật sự xảy ra. Đây là bộ **duy nhất** chạm tới `ShellSeo.cs` và `PageExistence.cs`:
+hai file quyết định mã trạng thái, tiêu đề và thẻ chia sẻ cho **mọi** địa chỉ, và
+không thể có test domain vì chúng nằm trong `StayHost.Web` còn dự án test duy nhất là
+`StayHost.Domain.Tests`. Đã chứng minh lưới bung được: khôi phục hai thẻ về bản trước
+khi sửa thì kịch bản 10 ra `0 trải nghiệm, 0 dịch vụ` → FAIL, exit 1.
+
+**203 vẫn là 203** — năm việc trên là *chỗ chưa nối dây* của mã đã tick, không phải
+mã mới.
 
 ---
 
@@ -1068,6 +1111,10 @@ python scripts/vnpay_browser_acceptance.py
 
 # 11 kịch bản của §9.4d — hoàn tiền thật qua VNPay
 python scripts/refund_acceptance.py
+
+# 10 kịch bản của §9.12 — thứ một crawler và một trình đọc thẻ chia sẻ thật sự nhận
+# được. Kịch bản 10 mở trình duyệt để đếm liên kết, nên cần playwright.
+python scripts/seo_acceptance.py
 ```
 
 ## Ghi chú về quy mô

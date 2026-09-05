@@ -89,7 +89,11 @@ hoàn chỉnh mà không màn hình nào gọi).
 **12/12** kịch bản của `scripts/guestcheckout_acceptance.py` (`docs/07 §2.5` — đặt
 không cần tài khoản và trả tiền tại nơi ở) ·
 **31/31** kịch bản của `scripts/cohost_share_acceptance.py` (`docs/07 §19` — chia
-thu nhập cho người đồng quản lý).
+thu nhập cho người đồng quản lý) ·
+**10/10** kịch bản SEO của `scripts/seo_acceptance.py` (`docs/PLAN.md §9.12` — mã
+trạng thái, thẻ chia sẻ, sitemap, và liên kết thật vào cả ba dòng sản phẩm; đây là
+bộ duy nhất chạm tới `ShellSeo.cs`/`PageExistence.cs`, hai file quyết định mã trạng
+thái và thẻ chia sẻ cho **mọi** địa chỉ mà không có test nào khác).
 Sổ sách lệch 0. Cả 203 mã của `docs/01` đã làm xong (`docs/PLAN.md §9`).
 
 > **`acceptance.py` cần DB sạch.** Nó ra 8/10 trên DB đã chạy nhiều lần — **không phải
@@ -596,6 +600,33 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   `DbSeeder`, mà seeder chỉ chạy trên DB trắng — bản prod vẫn giữ `admin@stayhost.vn`
   cũ sau khi deploy. Đường đổi tài khoản quản trị là `ADMIN_EMAIL`; các tài khoản
   demo còn lại thì đổi bằng `UPDATE` hoặc chấp nhận giữ nguyên.
+- **Sửa một lỗi cho một dòng sản phẩm thì phải hỏi hai dòng kia.** `0e8a10e` đổi
+  `Card.jsx` thành `<a href>` thật vì "Google chỉ đi theo liên kết" — và dừng ở đó.
+  `Experiences.jsx`, `Services.jsx` và `Browse.jsx` vẫn là `<button onClick>`, nên
+  **trải nghiệm và dịch vụ nằm trong sitemap với thẻ chia sẻ đúng mà không một liên
+  kết nào trỏ tới**. Cùng một lỗi, ở hai dòng không ai soát lại. Ba thẻ, sửa một.
+- **Bản vá đúng có thể làm lộ ra một lỗi nặng hơn — đó là phần có ích.** `lib/seo.js`
+  đọc head lúc nạp module rồi gọi đó là `DEFAULTS`; từ khi `ShellSeo` thay head theo
+  từng địa chỉ thì "mặc định" thành ra **chính trang khách vào đầu tiên**, nên mở một
+  tin rồi đi tiếp là tiêu đề và ảnh của tin đó theo sang trang sau. Sửa cho `DEFAULTS`
+  trung thực xong thì **tệ hơn**: `resetPageMeta()` chạy ở lần render đầu và ném đi
+  đúng thẻ máy chủ vừa gửi — vĩnh viễn với `/experiences/:slug`, `/services/:slug`,
+  `/help/:slug` vì chúng không có `setPageMeta` nào. Lỗi cũ đang **che** lỗi này.
+  Giờ lần đi đầu tiên không reset: tài liệu vừa tới đã mang sẵn thẻ của địa chỉ đó.
+- **`cp1258` là codepage tiếng Việt nhưng không viết được tiếng Việt dựng sẵn.** Nó
+  đánh vần bằng **dấu tổ hợp**, còn server trả chữ NFC, nên `print()` chết ở đúng
+  những ký tự nó sinh ra để phục vụ. `unwired_acceptance.py` vì thế ra **10/13** trên
+  một sản phẩm đúng: `ok()` ghi verdict rồi mới `print`, nên verdict thật *đã* vào
+  `results`, `print` ném, kịch bản đứt, và `main()` ghi thêm một FAIL ma nữa — 13 dòng
+  cho 10 kịch bản. Ai chỉ đọc con số sẽ đi truy ba luật không hỏng. Cả chín script giờ
+  ép `sys.stdout` sang UTF-8 trước khi in.
+- **Đổi tên thương hiệu: kiểm ở ngôn ngữ mình không đọc.** `f36fea2` khẳng định đã quét
+  sạch "StayHost"; `grep` ra **146 chỗ** còn lại. Luật bảo vệ viết là "StayHost theo sau
+  bởi dấu chấm và một định danh", mà mọi chuỗi sót lại đều **kết câu bằng thương hiệu**
+  (`…hãy liên hệ hỗ trợ StayHost.`) — dấu chấm hết câu trông y như dấu chấm của mã. Nặng
+  hơn: **135 chỗ nằm trong 8 từ điển dịch**, đã đổi *khoá* mà không đổi *giá trị*
+  (`'Số dư Staylio': 'StayHost残高'`), nên tên đúng ở tiếng Việt và sai ở bảy thứ tiếng
+  còn lại — đúng thứ tiếng mà người đi kiểm đang đọc.
 
 - **Xoá file migration bằng tay thì snapshot không quay lại theo.**
   `StayHostDbContextModelSnapshot.cs` vẫn giữ trạng thái của bản vừa xoá, nên
@@ -751,6 +782,9 @@ python scripts/vnpay_browser_acceptance.py         # 14 kịch bản: trả ti�
 python scripts/refund_acceptance.py                # 11 kịch bản hoàn tiền thật qua VNPay (docs/07 §15.6)
 python scripts/onepay_acceptance.py                # 15 kịch bản: trả bằng thẻ VISA THẬT qua OnePay
                                                    # (chạy app với Psp__Methods__card=onepay)
+python scripts/seo_acceptance.py                   # 10 kịch bản SEO: mã trạng thái, thẻ chia sẻ,
+                                                   # sitemap, và liên kết thật vào cả ba dòng
+                                                   # (kịch bản 10 cần playwright)
 python scripts/i18n_audit.py                       # khoá dịch còn thiếu (phải ra 0)
 cd src/StayHost.Web/ClientApp && npm run build && npx oxlint src
 
@@ -957,7 +991,21 @@ yêu cầu.
   dùng để thu tiền khi khách không có mặt** — và đó cũng là lý do bồi thường phải là
   tiền mặt tại chỗ (`§2` mục 3).
 - Ba script cần Playwright (`vnpay_browser_acceptance.py`, `refund_acceptance.py` gọi
-  nó): `pip install playwright && playwright install chromium`. Đã cài trên máy này.
+  nó, và kịch bản 10 của `seo_acceptance.py`). Dòng "đã cài trên máy này" ở đây **sai
+  suốt từ lúc viết** — `python -m pip show playwright` không thấy gói nào, nghĩa là hai
+  script cổng thanh toán cũng chưa từng chạy được trên máy này. Đã cài thật ngày
+  05/09/2026:
+
+  ```bash
+  pip install playwright
+  setx PLAYWRIGHT_BROWSERS_PATH D:\Users\pc\playwright-browsers   # 701 MB, C: gần đầy
+  playwright install chromium
+  ```
+
+  Trình duyệt nằm ở **ổ D:** theo storage policy; biến `PLAYWRIGHT_BROWSERS_PATH` đã đặt
+  ở mức User nên terminal mới tự có, còn terminal đang mở từ trước thì phải truyền tay.
+  Không có biến đó thì Playwright đi tìm ở `%LOCALAPPDATA%` và báo "browser not found"
+  dù gói đã cài.
 
 ### 8.4. Trước khi chạy lại
 
