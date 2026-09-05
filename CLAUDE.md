@@ -600,6 +600,23 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
   `DbSeeder`, mà seeder chỉ chạy trên DB trắng — bản prod vẫn giữ `admin@stayhost.vn`
   cũ sau khi deploy. Đường đổi tài khoản quản trị là `ADMIN_EMAIL`; các tài khoản
   demo còn lại thì đổi bằng `UPDATE` hoặc chấp nhận giữ nguyên.
+- **Sổ cân bằng không có nghĩa là tiền có thật.** Bán thẻ quà tặng ghi
+  `Nợ GuestFunds / Có GiftCardLiability` — một bút toán **khẳng định** tiền đã vào
+  két — mà đường mua **không gọi cổng thanh toán nào**: không `Payment`, không
+  `PaymentSession`, không `PspCheckout`. Ai đăng nhập cũng tạo được thẻ 20 triệu,
+  đổi ra số dư và tiêu vào một đơn thật của một chủ nhà thật. Không có gì kêu, vì
+  mọi cái chuông đều quay hướng khác: hai vế bút toán tự cân nên đối soát ngày của
+  `docs/07 §5` đọc ra 0, còn thẻ quà tặng **không sinh `GatewayCharge`** nên nó
+  không nằm ở vế nào của `§7`. Sổ không phải là không thấy — nó đang **lặp lại một
+  lời khai chưa ai kiểm**. Trước một bút toán ghi "tiền đã vào", hỏi **ai đã trả**,
+  và đi tìm lời gọi cổng chứ đừng tìm dòng bút toán.
+- **Câu hỏi tìm ra nó không phải "mã này có ai gọi không" mà "thứ này ai *tạo* ra".**
+  Tám lượt soát trước đều đi theo hướng thứ nhất và không thấy: `TC-08` có đủ
+  `GiftCard`, `WalletController`, `CreditRules`, và `grep TC-08` ra kết quả. Đếm
+  **producer** của một năng lực — bao nhiêu chỗ trong mã thực sự sinh ra nó — rẻ và
+  bắt được đúng loại lỗ hổng này. `NotificationKind.StayReminder` có **0 producer**
+  là cách nhanh nhất thấy cả hàng nhắc trước ngày nhận phòng của `docs/03 §11`
+  chưa từng chạy.
 - **Sửa một lỗi cho một dòng sản phẩm thì phải hỏi hai dòng kia.** `0e8a10e` đổi
   `Card.jsx` thành `<a href>` thật vì "Google chỉ đi theo liên kết" — và dừng ở đó.
   `Experiences.jsx`, `Services.jsx` và `Browse.jsx` vẫn là `<button onClick>`, nên
@@ -782,6 +799,8 @@ python scripts/vnpay_browser_acceptance.py         # 14 kịch bản: trả ti�
 python scripts/refund_acceptance.py                # 11 kịch bản hoàn tiền thật qua VNPay (docs/07 §15.6)
 python scripts/onepay_acceptance.py                # 15 kịch bản: trả bằng thẻ VISA THẬT qua OnePay
                                                    # (chạy app với Psp__Methods__card=onepay)
+python scripts/giftcard_acceptance.py              # 8 kịch bản TC-08: thẻ quà tặng chỉ có giá trị
+                                                   # khi đã có người trả tiền
 python scripts/seo_acceptance.py                   # 10 kịch bản SEO: mã trạng thái, thẻ chia sẻ,
                                                    # sitemap, và liên kết thật vào cả ba dòng
                                                    # (kịch bản 10 cần playwright)

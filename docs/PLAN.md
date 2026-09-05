@@ -1074,6 +1074,67 @@ khi sửa thì kịch bản 10 ra `0 trải nghiệm, 0 dịch vụ` → FAIL, e
 **203 vẫn là 203** — năm việc trên là *chỗ chưa nối dây* của mã đã tick, không phải
 mã mới.
 
+### 9.13. Thẻ quà tặng được tạo ra miễn phí (05/09/2026)
+
+Lượt soát này đi bằng một câu hỏi khác hẳn tám lượt trước. Trước đó luôn là *"mã
+này có ai gọi không"*; lần này là ***"thứ này ai tạo ra"*** — đếm **producer** của
+từng năng lực mà tài liệu mô tả. Đó là lý do nó tìm được thứ tám lượt kia đi
+ngang qua.
+
+**`POST /api/wallet/gift-cards` không thu một đồng nào.** Nó tạo thẻ ở trạng thái
+`Active`, ghi `Ledger.SellGiftCard` và gửi mã qua email — **không `Payment`, không
+`PaymentSession`, không `PspCheckout`, không một lời gọi cổng nào**. Ai đăng nhập
+cũng xin được trần `CreditRules.MaxGiftCard` = 20 triệu, đổi ra số dư, rồi tiêu
+vào một đơn thật của một chủ nhà thật.
+
+Kiểm chứng trên server đang chạy trước khi sửa: số dư `0` → mua → đổi → **số dư
+20.000.000**, `payment_sessions` sinh ra trong khoảng đó: **0**.
+
+**Vì sao im lặng suốt** là phần đáng ghi nhất, vì mọi cái chuông đều quay hướng khác:
+
+| Cái đáng lẽ phải kêu | Vì sao không kêu |
+|---|---|
+| Đối soát ngày `docs/07 §5` | `SellGiftCard` ghi hai vế `Nợ GuestFunds / Có GiftCardLiability` — chúng **tự cân**, nên tổng lệch vẫn 0 |
+| Đối soát cổng `docs/07 §7` | Thẻ quà tặng **không sinh `GatewayCharge`**, nên nó không nằm ở **cả hai** vế đem so |
+| Test & nghiệm thu | Không bộ nào hỏi "có ai trả tiền chưa" — tất cả đều kiểm *kết quả*, và kết quả đúng như mã định làm |
+
+Sổ sách không phải là không thấy. Nó đang **lặp lại một lời khai chưa ai kiểm**:
+bút toán ấy *khẳng định* tiền đã vào két. Cùng họ với bài học `GuestFunds` của
+`CLAUDE.md §4`, chỉ nặng hơn một bậc — lần trước là tiêu tiền của khách khác, lần
+này là khai có tiền mà chưa ai trả.
+
+**Đã sửa:** thẻ sinh ra ở `GiftCardStatus.AwaitingPayment` — `Remaining = 0`, không
+bút toán, không trả mã về — và phải có thứ trả tiền cho nó. Trả bằng gì thì
+**không đoán**: hỏi `PspRouter`, vì "một phương thức nối cổng thật bị bản giả lập
+thu tiền" là điều duy nhất tuyệt đối không được xảy ra. Cổng thật thì chuyển hướng
+và thẻ bật lên khi cổng báo đã thu (qua đúng ba đường của `docs/07 §5`); không có
+cổng thì bản giả lập thu tại chỗ, y như trang thanh toán demo, và vẫn từ chối thẻ
+thử `0000`.
+
+`CreditRules.CanRedeem` **không phải sửa một chữ** — nó vốn đòi `Active`, chỉ là
+chưa từng có trạng thái "chưa trả tiền" nào để nó nói không.
+
+**Ba ghi chú về cấu trúc:**
+
+1. `payment_sessions.BookingId` giờ **nullable**, có `GiftCardId` bên cạnh. Thẻ
+   được mua bởi người không đi du lịch nên không có đơn nào để móc vào — đúng hình
+   dạng `ledger_entries` đã dùng cho trải nghiệm và dịch vụ, thay vì bắt một cột
+   mang nhiều nghĩa.
+2. Việc bán nằm ở service riêng. Đặt vào `WalletService` thì đóng thành vòng
+   (`wallet → PspCheckout → PaymentCompletion → wallet`) và **DI từ chối khởi động** —
+   đó là kết cục tốt, vì cái còn lại là phát hiện lúc chạy.
+3. Mã thẻ bị giữ lại ở **cả** câu trả lời lúc mua **lẫn** danh sách trong ví khi
+   chưa trả tiền. Đổi thẻ chưa trả tiền vốn đã bị từ chối; đây là không để chìa khoá
+   ngay cạnh ổ.
+
+**Nghiệm thu:** `python scripts/giftcard_acceptance.py` — 8 kịch bản, mỗi cái lái
+server thật rồi đọc lại DB. **Đã chứng minh lưới bung được:** dựng lại đúng hai
+dòng cũ thì ra **3/8**, kịch bản 3 tái hiện 300.000₫ số dư miễn phí. Kịch bản 8
+("sổ vẫn cân") **PASS ở cả hai lượt** — đó chính là điều cần nhớ.
+
+**203 vẫn là 203** — `TC-08` vốn đã được tick, và đúng theo cách nó đếm: hai phần
+ba của "mua · tặng · đổi" vẫn chạy. Phần **mua** thì miễn phí.
+
 ---
 
 ## Kiểm chứng
@@ -1115,6 +1176,9 @@ python scripts/refund_acceptance.py
 # 10 kịch bản của §9.12 — thứ một crawler và một trình đọc thẻ chia sẻ thật sự nhận
 # được. Kịch bản 10 mở trình duyệt để đếm liên kết, nên cần playwright.
 python scripts/seo_acceptance.py
+
+# 8 kịch bản của §9.13 — thẻ quà tặng chỉ có giá trị khi đã có người trả tiền
+python scripts/giftcard_acceptance.py
 ```
 
 ## Ghi chú về quy mô
