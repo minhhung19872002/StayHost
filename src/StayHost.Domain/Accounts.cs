@@ -112,6 +112,22 @@ public class User
     public bool WorkEmailConfirmed { get; set; }
 
     /// <summary>
+    /// docs/01 TK-09 (P0) — the display preferences, on the account where they
+    /// survive a new device. Null means "never chosen": the client keeps doing
+    /// what it does today (its own localStorage and the device clock), so an
+    /// account from before these columns behaves exactly as before. Validated
+    /// through <see cref="Locales"/>; Currency against exchange_rates.
+    ///
+    /// The server-side READER of Language — emails composed in the guest's own
+    /// language — is the large remaining half of TK-09 and is deliberately not
+    /// claimed by these columns existing. Counting a stored-but-unread
+    /// preference as the feature would be the YT-08 lesson again.
+    /// </summary>
+    public string? Language { get; set; }
+    public string? Currency { get; set; }
+    public string? TimeZoneId { get; set; }
+
+    /// <summary>
     /// docs/01 TK-13 — who to reach if something goes wrong on a trip. Private to
     /// the account; surfaced to support only when an incident is open.
     /// </summary>

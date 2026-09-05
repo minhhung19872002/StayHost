@@ -1267,6 +1267,42 @@ Trên DB trắng, migration tự cho ra 8 dòng — kiểm sau một lượt `DR
 
 **203 vẫn là 203** — `QT-06`/`TC-12` vốn đã tick; đây là chỗ chưa nối dây.
 
+### 9.17. Tuỳ chọn nằm trên tài khoản — lõi TK-09 (05/09/2026)
+
+`TK-09` là **P0**: "cài đặt ngôn ngữ, tiền tệ, múi giờ hiển thị". Trước lượt này
+lựa chọn chỉ nằm trong localStorage của một trình duyệt — bốc hơi trên mỗi máy
+mới, mỗi cửa sổ ẩn danh — và máy chủ **không hề biết nó tồn tại**. Chính comment
+trong `store.js` tự khai: *"Nothing on the server knows it: the choice lives in
+this browser."*
+
+**Đã làm:** ba cột `users.Language/Currency/TimeZoneId` (nullable — null nghĩa là
+"chưa từng chọn", tài khoản cũ giữ nguyên hành vi cũ), `Locales.cs` kiểm hợp lệ
+(ngôn ngữ theo đúng `Translations.Targets` — một danh sách, không đẻ bản thứ hai;
+múi giờ theo ICU của runtime; tiền tệ theo `exchange_rates` đang bật). Endpoint
+riêng `PUT /api/account/preferences` — **cố ý không đi nhờ profile PUT**, vì
+handler đó gán mọi trường nó biết, một lần ghi thiếu là null hết phần còn lại.
+Giá trị sai bị **từ chối có tên**, không lặng lẽ coi là xoá — một lỗi gõ nhầm mà
+âm thầm xoá tuỳ chọn là hỏng không nhân chứng. Hai chiều đồng bộ ở client: picker
+đẩy lên tài khoản khi có phiên; `loadMe` áp bản của tài khoản xuống (tài khoản
+thắng localStorage — đó chính là mục đích).
+
+**Kiểm sống bằng trình duyệt:** chọn 한국어 trong picker → **xoá sạch
+localStorage** (= máy mới) → tải lại → trang hiện "환경설정": ngôn ngữ quay về từ
+tài khoản chứ không từ máy.
+
+**Nửa còn lại nói thẳng, không tick ké:** máy chủ **chưa có ai đọc** `Language` —
+email vẫn soạn tiếng Việt cứng trong `NotificationService.BuildEmailBody`. Làm
+thật là một tầng dịch phía máy chủ (toàn bộ chuỗi thông báo × 8 thứ tiếng), việc
+riêng đủ lớn. Đếm cột-đã-lưu là xong TK-09 sẽ đúng bài học `YT-08` — nửa yêu cầu
+bị đếm thành cả yêu cầu. Màn hình `B2` (hỏi sau đăng ký) cũng để lại: đổi thứ
+người dùng mới thấy đầu tiên là quyết định của khách.
+
+**Nghiệm thu:** `python scripts/preferences_acceptance.py` — 7 kịch bản; kịch bản
+quyết định đăng nhập bằng **cookie jar thứ hai** (một "thiết bị" thật sự mới).
+Đã chứng minh lưới bung: tắt dòng ghi `Language` thì ra 4/7.
+
+**203 vẫn là 203** — `TK-09` vốn đã tick từ hai vế client; đây là vế tài khoản.
+
 ---
 
 ## Kiểm chứng
@@ -1320,6 +1356,9 @@ python scripts/settings_acceptance.py
 
 # 7 kịch bản của §9.16 — tỉ giá là cấu hình; đơn đặt đóng băng tỉ giá của sàn
 python scripts/fx_acceptance.py
+
+# 7 kịch bản của §9.17 — tuỳ chọn nằm trên tài khoản, sang thiết bị mới vẫn còn
+python scripts/preferences_acceptance.py
 ```
 
 ## Ghi chú về quy mô

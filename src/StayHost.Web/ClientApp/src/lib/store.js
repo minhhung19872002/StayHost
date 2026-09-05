@@ -470,10 +470,50 @@ export const featureOn = key => state.features[key] !== false;
 export async function loadMe() {
   try {
     state.user = await api.me();
+    adoptAccountPreferences(state.user);
   } catch {
     state.user = null;
   }
   notify();
+}
+
+/*
+ * docs/01 TK-09 — the account's saved "ngôn ngữ, tiền tệ, múi giờ" win over
+ * this browser's localStorage: that is the whole point of putting them on the
+ * account, so a guest who chose 한국어 on their laptop gets 한국어 on their
+ * phone the moment they sign in. Null on the account means "never chosen" and
+ * the local choice stands untouched.
+ */
+function adoptAccountPreferences(me) {
+  if (!me) return;
+
+  if (me.language && me.language !== state.language.code) {
+    const lang = state.meta?.languages.find(l => l.code === me.language);
+    if (lang) { state.language = lang; setLocale(lang.code); localStorage.setItem('sh_language', lang.code); }
+  }
+  if (me.currency && me.currency !== state.currency.code) {
+    const cur = state.meta?.currencies.find(c => c.code === me.currency);
+    if (cur) { state.currency = cur; setCurrency(cur); localStorage.setItem('sh_currency', cur.code); }
+  }
+  if (me.timeZoneId && me.timeZoneId !== state.timeZone) {
+    state.timeZone = me.timeZoneId;
+    setTimeZone(me.timeZoneId);
+    localStorage.setItem('sh_timezone', me.timeZoneId);
+  }
+}
+
+/*
+ * The other direction: a picker change made while signed in is written to the
+ * account. Fire-and-forget with a swallow — a preference save failing must
+ * never break the picker that just worked locally.
+ */
+function syncPreferences() {
+  if (!state.user) return;
+  api.savePreferences({
+    language: state.language.code,
+    currency: state.currency.code,
+    timeZoneId: state.timeZone,
+  }).catch(() => {});
 }
 
 async function runAuth(fn) {
@@ -1069,6 +1109,7 @@ export function applyCurrency(code) {
   state.currency = c;
   setCurrency(c);
   localStorage.setItem('sh_currency', code);
+  syncPreferences();
   notify();
 }
 
@@ -1081,6 +1122,7 @@ export function applyTimeZone(id) {
   setTimeZone(zone);
   if (zone) localStorage.setItem('sh_timezone', zone);
   else localStorage.removeItem('sh_timezone');
+  syncPreferences();
   notify();
 }
 
@@ -1092,6 +1134,7 @@ export function applyLanguage(code) {
   // reading "19 tháng 8, 2026" says the switch did not really take.
   setLocale(code);
   localStorage.setItem('sh_language', code);
+  syncPreferences();
   notify();
 }
 

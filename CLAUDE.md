@@ -90,6 +90,7 @@ hoàn chỉnh mà không màn hình nào gọi).
 không cần tài khoản và trả tiền tại nơi ở) ·
 **31/31** kịch bản của `scripts/cohost_share_acceptance.py` (`docs/07 §19` — chia
 thu nhập cho người đồng quản lý) ·
+**7/7** kịch bản `TK-09` của `scripts/preferences_acceptance.py` (tuỳ chọn trên tài khoản) ·
 **7/7** kịch bản `QT-06`/`TC-12` của `scripts/fx_acceptance.py` (tỉ giá là cấu hình) ·
 **8/8** kịch bản `docs/02 F1` của `scripts/settings_acceptance.py` (trang cài đặt + lịch sử trả) ·
 **8/8** kịch bản `docs/02 G7` của `scripts/hostreport_acceptance.py` (báo cáo chủ nhà) ·
@@ -149,6 +150,7 @@ React Router 7 + Leaflet trong `src/StayHost.Web/ClientApp`, build ra
 | Dữ liệu mẫu | `ReviewSeeder` dựng lịch sử có thật cho hai dòng này: 6 buổi/đơn đã hoàn tất mỗi tin, khách được điểm danh, người cung cấp đã nhận tiền, **bút toán đi qua `Ledger` nên sổ vẫn cân bằng**, rồi 6 đánh giá và điểm sao tính lại từ chính chúng |
 | Dịch vụ (`docs/09`) | Chủ nhà tự đăng, chứng chỉ hành nghề có hạn **tự ẩn tin khi hết hạn**, tuỳ chọn thêm có giá riêng, phí di chuyển ngoài bán kính, lịch theo thứ + đệm + chặn hai đơn quá xa, ghi chú bắt buộc theo danh mục, xác nhận điều kiện tại chỗ, huỷ theo bậc 72 giờ, **đánh giá 4 tiêu chí riêng** (tay nghề / đúng như mô tả / đúng giờ / đáng giá tiền — `docs/09 §5`, bảng `service_reviews`) |
 | Tiền hai dòng mới | **Dịch vụ có mức phí riêng 0% khách / 15% NCC**; Trải nghiệm giữ 14%/3% như chỗ ở (khách chốt). Trả tiền người cung cấp **sau khi buổi kết thúc 24 giờ**, không phải từ lúc bắt đầu |
+| Tuỳ chọn tài khoản (lõi `TK-09`) | `users.Language/Currency/TimeZoneId` + `PUT /api/account/preferences` (endpoint riêng, giá trị sai **từ chối có tên**); picker đẩy lên tài khoản, `loadMe` áp xuống — chọn 한국어 rồi xoá sạch localStorage, tải lại vẫn 한국어. **Chưa có ai đọc `Language` phía server** — email vẫn tiếng Việt cứng; đó là nửa còn lại, đừng tick ké |
 | Tỉ giá hiển thị (`QT-06`/`TC-12`) | Bảng `exchange_rates` seed **trong migration**, sửa ở trang quản trị (scope Tài chính, có nhật ký, đặt tay → `Manual`, VND ghim = 1); `/api/meta` đọc DB nên đổi là thấy ngay; đơn đặt **đóng băng tỉ giá của sàn** phía server (`DisplayRate` bỏ khỏi request); tổng quy đổi kèm giá gốc VND theo `docs/07 §6`. Nguồn cấp tự động chờ khách chọn feed |
 | Trang cài đặt (`docs/02 F1`) | `/cai-dat` chín nhóm — modal Tài khoản cũ gỡ hẳn, panel export dùng lại; **lịch sử trả tiền** đọc 4 bảng và trả số đã lưu không tính lại; **múi giờ hiển thị** (vế 3 của `TK-09`) chỉ áp cho mốc thời gian, ngày nhận/trả phòng giữ đồng hồ máy; "hoá đơn công ty" cố ý chưa có vì chờ khách chốt theo NĐ 123/2020 |
 | Báo cáo chủ nhà (`docs/02 G7`) | Thu nhập theo tháng **tách đã trả / sắp trả**, gộp theo tháng trả phòng và giữ cả tháng rỗng; giá bán thật của từng tin cạnh **mặt bằng khu vực** (dùng chung `Performance.Percentile` với `CN-10`/`QL-09`); **6 hạng mục đánh giá theo tháng**; cộng báo cáo thuế `TC-04` và danh sách cải thiện `QL-18` đã có |
@@ -806,6 +808,8 @@ python scripts/vnpay_browser_acceptance.py         # 14 kịch bản: trả ti�
 python scripts/refund_acceptance.py                # 11 kịch bản hoàn tiền thật qua VNPay (docs/07 §15.6)
 python scripts/onepay_acceptance.py                # 15 kịch bản: trả bằng thẻ VISA THẬT qua OnePay
                                                    # (chạy app với Psp__Methods__card=onepay)
+python scripts/preferences_acceptance.py           # 7 kịch bản TK-09: tuỳ chọn trên tài khoản,
+                                                   # thiết bị mới đọc lại được
 python scripts/fx_acceptance.py                    # 7 kịch bản QT-06/TC-12: tỉ giá trong DB,
                                                    # đơn đặt đóng băng tỉ giá của sàn
 python scripts/settings_acceptance.py              # 8 kịch bản docs/02 F1: trang cài đặt,

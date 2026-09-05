@@ -598,6 +598,48 @@ public class AccountController(
             AccountPause.Notice);
     }
 
+    /* --------------------------------------- docs/01 TK-09: tuỳ chỉnh */
+
+    /// <summary>
+    /// docs/01 TK-09 (P0) — saves "ngôn ngữ, tiền tệ, múi giờ" on the account,
+    /// where they survive a new device. A deliberate endpoint of its own rather
+    /// than a ride on the profile PUT: that handler assigns every field it
+    /// knows, so a partial write through it would null the rest.
+    ///
+    /// Invalid values are refused by name, never treated as a clear — a typo
+    /// that silently erased a preference would fail with no witness. What is
+    /// NOT here: nothing server-side reads Language yet. The emails are still
+    /// composed in Vietnamese; storing the choice is the half being shipped,
+    /// and the columns say so out loud.
+    /// </summary>
+    [HttpPut("preferences")]
+    public async Task<ActionResult<CurrentUserDto>> SavePreferences(
+        [FromBody] SavePreferencesRequest req, CancellationToken ct)
+    {
+        var user = await auth.CurrentUserAsync(ct);
+        if (user is null) return Unauthorized(new { message = "Bạn cần đăng nhập." });
+
+        var wantLang = (req.Language ?? "").Trim();
+        if (wantLang.Length > 0 && Locales.Language(wantLang) is null)
+            return BadRequest(new { message = $"Ngôn ngữ '{wantLang}' không nằm trong 8 thứ tiếng được hỗ trợ." });
+
+        var wantCurrency = (req.Currency ?? "").Trim().ToUpperInvariant();
+        if (wantCurrency.Length > 0
+            && !await db.ExchangeRates.AnyAsync(r => r.Code == wantCurrency && r.IsActive, ct))
+            return BadRequest(new { message = $"Tiền tệ '{wantCurrency}' không có trong danh sách đang bán." });
+
+        var wantZone = (req.TimeZoneId ?? "").Trim();
+        if (wantZone.Length > 0 && Locales.TimeZone(wantZone) is null)
+            return BadRequest(new { message = $"Múi giờ '{wantZone}' không hợp lệ." });
+
+        user.Language = wantLang.Length == 0 ? null : Locales.Language(wantLang);
+        user.Currency = wantCurrency.Length == 0 ? null : wantCurrency;
+        user.TimeZoneId = wantZone.Length == 0 ? null : Locales.TimeZone(wantZone);
+
+        await db.SaveChangesAsync(ct);
+        return Ok(await ToDtoAsync(user, ct));
+    }
+
     /* ------------------------------------- docs/02 F1: lịch sử trả tiền */
 
     /// <summary>
@@ -1151,6 +1193,9 @@ public class AccountController(
             user.EmergencyContactName,
             user.EmergencyContactPhone,
             user.EmergencyContactRelation,
-            user.JourneyVisibility.ToString());
+            user.JourneyVisibility.ToString(),
+            user.Language,
+            user.Currency,
+            user.TimeZoneId);
     }
 }

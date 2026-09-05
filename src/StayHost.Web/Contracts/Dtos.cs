@@ -280,7 +280,20 @@ public record CurrentUserDto(
     string? EmergencyContactPhone = null,
     string? EmergencyContactRelation = null,
     /* ------------------------------------------------------ docs/01 XH-02 */
-    string JourneyVisibility = "Friends");
+    string JourneyVisibility = "Friends",
+    /* ------------------------------------------------------ docs/01 TK-09 */
+    /// <summary>Null means never chosen — the client keeps its own local choice.</summary>
+    string? Language = null,
+    string? Currency = null,
+    string? TimeZoneId = null);
+
+/// <summary>
+/// docs/01 TK-09 — all three sent together (the picker knows all three). Null
+/// or empty clears one back to "never chosen"; an INVALID value is refused by
+/// name, never silently treated as a clear — a typo that quietly erased a
+/// preference would be a failure with no witness.
+/// </summary>
+public record SavePreferencesRequest(string? Language, string? Currency, string? TimeZoneId);
 
 /* ------------------------------------------------------------------ hosting */
 

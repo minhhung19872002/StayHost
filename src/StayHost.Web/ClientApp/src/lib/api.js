@@ -132,6 +132,8 @@ export const api = {
 
   /* ------------------------------------------------------------- account */
   me: () => request('/api/account/me'),
+  // docs/01 TK-09 — the three display preferences, saved on the account.
+  savePreferences: body => request('/api/account/preferences', { method: 'PUT', body: JSON.stringify(body) }),
   register: body => request('/api/account/register', { method: 'POST', body: JSON.stringify(body) }),
   login: body => request('/api/account/login', { method: 'POST', body: JSON.stringify(body) }),
   logout: () => request('/api/account/logout', { method: 'POST' }),

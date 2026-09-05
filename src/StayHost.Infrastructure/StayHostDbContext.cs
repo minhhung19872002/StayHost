@@ -142,6 +142,12 @@ public class StayHostDbContext(DbContextOptions<StayHostDbContext> options) : Db
             e.Property(x => x.Bio).HasMaxLength(Profiles.BioMax);
             e.Property(x => x.SpokenLanguages).HasMaxLength(Profiles.MaxLanguages * (Profiles.TagMax + 1));
             e.Property(x => x.Interests).HasMaxLength(Profiles.MaxInterests * (Profiles.TagMax + 1));
+            // docs/01 TK-09 — display preferences. Nullable on purpose: null is
+            // "never chosen", and every account from before these columns keeps
+            // behaving exactly as it did.
+            e.Property(x => x.Language).HasMaxLength(8);
+            e.Property(x => x.Currency).HasMaxLength(3);
+            e.Property(x => x.TimeZoneId).HasMaxLength(64);
             // docs/01 TK-07 and TK-13.
             e.Property(x => x.WorkEmail).HasMaxLength(200);
             e.Property(x => x.EmergencyContactName).HasMaxLength(Profiles.LineMax);
